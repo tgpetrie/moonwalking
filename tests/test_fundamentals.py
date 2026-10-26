@@ -124,9 +124,92 @@ class GateTests(unittest.TestCase):
             self.assertEqual(cov["per_product"]["BTC-USD"]["excluded"], "benchmark")
             self.assertGreater(cov["per_product"]["A-USD"]["counting_rows"], 0)
             self.assertTrue(any("hash mismatch" in p for p in cov["problems"]))
-            self.assertTrue(any("also used by" in p for p in cov["problems"]))
+            self.assertTrue(any("overlaps" in p for p in cov["problems"]))
             first = pd.Timestamp(cov["per_product"]["A-USD"]["first_counting"])
             self.assertGreaterEqual((first - pd.Timestamp("2024-01-01")).days, 30 + 24 + 2)  # 25 present days in each half, then the 2-day lag
+
+
+def approved(pid, slug, path, family=None, **kw):
+    e = {"product_id": pid, "status": "approved", "scope": "protocol", "source_ids": {"fees": slug},
+         "source_metrics": {"fees": "dailyFees"}, "source_urls": {"fees": f"https://api.llama.fi/summary/fees/{slug}?dataType=dailyFees"},
+         "series_files": {"fees": path.name}, "series_sha256": {"fees": fd.sha256(path)}, "source_family": family or slug,
+         "identity_evidence": "synthetic", "reviewer": "test", "reviewed_at": "2026-10-26"}
+    e.update(kw)
+    return e
+
+
+class HardenedGateTests(unittest.TestCase):
+    """Regressions for the 2026-10-26 review counterexamples."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.t = Path(self.tmp.name)
+        self.n = 400
+        self.chart = [[T0 + i * 86400, 100 + i] for i in range(self.n)]
+        self.days = pd.date_range("2024-01-01", periods=self.n)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def fee(self, slug, **extra):
+        return write(self.t / f"{slug}.json", {"slug": slug, "id": slug, "name": slug, "totalDataChart": self.chart, **extra})
+
+    def test_one_product_twenty_entries_is_rejected(self):
+        idx = pd.MultiIndex.from_product([self.days, ["A-USD"]], names=["date", "product"])
+        f = self.fee("a")
+        cohort = [approved("A-USD", "a", f, family=f"claimed-{i}") for i in range(20)]
+        with self.assertRaises(ValueError):
+            gate.coverage(cohort, self.t, idx)
+
+    def test_cross_section_counts_distinct_products(self):
+        idx = pd.MultiIndex.from_product([self.days, ["A-USD", "B-USD"]], names=["date", "product"])
+        cohort = [approved("A-USD", "a", self.fee("a")), approved("B-USD", "b", self.fee("b"))]
+        cov = gate.coverage(cohort, self.t, idx)
+        self.assertEqual(cov["problems"], [])
+        self.assertEqual(int(cov["per_day_counts"].max()), 2)
+
+    def test_approved_without_review_provenance_fails_g5(self):
+        idx = pd.MultiIndex.from_product([self.days, ["A-USD"]], names=["date", "product"])
+        f = self.fee("a")
+        e = {"product_id": "A-USD", "status": "approved", "source_ids": {"fees": "a"},
+             "series_files": {"fees": f.name}, "series_sha256": {"fees": fd.sha256(f)}}
+        cov = gate.coverage([e], self.t, idx)
+        self.assertGreater(cov["per_product"]["A-USD"]["counting_rows"], 0)
+        for field in ("identity_evidence", "reviewer", "reviewed_at", "source_family"):
+            self.assertTrue(any(field in p for p in cov["problems"]), field)
+        self.assertTrue(any("source_metrics" in p for p in cov["problems"]))
+        self.assertFalse(gate.evaluate_gate(cov["per_day_counts"], cov["problems"])["G5"]["pass"])
+
+    def test_source_id_must_match_capture_and_metric(self):
+        idx = pd.MultiIndex.from_product([self.days, ["A-USD"]], names=["date", "product"])
+        f = self.fee("a")
+        wrong = approved("A-USD", "zzz", f)
+        wrong["source_urls"] = {"fees": "https://api.llama.fi/summary/fees/zzz?dataType=dailyRevenue"}
+        probs = gate.coverage([wrong], self.t, idx)["problems"]
+        self.assertTrue(any("does not match" in p for p in probs))
+        self.assertTrue(any("does not request" in p for p in probs))
+
+    def test_parent_child_overlap_is_flagged(self):
+        idx = pd.MultiIndex.from_product([self.days, ["A-USD", "B-USD"]], names=["date", "product"])
+        parent = self.fee("aero", id="parent#aero", childProtocols=[{"name": "velo"}])
+        child = self.fee("velo")
+        cohort = [approved("A-USD", "aero", parent, scope="parent"), approved("B-USD", "velo", child)]
+        probs = gate.coverage(cohort, self.t, idx)["problems"]
+        self.assertTrue(any("overlaps" in p for p in probs))
+
+    def test_g3_counts_only_rows_before_the_embargoed_first_fit(self):
+        # 5,000 rows before June 1 (200 days x 25 coins), but only 4,800 before the embargoed May 24 first-fit cutoff
+        boundary = pd.Series(25, index=pd.date_range("2023-11-14", "2024-05-31"))
+        self.assertEqual(int(boundary[boundary.index < "2024-06-01"].sum()), 5000)
+        g3 = gate.evaluate_gate(boundary, [])["G3"]
+        self.assertEqual(g3["first_fit_cutoff"], "2024-05-24")
+        self.assertEqual(g3["counting_rows_before_first_fit_cutoff_on_20_coin_days"], 4800)
+        self.assertFalse(g3["pass"])
+
+    def test_interval_level_is_frozen_explicitly(self):
+        cfg = json.loads((Path(gate.HERE) / "fundamentals_config.json").read_text(encoding="utf-8"))
+        self.assertEqual(cfg["bootstrap"]["level"], 0.95)
+        self.assertEqual(cfg["primary_horizon_days"], 7)
 
 
 if __name__ == "__main__":

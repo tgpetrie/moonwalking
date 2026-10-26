@@ -52,9 +52,9 @@ A coin-day *counts* when it is a baseline-eligible row and its primary feature `
 |---|---|---|
 | G1 | At least **20 counting coins on at least 90%** of test-period decision days (2025-01-01 to 2026-10-10) | The baseline's 20-coin cross-section rule, applied to almost all test days rather than an average |
 | G2 | At least **80 of the 93** test weeks contain a day with at least 20 counting coins | Enough independent weekly blocks for the week-block interval |
-| G3 | At least **5,000 counting rows before 2024-06-01**, on days with at least 20 counting coins | The walk-forward needs 5,000 labelled training rows before its first fit (baseline rule); a fit by mid-2024 leaves a discovery period |
+| G3 | At least **5,000 counting rows before 2024-05-24** (the 2024-06-01 first fit minus the 8-day purge/embargo), on days with at least 20 counting coins. A coverage screen: first-fit readiness (labels resolved) is certified separately before discovery | The walk-forward needs 5,000 labelled training rows before its first fit (baseline rule); a fit by mid-2024 leaves a discovery period |
 | G4 | At least **20 discovery weeks** (2024-06-01 to 2024-12-23) with a day of at least 20 counting coins | Discovery must exist to freeze signs before the test is read |
-| G5 | Every counting product is `approved`; no `held` entry, no parent+child double counting, every series file hash-verified | Identity and provenance |
+| G5 | Every counting product is `approved` with nonempty `identity_evidence`, `reviewer`, `reviewed_at` and `source_family`; `source_metrics.fees` is `dailyFees` and the source id matches the captured response's slug/id; no counted entries share a source family, parent or child name; every series file hash-verified. Repeated product ids are rejected outright | Identity and provenance |
 
 **Power note [A].** With about 20 coins a day, one day's rank IC has a standard error near 0.23; averaged over five days and 93 weeks, the
 smallest detectable incremental IC is roughly 0.02-0.03 depending on how correlated the two models' daily ICs are. At 20 coins the experiment is therefore
@@ -100,7 +100,7 @@ as in the funding driver.
 
 ## 6. Tests and verdicts
 
-**One primary test:** incremental rank IC = weekly mean of daily (IC of S1 minus IC of S0) at **7 days**, **95%** week-block bootstrap interval, plus the 4-week
+**One primary test:** incremental rank IC = weekly mean of daily (IC of S1 minus IC of S0) at **7 days**, **95%** week-block bootstrap interval (frozen in `scripts/scoring_experiment/fundamentals_config.json`; deliberately not the baseline's 0.975), plus the 4-week
 moving-block interval and the per-weekday non-overlapping check. Minimum effect of interest **+0.02** (unchanged).
 
 * *Supportive:* test difference at least +0.02, both intervals exclude zero, discovery difference positive, `fee_trend` coefficient sign the same in discovery and test.

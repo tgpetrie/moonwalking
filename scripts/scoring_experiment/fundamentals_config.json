@@ -1,0 +1,9 @@
+{
+  "protocol": "docs/research/FUNDAMENTALS_EXPERIMENT_PROTOCOL.md",
+  "inherits": "scripts/scoring_experiment/config.json",
+  "note": "Frozen before any fundamentals outcome. One primary test (7-day incremental IC), so the interval level is 0.95, deliberately not the baseline's 0.975; every other baseline setting is inherited unchanged.",
+  "primary_horizon_days": 7,
+  "primary_lag_days": 2,
+  "sensitivity_lag_days": 7,
+  "bootstrap": {"level": 0.95}
+}
