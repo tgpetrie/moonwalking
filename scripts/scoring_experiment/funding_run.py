@@ -240,6 +240,27 @@ def main():
                         "sign reversed vs discovery" if np.sign(est["mean"]) != s and excl else "inconclusive")
     out["events"] = eff
     out["fit_log_primary"] = {f"h{h}": l1[h] for h in l1}
+    # secondary (amendment A1): funding added to the strong full-universe baseline score, fitted on the matched rows
+    stacked = {}
+    mm_all = inwin(dm, period)
+    for h in cfg["horizons_days"]:
+        col = f"m0f{h}"
+        g = full_preds[h].dropna().groupby(level="date")
+        r = g.rank(method="average")
+        nn = g.transform("count")
+        z = pd.Series(np.nan, index=dm.index)
+        ok = r.index
+        z.loc[ok] = panel.norm_ppf(((r - 0.5) / nn).clip(1e-6, 1 - 1e-6).to_numpy())
+        dm["z_" + col] = z
+        pa, _, la = walk_forward(dm, h, cfg, START, end, [col])
+        pb, _, lb = walk_forward(dm, h, cfg, START, end, [col, "fz"])
+        y = dm[f"y{h}"]
+        ia, ib = daily_ic(pa[mm_all], y[mm_all], cfg["min_cross_section"]), daily_ic(pb[mm_all], y[mm_all], cfg["min_cross_section"])
+        stacked[f"h{h}"] = {"full_baseline_score_alone": ev.ic_summary(ia, cfg, h + 40),
+                            "full_baseline_score_plus_funding": ev.ic_summary(ib, cfg, h + 41),
+                            "increment": diff_summary(ib, ia, cfg, h + 42),
+                            "funding_coefficient": coef_summary({h: lb}, "fz", period)[f"h{h}"]}
+    out["stacked_secondary_amendment_A1"] = stacked
     # sample scores on the latest decision date (test phase)
     if phase == "test":
         last = dm.index.get_level_values("date").max()

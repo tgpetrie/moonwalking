@@ -108,4 +108,11 @@ Open interest, liquidations, Binance funding, other sources, costs/portfolio siz
 
 ## Amendments
 
-(none yet)
+**A1 (2026-10-26, after the discovery phase had been run once, before the test phase).** Discovery showed that the pre-registered
+comparator M0-matched, trained only on the funding-covered coins, has essentially no skill in discovery (mean IC about 0.00 at 1 day and
+-0.04 at 7 days, from March 2024 when the first fit became possible) whereas the baseline model trained on the full eligible universe scores
++0.054 and +0.027 on the same rows. A funding term added to a weak comparator would be a weak test, so a **secondary** analysis is added: the
+within-day rank-normal of the full-universe baseline prediction (a walk-forward out-of-sample score) is used as a single input on the matched rows,
+with and without `z_fz`, same ridge procedure and folds (stacked comparison). The primary tests, thresholds and verdict rules are unchanged; the
+stacked result is labelled a post-discovery secondary analysis, not a pre-registered test. Discovery was rerun with the added analysis; no change to
+any primary setting. The first discovery run's primary numbers were: incremental IC -0.0018 [-0.0053, +0.0012] at 1 day and -0.0023 [-0.0165, +0.0113] at 7 days.
