@@ -1,0 +1,1653 @@
+[
+  {
+    "product_id": "AAVE-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#aave"
+    },
+    "series_files": {
+      "fees": "AAVE_fees.json"
+    },
+    "series_sha256": {
+      "fees": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"AAVE\", \"coinbase_name\": \"Aave\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9\", \"source_gecko_id\": \"aave\", \"source_id\": \"parent#aave\", \"source_linked_protocols\": [\"Aave\", \"Aave V2\", \"Aave V3\", \"Aave V4\"], \"source_name\": \"Aave\", \"verified_contract\": \"0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aave?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:39.743874+00:00",
+    "returned_metadata": {
+      "id": "parent#aave",
+      "name": "Aave",
+      "category": null,
+      "address": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+      "gecko_id": "aave",
+      "linkedProtocols": [
+        "Aave",
+        "Aave V2",
+        "Aave V3",
+        "Aave V4"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:aave",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "AAVE",
+      "coinbase_name": "Aave",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#aave",
+      "source_name": "Aave",
+      "source_address": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+      "source_gecko_id": "aave",
+      "source_linked_protocols": [
+        "Aave",
+        "Aave V2",
+        "Aave V3",
+        "Aave V4"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"
+    }
+  },
+  {
+    "product_id": "UNI-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#uniswap"
+    },
+    "series_files": {
+      "fees": "UNI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"UNI\", \"coinbase_name\": \"Uniswap\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x1f9840a85d5af5bf1d1762f925bdaddc4201f984\", \"source_gecko_id\": \"uniswap\", \"source_id\": \"parent#uniswap\", \"source_linked_protocols\": [\"Uniswap\", \"Uniswap V1\", \"Uniswap V2\", \"Uniswap V3\", \"Uniswap V4\"], \"source_name\": \"Uniswap\", \"verified_contract\": \"0x1f9840a85d5af5bf1d1762f925bdaddc4201f984\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/uniswap?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:41.198791+00:00",
+    "returned_metadata": {
+      "id": "parent#uniswap",
+      "name": "Uniswap",
+      "category": null,
+      "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+      "gecko_id": "uniswap",
+      "linkedProtocols": [
+        "Uniswap",
+        "Uniswap V1",
+        "Uniswap V2",
+        "Uniswap V3",
+        "Uniswap V4"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:uniswap",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "UNI",
+      "coinbase_name": "Uniswap",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#uniswap",
+      "source_name": "Uniswap",
+      "source_address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+      "source_gecko_id": "uniswap",
+      "source_linked_protocols": [
+        "Uniswap",
+        "Uniswap V1",
+        "Uniswap V2",
+        "Uniswap V3",
+        "Uniswap V4"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"
+    }
+  },
+  {
+    "product_id": "LDO-USD",
+    "status": "approved",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "182"
+    },
+    "series_files": {
+      "fees": "LDO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"LDO\", \"coinbase_name\": \"Lido DAO\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x5a98fcbea516cf06857215779fd812ca3bef1b32\", \"source_gecko_id\": \"lido-dao\", \"source_id\": \"182\", \"source_linked_protocols\": null, \"source_name\": \"Lido\", \"verified_contract\": \"0x5a98fcbea516cf06857215779fd812ca3bef1b32\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/lido?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:42.945081+00:00",
+    "returned_metadata": {
+      "id": "182",
+      "name": "Lido",
+      "category": "Liquid Staking",
+      "address": "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+      "gecko_id": "lido-dao",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:lido",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "LDO",
+      "coinbase_name": "Lido DAO",
+      "coinbase_default_network": "ethereum",
+      "source_id": "182",
+      "source_name": "Lido",
+      "source_address": "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+      "source_gecko_id": "lido-dao",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x5a98fcbea516cf06857215779fd812ca3bef1b32"
+    }
+  },
+  {
+    "product_id": "CRV-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#curve-finance"
+    },
+    "series_files": {
+      "fees": "CRV_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"CRV\", \"coinbase_name\": \"Curve DAO Token\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0xD533a949740bb3306d119CC777fa900bA034cd52\", \"source_gecko_id\": \"curve-dao-token\", \"source_id\": \"parent#curve-finance\", \"source_linked_protocols\": [\"Curve Finance\", \"Curve DEX\", \"crvUSD\", \"Curve LlamaLend\", \"Curve LlamaLend V2\"], \"source_name\": \"Curve Finance\", \"verified_contract\": \"0xd533a949740bb3306d119cc777fa900ba034cd52\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/curve-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:46.831353+00:00",
+    "returned_metadata": {
+      "id": "parent#curve-finance",
+      "name": "Curve Finance",
+      "category": null,
+      "address": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+      "gecko_id": "curve-dao-token",
+      "linkedProtocols": [
+        "Curve Finance",
+        "Curve DEX",
+        "crvUSD",
+        "Curve LlamaLend",
+        "Curve LlamaLend V2"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:curve",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "CRV",
+      "coinbase_name": "Curve DAO Token",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#curve-finance",
+      "source_name": "Curve Finance",
+      "source_address": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+      "source_gecko_id": "curve-dao-token",
+      "source_linked_protocols": [
+        "Curve Finance",
+        "Curve DEX",
+        "crvUSD",
+        "Curve LlamaLend",
+        "Curve LlamaLend V2"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0xd533a949740bb3306d119cc777fa900ba034cd52"
+    }
+  },
+  {
+    "product_id": "COMP-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#compound-finance"
+    },
+    "series_files": {
+      "fees": "COMP_fees.json"
+    },
+    "series_sha256": {
+      "fees": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"COMP\", \"coinbase_name\": \"Compound\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0xc00e94cb662c3520282e6f5717214004a7f26888\", \"source_gecko_id\": \"compound-governance-token\", \"source_id\": \"parent#compound-finance\", \"source_linked_protocols\": [\"Compound Finance\", \"Compound V2\", \"Compound V3\"], \"source_name\": \"Compound Finance\", \"verified_contract\": \"0xc00e94cb662c3520282e6f5717214004a7f26888\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/compound-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:49.463943+00:00",
+    "returned_metadata": {
+      "id": "parent#compound-finance",
+      "name": "Compound Finance",
+      "category": null,
+      "address": "0xc00e94cb662c3520282e6f5717214004a7f26888",
+      "gecko_id": "compound-governance-token",
+      "linkedProtocols": [
+        "Compound Finance",
+        "Compound V2",
+        "Compound V3"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:compound",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "COMP",
+      "coinbase_name": "Compound",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#compound-finance",
+      "source_name": "Compound Finance",
+      "source_address": "0xc00e94cb662c3520282e6f5717214004a7f26888",
+      "source_gecko_id": "compound-governance-token",
+      "source_linked_protocols": [
+        "Compound Finance",
+        "Compound V2",
+        "Compound V3"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0xc00e94cb662c3520282e6f5717214004a7f26888"
+    }
+  },
+  {
+    "product_id": "SNX-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#synthetix"
+    },
+    "series_files": {
+      "fees": "SNX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"SNX\", \"coinbase_name\": \"Synthetix\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f\", \"source_gecko_id\": \"havven\", \"source_id\": \"parent#synthetix\", \"source_linked_protocols\": [\"Synthetix\", \"Synthetix v1+v2\", \"Synthetix V3\", \"Synthetix V4\"], \"source_name\": \"Synthetix\", \"verified_contract\": \"0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/synthetix?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:52.042956+00:00",
+    "returned_metadata": {
+      "id": "parent#synthetix",
+      "name": "Synthetix",
+      "category": null,
+      "address": "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+      "gecko_id": "havven",
+      "linkedProtocols": [
+        "Synthetix",
+        "Synthetix v1+v2",
+        "Synthetix V3",
+        "Synthetix V4"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:synthetix",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "SNX",
+      "coinbase_name": "Synthetix",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#synthetix",
+      "source_name": "Synthetix",
+      "source_address": "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+      "source_gecko_id": "havven",
+      "source_linked_protocols": [
+        "Synthetix",
+        "Synthetix v1+v2",
+        "Synthetix V3",
+        "Synthetix V4"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f"
+    }
+  },
+  {
+    "product_id": "DYDX-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "dydx"
+    },
+    "series_files": {
+      "fees": "DYDX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b0889ac8eb761c4b4e255492b1de651689036b8a254471e7e798794f82c70895"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/dydx?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:54.322610+00:00",
+    "returned_metadata": {
+      "name": "dYdX",
+      "id": "parent#dydx",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "dYdX",
+        "dYdX V3",
+        "dYdX V4"
+      ],
+      "address": "0x92d6c1e31e14520e676a687f0a93788b716beff5",
+      "gecko_id": "dydx-chain",
+      "chains": [
+        "Ethereum",
+        "DYdX"
+      ],
+      "protocolType": "protocol"
+    },
+    "gemini_proposed_status": "held",
+    "hold_reason": "Zero baseline-eligible price rows in the frozen panel index."
+  },
+  {
+    "product_id": "PENDLE-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#pendle"
+    },
+    "series_files": {
+      "fees": "PENDLE_fees.json"
+    },
+    "series_sha256": {
+      "fees": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"PENDLE\", \"coinbase_name\": \"Pendle\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x808507121b80c02388fad14726482e061b8da827\", \"source_gecko_id\": \"pendle\", \"source_id\": \"parent#pendle\", \"source_linked_protocols\": [\"Pendle\", \"Pendle V2\", \"Boros\"], \"source_name\": \"Pendle\", \"verified_contract\": \"0x808507121b80c02388fad14726482e061b8da827\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/pendle?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:56.563062+00:00",
+    "returned_metadata": {
+      "id": "parent#pendle",
+      "name": "Pendle",
+      "category": null,
+      "address": "0x808507121b80c02388fad14726482e061b8da827",
+      "gecko_id": "pendle",
+      "linkedProtocols": [
+        "Pendle",
+        "Pendle V2",
+        "Boros"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:pendle",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "PENDLE",
+      "coinbase_name": "Pendle",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#pendle",
+      "source_name": "Pendle",
+      "source_address": "0x808507121b80c02388fad14726482e061b8da827",
+      "source_gecko_id": "pendle",
+      "source_linked_protocols": [
+        "Pendle",
+        "Pendle V2",
+        "Boros"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x808507121b80c02388fad14726482e061b8da827"
+    },
+    "source_amendment": {
+      "gemini_expected_id": "382",
+      "locally_verified_id": "parent#pendle",
+      "reason": "Current captured fee source ID/scope, independently matched by token contract"
+    }
+  },
+  {
+    "product_id": "RPL-USD",
+    "status": "approved",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "900"
+    },
+    "series_files": {
+      "fees": "RPL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"RPL\", \"coinbase_name\": \"Rocket Pool\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0xd33526068d116ce69f19a9ee46f0bd304f21a51f\", \"source_gecko_id\": \"rocket-pool\", \"source_id\": \"900\", \"source_linked_protocols\": null, \"source_name\": \"Rocket Pool\", \"verified_contract\": \"0xd33526068d116ce69f19a9ee46f0bd304f21a51f\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/rocket-pool?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:59.037039+00:00",
+    "returned_metadata": {
+      "id": "900",
+      "name": "Rocket Pool",
+      "category": "Liquid Staking",
+      "address": "0xd33526068d116ce69f19a9ee46f0bd304f21a51f",
+      "gecko_id": "rocket-pool",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:rocket-pool",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "RPL",
+      "coinbase_name": "Rocket Pool",
+      "coinbase_default_network": "ethereum",
+      "source_id": "900",
+      "source_name": "Rocket Pool",
+      "source_address": "0xd33526068d116ce69f19a9ee46f0bd304f21a51f",
+      "source_gecko_id": "rocket-pool",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0xd33526068d116ce69f19a9ee46f0bd304f21a51f"
+    }
+  },
+  {
+    "product_id": "BAL-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#balancer"
+    },
+    "series_files": {
+      "fees": "BAL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"BAL\", \"coinbase_name\": \"Balancer\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0xba100000625a3754423978a60c9317c58a424e3d\", \"source_gecko_id\": \"balancer\", \"source_id\": \"parent#balancer\", \"source_linked_protocols\": [\"Balancer\", \"Balancer V1\", \"Balancer V2\", \"Balancer V3\"], \"source_name\": \"Balancer\", \"verified_contract\": \"0xba100000625a3754423978a60c9317c58a424e3d\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/balancer?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:01.238462+00:00",
+    "returned_metadata": {
+      "id": "parent#balancer",
+      "name": "Balancer",
+      "category": null,
+      "address": "0xba100000625a3754423978a60c9317c58a424e3d",
+      "gecko_id": "balancer",
+      "linkedProtocols": [
+        "Balancer",
+        "Balancer V1",
+        "Balancer V2",
+        "Balancer V3"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:balancer",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "BAL",
+      "coinbase_name": "Balancer",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#balancer",
+      "source_name": "Balancer",
+      "source_address": "0xba100000625a3754423978a60c9317c58a424e3d",
+      "source_gecko_id": "balancer",
+      "source_linked_protocols": [
+        "Balancer",
+        "Balancer V1",
+        "Balancer V2",
+        "Balancer V3"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0xba100000625a3754423978a60c9317c58a424e3d"
+    }
+  },
+  {
+    "product_id": "SUSHI-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#sushi"
+    },
+    "series_files": {
+      "fees": "SUSHI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"SUSHI\", \"coinbase_name\": \"SushiSwap\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x6b3595068778dd592e39a122f4f5a5cf09c90fe2\", \"source_gecko_id\": \"sushi\", \"source_id\": \"parent#sushi\", \"source_linked_protocols\": [\"Sushi\", \"SushiSwap\", \"Sushi Trident\", \"SushiSwap V3\", \"SushiSwap Agg\", \"Sushi Perps\", \"Sushi Launchpad\", \"Sushi Spot\"], \"source_name\": \"Sushi\", \"verified_contract\": \"0x6b3595068778dd592e39a122f4f5a5cf09c90fe2\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sushi?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:03.251858+00:00",
+    "returned_metadata": {
+      "id": "parent#sushi",
+      "name": "Sushi",
+      "category": null,
+      "address": "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
+      "gecko_id": "sushi",
+      "linkedProtocols": [
+        "Sushi",
+        "SushiSwap",
+        "Sushi Trident",
+        "SushiSwap V3",
+        "SushiSwap Agg",
+        "Sushi Perps",
+        "Sushi Launchpad",
+        "Sushi Spot"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:sushi",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "SUSHI",
+      "coinbase_name": "SushiSwap",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#sushi",
+      "source_name": "Sushi",
+      "source_address": "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
+      "source_gecko_id": "sushi",
+      "source_linked_protocols": [
+        "Sushi",
+        "SushiSwap",
+        "Sushi Trident",
+        "SushiSwap V3",
+        "SushiSwap Agg",
+        "Sushi Perps",
+        "Sushi Launchpad",
+        "Sushi Spot"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2"
+    }
+  },
+  {
+    "product_id": "1INCH-USD",
+    "status": "held",
+    "scope": null,
+    "source_ids": {
+      "fees": "1inch-network"
+    },
+    "series_files": {},
+    "series_sha256": {},
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "gemini_proposed_status": "held",
+    "hold_reason": "Original URL (/summary/fees/1inch-network) returned HTTP 400; diagnostic /summary/fees/1inch begins only 2026-07-20."
+  },
+  {
+    "product_id": "YFI-USD",
+    "status": "approved",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "113"
+    },
+    "series_files": {
+      "fees": "YFI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"YFI\", \"coinbase_name\": \"yearn.finance\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e\", \"source_gecko_id\": null, \"source_id\": \"113\", \"source_linked_protocols\": [\"Yearn\", \"Yearn Finance\", \"Yearn Ether\", \"Yearn Curating\"], \"source_name\": \"Yearn Finance\", \"verified_contract\": \"0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/yearn-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:08.075655+00:00",
+    "returned_metadata": {
+      "id": "113",
+      "name": "Yearn Finance",
+      "category": "Yield Aggregator",
+      "address": "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+      "gecko_id": null,
+      "linkedProtocols": [
+        "Yearn",
+        "Yearn Finance",
+        "Yearn Ether",
+        "Yearn Curating"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:yearn",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "YFI",
+      "coinbase_name": "yearn.finance",
+      "coinbase_default_network": "ethereum",
+      "source_id": "113",
+      "source_name": "Yearn Finance",
+      "source_address": "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+      "source_gecko_id": null,
+      "source_linked_protocols": [
+        "Yearn",
+        "Yearn Finance",
+        "Yearn Ether",
+        "Yearn Curating"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e"
+    },
+    "source_amendment": {
+      "gemini_expected_id": "119",
+      "locally_verified_id": "113",
+      "reason": "Current captured fee source ID/scope, independently matched by token contract"
+    }
+  },
+  {
+    "product_id": "CVX-USD",
+    "status": "approved",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "319"
+    },
+    "series_files": {
+      "fees": "CVX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"CVX\", \"coinbase_name\": \"Convex Finance\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b\", \"source_gecko_id\": \"convex-finance\", \"source_id\": \"319\", \"source_linked_protocols\": null, \"source_name\": \"Convex Finance\", \"verified_contract\": \"0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/convex-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:10.539623+00:00",
+    "returned_metadata": {
+      "id": "319",
+      "name": "Convex Finance",
+      "category": "Yield",
+      "address": "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
+      "gecko_id": "convex-finance",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:convex",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "CVX",
+      "coinbase_name": "Convex Finance",
+      "coinbase_default_network": "ethereum",
+      "source_id": "319",
+      "source_name": "Convex Finance",
+      "source_address": "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
+      "source_gecko_id": "convex-finance",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b"
+    }
+  },
+  {
+    "product_id": "LQTY-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#liquity"
+    },
+    "series_files": {
+      "fees": "LQTY_fees.json"
+    },
+    "series_sha256": {
+      "fees": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"LQTY\", \"coinbase_name\": \"Liquity\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D\", \"source_gecko_id\": \"liquity\", \"source_id\": \"parent#liquity\", \"source_linked_protocols\": [\"Liquity\", \"Liquity V1\", \"Liquity V2\"], \"source_name\": \"Liquity\", \"verified_contract\": \"0x6dea81c8171d0ba574754ef6f8b412f2ed88c54d\", \"verified_contract_network\": \"ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/liquity?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:12.931566+00:00",
+    "returned_metadata": {
+      "id": "parent#liquity",
+      "name": "Liquity",
+      "category": null,
+      "address": "0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D",
+      "gecko_id": "liquity",
+      "linkedProtocols": [
+        "Liquity",
+        "Liquity V1",
+        "Liquity V2"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:liquity",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "LQTY",
+      "coinbase_name": "Liquity",
+      "coinbase_default_network": "ethereum",
+      "source_id": "parent#liquity",
+      "source_name": "Liquity",
+      "source_address": "0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D",
+      "source_gecko_id": "liquity",
+      "source_linked_protocols": [
+        "Liquity",
+        "Liquity V1",
+        "Liquity V2"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "ethereum",
+      "verified_contract": "0x6dea81c8171d0ba574754ef6f8b412f2ed88c54d"
+    }
+  },
+  {
+    "product_id": "JTO-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#jito"
+    },
+    "series_files": {
+      "fees": "JTO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"solana\", \"coinbase_id\": \"JTO\", \"coinbase_name\": \"Jito\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"solana:jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL\", \"source_gecko_id\": \"jito-governance-token\", \"source_id\": \"parent#jito\", \"source_linked_protocols\": [\"Jito\", \"Jito Liquid Staking\", \"Jito MEV Tips\", \"Jito DAO\"], \"source_name\": \"Jito\", \"verified_contract\": \"jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL\", \"verified_contract_network\": \"solana\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/jito?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:15.311103+00:00",
+    "returned_metadata": {
+      "id": "parent#jito",
+      "name": "Jito",
+      "category": null,
+      "address": "solana:jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+      "gecko_id": "jito-governance-token",
+      "linkedProtocols": [
+        "Jito",
+        "Jito Liquid Staking",
+        "Jito MEV Tips",
+        "Jito DAO"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:jito",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "JTO",
+      "coinbase_name": "Jito",
+      "coinbase_default_network": "solana",
+      "source_id": "parent#jito",
+      "source_name": "Jito",
+      "source_address": "solana:jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+      "source_gecko_id": "jito-governance-token",
+      "source_linked_protocols": [
+        "Jito",
+        "Jito Liquid Staking",
+        "Jito MEV Tips",
+        "Jito DAO"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "solana",
+      "verified_contract": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL"
+    }
+  },
+  {
+    "product_id": "JUP-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "jupiter"
+    },
+    "series_files": {
+      "fees": "JUP_fees.json"
+    },
+    "series_sha256": {
+      "fees": "33044de014e150b8080ec578f4dd833e24fe339647b81f9e218ce22ab3f8513b"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/jupiter?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:17.676987+00:00",
+    "returned_metadata": {
+      "name": "Jupiter",
+      "id": "parent#jupiter",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Jupiter",
+        "Jupiter Aggregator",
+        "Jupiter Perpetual Exchange",
+        "Ape Jupiter",
+        "Jupiter Staked SOL",
+        "Jupiter DCA",
+        "Jupiter Studio",
+        "Jupiter Lend",
+        "Jupiter Prediction",
+        "Jupiter Limit",
+        "Jupiter Offerbook",
+        "Jupiter Lend DEX",
+        "Jupiter YOLO"
+      ],
+      "address": "solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+      "gecko_id": "jupiter-exchange-solana",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "protocol"
+    },
+    "gemini_proposed_status": "held",
+    "hold_reason": "Coinbase JUP is delisted Ethereum token 0x4B1E80cAC91e2216EEb63e29B957eB91Ae9C2Be8; Solana Jupiter is Coinbase JUPITER-USD."
+  },
+  {
+    "product_id": "RAY-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "raydium"
+    },
+    "series_files": {
+      "fees": "RAY_fees.json"
+    },
+    "series_sha256": {
+      "fees": "6fb91ff11c3a73afd7fad3b0d1756ccfb1766bcbe23974c58a2414445e2d72cc"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/raydium?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:19.472364+00:00",
+    "returned_metadata": {
+      "name": "Raydium",
+      "id": "parent#raydium",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Raydium",
+        "Raydium AMM",
+        "LaunchLab"
+      ],
+      "address": "solana:4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+      "gecko_id": "raydium",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "protocol"
+    },
+    "gemini_proposed_status": "held",
+    "hold_reason": "Coinbase baseline price eligibility begins only on 2026-04-14 (<6 months before test end)."
+  },
+  {
+    "product_id": "ORCA-USD",
+    "status": "approved",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "parent#orca"
+    },
+    "series_files": {
+      "fees": "ORCA_fees.json"
+    },
+    "series_sha256": {
+      "fees": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7"
+    },
+    "identity_evidence": "{\"association_role\": \"token_associated_protocol_context\", \"coinbase_default_network\": \"solana\", \"coinbase_id\": \"ORCA\", \"coinbase_name\": \"Orca\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": \"solana:orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE\", \"source_gecko_id\": \"orca\", \"source_id\": \"parent#orca\", \"source_linked_protocols\": [\"Orca\", \"Orca DEX\"], \"source_name\": \"Orca\", \"verified_contract\": \"orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE\", \"verified_contract_network\": \"solana\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/orca?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:21.731034+00:00",
+    "returned_metadata": {
+      "id": "parent#orca",
+      "name": "Orca",
+      "category": null,
+      "address": "solana:orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+      "gecko_id": "orca",
+      "linkedProtocols": [
+        "Orca",
+        "Orca DEX"
+      ]
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:orca",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "ORCA",
+      "coinbase_name": "Orca",
+      "coinbase_default_network": "solana",
+      "source_id": "parent#orca",
+      "source_name": "Orca",
+      "source_address": "solana:orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+      "source_gecko_id": "orca",
+      "source_linked_protocols": [
+        "Orca",
+        "Orca DEX"
+      ],
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "token_associated_protocol_context",
+      "verified_contract_network": "solana",
+      "verified_contract": "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE"
+    },
+    "source_amendment": {
+      "gemini_expected_id": "283",
+      "locally_verified_id": "parent#orca",
+      "reason": "Current captured fee source ID/scope, independently matched by token contract"
+    }
+  },
+  {
+    "product_id": "AERO-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "aerodrome"
+    },
+    "series_files": {
+      "fees": "AERO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "9b91ad0c2a4d34bf0085cec1bddc60739534708915d6a24239a1958303e85680"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aerodrome?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:23.913102+00:00",
+    "returned_metadata": {
+      "name": "Aero",
+      "id": "parent#aero-protocol",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Aero",
+        "Velodrome V1",
+        "Velodrome V2",
+        "Aerodrome V1",
+        "Velodrome V3",
+        "Aerodrome Slipstream",
+        "Aero Slipstream",
+        "Aero Basic"
+      ],
+      "address": null,
+      "gecko_id": null,
+      "chains": [
+        "OP Mainnet",
+        "Base",
+        "Lisk",
+        "Mode",
+        "Fraxtal",
+        "BOB",
+        "Unichain",
+        "Soneium",
+        "Ink",
+        "Swellchain",
+        "Celo",
+        "Arc",
+        "Arbitrum",
+        "Ethereum",
+        "Robinhood Chain"
+      ],
+      "protocolType": "protocol"
+    },
+    "gemini_proposed_status": "held",
+    "hold_reason": "Slug 'aerodrome' returns parent#aero-protocol bundling Velodrome V1/V2/V3 (Optimism) with Aerodrome (Base) back to June 2022."
+  },
+  {
+    "product_id": "ETH-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#ethereum"
+    },
+    "series_files": {
+      "fees": "ETH_fees.json"
+    },
+    "series_sha256": {
+      "fees": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"ethereum\", \"coinbase_id\": \"ETH\", \"coinbase_name\": \"Ether\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"ethereum\", \"source_id\": \"chain#ethereum\", \"source_linked_protocols\": null, \"source_name\": \"Ethereum\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/ethereum?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:26.510450+00:00",
+    "returned_metadata": {
+      "id": "chain#ethereum",
+      "name": "Ethereum",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "ethereum",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-ethereum",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "ETH",
+      "coinbase_name": "Ether",
+      "coinbase_default_network": "ethereum",
+      "source_id": "chain#ethereum",
+      "source_name": "Ethereum",
+      "source_address": null,
+      "source_gecko_id": "ethereum",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "SOL-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#solana"
+    },
+    "series_files": {
+      "fees": "SOL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"solana\", \"coinbase_id\": \"SOL\", \"coinbase_name\": \"Solana\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"solana\", \"source_id\": \"chain#solana\", \"source_linked_protocols\": null, \"source_name\": \"Solana\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/solana?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:27.854274+00:00",
+    "returned_metadata": {
+      "id": "chain#solana",
+      "name": "Solana",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "solana",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-solana",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "SOL",
+      "coinbase_name": "Solana",
+      "coinbase_default_network": "solana",
+      "source_id": "chain#solana",
+      "source_name": "Solana",
+      "source_address": null,
+      "source_gecko_id": "solana",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "AVAX-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#avalanche"
+    },
+    "series_files": {
+      "fees": "AVAX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"avacchain\", \"coinbase_id\": \"AVAX\", \"coinbase_name\": \"Avalanche\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"avalanche-2\", \"source_id\": \"chain#avalanche\", \"source_linked_protocols\": null, \"source_name\": \"Avalanche\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/avalanche?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:29.137508+00:00",
+    "returned_metadata": {
+      "id": "chain#avalanche",
+      "name": "Avalanche",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "avalanche-2",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-avalanche",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "AVAX",
+      "coinbase_name": "Avalanche",
+      "coinbase_default_network": "avacchain",
+      "source_id": "chain#avalanche",
+      "source_name": "Avalanche",
+      "source_address": null,
+      "source_gecko_id": "avalanche-2",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "NEAR-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#near"
+    },
+    "series_files": {
+      "fees": "NEAR_fees.json"
+    },
+    "series_sha256": {
+      "fees": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"near\", \"coinbase_id\": \"NEAR\", \"coinbase_name\": \"Near Protocol\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"near\", \"source_id\": \"chain#near\", \"source_linked_protocols\": null, \"source_name\": \"Near\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/near?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:31.275854+00:00",
+    "returned_metadata": {
+      "id": "chain#near",
+      "name": "Near",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "near",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-near",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "NEAR",
+      "coinbase_name": "Near Protocol",
+      "coinbase_default_network": "near",
+      "source_id": "chain#near",
+      "source_name": "Near",
+      "source_address": null,
+      "source_gecko_id": "near",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "ARB-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#arbitrum"
+    },
+    "series_files": {
+      "fees": "ARB_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77"
+    },
+    "identity_evidence": "{\"association_role\": \"governance_token_chain_context\", \"coinbase_default_network\": \"arbitrum\", \"coinbase_id\": \"ARB\", \"coinbase_name\": \"Arbitrum\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"arbitrum\", \"source_id\": \"chain#arbitrum\", \"source_linked_protocols\": null, \"source_name\": \"Arbitrum\", \"verified_governance_contract\": \"0x912ce59144191c1204e64559fe8253a0e49e6548\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/arbitrum?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:33.439177+00:00",
+    "returned_metadata": {
+      "id": "chain#arbitrum",
+      "name": "Arbitrum",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "arbitrum",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-arbitrum",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "ARB",
+      "coinbase_name": "Arbitrum",
+      "coinbase_default_network": "arbitrum",
+      "source_id": "chain#arbitrum",
+      "source_name": "Arbitrum",
+      "source_address": null,
+      "source_gecko_id": "arbitrum",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "governance_token_chain_context",
+      "verified_governance_contract": "0x912ce59144191c1204e64559fe8253a0e49e6548"
+    }
+  },
+  {
+    "product_id": "OP-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#optimism"
+    },
+    "series_files": {
+      "fees": "OP_alternative_fees.json"
+    },
+    "series_sha256": {
+      "fees": "ec9f1130286d261bcc9f22146cfa0cfd52d34be971aca46a15ed143dc0de0c2c"
+    },
+    "identity_evidence": "{\"association_role\": \"governance_token_chain_context\", \"coinbase_default_network\": \"optimism\", \"coinbase_id\": \"OP\", \"coinbase_name\": \"Optimism\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"optimism\", \"source_id\": \"chain#optimism\", \"source_linked_protocols\": null, \"source_name\": \"OP Mainnet\", \"verified_governance_contract\": \"0x4200000000000000000000000000000000000042\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "gemini_proposed_status": "held",
+    "source_family": "family:chain-optimism",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/op-mainnet?dataType=dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "OP",
+      "coinbase_name": "Optimism",
+      "coinbase_default_network": "optimism",
+      "source_id": "chain#optimism",
+      "source_name": "OP Mainnet",
+      "source_address": null,
+      "source_gecko_id": "optimism",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "governance_token_chain_context",
+      "verified_governance_contract": "0x4200000000000000000000000000000000000042"
+    },
+    "returned_metadata": {
+      "id": "chain#optimism",
+      "name": "OP Mainnet",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "optimism",
+      "linkedProtocols": null
+    },
+    "source_amendment": {
+      "old_source_slug": "optimism",
+      "reason": "Adopt retained op-mainnet dailyFees diagnostic; original optimism request failed"
+    }
+  },
+  {
+    "product_id": "APT-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#aptos"
+    },
+    "series_files": {
+      "fees": "APT_fees.json"
+    },
+    "series_sha256": {
+      "fees": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"aptos\", \"coinbase_id\": \"APT\", \"coinbase_name\": \"Aptos\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"aptos\", \"source_id\": \"chain#aptos\", \"source_linked_protocols\": null, \"source_name\": \"Aptos\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aptos?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:37.280834+00:00",
+    "returned_metadata": {
+      "id": "chain#aptos",
+      "name": "Aptos",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "aptos",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-aptos",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "APT",
+      "coinbase_name": "Aptos",
+      "coinbase_default_network": "aptos",
+      "source_id": "chain#aptos",
+      "source_name": "Aptos",
+      "source_address": null,
+      "source_gecko_id": "aptos",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "SUI-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#sui"
+    },
+    "series_files": {
+      "fees": "SUI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"sui\", \"coinbase_id\": \"SUI\", \"coinbase_name\": \"Sui\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"sui\", \"source_id\": \"chain#sui\", \"source_linked_protocols\": null, \"source_name\": \"Sui\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sui?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:39.423719+00:00",
+    "returned_metadata": {
+      "id": "chain#sui",
+      "name": "Sui",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "sui",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-sui",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "SUI",
+      "coinbase_name": "Sui",
+      "coinbase_default_network": "sui",
+      "source_id": "chain#sui",
+      "source_name": "Sui",
+      "source_address": null,
+      "source_gecko_id": "sui",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "SEI-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#sei"
+    },
+    "series_files": {
+      "fees": "SEI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"seievm\", \"coinbase_id\": \"SEI\", \"coinbase_name\": \"Sei\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"sei-network\", \"source_id\": \"chain#sei\", \"source_linked_protocols\": null, \"source_name\": \"Sei\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sei?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:41.585570+00:00",
+    "returned_metadata": {
+      "id": "chain#sei",
+      "name": "Sei",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "sei-network",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-sei",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "SEI",
+      "coinbase_name": "Sei",
+      "coinbase_default_network": "seievm",
+      "source_id": "chain#sei",
+      "source_name": "Sei",
+      "source_address": null,
+      "source_gecko_id": "sei-network",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "INJ-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#injective"
+    },
+    "series_files": {
+      "fees": "INJ_fees.json"
+    },
+    "series_sha256": {
+      "fees": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"injective\", \"coinbase_id\": \"INJ\", \"coinbase_name\": \"Injective Protocol\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"injective-protocol\", \"source_id\": \"chain#injective\", \"source_linked_protocols\": null, \"source_name\": \"Injective\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/injective?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:43.811646+00:00",
+    "returned_metadata": {
+      "id": "chain#injective",
+      "name": "Injective",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "injective-protocol",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-injective",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "INJ",
+      "coinbase_name": "Injective Protocol",
+      "coinbase_default_network": "injective",
+      "source_id": "chain#injective",
+      "source_name": "Injective",
+      "source_address": null,
+      "source_gecko_id": "injective-protocol",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "STX-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#stacks"
+    },
+    "series_files": {
+      "fees": "STX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"stacks\", \"coinbase_id\": \"STX\", \"coinbase_name\": \"Stacks\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"blockstack\", \"source_id\": \"chain#stacks\", \"source_linked_protocols\": null, \"source_name\": \"Stacks\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/stacks?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:46.148122+00:00",
+    "returned_metadata": {
+      "id": "chain#stacks",
+      "name": "Stacks",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "blockstack",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-stacks",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "STX",
+      "coinbase_name": "Stacks",
+      "coinbase_default_network": "stacks",
+      "source_id": "chain#stacks",
+      "source_name": "Stacks",
+      "source_address": null,
+      "source_gecko_id": "blockstack",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  },
+  {
+    "product_id": "ADA-USD",
+    "status": "approved",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "chain#cardano"
+    },
+    "series_files": {
+      "fees": "ADA_fees.json"
+    },
+    "series_sha256": {
+      "fees": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    },
+    "identity_evidence": "{\"association_role\": \"native_asset_chain_context\", \"coinbase_default_network\": \"cardano\", \"coinbase_id\": \"ADA\", \"coinbase_name\": \"Cardano\", \"interpretation_limit\": \"Protocol/chain activity context; no direct token-revenue or value-accrual claim.\", \"source_address\": null, \"source_gecko_id\": \"cardano\", \"source_id\": \"chain#cardano\", \"source_linked_protocols\": null, \"source_name\": \"Cardano\"}",
+    "reviewer": "Codex: local captured-identity and scope review",
+    "reviewed_at": "2026-10-26",
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/cardano?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:48.066404+00:00",
+    "returned_metadata": {
+      "id": "chain#cardano",
+      "name": "Cardano",
+      "category": "Chain",
+      "address": null,
+      "gecko_id": "cardano",
+      "linkedProtocols": null
+    },
+    "gemini_proposed_status": "approved",
+    "source_family": "family:chain-cardano",
+    "source_metrics": {
+      "fees": "dailyFees"
+    },
+    "identity_verification": {
+      "coinbase_id": "ADA",
+      "coinbase_name": "Cardano",
+      "coinbase_default_network": "cardano",
+      "source_id": "chain#cardano",
+      "source_name": "Cardano",
+      "source_address": null,
+      "source_gecko_id": "cardano",
+      "source_linked_protocols": null,
+      "interpretation_limit": "Protocol/chain activity context; no direct token-revenue or value-accrual claim.",
+      "association_role": "native_asset_chain_context"
+    }
+  }
+]

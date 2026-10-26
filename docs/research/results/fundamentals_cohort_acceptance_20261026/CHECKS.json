@@ -1,0 +1,18 @@
+{
+  "existing_research_tests_passed": 51,
+  "new_converter_tests_passed": 7,
+  "total_tests_passed": 58,
+  "gate_executions_match": true,
+  "all_five_gates_pass": true,
+  "approved": 27,
+  "held": 5,
+  "original_duplicate_attachment_sha256": "1cb5a34e0b3318c8f76e0e242151d8a0f12fd13cbfb4b95d29590ed8620a0450",
+  "real_models_fitted": 0,
+  "fundamentals_outcomes_evaluated": false,
+  "source_amendments": [
+    "OP-USD",
+    "YFI-USD",
+    "ORCA-USD",
+    "PENDLE-USD"
+  ]
+}
