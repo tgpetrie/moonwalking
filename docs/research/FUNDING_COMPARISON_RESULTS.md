@@ -337,3 +337,10 @@ Test-phase verdict inputs: discovery difference positive? coefficient sign the s
 
 Date: 2026-10-18; matched coins that day: 119.
 
+
+## Preservation (added 2026-10-26)
+
+The result is fixed by the annotated tag `research/funding-comparison-2026-10-26` (commit `262df6d`). The raw responses are kept locally
+and made read-only at `~/.moonwalking/data/hl_funding_20261025/`; `MANIFEST.json` there lists 5,546 files with sizes and SHA-256
+(manifest SHA-256 `cf22c8f43151de4fc29a97afbef3ee299f9cfd341d990a317ced9d2de6f58d57`). Rerunning `funding_run.py` from those files and the frozen
+daily panel reproduces the tables. A future funding feature (for example, robust to the base-rate pinning) needs a new protocol; this result is not to be re-tuned.
