@@ -1,0 +1,58 @@
+{
+  "qwen3.5:9b": {
+    "attempted": 20,
+    "json_responses": 20,
+    "exact_cases": 7,
+    "objective_fact_checks_correct": 68,
+    "objective_fact_checks_total": 80,
+    "field_accuracy": {
+      "product_id": 1.0,
+      "tvl_status": 0.85,
+      "fees_status": 0.8,
+      "revenue_status": 0.75,
+      "claim_verdict": 0.85
+    },
+    "valid_citation_id_sets": 11,
+    "wall_seconds": 89.17199999990407,
+    "failed_cases": [
+      "AAVE",
+      "ALCX",
+      "BONK",
+      "COMP",
+      "DRIFT",
+      "LDO",
+      "MKR",
+      "MORPHO",
+      "PERP",
+      "RENDER",
+      "TRUST",
+      "UNI",
+      "VET"
+    ]
+  },
+  "qwen3:14b": {
+    "attempted": 20,
+    "json_responses": 20,
+    "exact_cases": 13,
+    "objective_fact_checks_correct": 77,
+    "objective_fact_checks_total": 80,
+    "field_accuracy": {
+      "product_id": 1.0,
+      "tvl_status": 1.0,
+      "fees_status": 0.95,
+      "revenue_status": 0.9,
+      "claim_verdict": 0.85
+    },
+    "valid_citation_id_sets": 17,
+    "wall_seconds": 195.12599999993108,
+    "failed_cases": [
+      "ALCX",
+      "FET",
+      "LDO",
+      "PERP",
+      "TRUST",
+      "UNI",
+      "VET"
+    ]
+  }
+}

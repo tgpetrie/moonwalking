@@ -1,0 +1,731 @@
+[
+  {
+    "case_id": "AAVE",
+    "product_id": "AAVE-USD",
+    "claim": "The supplied Aave parent endpoint returns an aggregate TVL series.",
+    "authoritative_metric_facts": {
+      "product_id": "AAVE-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "The parent endpoint (provider_id: 'parent#aave') returns a TVL series (metric: 'tvl') as confirmed by the evidence. The claim states the endpoint returns an aggregate TVL series, which is established."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The Aave parent endpoint returns an aggregate TVL series, as evidenced by the response from the 'tvl' metric."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "UNI",
+    "product_id": "UNI-USD",
+    "claim": "Daily revenue is observed on all 1,752 days of the frozen panel span.",
+    "authoritative_metric_facts": {
+      "product_id": "UNI-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned_dailyFees",
+          "series_returned_dailyRevenue"
+        ],
+        "note": "The claim states daily revenue is observed on all 1,752 days. Evidence 'series_returned_dailyRevenue' shows rows_in_panel_span: 1125 and internal_missing_days: 276, which contradicts the claim of 1,752 observed days."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyRevenue"
+        ],
+        "note": "The dailyRevenue series has 1125 days in the panel span, not 1752 days as claimed."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3.5:9b: factual field mismatch: revenue_status",
+      "qwen3:14b: factual field mismatch: revenue_status"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "MKR",
+    "product_id": "MKR-USD",
+    "claim": "Sky Lending child data alone verifies that the legacy MKR token needs no migration review.",
+    "authoritative_metric_facts": {
+      "product_id": "MKR-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "Evidence 'asset' explicitly states that 'Migration, child-only, ecosystem and identity-review cases remain unapproved.' The claim asserts that Sky Lending (a child) data verifies no migration review is needed. This directly contradicts the evidence stating such cases are unapproved."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "insufficient_evidence",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "The evidence does not establish whether the legacy MKR token needs a migration review based on Sky Lending child data alone."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "models disagree on claim label"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "LDO",
+    "product_id": "LDO-USD",
+    "claim": "Lido has no observed TVL series in the supplied evidence.",
+    "authoritative_metric_facts": {
+      "product_id": "LDO-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "Evidence ID 'series_returned' explicitly confirms the existence of a TVL series for Lido (metric: tvl) with data spanning from 2022-01-01 to 2026-10-18. The claim that no observed TVL series exists is directly contradicted by this evidence."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "The evidence shows that Lido has an observed TVL series from the Llama.fi API."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3:14b: invalid citation IDs"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "MORPHO",
+    "product_id": "MORPHO-USD",
+    "claim": "The supplied protocol TVL series begins in June 2022.",
+    "authoritative_metric_facts": {
+      "product_id": "MORPHO-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "The TVL series first date is 2022-08-19, which contradicts the claim that it begins in June 2022."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl"
+        ],
+        "note": "The TVL series begins on 2022-08-19, not in June 2022."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3.5:9b: factual field mismatch: tvl_status, fees_status, revenue_status"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "DRIFT",
+    "product_id": "DRIFT-USD",
+    "claim": "The supplied daily fee series begins in January 2023.",
+    "authoritative_metric_facts": {
+      "product_id": "DRIFT-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned_dailyFees",
+          "series_returned_dailyRevenue"
+        ],
+        "note": "The claim states the daily fee series begins in January 2023. Evidence shows the 'dailyFees' and 'dailyRevenue' series begin on 2024-05-31, not January 2023."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyFees"
+        ],
+        "note": "The daily fee series begins on 2024-05-31, not January 2023."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "KMNO",
+    "product_id": "KMNO-USD",
+    "claim": "The Kamino Lend child series necessarily represents every Kamino module.",
+    "authoritative_metric_facts": {
+      "product_id": "KMNO-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "Evidence 'asset' explicitly states that 'child-only' cases remain unapproved, implying the Kamino Lend child series does not represent every module. The claim asserts necessity of representation for every module, which is contradicted by the existence of unapproved child-only scopes."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "The evidence indicates that Kamino Lend is a specific child series, not necessarily representing every Kamino module."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "COMP",
+    "product_id": "COMP-USD",
+    "claim": "The supplied Compound parent endpoint returns an aggregate TVL series.",
+    "authoritative_metric_facts": {
+      "product_id": "COMP-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "Evidence shows the parent endpoint for Compound Finance returns a TVL series (metric: tvl) with daily data from 2022-01-01 to 2026-10-18. The claim that an aggregate TVL series is returned is established."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The endpoint returns a TVL series, confirming the claim."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "PERP",
+    "product_id": "PERP-USD",
+    "claim": "A missing revenue day can safely be replaced with zero without further evidence.",
+    "authoritative_metric_facts": {
+      "product_id": "PERP-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned_dailyFees",
+          "series_returned_dailyRevenue"
+        ],
+        "note": "Evidence for dailyRevenue (id: series_returned_dailyRevenue) explicitly reports internal_missing_days=1, contradicting the claim that missing days can be safely replaced with zero without evidence. Evidence for dailyFees shows 0 missing days, but the claim specifically addresses revenue."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyRevenue"
+        ],
+        "note": "The dailyRevenue series has 296 zero_days, indicating that missing revenue days are sometimes replaced with zero. However, there is also 1 internal_missing_day, suggesting that not all missing days are replaced with zero."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3.5:9b: factual field mismatch: tvl_status, fees_status, revenue_status"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "ALCX",
+    "product_id": "ALCX-USD",
+    "claim": "The supplied fee series has daily observations before December 2022.",
+    "authoritative_metric_facts": {
+      "product_id": "ALCX-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned_dailyFees"
+        ],
+        "note": "The fee series (dailyFees) first observation is 2022-12-09, which is after December 2022. The claim states there are daily observations before December 2022, which is contradicted by the evidence."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "The fee series starts on 2022-12-09, which is after December 2022."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3.5:9b: factual field mismatch: fees_status, revenue_status",
+      "qwen3:14b: invalid citation IDs"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "SOL",
+    "product_id": "SOL-USD",
+    "claim": "A Solana application-fee overview and Solana native gas fees measure the same thing.",
+    "authoritative_metric_facts": {
+      "product_id": "SOL-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "Evidence shows distinct endpoints for TVL, dailyFees, and dailyRevenue. The asset metadata explicitly states 'A chain's application-fee overview is different from its native gas-fee series.' Therefore, the claim that they measure the same thing is contradicted by both the explicit instruction and the existence of separate metrics."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyFees",
+          "dailyRevenue",
+          "tvl"
+        ],
+        "note": "The evidence shows that Solana application-fee overview and Solana native gas fees are distinct metrics, as they are reported separately in the data."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "NEAR",
+    "product_id": "NEAR-USD",
+    "claim": "The supplied Near chain endpoint returns native-chain daily fee data.",
+    "authoritative_metric_facts": {
+      "product_id": "NEAR-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The endpoint https://api.llama.fi/summary/fees/near?dataType=dailyFees returns a series with metric 'dailyFees' for the Near chain, confirming native-chain daily fee data is available."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The endpoint returns daily fee data for the Near chain."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "SUI",
+    "product_id": "SUI-USD",
+    "claim": "The supplied native-chain fee history begins at mainnet launch in May 2023.",
+    "authoritative_metric_facts": {
+      "product_id": "SUI-USD",
+      "tvl_status": "available",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The claim states native-chain fee history begins in May 2023. Evidence 'dailyFees' and 'dailyRevenue' show the series starts on 2024-07-01, not May 2023. The TVL evidence starts in May 2023 but measures TVL, not fees."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyFees"
+        ],
+        "note": "The daily fees series starts on 2024-07-01, not at mainnet launch in May 2023."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "VET",
+    "product_id": "VET-USD",
+    "claim": "An HTTP error on the tested fee endpoint proves DeFiLlama has no VeChain fees anywhere.",
+    "authoritative_metric_facts": {
+      "product_id": "VET-USD",
+      "tvl_status": "available",
+      "fees_status": "not_verified",
+      "revenue_status": "not_verified"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The claim states that an HTTP error proves 'no fees anywhere'. However, the evidence shows two specific endpoints (dailyFees and dailyRevenue) returned HTTP 400 errors. The existence of these specific failed requests contradicts the absolute statement that there are 'no fees anywhere', as it implies the data exists but is inaccessible via those specific endpoints or requires different parameters, rather than non-existence. Additionally, the TVL endpoint returned successfully, indicating the chain is active in DeFiLlama."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The HTTP error on the fee endpoint does not prove DeFiLlama has no VeChain fees anywhere. The absence of a successful response does not confirm the absence of data; it only indicates that the endpoint request failed."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "FET",
+    "product_id": "FET-USD",
+    "claim": "No captured catalog candidate proves DeFiLlama can never have metrics for this asset.",
+    "authoritative_metric_facts": {
+      "product_id": "FET-USD",
+      "tvl_status": "not_verified",
+      "fees_status": "not_verified",
+      "revenue_status": "not_verified"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "insufficient_evidence",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "Evidence shows 'no_curated_endpoint' for metrics and 'not_found_in_catalog' for the asset. This indicates absence from the specific supplied catalog, not a universal impossibility ('never'). The claim uses absolute language ('never') which cannot be proven by a single catalog's absence."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The claim is supported as the evidence shows no captured catalog candidate proves DeFiLlama can never have metrics for this asset."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "models disagree on claim label"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "RENDER",
+    "product_id": "RENDER-USD",
+    "claim": "Because the returned TVL series is empty, no observed fee data exists.",
+    "authoritative_metric_facts": {
+      "product_id": "RENDER-USD",
+      "tvl_status": "no_series",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The claim states no observed fee data exists because the TVL series is empty. Evidence 'tvl' confirms an empty daily series (no_series), but evidence 'dailyFees' and 'dailyRevenue' explicitly show a successful response with 503 rows of daily data. Therefore, observed fee data does exist."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The TVL series is empty, but fee and revenue data exist."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: factual field mismatch: tvl_status"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "RNDR",
+    "product_id": "RNDR-USD",
+    "claim": "RNDR-USD and RENDER-USD can safely be merged into one product history.",
+    "authoritative_metric_facts": {
+      "product_id": "RNDR-USD",
+      "tvl_status": "not_verified",
+      "fees_status": "not_verified",
+      "revenue_status": "not_verified"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "Evidence 'asset' explicitly states that 'child-only, ecosystem and identity-review cases remain unapproved,' directly contradicting the claim that RNDR-USD and RENDER-USD can be merged. Additionally, no successful TVL or fee series data was supplied to support a unified history."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "RNDR and RENDER are distinct product histories and must not be merged."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "TRUST",
+    "product_id": "TRUST-USD",
+    "claim": "There is no Intuition protocol entry in the supplied current source evidence.",
+    "authoritative_metric_facts": {
+      "product_id": "TRUST-USD",
+      "tvl_status": "available",
+      "fees_status": "not_verified",
+      "revenue_status": "not_verified"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "Evidence 'asset' identifies the product as 'Intuition'. Evidence 'series_returned' provides TVL data for 'Intuition', proving an entry exists."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "series_returned"
+        ],
+        "note": "The evidence shows that the Intuition protocol is present in the source data."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: invalid citation IDs",
+      "qwen3:14b: invalid citation IDs",
+      "qwen3:14b: factual field mismatch: fees_status, revenue_status"
+    ],
+    "human_review_required": true
+  },
+  {
+    "case_id": "PROVE",
+    "product_id": "PROVE-USD",
+    "claim": "No matched protocol candidate was found in the supplied captured catalog.",
+    "authoritative_metric_facts": {
+      "product_id": "PROVE-USD",
+      "tvl_status": "not_verified",
+      "fees_status": "not_verified",
+      "revenue_status": "not_verified"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset"
+        ],
+        "note": "Evidence 'asset' explicitly states candidate_scope is 'not_found_in_catalog'. Evidence 'tvl', 'dailyFees', and 'dailyRevenue' have status 'no_curated_endpoint', confirming no successful matching endpoint response was supplied."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "supported",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "No curated endpoints or catalog matches were found for the product."
+      }
+    },
+    "triage_priority": "normal",
+    "flags": [],
+    "human_review_required": true
+  },
+  {
+    "case_id": "BONK",
+    "product_id": "BONK-USD",
+    "claim": "BONKbot fee observations are BONK token TVL observations.",
+    "authoritative_metric_facts": {
+      "product_id": "BONK-USD",
+      "tvl_status": "no_series",
+      "fees_status": "available",
+      "revenue_status": "available"
+    },
+    "model_proposals": {
+      "qwen3.5:9b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl"
+        ],
+        "note": "Evidence 'tvl' explicitly returns no daily series (status: no_daily_series_returned). Evidence for fees and revenue are distinct metrics. The claim equates fee observations with TVL observations, which is contradicted by the absence of a TVL series and the existence of separate fee/revenue series."
+      },
+      "qwen3:14b": {
+        "status": "complete",
+        "claim_verdict": "contradicted",
+        "evidence_ids": [
+          "asset",
+          "tvl",
+          "dailyFees",
+          "dailyRevenue"
+        ],
+        "note": "The claim that BONKbot fee observations are BONK token TVL observations is contradicted by the evidence. The TVL endpoint for BONKbot returns no daily series, while the fees and revenue endpoints return valid data."
+      }
+    },
+    "triage_priority": "high",
+    "flags": [
+      "qwen3.5:9b: factual field mismatch: fees_status, revenue_status"
+    ],
+    "human_review_required": true
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "ollama": {
+    "version": "0.40.6"
+  },
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "gpu_memory_mib": 12288,
+  "selected_models": [
+    "qwen3.5:9b",
+    "qwen3:14b"
+  ],
+  "local_only": true,
+  "model_entries_count": 7,
+  "selected_model_entries": [
+    {
+      "name": "qwen3:14b",
+      "digest": "bdbd181c33f2ed1b31c972991882db3cf4d192569092138a7d29e973cd9debe8",
+      "size": 9276198565
+    },
+    {
+      "name": "qwen3.5:9b",
+      "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+      "size": 6594474711
+    }
+  ]
+}
