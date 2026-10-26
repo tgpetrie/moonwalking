@@ -1,0 +1,25 @@
+{
+  "protocol": "docs/research/FUNDING_COMPARISON_PROTOCOL.md",
+  "map": "docs/research/results/funding_identity_audit_20261025/APPROVED_FUNDING_MAP.json",
+  "funding_root": "~/.moonwalking/data/hl_funding_20261025",
+  "min_prints_per_day": 20,
+  "z_window_days": 30,
+  "z_min_valid_days": 25,
+  "primary_lag_days": 1,
+  "sensitivity_lag_days": 0,
+  "extreme_z": 2.0,
+  "min_effect_of_interest_ic_difference": 0.02,
+  "held_products": [
+    "AI-USD",
+    "DOOD-USD",
+    "GRASS-USD",
+    "PONS-USD",
+    "USELESS-USD"
+  ],
+  "k_contracts": [
+    "BONK-USD",
+    "FLOKI-USD",
+    "PEPE-USD",
+    "SHIB-USD"
+  ]
+}
