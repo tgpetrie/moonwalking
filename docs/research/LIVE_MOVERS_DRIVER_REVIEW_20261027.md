@@ -69,8 +69,9 @@ check found no missing/nonfinite percentage baseline or unexpected stratum
 among those eligible episodes. The verification artifact records actual code
 hashes and NumPy/pandas versions.
 
-The driver is ready for the predeclared discovery phase.
-Freeze its resulting choices before the one-time historical validation.
-Do not relax any gate based on outcomes. Fourteen historical validation days
+The predeclared discovery choices were then frozen at `9747f94` and the
+one-time historical validation completed. The primary verdict is inconclusive;
+see [the separate results](LIVE_MOVERS_RESULTS_20261027.md). No code or model
+choice changed after discovery. Fourteen historical validation days
 remain limited, previously inspected history; the result cannot authorize a
 live ranking change. The independent 30s feed audit need not delay this lane.

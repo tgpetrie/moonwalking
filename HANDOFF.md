@@ -13,7 +13,13 @@ identity fields and exposes daily IC/attrition details. Frozen contracts,
 features, splits and model forms are unchanged. No discovery/test analysis
 was run during review. Verify passed from clean committed code at `7a55922`:
 333,170 identities/timestamps/phases match; all three readiness gates pass.
-Discovery is the next phase.
+Discovery then ran on clean commit `5db135a`; its choices were committed and
+pushed at `9747f94` before the one-time validation. Both phases are complete.
+The primary result is **inconclusive**: M1-B2 mean daily IC +0.01265, below
+the required +0.02, with 3-day-block 95% interval [-0.00047,+0.02545]. The
+primary top M1 score band has mean gross 5m return -0.03006% before costs.
+Read [`docs/research/LIVE_MOVERS_RESULTS_20261027.md`](docs/research/LIVE_MOVERS_RESULTS_20261027.md).
+No live weights/ranking change follows; do not rerun validation to tune it.
 All 23 contract/driver/review tests, repository guardrails and diff checks pass.
 
 The separate prospective diagnostic is implemented and pushed at `5e56095`

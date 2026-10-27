@@ -1,8 +1,9 @@
 # Live movers comparison driver — implementation notes (2026-10-27)
 
 Driver: `scripts/scoring_experiment/live_movers_run.py`; tests: `tests/test_live_movers_run.py`.
-Implements `COMPARISON_SPEC.json` (`live-movers-pilot-comparison-v1`) on `CONTRACT_PRODUCTION.json`. **No discovery or test
-outcome has been computed.** Only `verify` has run: all frozen hashes match, the 333,170 re-derived eligible episodes equal
+Implements `COMPARISON_SPEC.json` (`live-movers-pilot-comparison-v1`) on `CONTRACT_PRODUCTION.json`.
+**Verification, discovery and the one-time historical validation are complete.** The primary verdict is **inconclusive**;
+read [the results](LIVE_MOVERS_RESULTS_20261027.md). All frozen hashes match, the 333,170 re-derived eligible episodes equal
 the frozen `eligible_episodes.csv` row for row, and readiness passes (train 217,302 / 40 days /
 192 products; discovery 38,764 / 7 / 119; test 77,104 / 14 / 205).
 
