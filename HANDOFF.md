@@ -8,7 +8,10 @@ coverage gates. Read
 [`docs/research/COINBASE_FEED_AUDIT_20261027.md`](docs/research/COINBASE_FEED_AUDIT_20261027.md)
 for commands, limits and short smoke findings. Fourteen targeted audit/WS
 tests, formatting and guardrails pass. The full one-hour verdict remains
-pending; the earlier "No capture was run here" below describes the original
+pending: the committed-code run at `5e56095` began 2026-10-27 09:06 UTC and
+writes status/report to `%USERPROFILE%\.moonwalking\analysis\feed_audit_20261027_1h`.
+The main scoring track has resumed on `codex/live-movers-driver-review-20261027`.
+The earlier "No capture was run here" below describes the original
 documentation-only checkpoint.
 
 Branch `codex/live-movers-spec-corrections-20261027` extends the research
