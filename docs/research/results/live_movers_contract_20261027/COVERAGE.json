@@ -1,0 +1,281 @@
+{
+  "phases": {
+    "train": {
+      "rows": 8436,
+      "days": 6,
+      "products": 392,
+      "strata": {
+        "confirmation_3m_up/up": 2767,
+        "confirmation_3m_down/down": 2723,
+        "ignition_1m/up": 2946
+      },
+      "pass": false
+    },
+    "discovery": {
+      "rows": 1673,
+      "days": 1,
+      "products": 168,
+      "strata": {
+        "ignition_1m/up": 604,
+        "confirmation_3m_up/up": 537,
+        "confirmation_3m_down/down": 532
+      },
+      "pass": false
+    },
+    "test": {
+      "rows": 77193,
+      "days": 14,
+      "products": 368,
+      "strata": {
+        "ignition_1m/up": 28453,
+        "confirmation_3m_up/up": 24323,
+        "confirmation_3m_down/down": 24417
+      },
+      "pass": true
+    }
+  },
+  "rejections": {
+    "required_features_missing": 2130,
+    "missing_snapshot": 274,
+    "label_unavailable": 611,
+    "rolling_cooldown": 76,
+    "outside_phases_or_purged": 125
+  },
+  "feature_coverage_by_day": {
+    "2026-09-06": {
+      "rows": 599,
+      "with_snapshot": 599,
+      "non_null": {
+        "pct_1m": 591,
+        "trend_streak": 396,
+        "pct_3m": 558,
+        "volume_change_1h_pct": 459,
+        "pct_1h": 58
+      }
+    },
+    "2026-09-08": {
+      "rows": 2312,
+      "with_snapshot": 2307,
+      "non_null": {
+        "pct_1m": 2224,
+        "trend_streak": 1520,
+        "volume_change_1h_pct": 1863,
+        "pct_3m": 2233,
+        "pct_1h": 386
+      }
+    },
+    "2026-09-18": {
+      "rows": 417,
+      "with_snapshot": 417,
+      "non_null": {
+        "pct_1m": 417,
+        "trend_streak": 290,
+        "volume_change_1h_pct": 339,
+        "pct_3m": 402,
+        "pct_1h": 17
+      }
+    },
+    "2026-09-23": {
+      "rows": 2904,
+      "with_snapshot": 2904,
+      "non_null": {
+        "pct_1m": 2881,
+        "trend_streak": 1980,
+        "volume_change_1h_pct": 2722,
+        "pct_3m": 2862,
+        "pct_1h": 485
+      }
+    },
+    "2026-09-24": {
+      "rows": 2206,
+      "with_snapshot": 2206,
+      "non_null": {
+        "pct_1m": 2192,
+        "pct_3m": 2173,
+        "volume_change_1h_pct": 2004,
+        "trend_streak": 1507,
+        "pct_1h": 388
+      }
+    },
+    "2026-10-05": {
+      "rows": 1556,
+      "with_snapshot": 1554,
+      "non_null": {
+        "pct_1m": 1540,
+        "trend_streak": 1066,
+        "volume_change_1h_pct": 1380,
+        "pct_3m": 1516,
+        "pct_1h": 271
+      }
+    },
+    "2026-10-12": {
+      "rows": 2123,
+      "with_snapshot": 2120,
+      "non_null": {
+        "pct_1m": 2098,
+        "trend_streak": 1441,
+        "volume_change_1h_pct": 1902,
+        "pct_3m": 2071,
+        "pct_1h": 301
+      }
+    },
+    "2026-10-13": {
+      "rows": 5594,
+      "with_snapshot": 5581,
+      "non_null": {
+        "pct_1m": 5581,
+        "pct_3m": 5581,
+        "volume_change_1h_pct": 5581,
+        "pct_1h": 1146,
+        "trend_streak": 3892
+      }
+    },
+    "2026-10-14": {
+      "rows": 5829,
+      "with_snapshot": 5798,
+      "non_null": {
+        "pct_1m": 5790,
+        "pct_3m": 5790,
+        "volume_change_1h_pct": 5746,
+        "trend_streak": 3998,
+        "pct_1h": 1082
+      }
+    },
+    "2026-10-15": {
+      "rows": 5819,
+      "with_snapshot": 5790,
+      "non_null": {
+        "pct_1m": 5790,
+        "pct_3m": 5790,
+        "volume_change_1h_pct": 5790,
+        "trend_streak": 4006,
+        "pct_1h": 1080
+      }
+    },
+    "2026-10-16": {
+      "rows": 5740,
+      "with_snapshot": 5709,
+      "non_null": {
+        "pct_1m": 5708,
+        "pct_3m": 5709,
+        "volume_change_1h_pct": 5708,
+        "trend_streak": 3961,
+        "pct_1h": 1120
+      }
+    },
+    "2026-10-17": {
+      "rows": 5573,
+      "with_snapshot": 5551,
+      "non_null": {
+        "pct_1m": 5547,
+        "pct_3m": 5549,
+        "volume_change_1h_pct": 5529,
+        "pct_1h": 1120,
+        "trend_streak": 3864
+      }
+    },
+    "2026-10-18": {
+      "rows": 5586,
+      "with_snapshot": 5559,
+      "non_null": {
+        "pct_1m": 5550,
+        "pct_3m": 5559,
+        "volume_change_1h_pct": 5559,
+        "pct_1h": 1103,
+        "trend_streak": 3840
+      }
+    },
+    "2026-10-19": {
+      "rows": 5503,
+      "with_snapshot": 5486,
+      "non_null": {
+        "pct_1m": 5483,
+        "pct_3m": 5482,
+        "volume_change_1h_pct": 5416,
+        "trend_streak": 3804,
+        "pct_1h": 1115
+      }
+    },
+    "2026-10-20": {
+      "rows": 4717,
+      "with_snapshot": 4707,
+      "non_null": {
+        "pct_1m": 4691,
+        "trend_streak": 3241,
+        "pct_3m": 4684,
+        "volume_change_1h_pct": 4511,
+        "pct_1h": 877
+      }
+    },
+    "2026-10-21": {
+      "rows": 5635,
+      "with_snapshot": 5622,
+      "non_null": {
+        "pct_1m": 5621,
+        "pct_3m": 5622,
+        "volume_change_1h_pct": 5621,
+        "trend_streak": 3922,
+        "pct_1h": 1173
+      }
+    },
+    "2026-10-22": {
+      "rows": 5829,
+      "with_snapshot": 5808,
+      "non_null": {
+        "pct_1m": 5807,
+        "pct_3m": 5808,
+        "volume_change_1h_pct": 5808,
+        "trend_streak": 3980,
+        "pct_1h": 1092
+      }
+    },
+    "2026-10-23": {
+      "rows": 5665,
+      "with_snapshot": 5650,
+      "non_null": {
+        "pct_1m": 5636,
+        "pct_3m": 5637,
+        "volume_change_1h_pct": 5595,
+        "trend_streak": 3940,
+        "pct_1h": 1150
+      }
+    },
+    "2026-10-24": {
+      "rows": 5609,
+      "with_snapshot": 5599,
+      "non_null": {
+        "pct_1m": 5567,
+        "pct_3m": 5591,
+        "volume_change_1h_pct": 5561,
+        "trend_streak": 3890,
+        "pct_1h": 1214
+      }
+    },
+    "2026-10-25": {
+      "rows": 5568,
+      "with_snapshot": 5556,
+      "non_null": {
+        "pct_1m": 5556,
+        "pct_3m": 5556,
+        "volume_change_1h_pct": 5556,
+        "trend_streak": 3851,
+        "pct_1h": 1136
+      }
+    },
+    "2026-10-26": {
+      "rows": 5734,
+      "with_snapshot": 5721,
+      "non_null": {
+        "pct_1m": 5701,
+        "pct_3m": 5711,
+        "volume_change_1h_pct": 5641,
+        "pct_1h": 1142,
+        "trend_streak": 3944
+      }
+    }
+  },
+  "ready": false,
+  "outcome_values_summarized": false,
+  "rows_captured": 90518,
+  "manifest_sha256": "30214097bfb0d8e8c64bf46b1c33d207277f87f492748b56eb84c6cf675d0a1a"
+}

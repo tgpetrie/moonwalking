@@ -13,7 +13,7 @@ from typing import Any
 
 
 LIVE_RANKING_MODEL_VERSION = "live-strength-v1"
-LIVE_RANKING_SNAPSHOT_VERSION = "live-strength-v1-snapshot-v2"
+LIVE_RANKING_SNAPSHOT_VERSION = "live-strength-v1-snapshot-v3"
 
 # Retention-only fields. They are collected solely so a historical outcome can
 # be explained later, and must never reach the public ranking payload — the
@@ -410,6 +410,14 @@ def build_live_rankings(
                 # None when volatility is available; a reason string otherwise,
                 # so unavailable is never confused with low.
                 "realized_volatility_unavailable_reason": vol_row.get("reason"),
+                # Provenance of the categorical inputs is separate from their
+                # legacy scoring defaults. Never infer measurement from a
+                # default "normal"/"neutral" string in a retained snapshot.
+                "context_input_supplied": {
+                    key: context_row.get(key) is not None
+                    for key in ("liquidity", "spot_pressure", "market_relation")
+                },
+                "quote_volume_hour_ts": liq_row.get("hour_ts"),
             }
             row["scoring_detail"] = {
                 "weighted_before_penalty": round(weighted, 4),

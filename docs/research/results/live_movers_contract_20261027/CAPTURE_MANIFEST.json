@@ -1,0 +1,24 @@
+{
+  "captured_at_utc": "2026-10-27T07:44:33.605992+00:00",
+  "source": "C:\\Users\\tgpet\\.moonwalking\\data\\signal_outcomes.sqlite",
+  "source_access": "mode=ro; explicit consistent read transaction; rows copied without revision",
+  "source_table": "board_outcomes_v2",
+  "rows": 90518,
+  "decision_cutoff_exclusive_utc": "2026-10-27T00:00:00+00:00",
+  "contract_sha256": "cce2c74ebcd1e31ededfec10d561a17d4ea070f210b77ff08963aad99ac609de",
+  "freeze_script_sha256": "d4ccd7ff4ac1ff509c74935692a6b713d58a9b17a1a776e3a5a090d20553c108",
+  "files": {
+    "board_episodes.sqlite": {
+      "bytes": 186007552,
+      "sha256": "8b90f5e46e8213ebe66a71b6c125b1ae3fde0a193d5d79ea1c9112fc8db3e217"
+    },
+    "CONTRACT.json": {
+      "bytes": 2148,
+      "sha256": "6b5152a9eed62500403a38e419c6deb51ae2b0c4dca0777fb9227ea1aa7be7f8"
+    },
+    "eligible_episodes.csv": {
+      "bytes": 4504047,
+      "sha256": "c1b12f8b955beb022b3deb4adeba676024737bdc467250e50c1c33906bdfbf32"
+    }
+  }
+}

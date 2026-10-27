@@ -212,8 +212,8 @@ class TestPublicPayloadCompatibility:
 
 
 class TestBuildFeatureSnapshot:
-    def test_schema_version_is_v2(self):
-        assert LIVE_RANKING_SNAPSHOT_VERSION.endswith("-v2")
+    def test_schema_version_is_v3(self):
+        assert LIVE_RANKING_SNAPSHOT_VERSION.endswith("-v3")
         version, _ = build_feature_snapshot(_ranking_row(), captured_ts=1000)
         assert version == LIVE_RANKING_SNAPSHOT_VERSION
 

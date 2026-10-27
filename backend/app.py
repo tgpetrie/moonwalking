@@ -14375,12 +14375,27 @@ def _compute_snapshots_from_cache():
             # explained later, then stripped so the published payload keeps its
             # original shape.
             _board_features_ts = int(time.time())
+            # Retain matching evidence at this board calculation's own time.
+            # These optional maps only populate raw_inputs; public scoring is
+            # unchanged. Do not reuse the earlier signal sample or timestamp.
+            try:
+                _board_volatility = realized_volatility_by_product(_board_features_ts)
+            except Exception as exc:
+                _board_volatility = {}
+                logging.warning("Board volatility snapshot skipped: %s", exc)
+            try:
+                _board_liquidity = latest_quote_volume_by_product(_board_features_ts)
+            except Exception as exc:
+                _board_liquidity = {}
+                logging.warning("Board liquidity snapshot skipped: %s", exc)
             live_rankings = build_live_rankings(
                 price_snapshot=price_snapshot,
                 volume_snapshot=volume_snapshot,
                 context_snapshot=signal_context,
                 alerts=alerts_items,
                 include_internal_features=True,
+                volatility_snapshot=_board_volatility,
+                liquidity_snapshot=_board_liquidity,
             )
             _board_features = {
                 str(row.get("symbol") or "").upper(): row for row in live_rankings
