@@ -2,6 +2,15 @@
 
 ## Live-mover proposal corrections - 2026-10-27
 
+Follow-up: `scripts/coinbase_feed_audit.py` now implements the standalone
+diagnostic, with replayable raw evidence outside Git and conservative side /
+coverage gates. Read
+[`docs/research/COINBASE_FEED_AUDIT_20261027.md`](docs/research/COINBASE_FEED_AUDIT_20261027.md)
+for commands, limits and short smoke findings. Fourteen targeted audit/WS
+tests, formatting and guardrails pass. The full one-hour verdict remains
+pending; the earlier "No capture was run here" below describes the original
+documentation-only checkpoint.
+
 Branch `codex/live-movers-spec-corrections-20261027` extends the research
 contract at `a936dec5` with documentation only. Read
 [`docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md`](docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md)
