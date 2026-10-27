@@ -1,5 +1,31 @@
 # Moonwalking / BHABIT Handoff
 
+## Live-mover proposal corrections - 2026-10-27
+
+Branch `codex/live-movers-spec-corrections-20261027` extends the research
+contract at `a936dec5` with documentation only. Read
+[`docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md`](docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md)
+for the corrected prospective rules and checklist. The frozen historical
+JSON contracts and comparison artifacts remain unchanged.
+
+The next prospective deliverable is step 2.5: at least one hour of paired
+Exchange ticker/matches/heartbeat evidence keyed by product and trade ID.
+Match-side inversion is documented; ticker-side meaning still needs packet
+verification. Matches can also drop, so heartbeat/REST reconciliation or
+explicit incomplete coverage is required. No capture was run here.
+
+The addendum chooses sparse buckets with read-time gap reconstruction,
+per-row price-source/age flags, unnormalized decayed returns in each coin's
+volatility units, and hard exclusion of `EXTENDED` moves from the early
+board. It fixes 30s/180s windows before fitting and requires >=14 valid
+shadow days with paired day-block uncertainty before a UI ranking change.
+The collector, application code, historical data and visible ranking were
+not changed. Board-retention deployment is still a separate runtime step.
+
+Validation: Markdown links/formatting, numeric storage/decay/extension
+examples, all 11 frozen artifact hashes, `git diff --check` and repository
+guardrails passed. No application tests were needed for these Markdown edits.
+
 ## Always-on collector - 2026-10-12
 
 Collection had silently stopped on 2026-10-05 11:22 because the backend only
