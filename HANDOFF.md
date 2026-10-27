@@ -11,7 +11,9 @@ scores, a local-only repeat-test guard, and discovery compatibility that
 incorrectly depended on docs-only commits. It also checks all six CSV
 identity fields and exposes daily IC/attrition details. Frozen contracts,
 features, splits and model forms are unchanged. No discovery/test analysis
-was run during review; verify is the next gate before discovery.
+was run during review. Verify passed from clean committed code at `7a55922`:
+333,170 identities/timestamps/phases match; all three readiness gates pass.
+Discovery is the next phase.
 All 23 contract/driver/review tests, repository guardrails and diff checks pass.
 
 The separate prospective diagnostic is implemented and pushed at `5e56095`

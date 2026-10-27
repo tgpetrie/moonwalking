@@ -61,9 +61,15 @@ contract/result directory is unchanged.
 
 ## Next step on the main scoring track
 
-Commit the reviewed driver, rerun **verify only** from that clean code, and
-preserve the new verification artifact with the correct code hashes. Once
-that gate passes, the driver is ready for the predeclared discovery phase.
+The reviewed driver is committed at `7a55922`. Its clean-code **verify-only**
+run passes all hashes and all six CSV fields for 333,170 eligible episodes.
+Readiness remains train 217,302 / 40 days / 192 products, discovery 38,764 /
+7 / 119 and validation 77,104 / 14 / 205. An outcome-blind availability
+check found no missing/nonfinite percentage baseline or unexpected stratum
+among those eligible episodes. The verification artifact records actual code
+hashes and NumPy/pandas versions.
+
+The driver is ready for the predeclared discovery phase.
 Freeze its resulting choices before the one-time historical validation.
 Do not relax any gate based on outcomes. Fourteen historical validation days
 remain limited, previously inspected history; the result cannot authorize a

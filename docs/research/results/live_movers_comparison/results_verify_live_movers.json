@@ -2,7 +2,16 @@
   "phase": "verify",
   "spec_version": "live-movers-pilot-comparison-v1",
   "contract_version": "live-movers-contract-v1-production-amendment-1",
-  "code_commit": "a936dec583d4c39601e108fe650650589d5d7f6f",
+  "code_commit": "7a55922dfcc923ee2a1ac25f4991dc666600790e",
+  "code_hashes": {
+    "scripts/scoring_experiment/live_movers_run.py": "386ab8ec71287061e8c662885d96e3cad0aa5dd0574274f20782c721e4aff546",
+    "scripts/scoring_experiment/freeze_live_contract.py": "068e474d8df25d618d56c5fd8d26813599c82e0472ec6cf338e839f679d50307"
+  },
+  "code_dirty": false,
+  "runtime_versions": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.6"
+  },
   "inputs": {
     "capture_files": {
       "board_episodes.sqlite": "b3c26d4dd963161c8bbb858e5d341e3edf681e6e6c0f65c5d2711fc86887b30e",
