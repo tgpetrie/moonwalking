@@ -105,17 +105,17 @@ def test_quintiles_report_gross_and_cost_scenarios_without_double_counting():
 
 
 def test_test_phase_refuses_without_matching_discovery(tmp_path):
-    p, h = tmp_path / "d.json", {"x": 1}
+    p, h, code = tmp_path / "d.json", {"x": 1}, {"driver": "fixed"}
     with pytest.raises(SystemExit):
-        lr.require_discovery(p, h, "c")
-    for bad in ({"phase": "discovery", "inputs": {"x": 2}, "code_commit": "c"},
-                {"phase": "discovery", "inputs": h, "code_commit": "old"},
-                {"phase": "verify", "inputs": h, "code_commit": "c"}):
+        lr.require_discovery(p, h, "c", code)
+    for bad in ({"phase": "discovery", "inputs": {"x": 2}, "code_hashes": code},
+                {"phase": "discovery", "inputs": h, "code_hashes": {"driver": "changed"}},
+                {"phase": "verify", "inputs": h, "code_hashes": code}):
         p.write_text(json.dumps(bad))
         with pytest.raises(SystemExit):
-            lr.require_discovery(p, h, "c")
-    p.write_text(json.dumps({"phase": "discovery", "inputs": h, "code_commit": "c"}))
-    assert lr.require_discovery(p, h, "c")["phase"] == "discovery"
+            lr.require_discovery(p, h, "c", code)
+    p.write_text(json.dumps({"phase": "discovery", "inputs": h, "code_commit": "c", "code_hashes": code}))
+    assert lr.require_discovery(p, h, "c", code)["phase"] == "discovery"
 
 
 def test_changed_capture_is_refused(tmp_path):

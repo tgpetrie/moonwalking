@@ -77,7 +77,7 @@ def num(x):
 
 
 def load_episodes(capture: Path, cfg: dict, freeze) -> pd.DataFrame:
-    """Re-derive eligibility from the frozen DB with the frozen classifier and require the exact frozen (id, phase) list."""
+    """Re-derive eligibility and require every frozen identity, timestamp and phase in order."""
     con = sqlite3.connect((capture / "board_episodes.sqlite").as_uri() + "?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
     cooldown, recs = {}, []
@@ -93,8 +93,9 @@ def load_episodes(capture: Path, cfg: dict, freeze) -> pd.DataFrame:
     df = pd.DataFrame(recs, columns=["id", "board", "product_id", "direction", "entered_ts", "phase", "pct_1m", "pct_3m",
                                      "vol", "live_score", "start_change_pct", "gross_return_5m", "gross_return_15m"])
     with (capture / "eligible_episodes.csv").open(encoding="utf-8", newline="") as f:
-        frozen = [(int(r["id"]), r["phase"]) for r in csv.DictReader(f)]
-    if list(zip(df["id"].astype(int), df["phase"])) != frozen:
+        frozen = [(int(r["id"]), r["board"], r["product_id"], r["direction"], int(r["entered_ts"]), r["phase"])
+                  for r in csv.DictReader(f)]
+    if list(df[["id", "board", "product_id", "direction", "entered_ts", "phase"]].itertuples(index=False, name=None)) != frozen:
         raise SystemExit("Refusing: re-derived eligible episodes differ from the frozen eligible list.")
     if df["id"].duplicated().any():
         raise SystemExit("Refusing: duplicate episode ids.")
@@ -208,9 +209,12 @@ def boot_moving(s: pd.Series, reps: int, seed: int, block: int = 3, level: float
 
 def paired(ics: pd.DataFrame, a: str, b: str, spec: dict, offset: int = 0) -> dict:
     d = (ics[a] - ics[b]).dropna()
-    reps, seed = 5000, 20261027 + offset
-    return {"difference": f"{a}-{b}", "iid_daily": boot_iid(d.to_numpy(), reps, seed),
-            "moving_block_3d": boot_moving(d, reps, seed + 1)}
+    # The frozen specification fixes the seed for every reported interval.
+    # Keep offset in the call signature for compatibility; it must not alter it.
+    reps, seed = 5000, 20261027
+    return {"difference": f"{a}-{b}", "bootstrap_replicates": reps, "bootstrap_seed": seed,
+            "iid_daily": boot_iid(d.to_numpy(), reps, seed),
+            "moving_block_3d": boot_moving(d, reps, seed)}
 
 
 def verdict(primary: dict, discovery_mean: float | None, mei: float) -> str:
@@ -232,9 +236,12 @@ def to_score(pred: np.ndarray, reference: np.ndarray) -> np.ndarray:
 
 
 def quintiles(df: pd.DataFrame, score: np.ndarray, label: str, costs: list[float]) -> list[dict]:
-    q = pd.qcut(pd.Series(score, index=df.index).rank(method="first"), 5, labels=False) + 1
+    # Average-rank percentile bands keep identical scores together. Empty bands
+    # are omitted; a constant score has one band, never an arbitrary time split.
+    ranks = pd.Series(score, index=df.index).rank(method="average")
+    q = np.minimum(4, np.floor(5 * (ranks - 0.5) / len(df))).astype(int) + 1
     out = []
-    for k in range(1, 6):
+    for k in sorted(q.unique()):
         g = df.loc[q == k, label]
         out.append({"quintile": int(k), "n": int(len(g)), "mean_gross_pct": float(g.mean()),
                     **{f"mean_gross_minus_{c}pct": float(g.mean() - c) for c in costs}})
@@ -268,6 +275,14 @@ def evaluate(fit_rows: pd.DataFrame, eval_rows: pd.DataFrame, label: str, alpha:
     ics = daily_ics(eval_rows, preds, label)
     res = {"rows": int(len(eval_rows)), "days_scored": int(len(ics)), "products": int(eval_rows["product_id"].nunique()),
            "rows_per_day": eval_rows.groupby("day").size().astype(int).to_dict(),
+           "daily_ic": ics.to_dict(orient="index"),
+           "rows_on_scored_days": int(eval_rows["day"].isin(ics.index).sum()),
+           "excluded_day_groups": {day: {"rows": int(len(g)), "below_minimum_rows": len(g) < MIN_DAY_ROWS,
+                                         "constant_target": g[label].nunique() < 2,
+                                         "constant_predictions": [k for k, p in preds.items()
+                                                                  if pd.Series(p, index=eval_rows.index).loc[g.index].nunique() < 2]}
+                                   for day, g in eval_rows.groupby("day") if day not in ics.index},
+           "quintile_policy": "Average-rank percentile bands; equal scores stay together; empty bands omitted.",
            "mean_daily_ic": {k: float(ics[k].mean()) if len(ics) else None for k in MODELS},
            "paired": {f"{a}-{b}": paired(ics, a, b, spec, offset + i) for i, (a, b) in
                       enumerate((("M1", "B2"), ("M1", "B1"), ("B2", "B1"), ("B2", "B0"), ("M1", "B0")))},
@@ -291,15 +306,32 @@ def git_state() -> tuple[str, bool]:
     return head, dirty
 
 
-def require_discovery(path: Path, hashes: dict, head: str) -> dict:
+def code_fingerprint() -> dict:
+    return {name: digest(ROOT / name) for name in
+            ("scripts/scoring_experiment/live_movers_run.py", "scripts/scoring_experiment/freeze_live_contract.py")}
+
+
+def require_discovery(path: Path, hashes: dict, head: str, code_hashes: dict) -> dict:
     if not path.exists():
         raise SystemExit("Refusing to run the test: no discovery artifact.")
     disc = json.loads(path.read_text(encoding="utf-8"))
     if disc.get("phase") != "discovery" or disc.get("inputs") != hashes:
         raise SystemExit("Refusing to run the test: inputs differ from the discovery run.")
-    if disc.get("code_commit") != head:
-        raise SystemExit("Refusing to run the test: code changed since the discovery run.")
+    if disc.get("code_hashes") != code_hashes:
+        raise SystemExit("Refusing to run the test: code hashes changed or are missing since the discovery run.")
     return disc
+
+
+def reserve_test(work: Path, out: Path, metadata: dict) -> None:
+    """Refuse portable/local results and atomically reserve even an interrupted attempt."""
+    if any((folder / "results_test_live_movers.json").exists() for folder in (work, out)):
+        raise SystemExit("Refusing: the historical validation has already been run once.")
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        with (work / "test_attempt_live_movers.json").open("x", encoding="utf-8") as stream:
+            json.dump(metadata, stream, indent=2, allow_nan=False)
+    except FileExistsError:
+        raise SystemExit("Refusing: a historical validation attempt already exists, including an interrupted run.")
 
 
 def main() -> int:
@@ -309,12 +341,14 @@ def main() -> int:
     cfg = json.loads((SPEC_DIR / "CONTRACT_PRODUCTION.json").read_text(encoding="utf-8"))
     spec = json.loads((SPEC_DIR / "COMPARISON_SPEC.json").read_text(encoding="utf-8"))
     hashes = verify_inputs()
+    code_hashes = code_fingerprint()
     head, dirty = git_state()
     if dirty and phase != "verify":
         raise SystemExit("Refusing: uncommitted driver or contract changes; commit first so the result names its code.")
     df = load_episodes(CAPTURE, cfg, load_freeze())
     ready = readiness(df, cfg)
     out = {"phase": phase, "spec_version": spec["version"], "contract_version": cfg["version"], "code_commit": head,
+           "code_hashes": code_hashes, "code_dirty": dirty, "runtime_versions": {"numpy": np.__version__, "pandas": pd.__version__},
            "inputs": hashes, "readiness": ready, "eligible_rows": int(len(df)),
            "limits": [cfg["retrospective_scope"], cfg["historical_holdout_limit"], spec["live_release"],
                       "Scores are ordinal 0-100 percentiles, direction- and horizon-labelled; not probabilities.",
@@ -329,9 +363,12 @@ def main() -> int:
     costs, mei = cfg["cost_scenarios_pct_round_trip"], spec["minimum_effect_of_interest_ic"]
     out["strata"] = {}
     if phase == "test":
-        if (WORK / "results_test_live_movers.json").exists():
-            raise SystemExit("Refusing: the historical validation has already been run once.")
-        disc = require_discovery(dpath, hashes, head)
+        # A committed discovery artifact is portable; a docs/result-only commit
+        # must not require refitting or invalidate unchanged code and inputs.
+        if not dpath.exists():
+            dpath = OUT / "results_discovery_live_movers.json"
+        disc = require_discovery(dpath, hashes, head, code_hashes)
+        reserve_test(WORK, OUT, {"code_commit": head, "code_hashes": code_hashes, "inputs": hashes})
     for si, (sname, (board, direction)) in enumerate(STRATA.items()):
         s = df[(df["board"] == board) & (df["direction"] == direction)]
         tr, dc, te = (s[s["phase"] == p] for p in ("train", "discovery", "test"))
@@ -365,9 +402,10 @@ def main() -> int:
 def _write(out: dict, phase: str) -> None:
     WORK.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(out, indent=2, default=float)
-    (WORK / f"results_{phase}_live_movers.json").write_text(text, encoding="utf-8")
-    (OUT / f"results_{phase}_live_movers.json").write_text(text, encoding="utf-8")
+    text = json.dumps(out, indent=2, default=float, allow_nan=False)
+    for folder in (WORK, OUT):
+        with (folder / f"results_{phase}_live_movers.json").open("x" if phase == "test" else "w", encoding="utf-8") as stream:
+            stream.write(text + "\n")
 
 
 if __name__ == "__main__":

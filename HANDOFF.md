@@ -1,5 +1,25 @@
 # Moonwalking / BHABIT Handoff
 
+## Live-movers comparison review - 2026-10-27
+
+The main immediate-scoring task has resumed on
+`codex/live-movers-driver-review-20261027`, based on Claude's driver commit
+`0832f24`. Read
+[`docs/research/LIVE_MOVERS_DRIVER_REVIEW_20261027.md`](docs/research/LIVE_MOVERS_DRIVER_REVIEW_20261027.md).
+The review reproduced and fixed seed drift, artificial separation of tied
+scores, a local-only repeat-test guard, and discovery compatibility that
+incorrectly depended on docs-only commits. It also checks all six CSV
+identity fields and exposes daily IC/attrition details. Frozen contracts,
+features, splits and model forms are unchanged. No discovery/test analysis
+was run during review; verify is the next gate before discovery.
+All 23 contract/driver/review tests, repository guardrails and diff checks pass.
+
+The separate prospective diagnostic is implemented and pushed at `5e56095`
+on `codex/live-movers-spec-corrections-20261027`. Its full capture began
+2026-10-27 09:06 UTC and writes its status/report under
+`%USERPROFILE%\.moonwalking\analysis\feed_audit_20261027_1h` automatically.
+Do not treat a running capture or the earlier short smoke as passing step 2.5.
+
 ## Always-on collector - 2026-10-12
 
 Collection had silently stopped on 2026-10-05 11:22 because the backend only
