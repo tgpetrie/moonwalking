@@ -1,0 +1,44 @@
+{
+  "phase": "verify",
+  "spec_version": "live-movers-pilot-comparison-v1",
+  "contract_version": "live-movers-contract-v1-production-amendment-1",
+  "code_commit": "a936dec583d4c39601e108fe650650589d5d7f6f",
+  "inputs": {
+    "capture_files": {
+      "board_episodes.sqlite": "b3c26d4dd963161c8bbb858e5d341e3edf681e6e6c0f65c5d2711fc86887b30e",
+      "CONTRACT.json": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e",
+      "eligible_episodes.csv": "8a5235aed7c38e76696dddd0404b508cde238f073ae58a8cd958e8e2b5d2b7b9"
+    },
+    "contract_sha256": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e",
+    "spec_sha256": "075cdddf56ccf3500934bc316d0d8bef1ec5258201a14a4d21478e820f7de7f6",
+    "manifest_sha256": "c8adca26d7e1ee6577da4fa37fe4c5fb8d6f18c98e1903d39f246edcf071ca70"
+  },
+  "readiness": {
+    "train": {
+      "rows": 217302,
+      "days": 40,
+      "products": 192,
+      "pass": true
+    },
+    "discovery": {
+      "rows": 38764,
+      "days": 7,
+      "products": 119,
+      "pass": true
+    },
+    "test": {
+      "rows": 77104,
+      "days": 14,
+      "products": 205,
+      "pass": true
+    }
+  },
+  "eligible_rows": 333170,
+  "limits": [
+    "Recorded board-entry episodes, last-trade labels; not executable fills, whole-universe or point-in-time quote replay",
+    "Prior research may have examined overlapping historical episodes; this locked comparison window is not a previously untouched sample. Prospective confirmation is required.",
+    "Not part of this study. Fresh prospective shadow confirmation after a model freeze is required before any ranking/weight release.",
+    "Scores are ordinal 0-100 percentiles, direction- and horizon-labelled; not probabilities.",
+    "pct_1h/trend_streak complete-case secondary not run."
+  ]
+}
