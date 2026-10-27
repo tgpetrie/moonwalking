@@ -7,6 +7,7 @@ Only feature/label presence, never outcome magnitudes, informs the report.
 from __future__ import annotations
 
 import collections
+import argparse
 import csv
 import hashlib
 import json
@@ -134,7 +135,17 @@ def profile(db, cfg):
 
 
 def main():
-    cfg_path = OUT / "CONTRACT.json"
+    global RAW, SOURCE
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", type=Path, default=SOURCE)
+    parser.add_argument("--capture-dir", type=Path, default=RAW)
+    parser.add_argument("--contract", type=Path, default=OUT / "CONTRACT.json")
+    parser.add_argument("--report-prefix", default="")
+    args = parser.parse_args()
+    RAW, SOURCE = args.capture_dir.resolve(), args.source.resolve()
+    cfg_path = args.contract.resolve()
+    if not re.fullmatch(r"[A-Z_]*", args.report_prefix):
+        raise SystemExit("Report prefix must contain only uppercase letters and underscores")
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     if RAW.exists():
         raise SystemExit("Research capture already exists; do not overwrite the frozen snapshot")
@@ -175,8 +186,8 @@ def main():
                 "files": {p.name: {"bytes": p.stat().st_size, "sha256": digest(p)} for p in RAW.iterdir() if p.is_file()}}
     write(RAW / "MANIFEST.json", manifest)
     result.update(rows_captured=rows, manifest_sha256=digest(RAW / "MANIFEST.json"))
-    write(OUT / "COVERAGE.json", result)
-    write(OUT / "CAPTURE_MANIFEST.json", manifest)
+    write(OUT / (args.report_prefix + "COVERAGE.json"), result)
+    write(OUT / (args.report_prefix + "CAPTURE_MANIFEST.json"), manifest)
     for p in RAW.iterdir():
         if p.is_file():
             os.chmod(p, stat.S_IREAD)

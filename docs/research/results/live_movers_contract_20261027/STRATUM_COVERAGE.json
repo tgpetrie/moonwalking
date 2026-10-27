@@ -1,0 +1,47 @@
+{
+  "discovery/confirmation_3m_down/down": {
+    "rows": 12373,
+    "days": 7,
+    "products": 119
+  },
+  "discovery/confirmation_3m_up/up": {
+    "rows": 12335,
+    "days": 7,
+    "products": 119
+  },
+  "discovery/ignition_1m/up": {
+    "rows": 14056,
+    "days": 7,
+    "products": 119
+  },
+  "test/confirmation_3m_down/down": {
+    "rows": 24586,
+    "days": 14,
+    "products": 205
+  },
+  "test/confirmation_3m_up/up": {
+    "rows": 24457,
+    "days": 14,
+    "products": 205
+  },
+  "test/ignition_1m/up": {
+    "rows": 28061,
+    "days": 14,
+    "products": 205
+  },
+  "train/confirmation_3m_down/down": {
+    "rows": 69448,
+    "days": 40,
+    "products": 189
+  },
+  "train/confirmation_3m_up/up": {
+    "rows": 68920,
+    "days": 40,
+    "products": 192
+  },
+  "train/ignition_1m/up": {
+    "rows": 78934,
+    "days": 40,
+    "products": 189
+  }
+}

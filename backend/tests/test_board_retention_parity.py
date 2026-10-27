@@ -11,7 +11,7 @@ from live_ranking import build_live_rankings, public_ranking_rows
 from board_outcomes import BoardOutcomeStore, TABLE_NAME
 
 
-def board_call(prices, volumes, context, volatility, liquidity):
+def board_call(prices, volumes, context, volatility, liquidity, now=1000):
     tree = ast.parse((Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8"))
     target = next(n for n in ast.walk(tree) if isinstance(n, ast.Try) and any(
         isinstance(s, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "live_rankings" for t in s.targets)
@@ -21,7 +21,7 @@ def board_call(prices, volumes, context, volatility, liquidity):
                  any(isinstance(t, ast.Name) and t.id == "_board_features_ts" for t in n.targets))
     end = next(i for i, n in enumerate(target.body) if isinstance(n, ast.Assign) and
                any(isinstance(t, ast.Name) and t.id == "live_rankings" for t in n.targets))
-    ns = dict(time=SimpleNamespace(time=lambda: 1000), logging=logging, price_snapshot=prices,
+    ns = dict(time=SimpleNamespace(time=lambda: now), logging=logging, price_snapshot=prices,
               volume_snapshot=volumes, signal_context=context, alerts_items=[],
               realized_volatility_by_product=volatility, latest_quote_volume_by_product=liquidity,
               build_live_rankings=build_live_rankings)
@@ -67,3 +67,22 @@ def test_explicit_context_values_are_distinguishable_from_defaults():
     context = {"AAA": {"liquidity": "normal", "spot_pressure": "neutral"}}
     rows = board_call(prices, {}, context, Mock(return_value={}), Mock(return_value={}))
     assert rows[0]["raw_inputs"]["context_input_supplied"] == dict(liquidity=True, spot_pressure=True, market_relation=False)
+
+
+def test_board_reads_actual_price_and_volume_stores(tmp_path, monkeypatch):
+    import price_db
+    import volume_1h_store
+    monkeypatch.setattr(price_db, "DB_PATH", str(tmp_path / "prices.sqlite"))
+    monkeypatch.setattr(volume_1h_store, "DB_PATH", tmp_path / "volume.sqlite")
+    price_db.ensure_price_db()
+    volume_1h_store.ensure_db()
+    for i in range(61):
+        price_db.insert_price_snapshot(6400 + i*60, [("AAA-USD", 10 + i*0.01 + (i % 2)*0.1)])
+    volume_1h_store.upsert_hour("AAA-USD", 3600, base_volume=100, quote_volume_usd=1234,
+        minute_coverage=60, open_price=10, high_price=11, low_price=9, close_price=10)
+    prices = {"AAA": {"price": 10.6, "pct_1m": 0.8, "pct_3m": 1.2}}
+    rows = board_call(prices, {}, {}, price_db.realized_volatility_by_product,
+                      volume_1h_store.latest_quote_volume_by_product, now=10000)
+    assert rows[0]["raw_inputs"]["quote_volume_usd"] == 1234
+    assert rows[0]["raw_inputs"]["realized_volatility_pct_hour"] > 0
+    assert public_ranking_rows(rows) == build_live_rankings(price_snapshot=prices)

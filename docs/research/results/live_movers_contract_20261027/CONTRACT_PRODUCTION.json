@@ -1,0 +1,83 @@
+{
+  "version": "live-movers-contract-v1-production-amendment-1",
+  "frozen_on": "2026-10-27",
+  "decision_cutoff_exclusive_utc": "2026-10-18T00:00:00+00:00",
+  "source_table": "board_outcomes_v2",
+  "primary_horizon_seconds": 300,
+  "secondary_horizon_seconds": 900,
+  "phases": {
+    "train": [
+      "2026-07-19T00:00:00+00:00",
+      "2026-09-27T00:00:00+00:00"
+    ],
+    "discovery": [
+      "2026-09-27T00:00:00+00:00",
+      "2026-10-04T00:00:00+00:00"
+    ],
+    "test": [
+      "2026-10-04T00:00:00+00:00",
+      "2026-10-18T00:00:00+00:00"
+    ]
+  },
+  "purge_before_next_phase_seconds": 1800,
+  "rolling_episode_cooldown_seconds": 3600,
+  "max_snapshot_age_seconds": 60,
+  "required_snapshot_version": "live-strength-v1-snapshot-v2",
+  "required_model_version": "live-strength-v1",
+  "required_raw_features": [
+    "pct_1m",
+    "pct_3m",
+    "volume_change_1h_pct"
+  ],
+  "optional_primary_features": [
+    "pct_1h",
+    "trend_streak"
+  ],
+  "forward_only_features": [
+    "quote_volume_usd",
+    "realized_volatility_pct_hour",
+    "quote_volume_hour_ts",
+    "context_input_supplied"
+  ],
+  "excluded_primary_features": [
+    "pct_30s",
+    "spread_bps",
+    "signed_taker_flow",
+    "market_relative_return",
+    "spot_pressure",
+    "liquidity",
+    "market_relation"
+  ],
+  "required_labels": [
+    "gross_return_5m",
+    "gross_return_15m"
+  ],
+  "readiness": {
+    "train": {
+      "min_days": 21,
+      "min_episodes": 5000,
+      "min_products": 25
+    },
+    "discovery": {
+      "min_days": 7,
+      "min_episodes": 500,
+      "min_products": 25
+    },
+    "test": {
+      "min_days": 14,
+      "min_episodes": 1000,
+      "min_products": 25
+    }
+  },
+  "cost_scenarios_pct_round_trip": [
+    0.2,
+    0.5,
+    0.9,
+    1.2
+  ],
+  "metadata_only_readiness": true,
+  "retrospective_scope": "Recorded board-entry episodes, last-trade labels; not executable fills, whole-universe or point-in-time quote replay",
+  "thirty_second_ruling": "Excluded from the historical comparison. Prospectively possible only with explicit event/receipt times, freshness and long enough retained subminute coverage; current 24h irregular tape is not that dataset.",
+  "amendment_reason": "Local capture failed distinct-day readiness (6 train days, 1 discovery day). Select the existing full production backup as a separate cohort before reading any outcome magnitudes; no thresholds or features changed. Local capture is preserved.",
+  "historical_holdout_limit": "Prior research may have examined overlapping historical episodes; this locked comparison window is not a previously untouched sample. Prospective confirmation is required."
+}
