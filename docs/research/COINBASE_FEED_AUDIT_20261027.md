@@ -73,3 +73,23 @@ Original raw files are in the hash-pinned MacBook evidence bundle. Follow
 [`../ai/MACBOOK_HANDOFF_20261027.md`](../ai/MACBOOK_HANDOFF_20261027.md) for the
 combined checkpoint and next uninterrupted capture. The historical comparison
 is complete and inconclusive on the resume branch.
+
+## Unattended retries - 2026-10-28
+
+A second single attempt lost its remote connection after 936.89 seconds.
+The underlying network cause remains unknown. The capture now retains the
+error class and WebSocket close details, and
+`scripts/run_feed_audit_campaign.py` manages at most three fresh attempts.
+Interrupted windows are never combined. It stops at the first completed
+capture even if side/coverage evidence remains inconclusive; all original
+gates remain unchanged. Each child has a requested-duration-plus-600s timeout.
+
+```bash
+python scripts/run_feed_audit_campaign.py --run-root /new/evidence/directory --seconds 3600 --max-attempts 3
+```
+
+The root `STATUS.json` records attempts and points to the completed attempt's
+report. `attempts_exhausted` remains failed. Raw files and stdout/stderr stay
+separate per attempt. Twenty-one targeted tests, guardrails and a live
+15-second smoke pass; a full passing audit is still pending. The MacBook is
+optional capacity and is not required to keep this controller running.

@@ -8,11 +8,14 @@ The completed historical benchmark did not validate or reject Gemini's
 prospective precursor design. Continue the existing proposal through
 [`docs/research/INSTANT_RADAR_NEXT_STEPS_20261028.md`](docs/research/INSTANT_RADAR_NEXT_STEPS_20261028.md).
 
-A fresh >=1h feed audit was launched from committed `c217a52` at
-2026-10-28 09:06 UTC. Its directory is
-`%USERPROFILE%\.moonwalking\analysis\feed_audit_20261028_1h` (PID 18960 at
-launch); check its generated status/report before claiming success. The
-October 27 evidence remains an interrupted capture. Next: finish the audit
+Both single-attempt feed audits failed on lost remote connections: October
+27 after 2059.375s and October 28 after 936.89s. The root cause is not
+established. A bounded controller, `scripts/run_feed_audit_campaign.py`, now
+retries up to three independent captures without stitching time, preserving
+each failure and stopping at the first completed sample even if inconclusive.
+Its operational root is `%USERPROFILE%\.moonwalking\analysis\feed_audit_campaign_20261028`;
+check `STATUS.json` and the attempt report before claiming a gate pass.
+MacBook review is optional; no Mac worker has been launched. Next: finish the audit
 and executable onset/target contract, then the 5s recorder and prospective
 shadow evaluation under the existing gates. Historical validation stays locked.
 

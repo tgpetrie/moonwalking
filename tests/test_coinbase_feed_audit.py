@@ -207,3 +207,20 @@ def test_hash_tamper_rejected_and_replay_is_deterministic(tmp_path):
         stream.write(b"tampered")
     with pytest.raises(ValueError, match="hash mismatch"):
         audit.analyze(tmp_path)
+
+
+def test_normal_close_metadata_does_not_invalidate_a_complete_capture(tmp_path):
+    rows, rest = fixture_capture(tmp_path)
+    rows.append(
+        packet(
+            {
+                "type": "connection_closed",
+                "close_code": 1000,
+                "close_reason": "complete",
+            },
+            3600,
+        )
+    )
+    save(tmp_path, rows, rest)
+    result = audit.analyze(tmp_path)
+    assert result["errors"] == {} and result["hour_gate_pass"]

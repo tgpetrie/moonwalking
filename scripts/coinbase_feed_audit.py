@@ -414,7 +414,22 @@ def capture(run_dir, products, seconds, rest_interval=60, max_pages=20):
 
     def on_error(socket, error):
         failures.append(str(error))
-        record({"type": "audit_transport_error", "error": str(error)})
+        record(
+            {
+                "type": "audit_transport_error",
+                "error": str(error),
+                "error_type": type(error).__name__,
+            }
+        )
+
+    def on_close(socket, status_code, reason):
+        record(
+            {
+                "type": "connection_closed",
+                "close_code": status_code,
+                "close_reason": reason,
+            }
+        )
 
     def worker():
         try:
@@ -423,7 +438,11 @@ def capture(run_dir, products, seconds, rest_interval=60, max_pages=20):
             alive.clear()
 
     client = websocket.WebSocketApp(
-        WS_URL, on_open=on_open, on_message=on_message, on_error=on_error
+        WS_URL,
+        on_open=on_open,
+        on_message=on_message,
+        on_error=on_error,
+        on_close=on_close,
     )
     thread = threading.Thread(target=worker, name="coinbase-audit-reader", daemon=True)
     thread.start()

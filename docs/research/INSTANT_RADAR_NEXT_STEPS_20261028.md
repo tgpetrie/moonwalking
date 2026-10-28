@@ -10,14 +10,35 @@ F1-F5 early-warning candidate. Its completed validation remains locked.
 Owner: Codex implements and verifies the diagnostic and scoring work.
 Gemini's reviewed proposal is the design input. Local models may help review
 bounded traces and draft reports; deterministic code measures the results.
+The MacBook is optional review/implementation capacity. No Mac worker has
+been launched from this Windows session, and progress does not require a
+manual Mac handoff. Codex can prepare the executable targets here.
 
 ## 1. Finish the feed audit
 
-A fresh committed-code attempt was launched on this Windows host at
-2026-10-28 09:06 UTC, from `c217a52`, with PID 18960 at launch. It writes
-`%USERPROFILE%\.moonwalking\analysis\feed_audit_20261028_1h` and generates
-its own status/report. The earlier October 27 attempt remains preserved as
-an interrupted 34-minute capture. It is not being reclassified as success.
+The October 27 attempt disconnected after 2059.375 seconds; the October 28
+attempt from `c217a52` disconnected after 936.89 seconds. Both report a lost
+remote connection. Their logs do not establish the underlying cause. Both
+failed gates and their raw evidence remain preserved in the existing run
+directories; neither is reclassified as success.
+
+`scripts/run_feed_audit_campaign.py` now manages up to three fresh attempts,
+with separate raw directories/reports. Every interrupted attempt restarts
+the one-hour requirement; periods are never stitched together. It stops at
+the first completed capture even if the product-level evidence remains
+inconclusive, rather than retrying complete samples to find a passing verdict.
+Each child has a duration-plus-600s process timeout; exhausting the three
+attempts stays failed. Error class and WebSocket close details are now retained.
+This improves unattended recovery/diagnostics; it does not prove that the
+network cause is fixed.
+
+The operational root for the next run is
+`%USERPROFILE%\.moonwalking\analysis\feed_audit_campaign_20261028`.
+Read its `STATUS.json`, then the selected attempt's report. The ordinary
+controller process needs no active AI session during collection.
+Validation: 21 targeted capture/controller/WS tests and repository guardrails
+pass. A live 15-second smoke completed normally, retained close metadata and
+correctly kept the hour gate false. This is not a successful full audit.
 
 Acceptance stays as defined in the
 [prospective contract](LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md): paired
