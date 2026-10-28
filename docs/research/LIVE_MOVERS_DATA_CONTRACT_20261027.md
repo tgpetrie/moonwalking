@@ -6,6 +6,14 @@ based on `runtime/collector` at `ed3e231`. The running collector and dashboard
 have not been changed; the fix takes effect for new rows after deployment.
 No forecast has been fitted and no outcome performance has been calculated here.
 
+**Prospective proposal review (2026-10-27):** the pasted 30s/3m early-warning
+proposal is a separate, future cohort. Its corrected collection, smoothing,
+eligibility and evaluation rules are in
+[`LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md`](LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md).
+That addendum requires an hour-long `ticker`/`matches`/`heartbeat` audit before
+micro-bar implementation. It does not amend the frozen historical JSON
+contracts, eligible episodes, hashes, model comparison or date splits below.
+
 Claude can build the separate short-horizon driver against the exact artifacts
 below. Keep the daily/fundamentals experiment on its own branch. Its remote tag
 `research/fundamentals-driver-2026-10-26` was verified to dereference to `058d740`;

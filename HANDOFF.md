@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## MacBook continuation - 2026-10-27
+
+Use branch `codex/macbook-resume-20261027`. It combines both completed
+research branches and carries the transfer instructions, environment pins
+and evidence hashes. Start with
+[`docs/ai/MACBOOK_HANDOFF_20261027.md`](docs/ai/MACBOOK_HANDOFF_20261027.md).
+The historical comparison is complete and inconclusive. The prospective
+capture disconnected after 34m19s and **did not pass** the one-hour gate.
+All 44 combined research/audit/restore tests and repository guardrails pass.
+The 14-file evidence bundle is hash verified and transferred via draft
+GitHub release `research-handoff-20261027`; restore instructions and pins
+are in the MacBook handoff. Native Mac verification remains to be run there.
+
 ## Live-movers comparison review - 2026-10-27
 
 The main immediate-scoring task has resumed on
@@ -23,10 +36,50 @@ No live weights/ranking change follows; do not rerun validation to tune it.
 All 23 contract/driver/review tests, repository guardrails and diff checks pass.
 
 The separate prospective diagnostic is implemented and pushed at `5e56095`
-on `codex/live-movers-spec-corrections-20261027`. Its full capture began
-2026-10-27 09:06 UTC and writes its status/report under
-`%USERPROFILE%\.moonwalking\analysis\feed_audit_20261027_1h` automatically.
-Do not treat a running capture or the earlier short smoke as passing step 2.5.
+on `codex/live-movers-spec-corrections-20261027`. Its capture ran from
+2026-10-27 09:06 to 09:40 UTC before losing the remote connection.
+Its report is preserved in the MacBook evidence bundle; step 2.5 remains
+incomplete. Start a new uninterrupted capture on the MacBook.
+
+## Live-mover proposal corrections - 2026-10-27
+
+Follow-up: `scripts/coinbase_feed_audit.py` now implements the standalone
+diagnostic, with replayable raw evidence outside Git and conservative side /
+coverage gates. Read
+[`docs/research/COINBASE_FEED_AUDIT_20261027.md`](docs/research/COINBASE_FEED_AUDIT_20261027.md)
+for commands, limits and short smoke findings. Fourteen targeted audit/WS
+tests, formatting and guardrails pass. The committed-code run at `5e56095`
+ended with a lost-connection error after 2059.375 seconds; the hour gate is
+false. Its evidence originated at `%USERPROFILE%\.moonwalking\analysis\feed_audit_20261027_1h`.
+The main scoring track has resumed on `codex/live-movers-driver-review-20261027`.
+The earlier "No capture was run here" below describes the original
+documentation-only checkpoint.
+
+The original documentation checkpoint on
+`codex/live-movers-spec-corrections-20261027` extended the research contract
+at `a936dec5`. Read
+[`docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md`](docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md)
+for the corrected prospective rules and checklist. The frozen historical
+JSON contracts and comparison artifacts remain unchanged.
+
+The next prospective deliverable is step 2.5: at least one hour of paired
+Exchange ticker/matches/heartbeat evidence keyed by product and trade ID.
+Match-side inversion is documented; ticker-side meaning still needs packet
+verification. Matches can also drop, so heartbeat/REST reconciliation or
+explicit incomplete coverage is required. The later interrupted capture
+does not complete this gate.
+
+The addendum chooses sparse buckets with read-time gap reconstruction,
+per-row price-source/age flags, unnormalized decayed returns in each coin's
+volatility units, and hard exclusion of `EXTENDED` moves from the early
+board. It fixes 30s/180s windows before fitting and requires >=14 valid
+shadow days with paired day-block uncertainty before a UI ranking change.
+The collector, application code, historical data and visible ranking were
+not changed. Board-retention deployment is still a separate runtime step.
+
+Validation: Markdown links/formatting, numeric storage/decay/extension
+examples, all 11 frozen artifact hashes, `git diff --check` and repository
+guardrails passed. No application tests were needed for these Markdown edits.
 
 ## Always-on collector - 2026-10-12
 
