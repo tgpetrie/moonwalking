@@ -159,3 +159,7 @@ attachment is unavailable on the MacBook.
 Checkpoint verification on Windows: all **44** listed tests, repository
 guardrails, link/diff checks and all **14** transfer member hashes pass.
 Historical contract hashes and main-driver fingerprints remain unchanged.
+The uploaded bundle was downloaded again through the documented authenticated
+`gh release download` command; its archive/member hashes pass again.
+The [GitHub transfer receipt](MACBOOK_GITHUB_TRANSFER_20261027.json) records
+the release URL, asset IDs, sizes and server-provided SHA-256 digests.

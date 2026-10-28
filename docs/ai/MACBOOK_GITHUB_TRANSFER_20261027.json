@@ -1,0 +1,26 @@
+{
+  "repository": "tgpetrie/moonwalking",
+  "resume_branch": "codex/macbook-resume-20261027",
+  "release_id": 426331654,
+  "release_tag": "research-handoff-20261027",
+  "release_url": "https://github.com/tgpetrie/moonwalking/releases/tag/untagged-f4e62596e13c8bfe187f",
+  "draft": true,
+  "release_target_commit": "604c90496943a994d7f032120eac2026ef421c13",
+  "assets": [
+    {
+      "id": 684079751,
+      "name": "MACBOOK_EVIDENCE_MANIFEST_20261027.json",
+      "size": 3227,
+      "digest": "sha256:590050b4ecce341405663deb0c9c9e8b24077084dfc40f5f310bf5a9a85ea487",
+      "state": "uploaded"
+    },
+    {
+      "id": 684079752,
+      "name": "moonwalking-live-movers-evidence-20261027.tar.gz",
+      "size": 112436118,
+      "digest": "sha256:54a3c1588e8411611e31a4fb01c082e4bf89fa942c74885ecda11173f63a7d8b",
+      "state": "uploaded"
+    }
+  ],
+  "verification": "Authenticated gh release download by tag succeeded. Downloaded archive and all 14 member hashes verified against the committed manifest."
+}
