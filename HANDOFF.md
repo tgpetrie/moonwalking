@@ -1,5 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
+## Continue Gemini's instant radar - 2026-10-28
+
+The instant board was always intended to use a distinct formula from the
+broader near/short/medium/long outlooks, sharing underlying market data.
+The completed historical benchmark did not validate or reject Gemini's
+prospective precursor design. Continue the existing proposal through
+[`docs/research/INSTANT_RADAR_NEXT_STEPS_20261028.md`](docs/research/INSTANT_RADAR_NEXT_STEPS_20261028.md).
+
+A fresh >=1h feed audit was launched from committed `c217a52` at
+2026-10-28 09:06 UTC. Its directory is
+`%USERPROFILE%\.moonwalking\analysis\feed_audit_20261028_1h` (PID 18960 at
+launch); check its generated status/report before claiming success. The
+October 27 evidence remains an interrupted capture. Next: finish the audit
+and executable onset/target contract, then the 5s recorder and prospective
+shadow evaluation under the existing gates. Historical validation stays locked.
+
 ## MacBook continuation - 2026-10-27
 
 Use branch `codex/macbook-resume-20261027`. It combines both completed
