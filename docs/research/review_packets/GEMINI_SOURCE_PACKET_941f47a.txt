@@ -1580,4 +1580,3 @@ def test_invalid_asof_cannot_mature_future_labels():
         engine.evaluate(ANCHOR, baseline(), "up", 300, float("nan"))
 
 ========== END FILE: tests/test_instant_targets.py ==========
-

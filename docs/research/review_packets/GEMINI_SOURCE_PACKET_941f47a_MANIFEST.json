@@ -2,8 +2,8 @@
   "repository": "tgpetrie/moonwalking",
   "commit": "941f47a901659892c34e9586edcd9afbd6faa22e",
   "packet": "GEMINI_SOURCE_PACKET_941f47a.txt",
-  "packet_bytes": 71329,
-  "packet_sha256": "873eb6a5c2ff0923e8046e00605f3328d7eb20d2056b664e6447d7072eaaf368",
+  "packet_bytes": 71328,
+  "packet_sha256": "089f06e61861a28f3a2cfb9da9102ca99341d6c12a5d8b3f94e2b46456d7a3dd",
   "files": [
     {
       "path": "docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md",
