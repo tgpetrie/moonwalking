@@ -25,6 +25,14 @@ the current v2 draft automatically.
 Bookmark this page:
 <https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md>
 
+The separate fundamentals driver review is complete at `8708c25` on
+`codex/fundamentals-driver-review-20261030`. Corrected no-fit readiness and 77
+targeted checks pass; discovery and the primary test have not run. The accepted
+cohort does not need another Gemini pass. Its 30 exact input files have a
+verified GitHub backup. Use the
+[fundamentals resume page](https://github.com/tgpetrie/moonwalking/blob/codex/fundamentals-driver-review-20261030/docs/ai/FUNDAMENTALS_RESUME_20261030.md)
+for that lane; its readiness does not enable instant-radar fitting.
+
 ## Current checkpoint
 
 | Item | Current state |

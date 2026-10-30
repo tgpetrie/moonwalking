@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T08:25:32.010174+00:00",
+  "updated_utc": "2026-10-30T08:38:16.659136+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -152,11 +152,21 @@
   },
   "other_research_lanes": {
     "fundamentals_driver_review": {
-      "status": "review_in_progress_discovery_not_run",
+      "status": "review_complete_corrected_readiness_passed_discovery_not_run",
       "branch": "codex/fundamentals-driver-review-20261030",
       "worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-FundamentalsDriverReview",
       "reviewed_input_commit": "058d740",
-      "scope": "separate broader fundamentals experiment; does not change instant targets"
+      "scope": "separate broader fundamentals experiment; does not change instant targets",
+      "checkpoint_commit": "8708c25",
+      "reviewed_code_commit": "6809933",
+      "targeted_tests_passed": 77,
+      "model_fits_run_in_review": false,
+      "discovery_run": false,
+      "primary_test_run": false,
+      "exact_inputs_cloud_backed_up": 30,
+      "cloud_download_and_fresh_restore_verified": true,
+      "resume_url": "https://github.com/tgpetrie/moonwalking/blob/codex/fundamentals-driver-review-20261030/docs/ai/FUNDAMENTALS_RESUME_20261030.md",
+      "primary_interpretation": "joint S1 stack versus raw S0; calibration-only descriptive control needed for fee attribution"
     }
   }
 }

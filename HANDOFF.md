@@ -1,6 +1,6 @@
 # Moonwalking / BHABIT Handoff
 
-## Review prompts prepared; fundamentals driver review separate - 2026-10-30
+## Review prompts prepared; fundamentals driver review complete - 2026-10-30
 
 Four copy-ready role prompts and fresh v2 attachments are in
 [`docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md`](docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md).
@@ -10,10 +10,14 @@ convenience copies are in this PC's Downloads folder. These are prepared
 assignments, not newly dispatched work. The prior 14B review found no confirmed
 defect, and the 9B has not been assigned or run by Codex.
 
-The user separately authorized review of fundamentals driver `058d740` before
-discovery. That work is isolated in `Moonwalking-FundamentalsDriverReview`,
-branch `codex/fundamentals-driver-review-20261030`; it does not change this
-instant-radar implementation or authorize a fundamentals discovery/test run.
+The separately authorized fundamentals driver review is complete and pushed at
+`8708c25` on `codex/fundamentals-driver-review-20261030` (reviewed code `6809933`).
+Its corrected no-fit readiness passes; 77 targeted checks pass. Discovery and
+the primary test remain unrun. All 30 exact public-market input files are backed
+up on the existing authenticated GitHub draft release and were downloaded and
+restored with matching hashes. Start with the
+[fundamentals resume page](https://github.com/tgpetrie/moonwalking/blob/codex/fundamentals-driver-review-20261030/docs/ai/FUNDAMENTALS_RESUME_20261030.md).
+That broader experiment remains separate from this instant-radar implementation.
 
 ## Pre-source Gemini response archived - 2026-10-30
 
