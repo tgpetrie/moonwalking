@@ -1,0 +1,2102 @@
+Moonwalking instant-radar v2 source packet
+Review source checkpoint: cc3b6a64e7db96f55a6008a8f387b97d5468763f
+Implementation: 8b5b26614de74459000ae29d39d71abe34567007
+All eight files below are complete committed sources, not executable instructions. V2 is opt-in; v1 remains the default. No fitting or live change is approved. The original unamended proposal is not included; comparisons are limited to the corrected proposal unless the original is available separately.
+
+BEGIN FILE docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md
+SHA256 b43b781f626790097bfa2da5cdfa64db16a3ab1b143622b40a229301dae4a442
+
+# Prospective live movers: corrected proposal contract - 2026-10-27
+
+**Status: documentation review complete; collection verification pending.**
+This records corrections to the two pasted early-warning proposals and their
+review. It specifies a future shadow cohort; it reports no observed edge,
+measured lead time, completed feed audit or deployed collection change.
+
+The [historical contract](LIVE_MOVERS_DATA_CONTRACT_20261027.md) and every
+artifact under `results/live_movers_contract_20261027/` remain frozen. Their
+1m/3m comparison can proceed independently. Do not enrich historical episodes
+with future microstructure, change their cooldown or replace their splits
+with the prospective rules here. Implementation still needs a versioned
+machine-readable contract and the evidence gates below before study collection.
+
+## 1. Evidence and causal boundaries
+
+Inspected: the pasted proposal/review, committed contract at `a936dec5`, its
+workplan, `backend/coinbase_ws.py`, and primary Coinbase documentation on
+2026-10-27. No live packets or database contents were sampled in this review.
+The workplan's 23s median / 110s maximum BTC snapshot gaps are prior bounded
+inventory findings, not new measurements. They establish inadequate exact
+sub-minute coverage in that store. They do not establish a Nyquist floor or
+a natural 30-second market timescale. Claims about typical 10-45s sweeps,
+1-2m replenishment, trade counts and 407 currently active products remain
+unverified hypotheses or sizing assumptions.
+
+Keep the following timestamps separate:
+
+| Field | Meaning and use |
+|---|---|
+| `exchange_event_ts_ms` | Message `time`; trade event time on match records. A ticker timestamp does not timestamp every intervening quote change. |
+| `server_receipt_ts_ms` | UTC wall-clock receipt time, e.g. `time.time_ns() // 1_000_000`; determines when an input became available. This clock is not monotonic. |
+| `receipt_monotonic_ns`, `connection_id`, `receipt_seq` | Local elapsed-time/ordering evidence, including clock jumps and reconnects; monotonic values are not UTC or comparable across restarts. |
+| `feature_cutoff_ts_ms` (`t0`) | Frozen scoring cutoff; only observations received at or before this instant may contribute. |
+| `board_publish_ts_ms` (`t_alert`) | Actual server publication of the scored row; separate from computation start and browser display. |
+
+Use completed 5s buckets ending at `b = floor(t0 / 5000) * 5000`. Inputs are
+the six buckets `[b-30s, b)` and 36 buckets `[b-180s, b)`, with endpoint and
+observation-age metadata. At non-aligned publication times, record `t0-b`;
+do not call the inputs exact windows ending at publication. Forward outcomes
+start strictly after `t_alert`, for 5m and 15m. Never use messages received
+after `t0` merely because their exchange timestamps precede it.
+Invalidate buckets affected by a backward wall-clock jump; receipt ordering
+must also agree with the connection's monotonic clock and sequence.
+
+Only use closed baseline candles whose end time and first availability time
+are both at or before `t0`. Define the 60m volatility baseline from prior
+closed 1m log returns, with a declared 0.0015 per-minute floor. Record the
+floor flag, sample count and source timestamp; this is a candidate scale,
+not a distributional guarantee. Beta must also be available at `t0`; a
+default of 1.0 requires an explicit fallback flag.
+
+**Onset, future retention, peak time and fraction of move consumed are
+evaluation labels only.** The proposal's "without later retracing" test
+necessarily reads future prices. None of these fields may feed a live
+feature, stage, eligibility gate, fitted-input column or universe selection.
+The evaluator must freeze a direction-symmetric onset algorithm, search
+interval, tie rule and horizon before fitting; the pasted onset description
+alone is not a complete executable labeling algorithm. For downside labels,
+use signed favorable excursion rather than an upside-only no-retrace test.
+
+## 2. Channel responsibilities and the required side/coverage audit
+
+Use Coinbase **Exchange** `wss://ws-feed.exchange.coinbase.com`, not Advanced
+Trade or an international feed with differently defined fields.
+
+| Input | Authoritative prospective source | Treatment |
+|---|---|---|
+| Trades, counts, USD volume | `matches` channel, `type == "match"`, `price * size` | Deduplicate by `(product_id, trade_id)`; never sum ticker `last_size` as complete volume. |
+| Taker buy/sell USD | Exchange match maker `side` | `sell` maker -> taker buy; `buy` maker -> taker sell. Preserve raw side and mapping version. |
+| Observed L1 quotes and sizes | `ticker` bid/ask and sizes | Sampled BBO observations; not every book change. Retain observation ages. |
+| Coverage evidence | `heartbeat`, per-product trade IDs, connection/subscription state | Track missing, duplicate, reordered and delayed messages. |
+
+The [Exchange channel reference](https://docs.cdp.coinbase.com/exchange/websocket-feed/channels)
+documents ticker batching and match maker-side semantics. Its ticker example includes `side` but does
+not establish its meaning. Do not apply the match inversion to ticker by
+assumption, or assert the opposite interpretation without packet evidence.
+The existing `TickerStore.update_market()` inverts ticker side and labels
+coverage `coinbase_ticker_sample`; it already retains sampled quote/flow
+context in memory. Persistence and complete trade coverage are the gaps.
+Do not silently relabel that existing sample as verified taker flow.
+
+**Step 2.5, required before step 3:** retain `ticker`, `matches` and
+`heartbeat` together for at least one uninterrupted hour, spanning liquid
+and thin USD products. A diagnostic capture must not start another backend
+or interfere with the always-on collector. Freeze its product list and
+record endpoint, subscription acknowledgments, UTC start/end, reconnects,
+parser errors and local queue/drop counters.
+
+Join ticker and match records by **both** `product_id` and `trade_id`, allowing
+arrival reordering. For each product report:
+
+- Unique match and ticker trade IDs, intersection, unmatched counts, duplicate
+  counts and the count/volume represented by ticker relative to matches.
+- A side cross-tab for identical trades, plus price/size discrepancies.
+  Preserve both raw sides. Equal sides support maker semantics for ticker;
+  opposite sides support taker semantics. Report both maker sides separately.
+  Missing overlap, one-sided samples or contradictions are inconclusive;
+  extend the audit rather than choosing a mapping by majority vote.
+- Heartbeat last-trade-ID watermarks versus received match IDs, missing
+  ranges, reorder delay and disconnect intervals. Reconcile suspected gaps
+  with paginated Exchange REST trades; retain the comparison manifest.
+  Do not interpret nonconsecutive full-feed sequence numbers on a filtered
+  channel as a count of missing trades.
+- Mapping verdict and an explicit coverage verdict for each interval/product:
+  reconciled, incomplete or unverified. Publish the raw-capture hash and
+  deterministic summary so another reviewer can reproduce the verdict.
+
+**`matches` is not lossless.** The [matches-channel reference](https://docs.cdp.coinbase.com/exchange/websocket-feed/channels#matches-channel)
+warns of drops and recommends heartbeat tracking and REST recovery. The first `last_match`
+message is a subscription snapshot, not a newly observed execution: use it
+as a watermark, never add it to the current bucket. Continuous monitoring
+and deduplication remain necessary after the hour-long audit.
+
+Subscribing to extra channels on the existing socket needs no per-trade
+REST polling. It increases feed traffic; REST reconciliation/backfill does
+add requests. A strict zero-extra-REST mode must mark unresolved intervals
+incomplete and withhold flow-dependent features rather than claim coverage.
+The one-hour check establishes evidence for that sample, not a guarantee for
+future trades or all products.
+
+## 3. Five-second storage, reconstruction and freshness
+
+**Choose sparse persistence and reconstruct logical empty buckets on read.**
+Write a `micro_bars_5s` row when a unique match or a ticker observation is
+received, including unchanged quote observations needed to retain freshness.
+Use receipt-time buckets `[start, start+5000)`. Alongside the sparse table,
+retain subscription membership and feed-health intervals so an absent row
+can be distinguished from collector downtime. No reconstruction across an
+unverified interval is permitted.
+
+Minimum row/provenance fields:
+
+- Canonical `product_id`, `bucket_start_ts_ms`, first/last receipt times,
+  last exchange event time per source, connection/receipt ordering fields,
+  and first/last match trade IDs with coverage status.
+- Observed midpoint OHLC, last trade price, last observed bid/ask and sizes,
+  spread, quote observation time, last live-match receipt time, and
+  `seconds_since_last_trade` / `seconds_since_last_quote` separately.
+- `trade_count`, `quote_vol_usd`, `taker_buy_usd`, `taker_sell_usd`, all from
+  unique live match executions. Unknown sides require an unknown-side amount
+  and unavailable F2; do not force a two-way split.
+- `price_source` (`mid`, `last_trade_fallback`, `unavailable`), fallback
+  reason, observed/carried flags, quote validity, endpoint ages, feature
+  coverage and whether any source or connection gap affects the window.
+
+Within a continuously verified healthy interval, reconstruct a missing 5s
+row with zero observed trades/volume and carry the prior quote state and its
+**original** observation timestamp. Do not create a new trade, fresh quote
+or observed OHLC path. Carried midpoint values describe last-known state.
+Missing rows during downtime are unknown, not zero-volume observations.
+Completeness verdicts can arrive later; retain the verdict known at `t0`
+and any later audit verdict separately. Never rewrite a published feature.
+
+For primary 30s/3m midpoint features, require valid positive non-crossed BBO
+at each return endpoint, quote age <=10s at each endpoint, continuous feed
+coverage across the window, and at least one unique live match in it. Record
+the true endpoint ages. This replaces the loose proposed +/-10s reference
+search. Midpoint-path features also require valid quote coverage throughout
+their calculation. An `IGNITING` candidate additionally needs >=5 matches
+in its 30s window; a volume multiple alone cannot let one print pass.
+These fixed candidate gates may exclude thin coins; report that coverage.
+
+If only a last trade is available, retain it with `last_trade_fallback` on
+that row and propagate the flag to affected features. Exclude such rows
+from the primary midpoint acceleration/decay cohort and report a separate
+fallback cohort. Do not mix sources or treat a missing spread as zero.
+Ticker-derived OBI averages are time averages of last-observed BBO state,
+with stale durations marked unavailable; six endpoint snapshots do not
+establish a continuously observed book. A future L2 feed would be a separate
+versioned source change.
+
+Late WS matches belong to their actual receipt bucket. Recovered REST trades
+need `recovery_receipt_ts_ms` and exchange-time attribution in a separate
+reconciliation record. They may repair an offline coverage audit, but must
+not retroactively enter an earlier live bucket or inflate the recovery
+instant's trading pace. Windows with unresolved earlier gaps stay ineligible
+for complete-flow features at the original cutoff.
+
+### Storage budget and retention
+
+Sizing assumes **407** products; use actual subscription counts in reports.
+There are 17,280 possible buckets/product/day, or **7,032,960 dense rows/day**.
+At an illustrative 80 bytes/row this is **562.6 MB/day** before index, WAL and
+other overhead (3.94 GB/7d). The 80-byte assumption has not been measured and
+is optimistic for this richer schema.
+
+At an equally unverified **15% sparse occupancy**, the count is 1,054,944
+rows/day and **84.4 MB/day** at 80 bytes/row (590.8 MB/7d), before overhead.
+Quote observations can increase occupancy. The 84 MB figure applies only
+to that sparse assumption; it cannot budget dense carry-forward writes.
+Measure database, index and WAL bytes/day during the pilot and freeze a
+disk limit before expanding the universe. These are decimal MB/GB.
+
+A proposed 7-day rolling `live_microstructure.sqlite` is only the live cache.
+Preserve immutable daily shadow partitions/captures covering **all 14 study
+days**, baseline warmup and final 15m label maturity before rolling deletion.
+Budget that archive separately (at the same illustrative sparse size, 14d
+alone is 1.18 GB before overhead/copies). Keep public raw captures outside
+Git and commit their hashes/manifests. Do not touch `candle_archive.sqlite`.
+
+## 4. Correct the smoothing math and keep feature hypotheses separate
+
+Keep raw 30s and 3m percentage-return columns available for interpretation.
+For smoothed candidate inputs use an **unnormalized decayed sum of log-return
+increments**, per product, with fixed half-lives `h = 30s` and `h = 180s`:
+
+```text
+delta = 5 seconds; q_h = 2 ** (-delta / h)
+x_i,j = log(mid_i,j / mid_i,j-1) - beta_i * log(mid_BTC,j / mid_BTC,j-1)
+S_i,h,j = q_h * S_i,h,j-1 + x_i,j
+decayed_move_sigma_i,h,j = S_i,h,j / sigma_i,1m(t0)
+```
+
+Use synchronized valid midpoint endpoints and beta known before the
+increment; unavailable BTC/beta provenance makes the residual unavailable.
+The denominator is that coin's causal one-minute baseline volatility, with
+the declared floor. This is a scaled move, not a calibrated Gaussian z-score
+or a claim of equal variance across half-lives. Any feature scaling for a
+fit is learned on discovery only and frozen before validation.
+
+There is **no leading `lambda = 1-q` multiplier and no unit-sum
+normalization**. Those produce a weighted average increment rather than a
+decayed cumulative move. For an isolated 0.02 log-return impulse, its weight
+at age 30s with a 30s half-life is 0.500, at 31s it is 0.48858, and at 35s
+it is 0.44545. The contribution is respectively 0.01000, 0.00977 and 0.00891
+in log-return units. The 31s value describes continuous exponential decay;
+closed-bucket observations still update every 5s.
+
+Maintain the state independently per coin and half-life. Warm up for at
+least ten slow half-lives (30m) plus the required baseline history. A true
+no-trade bucket with valid observed price state can contribute a zero
+increment; an unknown/stale interval cannot. Reset or mark state warming
+after such a gap and satisfy warmup again. Never bridge a missing interval
+with a newly received multi-minute return presented as a 5s impulse.
+
+F1-F5 remain candidate mechanisms; their independence and usefulness are
+unproven. The source/interpretation corrections apply as follows:
+
+| Feature | Corrected dependency / interpretation |
+|---|---|
+| F1 acceleration | Midpoint returns over non-overlapping 30s and preceding 150s, normalized by per-coin baseline; flagged trade-price fallbacks are excluded from the primary cohort. |
+| F2 signed participation | `TakerImb * log(1 + PaceRatio)`, gated on >=5 unique matches. Imbalance uses match-derived buy/sell USD; pace uses prior completed matched-volume windows. Historical 1m candle volume is not measured 30s taker flow. |
+| F3 book pressure | Valid observed ticker BBO/sizes and spread, with observation ages and time weighting; no claim to full-book coverage. Optional perp data cannot substitute for missing required spot features. |
+| F4 compression | Prior closed, already available candle history; require >=10 traded candles in the prior 15 completed minutes. Missing or late-fetched candles cannot become earlier features. |
+| F5 market residual | Coin and BTC endpoints at the same causal cutoff, with beta provenance; a beta fallback remains visible. |
+
+Freeze exact formulas, minimum baseline sample counts, missing-feature
+policy and model inputs in the implementation contract. Do not automatically
+add both decayed sums as extra fitted predictors beyond the declared five,
+or choose between smooth and boxcar variants using test outcomes.
+
+## 5. Extension, stage, score and reliability
+
+Keep `score_0_100` (ordinal), `direction`, `stage`, `reliability`, input
+windows and forward horizon as separate fields. Missing required evidence
+produces an unavailable score and reason, not a fabricated neutral 50.
+Feature coverage means measured feature coverage, not a count of connected
+vendors; an optional missing perp feed does not automatically remove F1-F5.
+
+For this prospective candidate retain the proposal's extension definition:
+
+```text
+E = abs(r_15m) / (sigma_1m * sqrt(15))
+  + abs(r_60m) / (sigma_1m * sqrt(60))
+```
+
+This is a sum of two overlapping standardized lookbacks, not the number of
+standard deviations of one independent return. Use causal midpoint prices
+and declare missing extension history unavailable.
+
+**`EXTENDED` is a hard exclusion from early-warning eligibility**, before
+percentile ranking. For the candidate, `E > 3.5`, or an absolute daily move
+`>10%` with measured trailing daily USD volume `<$1M`, sets `EXTENDED`. Missing
+extension/liquidity data must not be treated as proof of eligibility. Stage
+precedence is `EXTENDED`, then `FADING/ABSORBED`, then `CONFIRMED`, then
+`IGNITING`; otherwise stage is unclassified. `E == 3.5` is not extended
+by the E gate. Only complete-data `IGNITING` / `CONFIRMED` candidates enter
+the early board, in separate UP/DOWN cohorts. Extended/fading rows may be
+retained in shadow diagnostics or a separate risk-context view.
+
+The original soft damper `exp(-max(0,E-3)^2/8)` retains 60.7% at E=5 and
+32.5% at E=6 and cannot ensure exclusion. Dividing by 2 would retain 13.5%
+and 1.1%; that remains a different hypothesis. The hard stage gate is the
+chosen policy here. Do not infer the AURORA mockup's score of 18 from either
+formula, or add another penalty/threshold search to this pilot.
+
+Exact stage thresholds other than the extension/activity gates must be
+frozen before fitting. Stage names do not establish "<30% of the move
+elapsed"; that quantity requires future labels and cannot define live stage.
+
+## 6. Fourteen-day shadow protocol and uncertainty
+
+Run shadow logging for **at least 14 valid collection days before any UI
+sort/ranking change**. Keep the window pair and decay half-lives fixed at
+30s/180s. Do not search the proposed 4x3 window grid while also estimating
+five feature weights for each direction on the same discovery week.
+
+- Days 1-7: discovery/calibration of the declared regularized five-feature
+  model, with all scaling, regularization choices and missingness rules
+  recorded. Purge decision times in the last 60m before the next phase.
+- Days 8-14: validation once, after code, weights, universe policy and
+  decision thresholds are hashed and frozen. Labels must mature before
+  analysis. No retuning after seeing these results.
+- Fourteen days is a pilot, not evidence that two five-weight fits have
+  enough independent episodes or market regimes. Set readiness minima in
+  the machine-readable contract before fitting; insufficient evidence
+  requires more collection, not relaxed minima or reuse of validation.
+- If window tuning is later needed, preregister a separate experiment with
+  a fixed scoring rule and fresh validation period. Neither the sampled
+  snapshot gap nor human-friendly UI labels select an optimal timescale.
+
+At each shadow publication retain the contemporaneous eligible universe,
+all three rankers (percentage move, current live strength, candidate), raw
+features, exclusions, source timestamps, model version, direction, stage
+and reliability. Compare on identical complete-data universes/timestamps;
+also report each ranker's natural coverage so exclusions remain visible.
+Retain all eligible products, not just top entries, for missed-move metrics.
+
+Use first Top-K entry, primary K=5 and descriptive K=10, with a 15m per-coin
+cooldown shared across the prospective boards. Keep discovery and validation
+episodes separate. A cooldown does not make different products, boards or
+alerts in the same market episode independent; timing slack can also extend
+outcome windows. Do not carry this policy into the historical contract.
+
+Retain lead time to favorable peak, onset-to-publication delay, signed
+fraction of move already consumed, false alerts/hour and missed-move rate,
+separately by direction and 5m/15m horizon. Onset and verified impulses are
+retrospective labels only. Freeze impulse magnitude, retention, minimum
+trades, observation slack and cost rules before labels are inspected. A
+last-trade grade or three observed trades does not certify executable fills.
+Use gross outcomes plus declared spread/fee scenarios; never deduct costs
+again from an already-net stored return.
+
+For intervals, bootstrap **paired UTC-day blocks**, retaining all products,
+boards and rankers together in each sampled day. Report episode counts,
+distinct days, effective blocks and missingness. Seven validation days
+provide only seven day blocks; intervals will be fragile. Naive per-alert
+standard errors or binomial confidence claims are not acceptable. A boundary
+purge prevents cross-split labels; it does not remove within-phase dependence.
+
+Every mockup score, trade count, volume multiple, "historical fade" and
+20-35% versus 65-90% move-consumed figure in the pasted proposal is
+**illustrative or a hypothesis, not measured Moonwalking performance**.
+Never publish an invented historical warning such as AURORA's -6.5% fade.
+
+## 7. Implementation checklist and acceptance evidence
+
+- [ ] **1. Preserve frozen experiments.** Leave historical manifests,
+  JSON contracts, research DBs and daily/fundamentals work unchanged.
+- [ ] **2. Review/apply board-retention parity through a runtime handoff.**
+  The actual `build_live_rankings()` fix is already committed at `080f124b`
+  in the parent contract branch. Verify deployment separately; do not repeat
+  the fix or claim the running collector has it. Preserve missing numeric
+  inputs and provenance; do not rewrite legacy categories or old snapshots.
+- [ ] **2.5. Verify taker-side semantics and match coverage.** Complete the
+  >=1h ticker/matches/heartbeat capture and reproducible per-product
+  cross-tab/coverage report from section 2. Inconclusive remains pending.
+- [ ] **3. Separate sources in the recorder.** Use `matches` for deduplicated
+  counts, `price * size` and maker-inverted taker amounts; use `ticker` for
+  sampled BBO. Handle `last_match`, reconnects, heartbeats and recovery.
+- [ ] **4. Add sparse 5s buckets and read-time reconstruction.** Freeze the
+  machine contract, eligibility ages, health intervals, source flags, disk
+  budget and study archive before recording. Verify no-trade versus outage,
+  duplicate/reordered trades, stale quotes, fallback prices, clock jumps,
+  late recovery and causality at cutoffs. Check decayed-sum impulse/decay
+  behavior and that `EXTENDED` cannot rank on the early board.
+- [ ] **5. Shadow-log F1-F5 for >=14 valid days.** Preserve baselines and
+  exclusions, keep windows fixed, fit on discovery only and evaluate once
+  with paired day-block uncertainty. A visible ranking change remains a
+  later decision based on measured prospective results.
+
+No checklist implementation or live-audit item is marked complete by this
+documentation change. The concrete next deliverable is the side/coverage
+diagnostic and its captured evidence.
+
+## Primary source references
+
+- [Coinbase Exchange WebSocket channels](https://docs.cdp.coinbase.com/exchange/websocket-feed/channels):
+  ticker batching/schema; matches/`last_match`; maker side for match;
+  heartbeat watermarks; match drops and REST recovery.
+- [Coinbase Exchange WebSocket overview](https://docs.cdp.coinbase.com/exchange/websocket-feed/overview):
+  public endpoint, subscriptions and loss/out-of-order caveats.
+- [Coinbase Exchange REST product trades](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-trades):
+  trade IDs, maker-side definition and pagination for reconciliation.
+
+END FILE docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md
+
+BEGIN FILE docs/research/INSTANT_TARGET_CONTRACT_V1.json
+SHA256 35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4
+
+{
+  "version": "instant-target-v1",
+  "status": "label_definition_only_study_not_ready",
+  "scope": "evaluation_only_never_live_features",
+  "hash_scheme": "sha256_utf8_lf_normalized_contract_file",
+  "grid_ms": 5000,
+  "input_windows_seconds": [30, 180],
+  "outcome_horizons_seconds": [300, 900],
+  "endpoint_slack_ms": 0,
+  "comparison_tolerance": 1e-12,
+  "max_quote_age_ms": 10000,
+  "sigma_floor_1m": 0.0015,
+  "minimum_baseline_returns": 60,
+  "onset": {
+    "velocity_window_seconds": 30,
+    "velocity_crossing_sigma": 1.0,
+    "pace_multiple_strictly_greater_than": 2.0,
+    "minimum_prior_pace_windows": 120,
+    "minimum_matches_30s": 5,
+    "breakout_sigma": 1.5,
+    "breakout_deadline_seconds": 180,
+    "no_retrace_tolerance_log": 1e-12,
+    "definition": "activity_confirmed_velocity_crossing_followed_by_breakout_and_no_retrace_through_horizon"
+  },
+  "impulse": {
+    "terminal_sigma_multiple": 3.0,
+    "minimum_terminal_log_return": 0.015,
+    "entry_spread_multiple": 3.0,
+    "minimum_peak_retention": 0.6,
+    "minimum_forward_matches": 3,
+    "peak_tie": "first_timestamp",
+    "direction": "signed_favorable_residual_never_absolute_return"
+  },
+  "events": {
+    "selection": "earliest_verified_onset_per_product_direction_horizon",
+    "nonoverlap": "next_onset_at_or_after_previous_onset_plus_horizon",
+    "prediction_lead_limit_seconds": 180,
+    "early_detection_consumed_fraction_strictly_below": 0.5,
+    "alert_cooldown_seconds": 900,
+    "alert_cooldown_scope": "per_product_shared_across_boards_separate_from_event_nonoverlap"
+  },
+  "costs": {
+    "fee_bps_per_side_scenarios": [0.0, 10.0, 25.0],
+    "spread_cost": "half_entry_spread_plus_half_exit_spread",
+    "basis": "directional_coin_midpoint_simple_return_bps_before_costs",
+    "interpretation": "illustrative_friction_scenarios_not_fills_or_account_fees"
+  },
+  "missingness": "pending_until_maturity_then_unavailable_on_missing_or_invalid_data_never_false",
+  "universe": "all_causally_eligible_products_and_grid_times_including_no_move_rows",
+  "fitting_allowed": false,
+  "remaining_study_gates": [
+    "feed_side_and_coverage_audit",
+    "recorder_and_universe_contract",
+    "exact_F1_F5_formulas_and_live_stage_thresholds",
+    "readiness_minima_and_model_freeze",
+    "at_least_14_valid_shadow_days_and_fresh_validation"
+  ]
+}
+
+END FILE docs/research/INSTANT_TARGET_CONTRACT_V1.json
+
+BEGIN FILE docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json
+SHA256 d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3
+
+{
+  "version": "instant-target-v2-draft",
+  "status": "independent_review_required_not_study_ready",
+  "scope": "evaluation_only_never_live_features",
+  "hash_scheme": "sha256_utf8_lf_normalized_contract_file",
+  "grid_ms": 5000,
+  "input_windows_seconds": [
+    30,
+    180
+  ],
+  "outcome_horizons_seconds": [
+    300,
+    900
+  ],
+  "endpoint_slack_ms": 0,
+  "comparison_tolerance": 1e-12,
+  "max_quote_age_ms": 10000,
+  "sigma_floor_1m": 0.0015,
+  "minimum_baseline_returns": 60,
+  "onset": {
+    "velocity_window_seconds": 30,
+    "velocity_crossing_sigma": 1.0,
+    "pace_multiple_strictly_greater_than": 2.0,
+    "minimum_prior_pace_windows": 120,
+    "minimum_matches_30s": 5,
+    "breakout_sigma": 1.5,
+    "breakout_deadline_seconds": 180,
+    "no_retrace_tolerance_log": 1e-12,
+    "definition": "activity_confirmed_velocity_crossing_followed_by_breakout_and_no_retrace_through_horizon"
+  },
+  "impulse": {
+    "terminal_sigma_multiple": 3.0,
+    "minimum_terminal_log_return": 0.015,
+    "entry_spread_multiple": 3.0,
+    "minimum_peak_retention": 0.6,
+    "minimum_forward_matches": 3,
+    "peak_tie": "first_timestamp",
+    "direction": "signed_favorable_residual_never_absolute_return"
+  },
+  "events": {
+    "selection": "earliest_verified_onset_per_product_direction_horizon_secondary_only",
+    "nonoverlap": "next_onset_at_or_after_previous_onset_plus_horizon",
+    "prediction_lead_limit_seconds": 180,
+    "early_detection_consumed_fraction_strictly_below": 0.5,
+    "alert_cooldown_seconds": 900,
+    "alert_cooldown_scope": "per_product_shared_across_boards_separate_from_event_nonoverlap",
+    "primary_catalog_selection": "earliest_verified_forward_window_per_product_direction_horizon"
+  },
+  "costs": {
+    "fee_bps_per_side_scenarios": [
+      0.0,
+      10.0,
+      25.0
+    ],
+    "spread_cost": "half_entry_spread_plus_half_exit_spread",
+    "basis": "directional_coin_midpoint_simple_return_bps_before_costs",
+    "interpretation": "illustrative_friction_scenarios_not_fills_or_account_fees"
+  },
+  "missingness": "pending_until_maturity_then_unavailable_on_missing_or_invalid_data_never_false",
+  "universe": "all_causally_eligible_products_and_grid_times_including_no_move_rows",
+  "fitting_allowed": false,
+  "remaining_study_gates": [
+    "independent_review_of_v2_targets_and_event_association_protocol",
+    "feed_side_and_coverage_audit",
+    "recorder_and_universe_contract",
+    "exact_F1_F5_formulas_and_live_stage_thresholds",
+    "readiness_minima_and_model_freeze",
+    "at_least_14_valid_shadow_days_and_fresh_validation"
+  ],
+  "baseline": {
+    "sigma_end_rule": "floor((anchor_ms-velocity_window_ms-grid_ms)/60000)*60000",
+    "exclude_onset_velocity_window": true,
+    "purpose": "keep trigger-window movement outside the baseline scale; this is a measurement policy, not a future-data leakage claim"
+  },
+  "targets": {
+    "primary_pointwise": "verified_forward",
+    "strict_onset_role": "secondary_diagnostic_only_not_primary_fitting_or_total_recall_denominator",
+    "gate_conditioned_analysis": "compare continuation within onset_candidate using gate inputs in the null baseline",
+    "physical_onset_defined": false,
+    "model_probability_metrics_require": "a separately declared probabilistic model; ordinal scores alone do not establish calibrated probabilities"
+  },
+  "reference_metrics": {
+    "post_trigger_reference": "anchor",
+    "pre_window_reference": "anchor_minus_velocity_window",
+    "pre_window_peak_search": "pre_window_reference_through_anchor_plus_horizon",
+    "pre_window_is_physical_origin": false,
+    "unqualified_consumed_fraction_allowed": false,
+    "trigger_timing_early_fraction_reference": "pre_window",
+    "forward_catalog_kind": "forward_window_not_physical_impulse",
+    "operational_false_alert_and_missed_move_rates_enabled": false
+  }
+}
+
+END FILE docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json
+
+BEGIN FILE docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md
+SHA256 f1634d6de38a483a075ae4b3f8b7102cc87d0782ba10ae16b1a945b6ed1446a9
+
+# Instant target reviews: reproduced findings and v2 draft
+
+Date: October 30, 2026. Scope: static source review plus deterministic
+synthetic paths. **No real prospective outcomes, fitting or historical
+discovery/validation were inspected or rerun.**
+
+Both Gemini responses inspected the same five sources at `941f47a` and
+explicitly did not run tests. Preserve them as external review evidence:
+[response A](reviews/GEMINI_INSTANT_REVIEW_A_20261030.md),
+[response B](reviews/GEMINI_INSTANT_REVIEW_B_20261030.md), and
+[provenance manifest](reviews/GEMINI_INSTANT_REVIEWS_20261030_MANIFEST.json).
+These overlapping responses are not two independent empirical studies.
+Neither response inspected the original unamended proposal as a separate
+source. They cannot establish complete original-proposal fidelity.
+
+## Earlier response, before source access
+
+The subsequently supplied [full preliminary response](reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md)
+explicitly inspected **zero repository files** and ran no tests. The review
+history is one conceptual response followed by two overlapping source-based
+responses, not three independent confirmations. This additional review is
+also not the original unamended proposal being evaluated.
+
+Its main useful cautions are already represented in the v2 draft: separate
+forecast outcomes from activity triggers, include forward-only movers,
+name the timing reference, retain unknown data, and respect dependence.
+Its broad assertion that the implementation only graded post-trigger
+continuation was superseded by the later source inspection, which confirmed
+that independent forward labels and pre-trigger timing already existed.
+
+Additional suggestions are recorded without changing the current draft:
+
+| Preliminary suggestion | Disposition |
+|---|---|
+| Find a physical origin by scanning back to an extremum/compression boundary | Still an open label-design question. A fixed search interval, tie/boundary rules and maturity must be specified before outcomes are inspected. A favorable retrospective extremum is not automatically an objectively identified physical start. V2's `anchor-30s` reference remains an explicit proxy, not physical onset. |
+| Replace no-retrace with a volatility-scaled adverse bound or TWAP retention | Candidate alternatives, not verified fixes. Adverse excursion is already retained; the strict no-retrace subset does not gate the v2 primary target. The claimed routine 30-50% retracement frequency is not established by any supplied data. No tolerance or new retention target is selected here. |
+| Use matched quiet controls, lead lags and residualized features | Possible diagnostics to preregister. Matching must use causal covariates and preserve sampling/exposure information. Moving 15/30/60s before a selected trigger does not by itself prove physical anticipation or eliminate selection effects. Residualization is optional, discovery-fitted and cannot establish a physical mechanism on its own. |
+| Use two-way cluster-robust inference | An alternative inference design, not an automatic correction to the existing paired UTC-day block plan. The number of independent clusters/regimes and small-sample limits still matter. Do not switch methods after seeing which interval is favorable. |
+| Use overlapping 30s/180s acceleration, 180s compression or a cross-sectional market benchmark | These differ from the corrected proposal's non-overlapping 30s/prior-150s acceleration, active prior-candle compression context and declared BTC-beta residual. Exact feature formulas remain gated; this conceptual response does not silently replace them. |
+
+There are no new measurements or reproduced implementation failures in the
+pre-source response. V2 code, target thresholds and its pending-review status
+are unchanged by archiving it.
+
+## Findings and decisions
+
+| Review claim | Verified assessment | Action |
+|---|---|---|
+| Trigger-relative consumed fraction omits the run-up | Reproduced. In the existing synthetic path, the prior leg is 0.002 log units and total displacement from `anchor-30s` is 0.022. V1 reports 0 at the trigger; that earlier reference gives 0.002/0.022 = 9.09%. V1's arithmetic matches its declared origin, but the unqualified name can mislead a whole-move interpretation. | V2 names and reports both references. It does not claim that the earlier window boundary is the physical origin. |
+| Strict onset catalog omits forward-only moves | Reproduced. A signed 1 bp dip after the trigger can leave `verified_forward=True` and `verified_onset=False`; v1's onset catalog has zero entries. This is correct for that catalog's stated strict-subset purpose, but insufficient for a broad event denominator. No incorrect production missed-move rates have been demonstrated because that protocol is not implemented. | Add a separate forward-window catalog and timing API. Operational missed-move/false-alert rates remain disabled until event association and exposure rules are frozen. |
+| Zero-tolerance no-retrace is a code defect | It is an explicitly documented v1 pilot choice, not a formula/implementation discrepancy. A small adverse dip rejects the strict subset; how often that happens in real markets is unmeasured here. Claims of massive attrition or routine sweep behavior are hypotheses. | Keep the rule as a secondary diagnostic. It does not gate v2's primary pointwise target. No arbitrary tolerance is selected from outcomes. |
+| Post-trigger breakout requires additional movement | Correct by construction and already documented. Whether it is useful depends on the stated confirmation question. It does not establish that an earlier physical start is known. | Retain the diagnostic definition; keep it separate from the primary forward target and from whole-move claims. |
+| LF hashing is broken | Rejected. `Path.read_text` already normalizes newlines; the existing CRLF/LF test passes. Response A itself acknowledges that behavior. Adding another replacement is not a correctness fix. | No hash-formula change. |
+| Alert timing can divide by zero on a forged label | Defensive API concern. Generated verified labels require a positive favorable peak, so this does not demonstrate a failing valid evaluation path. | V2 rejects nonpositive/nonfinite external peak values before division. |
+| Pace baseline may overlap the active window | The current metadata check already requires `pace_end_ts_ms == anchor-30s`. The missing upstream builder must actually construct 120 prior non-overlapping windows ending there. | Preserve the check and keep builder provenance in the recorder gate. |
+| Onset definition makes F1/F2/F5 successful algebraically | Gate contamination is a real evaluation risk, but several claimed equivalences are too strong. A 5s-step crossing does not force positive 30s-versus-prior-150s F1 acceleration. Count-pace OR volume-pace exceeding 2 does not force volume pace to exceed 2. Unsigned activity does not determine signed taker imbalance. Exact F1/F5 formulas are not yet frozen. | Use the independent forward label as the declared primary pointwise target, compare gate-conditioned continuation against the gate inputs, and test incremental value. Do not call all circularity eliminated. |
+
+The [synthetic reproduction record](results/instant_target_review_20261030/REPRODUCTIONS.json)
+and [v2 tests](../../tests/test_instant_targets_v2.py) reproduce these cases.
+One counterexample has a verified velocity/activity onset but current 30s
+return 0.002 versus prior-150s return per 30s of 0.0024: the corresponding
+rate acceleration is **negative**, contrary to the algebraic guarantee.
+
+## Claude's baseline contribution
+
+Reviewed Claude commit `d711832774caed64063b6281d8acad6aae5a8791` on
+`claude/instant-radar-review` without editing its worktree. It moves the
+baseline cutoff before both velocity windows, whose earliest endpoint is
+`anchor-35s`. At a minute-aligned anchor, v1's last completed 1m return can
+include the ramp being normalized.
+
+This is a useful baseline-policy refinement, **not proof of future-data
+leakage**: v1's baseline is still available by the anchor. Because it changes
+the measurement definition, it is adopted only in the opt-in v2 draft:
+
+```text
+sigma_baseline_end_ms = floor((anchor_ms - 30_000 - 5_000) / 60_000) * 60_000
+```
+
+V1 JSON, default baseline rule and valid-label outputs stay reproducible.
+The v2 metadata check enforces this cutoff; the upstream baseline builder
+still needs implementation/provenance checks. The full independent review
+signoff is not inferred merely from the existence of Claude's fix commit.
+
+## Opt-in v2 draft
+
+The [v2 draft contract](INSTANT_TARGET_CONTRACT_V2_DRAFT.json) is explicitly
+unapproved for fitting and is **not the default evaluator**. Use it by name:
+
+```python
+engine = TargetEvaluator(samples, contract_path=V2_CONTRACT_PATH)
+label = engine.evaluate(anchor, baseline, "up", 300, asof_ts_ms)
+windows = forward_event_catalog([label])
+timing = engine.forward_alert_timing(windows[0], actual_publish_ts_ms)
+```
+
+All existing 30s/180s inputs, 5m/15m horizons, quote/coverage checks, signed
+magnitude/retention requirements, trade quanta and cost scenarios remain.
+V2 adds these explicit boundaries:
+
+- **Primary pointwise label:** `verified_forward`, evaluated on all eligible
+  grid observations, including no-move and non-board rows. It does not require
+  an activity trigger, breakout deadline or no-retrace diagnostic.
+- **Secondary strict-trigger subset:** `verified_onset` remains available for
+  attrition and conditional continuation analysis. `event_catalog()` remains
+  that secondary catalog; `forward_event_catalog()` is separate.
+- **Forward windows are not physical impulses:** earliest qualifying-window
+  selection can predate the physical start and overlapping horizons remain
+  dependent. Forward-window timing uses labels such as
+  `before_forward_window_anchor`, not `pre_onset_prediction`.
+- **Named references:** `post_anchor_consumed_fraction` uses the forecast/
+  trigger anchor; `pre_window_consumed_fraction` uses `anchor-30s` and the
+  maximum favorable residual over the entire `[anchor-30s,anchor+H]` path,
+  including any earlier wick. Missing history or no positive reference peak
+  gives a null pre-window metric without erasing the complete forward label.
+  There is no unqualified `consumed_fraction` field in v2 timing results.
+- **Trigger-relative timing:** v2's strict-trigger API reports
+  `before_activity_trigger`, `early_after_activity_trigger` or
+  `late_after_activity_trigger`; its half-consumed comparison uses the named
+  pre-window reference. None claims a physical first tick.
+- **Provenance:** v2 labels carry both the normalized contract SHA-256 and
+  evaluator-source SHA-256. Catalogs reject mixed contract/implementation
+  cohorts. The pinned v1 source export is unchanged.
+
+The forward label still uses entry spread, sigma and beta. Features can share
+those controls; changing the target does not guarantee statistical independence
+or eliminate all selection effects. Report coverage and stratify/control
+the relevant spread/liquidity/beta regimes.
+
+## What F1-F5 would need to demonstrate
+
+Gemini supplied plausible hypotheses and ablations, not measured effects.
+The following is the working research checklist, not a newly fitted formula:
+
+| Mechanism | Evidence sought beyond its comparator | Evidence against / uncertainty |
+|---|---|---|
+| F1 acceleration | Useful incremental prediction beyond current velocity and F5, comparing 30s with the prior 150s at the same rate scale; assess genuine pre-trigger observations separately. | Robust reversed/negative incremental effect argues against the declared version. A wide interval around zero is inconclusive. |
+| F2 signed participation | Signed match-derived imbalance adds value beyond unsigned pace/count, with verified sides, deduplication and coverage. | Unsigned activity alone explaining the result does not support the signed-flow hypothesis. Unknown coverage or inadequate independent episodes stays inconclusive. |
+| F3 sampled BBO | Size-pressure information adds value beyond spread alone and F2, using observation-age-aware time weighting. | Spread-driven target feasibility alone does not establish directional book information. Sampled BBO cannot establish full-depth mechanisms. |
+| F4 compression/expansion | Active prior compression adds useful context beyond baseline sigma and acceleration, with already-available traded candles. | Dead-book/outage artifacts do not support compression. Too few valid regimes cannot reject it confidently. |
+| F5 market relative | Useful value beyond raw coin movement, with beta-fallback cohorts and BTC-regime controls; retain absolute coin cost outcomes too. | Pure residual-target alignment is not sufficient for an executable-return claim. Quiet BTC or wide uncertainty leaves marginal value unresolved. |
+
+Use discovery-only scaling/choices, prespecified meaningful-effect criteria,
+fixed false-alert burden or matched coverage, limited ablations and fresh
+validation with paired day/episode-aware uncertainty. A confidence interval
+containing zero does not prove zero value. Correlated F1/F5 predictors need
+incremental-value checks, not an invented requirement of exact orthogonality.
+Log-loss requires declared probability predictions; an ordinal 0-100 score
+does not by itself supply them. Seven validation days may be insufficient.
+
+Next: independently review this draft, freeze event association/exposure,
+exact F1-F5 formulas, stages/readiness and the recorder contract, and resolve
+the existing feed gate before study collection/fitting. The all-product audit
+gate remains false. No live rank, UI, worker or production service changed.
+
+Verification: all **130** targeted v1/v2/audit/campaign/contract/driver/restore/WS
+tests passed, along with Black 24.8.0, repository guardrails, documentation
+links and diff checks. All 11 frozen historical artifact hashes and all five
+source sections in the pinned Gemini export are unchanged. The reproduction
+record's evaluator hash matches the tested source. Native Mac/cloud execution
+and independent review of the v2 draft remain pending.
+
+END FILE docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md
+
+BEGIN FILE scripts/scoring_experiment/instant_targets.py
+SHA256 53cd1776be9b1b830fe5b2a7b45d6febba2ec725688ed7f4e2bcc798d8edc810
+
+"""Prospective evaluation labels only. Never import into live ranking code.
+
+No I/O occurs on import. Inputs are immutable receipt-time snapshots; late
+recovery must not replace them. Baselines must be causal at the anchor.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import hashlib
+import json
+import math
+from pathlib import Path
+
+
+CONTRACT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs/research/INSTANT_TARGET_CONTRACT_V1.json"
+)
+V2_CONTRACT_PATH = CONTRACT_PATH.with_name("INSTANT_TARGET_CONTRACT_V2_DRAFT.json")
+
+
+def load_contract(path=None):
+    raw = Path(path or CONTRACT_PATH).read_text(encoding="utf-8").encode("utf-8")
+    return json.loads(raw), hashlib.sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True)
+class Sample:
+    """State available at ts_ms; counts/volume cover [ts_ms-5000, ts_ms)."""
+
+    product_id: str
+    ts_ms: int
+    bid: float | None
+    ask: float | None
+    btc_bid: float | None
+    btc_ask: float | None
+    quote_ts_ms: int
+    btc_quote_ts_ms: int
+    available_ts_ms: int
+    trade_count: int
+    quote_volume_usd: float
+    coverage_verified: bool
+    price_source: str = "mid"
+    btc_price_source: str = "mid"
+    trade_count_at_bucket_start: int | None = None
+
+    @property
+    def mid(self):
+        return (self.bid + self.ask) / 2
+
+    @property
+    def btc_mid(self):
+        return (self.btc_bid + self.btc_ask) / 2
+
+    @property
+    def spread_bps(self):
+        return (self.ask - self.bid) / self.mid * 10000
+
+
+@dataclass(frozen=True)
+class Baseline:
+    sigma_1m: float
+    beta: float
+    return_count: int
+    end_ts_ms: int
+    available_ts_ms: int
+    beta_available_ts_ms: int
+    beta_fallback: bool
+    pace_trade_median_30s: float
+    pace_quote_usd_median_30s: float
+    pace_window_count: int
+    pace_end_ts_ms: int
+    pace_available_ts_ms: int
+
+
+def finite(value):
+    return (
+        isinstance(value, (float, int))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+class TargetEvaluator:
+    def __init__(self, samples, contract_path=None):
+        self.cfg, self.contract_sha256 = load_contract(contract_path)
+        if self.cfg["version"] not in ("instant-target-v1", "instant-target-v2-draft"):
+            raise ValueError("unsupported target contract")
+        self.is_v2 = self.cfg["version"] == "instant-target-v2-draft"
+        self.implementation_sha256 = hashlib.sha256(
+            Path(__file__).read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest()
+        self.rows = {}
+        self.product_id = None
+        previous = None
+        for row in samples:
+            if (
+                not isinstance(row.ts_ms, int)
+                or isinstance(row.ts_ms, bool)
+                or row.ts_ms % self.cfg["grid_ms"]
+            ):
+                raise ValueError("sample timestamps must lie on the 5s grid")
+            if previous is not None and row.ts_ms <= previous:
+                raise ValueError("samples must be strictly increasing and unique")
+            if self.product_id is not None and row.product_id != self.product_id:
+                raise ValueError("one product per evaluator")
+            self.product_id = row.product_id
+            self.rows[row.ts_ms] = row
+            previous = row.ts_ms
+        if not self.rows:
+            raise ValueError("samples are required")
+
+    def _quality(self, start, end):
+        for ts in range(start, end + 1, self.cfg["grid_ms"]):
+            row = self.rows.get(ts)
+            if row is None:
+                return "missing_grid_point"
+            if row.coverage_verified is not True:
+                return "unverified_coverage"
+            if any(
+                type(value) is not int
+                for value in (row.available_ts_ms, row.quote_ts_ms, row.btc_quote_ts_ms)
+            ):
+                return "invalid_timestamp"
+            if row.available_ts_ms > ts:
+                return "future_receipt"
+            if row.price_source != "mid" or row.btc_price_source != "mid":
+                return "price_fallback"
+            for bid, ask, observed in (
+                (row.bid, row.ask, row.quote_ts_ms),
+                (row.btc_bid, row.btc_ask, row.btc_quote_ts_ms),
+            ):
+                if not finite(bid) or not finite(ask) or bid <= 0 or ask < bid:
+                    return "invalid_quote"
+                if not 0 <= ts - observed <= self.cfg["max_quote_age_ms"]:
+                    return "stale_or_future_quote"
+            if type(row.trade_count) is not int or row.trade_count < 0:
+                return "invalid_trade_count"
+            if not finite(row.quote_volume_usd) or row.quote_volume_usd < 0:
+                return "invalid_volume"
+        return None
+
+    def _baseline_quality(self, baseline, anchor):
+        if baseline is None:
+            return "missing_baseline"
+        if (
+            any(
+                type(value) is not int
+                for value in (
+                    baseline.return_count,
+                    baseline.end_ts_ms,
+                    baseline.available_ts_ms,
+                    baseline.beta_available_ts_ms,
+                )
+            )
+            or type(baseline.beta_fallback) is not bool
+        ):
+            return "invalid_baseline_metadata"
+        if (
+            not finite(baseline.sigma_1m)
+            or baseline.sigma_1m < 0
+            or not finite(baseline.beta)
+        ):
+            return "invalid_baseline"
+        if baseline.return_count < self.cfg["minimum_baseline_returns"]:
+            return "baseline_warming"
+        baseline_cutoff = anchor
+        if self.is_v2:
+            # Reviewed from Claude d711832. Apply only in the explicit v2
+            # draft so the pinned v1 definition and outputs remain reproducible.
+            baseline_cutoff -= (
+                self.cfg["onset"]["velocity_window_seconds"] * 1000
+                + self.cfg["grid_ms"]
+            )
+        if baseline.end_ts_ms != baseline_cutoff // 60000 * 60000:
+            return "baseline_window_misaligned"
+        if baseline.available_ts_ms > anchor or baseline.beta_available_ts_ms > anchor:
+            return "future_baseline"
+        return None
+
+    def _residual(self, start, end, beta, direction):
+        a, b = self.rows[start], self.rows[end]
+        return direction * (
+            math.log(b.mid / a.mid) - beta * math.log(b.btc_mid / a.btc_mid)
+        )
+
+    def evaluate(self, anchor, baseline, direction, horizon_seconds, asof_ts_ms):
+        """Grade every eligible grid anchor, including no-move observations.
+
+        Status 'ready' means a complete label, not a successful impulse.
+        All returned outcome/onset fields are evaluation-only.
+        """
+        if type(horizon_seconds) is not int or type(asof_ts_ms) is not int:
+            raise ValueError("horizon and as-of timestamp must be integers")
+        if (
+            direction not in ("up", "down")
+            or horizon_seconds not in self.cfg["outcome_horizons_seconds"]
+        ):
+            raise ValueError("unsupported direction or horizon")
+        if type(anchor) is not int or anchor % self.cfg["grid_ms"]:
+            raise ValueError("anchor must lie on the 5s grid")
+        sign = 1 if direction == "up" else -1
+        end = anchor + horizon_seconds * 1000
+        result = dict(
+            contract_version=self.cfg["version"],
+            contract_sha256=self.contract_sha256,
+            evaluation_only=True,
+            product_id=self.product_id,
+            anchor_ts_ms=anchor,
+            horizon_seconds=horizon_seconds,
+            direction=direction,
+            label_maturity_ts_ms=end,
+            status="pending",
+            reason="horizon_not_mature",
+            verified_forward=None,
+            verified_onset=None,
+        )
+        if self.is_v2:
+            result.update(
+                evaluator_sha256=self.implementation_sha256,
+                primary_pointwise_target="verified_forward",
+                physical_onset_defined=False,
+            )
+        if asof_ts_ms < end:
+            return result
+        reason = self._baseline_quality(baseline, anchor) or self._quality(anchor, end)
+        if reason:
+            return {**result, "status": "unavailable", "reason": reason}
+        boundary_count = self.rows[
+            anchor + self.cfg["grid_ms"]
+        ].trade_count_at_bucket_start
+        if (
+            type(boundary_count) is not int
+            or not 0
+            <= boundary_count
+            <= self.rows[anchor + self.cfg["grid_ms"]].trade_count
+        ):
+            return {
+                **result,
+                "status": "unavailable",
+                "reason": "unknown_boundary_trade_count",
+            }
+        sigma = max(baseline.sigma_1m, self.cfg["sigma_floor_1m"])
+        path = [
+            (ts, self._residual(anchor, ts, baseline.beta, sign))
+            for ts in range(anchor, end + 1, self.cfg["grid_ms"])
+        ]
+        peak_ts, peak = max(path, key=lambda pair: pair[1])  # first tie wins
+        terminal = path[-1][1]
+        adverse = min(value for _, value in path)
+        retention = terminal / peak if peak > 0 else None
+        first, last = self.rows[anchor], self.rows[end]
+        rules = self.cfg["impulse"]
+        threshold = max(
+            rules["terminal_sigma_multiple"] * sigma * math.sqrt(horizon_seconds / 60),
+            rules["minimum_terminal_log_return"],
+            rules["entry_spread_multiple"] * first.spread_bps / 10000,
+        )
+        trades = sum(self.rows[ts].trade_count for ts, _ in path[1:]) - boundary_count
+        tolerance = self.cfg["comparison_tolerance"]
+        verified = (
+            terminal + tolerance >= threshold
+            and retention is not None
+            and retention + tolerance >= rules["minimum_peak_retention"]
+            and trades >= rules["minimum_forward_matches"]
+        )
+        gross_bps = sign * (last.mid / first.mid - 1) * 10000
+        spread_cost = (first.spread_bps + last.spread_bps) / 2
+        result.update(
+            status="ready",
+            reason=None,
+            verified_forward=verified,
+            sigma_1m=sigma,
+            sigma_floor_applied=baseline.sigma_1m < sigma,
+            beta=baseline.beta,
+            beta_fallback=baseline.beta_fallback,
+            terminal_residual_log=terminal,
+            required_terminal_log=threshold,
+            peak_residual_log=peak,
+            peak_ts_ms=peak_ts,
+            adverse_residual_log=adverse,
+            retention=retention,
+            forward_trade_count=trades,
+            gross_coin_return_bps=gross_bps,
+            cost_scenarios=[
+                dict(
+                    fee_bps_per_side=fee,
+                    net_coin_return_bps=gross_bps - spread_cost - 2 * fee,
+                )
+                for fee in self.cfg["costs"]["fee_bps_per_side_scenarios"]
+            ],
+        )
+        onset = self.cfg["onset"]
+        velocity_ms = onset["velocity_window_seconds"] * 1000
+        step = self.cfg["grid_ms"]
+        if self.is_v2:
+            reference = anchor - velocity_ms
+            context_reason = self._quality(reference, anchor)
+            result.update(
+                pre_window_reference_ts_ms=reference,
+                pre_window_reference_is_physical_origin=False,
+                pre_window_reference_status=(
+                    "unavailable" if context_reason else "ready"
+                ),
+                pre_window_reference_reason=context_reason,
+            )
+            if not context_reason:
+                reference_path = [
+                    (ts, self._residual(reference, ts, baseline.beta, sign))
+                    for ts in range(reference, end + 1, step)
+                ]
+                reference_peak_ts, reference_peak = max(
+                    reference_path, key=lambda pair: pair[1]
+                )
+                result.update(
+                    pre_window_peak_ts_ms=reference_peak_ts,
+                    pre_window_peak_residual_log=reference_peak,
+                )
+        reason = self._quality(anchor - velocity_ms - step, anchor)
+        if any(
+            type(value) is not int
+            for value in (
+                baseline.pace_window_count,
+                baseline.pace_end_ts_ms,
+                baseline.pace_available_ts_ms,
+            )
+        ):
+            return {
+                **result,
+                "onset_status": "unavailable",
+                "onset_reason": "invalid_pace_metadata",
+            }
+        if baseline.pace_window_count < onset["minimum_prior_pace_windows"]:
+            reason = reason or "pace_warming"
+        if (
+            baseline.pace_end_ts_ms != anchor - velocity_ms
+            or baseline.pace_available_ts_ms > anchor
+        ):
+            reason = reason or "future_pace_baseline"
+        medians = (baseline.pace_trade_median_30s, baseline.pace_quote_usd_median_30s)
+        if not all(finite(value) and value >= 0 for value in medians) or not any(
+            value > 0 for value in medians
+        ):
+            reason = reason or "pace_unavailable"
+        if reason:
+            return {**result, "onset_status": "unavailable", "onset_reason": reason}
+        current_velocity = self._residual(
+            anchor - velocity_ms, anchor, baseline.beta, sign
+        ) / (sigma / math.sqrt(2))
+        previous_velocity = self._residual(
+            anchor - velocity_ms - step, anchor - step, baseline.beta, sign
+        ) / (sigma / math.sqrt(2))
+        recent = [
+            self.rows[ts] for ts in range(anchor - velocity_ms + step, anchor + 1, step)
+        ]
+        recent_trades = sum(row.trade_count for row in recent)
+        recent_volume = sum(row.quote_volume_usd for row in recent)
+        pace = max(
+            (
+                value / median
+                for value, median in zip((recent_trades, recent_volume), medians)
+                if median > 0
+            ),
+            default=0,
+        )
+        candidate = (
+            previous_velocity < onset["velocity_crossing_sigma"] - tolerance
+            and current_velocity + tolerance >= onset["velocity_crossing_sigma"]
+            and recent_trades >= onset["minimum_matches_30s"]
+            and pace > onset["pace_multiple_strictly_greater_than"] + tolerance
+        )
+        breakout_ts = next(
+            (
+                ts
+                for ts, value in path[1:]
+                if ts <= anchor + onset["breakout_deadline_seconds"] * 1000
+                and value + tolerance >= onset["breakout_sigma"] * sigma
+            ),
+            None,
+        )
+        no_retrace = adverse >= -onset["no_retrace_tolerance_log"]
+        result.update(
+            onset_status="ready",
+            onset_reason=None,
+            onset_candidate=candidate,
+            previous_velocity_sigma=previous_velocity,
+            velocity_sigma=current_velocity,
+            pace_multiple=pace,
+            recent_trade_count=recent_trades,
+            breakout_ts_ms=breakout_ts,
+            no_retrace=no_retrace,
+            verified_onset=bool(
+                candidate and verified and breakout_ts is not None and no_retrace
+            ),
+        )
+        return result
+
+    def alert_timing(self, label, publish_ts_ms):
+        """Retrospective event association; never a live stage or input."""
+        if self.is_v2:
+            return self._v2_alert_timing(label, publish_ts_ms, strict_trigger=True)
+        if type(publish_ts_ms) is not int:
+            raise ValueError("publication timestamp must be an integer")
+        if (
+            label.get("contract_sha256") != self.contract_sha256
+            or label.get("product_id") != self.product_id
+            or not label.get("verified_onset")
+        ):
+            raise ValueError(
+                "a verified onset from this contract and product is required"
+            )
+        anchor = label["anchor_ts_ms"]
+        rules = self.cfg["events"]
+        if (
+            not anchor - rules["prediction_lead_limit_seconds"] * 1000
+            <= publish_ts_ms
+            <= label["label_maturity_ts_ms"]
+        ):
+            return dict(evaluation_only=True, timing="outside_event_window")
+        # Backward as-of lookup only. Never use the next grid point at publication.
+        ts = publish_ts_ms // self.cfg["grid_ms"] * self.cfg["grid_ms"]
+        reason = self._quality(ts, ts)
+        if reason:
+            return dict(evaluation_only=True, timing="unavailable", reason=reason)
+        row = self.rows[ts]
+        if (
+            max(publish_ts_ms - row.quote_ts_ms, publish_ts_ms - row.btc_quote_ts_ms)
+            > self.cfg["max_quote_age_ms"]
+        ):
+            return dict(
+                evaluation_only=True, timing="unavailable", reason="stale_alert_quote"
+            )
+        sign = 1 if label["direction"] == "up" else -1
+        consumed = (
+            self._residual(anchor, ts, label["beta"], sign) / label["peak_residual_log"]
+        )
+        timing = (
+            "pre_onset_prediction"
+            if publish_ts_ms < anchor
+            else (
+                "early_detection"
+                if publish_ts_ms <= label["peak_ts_ms"]
+                and consumed
+                < rules["early_detection_consumed_fraction_strictly_below"]
+                - self.cfg["comparison_tolerance"]
+                else "late_detection"
+            )
+        )
+        return dict(
+            evaluation_only=True,
+            timing=timing,
+            detection_delay_seconds=(publish_ts_ms - anchor) / 1000,
+            lead_to_peak_seconds=(label["peak_ts_ms"] - publish_ts_ms) / 1000,
+            consumed_fraction=consumed,
+            price_snapshot_ts_ms=ts,
+        )
+
+    def forward_alert_timing(self, label, publish_ts_ms):
+        """v2 forward-window association, without inferring a physical onset."""
+        if not self.is_v2:
+            raise ValueError("forward-window timing requires the explicit v2 draft")
+        return self._v2_alert_timing(label, publish_ts_ms, strict_trigger=False)
+
+    def _v2_alert_timing(self, label, publish_ts_ms, strict_trigger):
+        if type(publish_ts_ms) is not int:
+            raise ValueError("publication timestamp must be an integer")
+        required = "verified_onset" if strict_trigger else "verified_forward"
+        if (
+            label.get("contract_sha256") != self.contract_sha256
+            or label.get("evaluator_sha256") != self.implementation_sha256
+            or label.get("product_id") != self.product_id
+            or label.get("status") != "ready"
+            or label.get(required) is not True
+        ):
+            raise ValueError(
+                "a complete verified label from this evaluator is required"
+            )
+        peak = label.get("peak_residual_log")
+        if not finite(peak) or peak <= 0:
+            raise ValueError("a positive finite forward peak is required")
+        anchor = label["anchor_ts_ms"]
+        lead_ms = self.cfg["events"]["prediction_lead_limit_seconds"] * 1000
+        if not anchor - lead_ms <= publish_ts_ms <= label["label_maturity_ts_ms"]:
+            return dict(evaluation_only=True, timing="outside_event_window")
+        ts = publish_ts_ms // self.cfg["grid_ms"] * self.cfg["grid_ms"]
+        reason = self._quality(ts, ts)
+        if reason:
+            return dict(evaluation_only=True, timing="unavailable", reason=reason)
+        row = self.rows[ts]
+        if (
+            max(publish_ts_ms - row.quote_ts_ms, publish_ts_ms - row.btc_quote_ts_ms)
+            > self.cfg["max_quote_age_ms"]
+        ):
+            return dict(
+                evaluation_only=True, timing="unavailable", reason="stale_alert_quote"
+            )
+        sign = 1 if label["direction"] == "up" else -1
+        post_fraction = self._residual(anchor, ts, label["beta"], sign) / peak
+        output = dict(
+            evaluation_only=True,
+            physical_onset_defined=False,
+            post_anchor_consumed_fraction=post_fraction,
+            post_anchor_reference_ts_ms=anchor,
+            offset_from_anchor_seconds=(publish_ts_ms - anchor) / 1000,
+            lead_to_forward_peak_seconds=(label["peak_ts_ms"] - publish_ts_ms) / 1000,
+            price_snapshot_ts_ms=ts,
+            pre_window_consumed_fraction=None,
+            pre_window_reference_ts_ms=label.get("pre_window_reference_ts_ms"),
+            pre_window_reference_is_physical_origin=False,
+        )
+        reference_peak = label.get("pre_window_peak_residual_log")
+        if (
+            label.get("pre_window_reference_status") == "ready"
+            and finite(reference_peak)
+            and reference_peak > 0
+        ):
+            output["pre_window_consumed_fraction"] = (
+                self._residual(
+                    label["pre_window_reference_ts_ms"], ts, label["beta"], sign
+                )
+                / reference_peak
+            )
+            output["lead_to_pre_window_peak_seconds"] = (
+                label["pre_window_peak_ts_ms"] - publish_ts_ms
+            ) / 1000
+        if strict_trigger:
+            fraction = output["pre_window_consumed_fraction"]
+            if fraction is None:
+                return dict(
+                    evaluation_only=True,
+                    timing="unavailable",
+                    reason="pre_window_reference_unavailable",
+                )
+            early = (
+                publish_ts_ms <= label["pre_window_peak_ts_ms"]
+                and fraction
+                < self.cfg["events"]["early_detection_consumed_fraction_strictly_below"]
+                - self.cfg["comparison_tolerance"]
+            )
+            output["timing"] = (
+                "before_activity_trigger"
+                if publish_ts_ms < anchor
+                else (
+                    "early_after_activity_trigger"
+                    if early
+                    else "late_after_activity_trigger"
+                )
+            )
+            output["association_kind"] = "strict_activity_trigger"
+        else:
+            output["timing"] = (
+                "before_forward_window_anchor"
+                if publish_ts_ms < anchor
+                else (
+                    "within_forward_window_before_peak"
+                    if publish_ts_ms <= label["peak_ts_ms"]
+                    else "within_forward_window_after_peak"
+                )
+            )
+            output["association_kind"] = "forward_window_not_physical_impulse"
+        return output
+
+
+def event_catalog(labels, *, target="verified_onset"):
+    """Earliest verified event owns [onset,onset+H), per product/direction/H.
+
+    This retrospective deduplication is separate from the live 15m per-coin
+    alert cooldown. Unverified/pending rows never suppress another event.
+    """
+    labels = list(labels)
+    if target not in ("verified_onset", "verified_forward"):
+        raise ValueError("unsupported catalog target")
+    selected, ends = [], {}
+    hashes = {row["contract_sha256"] for row in labels}
+    if len(hashes) > 1:
+        raise ValueError("cannot mix target contracts")
+    implementations = {row.get("evaluator_sha256") for row in labels}
+    if len(implementations) > 1:
+        raise ValueError("cannot mix evaluator implementations")
+    for row in sorted(
+        labels,
+        key=lambda row: (
+            row["anchor_ts_ms"],
+            row["product_id"],
+            row["direction"],
+            row["horizon_seconds"],
+        ),
+    ):
+        key = row["product_id"], row["direction"], row["horizon_seconds"]
+        if (
+            row.get(target) is True
+            and row.get("status") == "ready"
+            and row["anchor_ts_ms"] >= ends.get(key, -math.inf)
+        ):
+            selected.append(row)
+            ends[key] = row["label_maturity_ts_ms"]
+    return selected
+
+
+def forward_event_catalog(labels):
+    """Catalog forward windows independently of activity/no-retrace gates.
+
+    These are deduplicated qualifying forecast windows, not a definition of
+    physical move onset or a completed operational missed-move denominator.
+    """
+    return [
+        {**row, "catalog_kind": "forward_window_not_physical_impulse"}
+        for row in event_catalog(labels, target="verified_forward")
+    ]
+
+END FILE scripts/scoring_experiment/instant_targets.py
+
+BEGIN FILE tests/test_instant_targets.py
+SHA256 e602c8930bd9226588a0b248be32d4a0550b83638ab79635d12921a087c613ff
+
+"""Hand-computable synthetic paths; no historical or prospective fitting."""
+
+from dataclasses import replace
+import importlib.util
+import math
+from pathlib import Path
+import sys
+
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location(
+    "instant_targets", ROOT / "scripts/scoring_experiment/instant_targets.py"
+)
+target = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = target
+spec.loader.exec_module(target)
+ANCHOR = 3_780_000
+
+
+def baseline(**kwargs):
+    return replace(
+        target.Baseline(
+            sigma_1m=0.0015,
+            beta=1.0,
+            return_count=60,
+            end_ts_ms=ANCHOR,
+            available_ts_ms=ANCHOR,
+            beta_available_ts_ms=ANCHOR,
+            beta_fallback=False,
+            pace_trade_median_30s=2,
+            pace_quote_usd_median_30s=20,
+            pace_window_count=120,
+            pace_end_ts_ms=ANCHOR - 30_000,
+            pace_available_ts_ms=ANCHOR,
+        ),
+        **kwargs,
+    )
+
+
+def samples(direction="up", residual=None, btc=None):
+    sign = 1 if direction == "up" else -1
+    rows = []
+    for ts in range(ANCHOR - 180_000, ANCHOR + 905_000, 5000):
+        elapsed = (ts - ANCHOR) / 1000
+        move = (
+            residual(elapsed)
+            if residual
+            else 0.002 + 0.02 * min(max(elapsed / 300, 0), 1) if elapsed >= 0 else 0
+        )
+        market = btc(elapsed) if btc else 0
+        mid, btc_mid = 100 * math.exp(sign * move + market), 50000 * math.exp(market)
+        rows.append(
+            target.Sample(
+                product_id="TEST-USD",
+                ts_ms=ts,
+                bid=mid * (1 - 0.0001),
+                ask=mid * (1 + 0.0001),
+                btc_bid=btc_mid * (1 - 0.0001),
+                btc_ask=btc_mid * (1 + 0.0001),
+                quote_ts_ms=ts,
+                btc_quote_ts_ms=ts,
+                available_ts_ms=ts,
+                trade_count=1,
+                quote_volume_usd=10,
+                coverage_verified=True,
+                trade_count_at_bucket_start=0,
+            )
+        )
+    return rows
+
+
+def grade(rows=None, direction="up", horizon=300, base=None, asof=None):
+    engine = target.TargetEvaluator(rows if rows is not None else samples(direction))
+    result = engine.evaluate(
+        ANCHOR,
+        base or baseline(),
+        direction,
+        horizon,
+        asof if asof is not None else ANCHOR + horizon * 1000,
+    )
+    return engine, result
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+@pytest.mark.parametrize("horizon", [300, 900])
+def test_sustained_move_is_symmetric_and_peak_ties_choose_first(direction, horizon):
+    _, result = grade(direction=direction, horizon=horizon)
+    assert result["status"] == "ready"
+    assert result["verified_forward"] and result["verified_onset"]
+    assert result["terminal_residual_log"] == pytest.approx(0.02)
+    assert result["retention"] == pytest.approx(1)
+    assert result["peak_ts_ms"] == ANCHOR + 300_000
+    assert result["breakout_ts_ms"] == ANCHOR + 35_000
+    assert result["forward_trade_count"] == horizon / 5
+
+
+def test_market_move_is_not_an_idiosyncratic_impulse():
+    _, result = grade(
+        samples(residual=lambda t: 0, btc=lambda t: 0.04 * max(t, 0) / 300)
+    )
+    assert result["terminal_residual_log"] == pytest.approx(0, abs=1e-12)
+    assert result["verified_forward"] is False
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_opposite_direction_is_never_verified_by_absolute_magnitude(direction):
+    opposite = "down" if direction == "up" else "up"
+    _, result = grade(samples(opposite), direction=direction)
+    assert result["terminal_residual_log"] < 0
+    assert result["verified_forward"] is False
+
+
+def test_large_wick_with_good_terminal_magnitude_fails_retention():
+    _, result = grade(
+        samples(
+            residual=lambda t: (
+                0
+                if t < 0
+                else 0.002 + (0.05 if 0 < t < 300 else 0.02 if t >= 300 else 0)
+            )
+        )
+    )
+    assert result["terminal_residual_log"] > result["required_terminal_log"]
+    assert result["retention"] == pytest.approx(0.4)
+    assert result["verified_forward"] is False
+
+
+def test_later_retrace_rejects_onset_but_preserves_forward_impulse():
+    rows = samples()
+    rows = [
+        replace(row, bid=99, ask=99.02) if row.ts_ms == ANCHOR + 50_000 else row
+        for row in rows
+    ]
+    _, result = grade(rows)
+    assert result["verified_forward"] is True
+    assert result["onset_candidate"] is True
+    assert result["no_retrace"] is False
+    assert result["verified_onset"] is False
+    assert result["adverse_residual_log"] < 0
+
+
+@pytest.mark.parametrize(
+    "change,reason",
+    [
+        ({"coverage_verified": False}, "unverified_coverage"),
+        ({"price_source": "last_trade_fallback"}, "price_fallback"),
+        ({"btc_price_source": "last_trade_fallback"}, "price_fallback"),
+        ({"quote_ts_ms": ANCHOR - 20_000}, "stale_or_future_quote"),
+        ({"quote_ts_ms": ANCHOR + 10_001}, "stale_or_future_quote"),
+        ({"bid": 110, "ask": 100}, "invalid_quote"),
+        ({"ask": None}, "invalid_quote"),
+        ({"btc_bid": float("nan")}, "invalid_quote"),
+        ({"trade_count": -1}, "invalid_trade_count"),
+        ({"quote_volume_usd": float("nan")}, "invalid_volume"),
+        ({"available_ts_ms": ANCHOR + 10_001}, "future_receipt"),
+    ],
+)
+def test_unknown_data_never_becomes_a_negative_label(change, reason):
+    rows = [
+        replace(row, **change) if row.ts_ms == ANCHOR + 10_000 else row
+        for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["status"] == "unavailable"
+    assert result["reason"] == reason
+    assert result["verified_forward"] is None
+    assert result["verified_onset"] is None
+
+
+def test_missing_grid_point_and_nonexact_endpoint_are_unknown():
+    for missing in (ANCHOR + 5000, ANCHOR + 300_000):
+        _, result = grade([row for row in samples() if row.ts_ms != missing])
+        assert result["reason"] == "missing_grid_point"
+        assert result["verified_forward"] is None
+
+
+def test_label_waits_for_full_horizon_instead_of_using_partial_success():
+    _, result = grade(asof=ANCHOR + 299_999)
+    assert result["status"] == "pending"
+    assert result["verified_forward"] is None
+
+
+@pytest.mark.parametrize(
+    "change,reason",
+    [
+        ({"available_ts_ms": ANCHOR + 1}, "future_baseline"),
+        ({"beta_available_ts_ms": ANCHOR + 1}, "future_baseline"),
+        ({"end_ts_ms": ANCHOR - 60_000}, "baseline_window_misaligned"),
+        ({"return_count": 59}, "baseline_warming"),
+        ({"sigma_1m": float("nan")}, "invalid_baseline"),
+    ],
+)
+def test_baselines_are_causal_complete_and_current(change, reason):
+    _, result = grade(base=baseline(**change))
+    assert result["status"] == "unavailable"
+    assert result["reason"] == reason
+
+
+def test_sigma_floor_and_beta_fallback_are_visible():
+    _, result = grade(base=baseline(sigma_1m=0, beta_fallback=True))
+    assert result["sigma_1m"] == 0.0015
+    assert result["sigma_floor_applied"] is True
+    assert result["beta_fallback"] is True
+
+
+def test_forward_trade_quantum_excludes_anchor_bucket():
+    rows = [
+        replace(row, trade_count=100 if row.ts_ms == ANCHOR else 0) for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["forward_trade_count"] == 0
+    assert result["verified_forward"] is False
+
+
+def test_exact_pace_threshold_and_single_print_do_not_create_onset():
+    _, result = grade(
+        base=baseline(pace_trade_median_30s=3, pace_quote_usd_median_30s=30)
+    )
+    assert result["pace_multiple"] == 2
+    assert result["onset_candidate"] is False
+    rows = [
+        replace(row, trade_count=0) if ANCHOR - 30_000 < row.ts_ms < ANCHOR else row
+        for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["recent_trade_count"] == 1
+    assert result["onset_candidate"] is False
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"pace_window_count": 119},
+        {"pace_end_ts_ms": ANCHOR},
+        {"pace_available_ts_ms": ANCHOR + 1},
+        {"pace_trade_median_30s": 0, "pace_quote_usd_median_30s": 0},
+    ],
+)
+def test_onset_unavailable_does_not_erase_complete_forward_label(change):
+    _, result = grade(base=baseline(**change))
+    assert result["verified_forward"] is True
+    assert result["verified_onset"] is None
+    assert result["onset_status"] == "unavailable"
+
+
+def test_appending_or_changing_after_horizon_cannot_change_label():
+    rows = samples()
+    _, expected = grade([row for row in rows if row.ts_ms <= ANCHOR + 300_000])
+    changed = [
+        (
+            replace(row, bid=1, ask=2, coverage_verified=False)
+            if row.ts_ms > ANCHOR + 300_000
+            else row
+        )
+        for row in rows
+    ]
+    _, actual = grade(changed)
+    assert actual == expected
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_prediction_detection_and_half_consumed_boundary(direction):
+    engine, label = grade(direction=direction)
+    before = engine.alert_timing(label, ANCHOR - 5000)
+    assert before["timing"] == "pre_onset_prediction"
+    assert before["detection_delay_seconds"] == -5
+    assert before["consumed_fraction"] < 0  # deliberately not clipped
+    assert engine.alert_timing(label, ANCHOR)["timing"] == "early_detection"
+    half = engine.alert_timing(label, ANCHOR + 150_000)
+    assert half["consumed_fraction"] == pytest.approx(0.5)
+    assert half["timing"] == "late_detection"
+    assert (
+        engine.alert_timing(label, ANCHOR - 185_000)["timing"] == "outside_event_window"
+    )
+
+
+def test_unaligned_publication_uses_only_backward_asof_snapshot():
+    engine, label = grade()
+    result = engine.alert_timing(label, ANCHOR + 4999)
+    assert result["price_snapshot_ts_ms"] == ANCHOR
+    assert result["consumed_fraction"] == 0
+
+
+def test_costs_apply_once_to_coin_return_not_market_residual():
+    _, label = grade(samples(btc=lambda t: 0.01 * max(t, 0) / 300))
+    expected = math.expm1(0.03) * 10000
+    assert label["terminal_residual_log"] == pytest.approx(0.02)
+    assert label["gross_coin_return_bps"] == pytest.approx(expected)
+    assert label["cost_scenarios"][0]["net_coin_return_bps"] == pytest.approx(
+        expected - 2
+    )
+    assert label["cost_scenarios"][1]["net_coin_return_bps"] == pytest.approx(
+        expected - 2 - 20
+    )
+
+
+def test_catalog_deduplicates_events_without_merging_directions_or_horizons():
+    _, label = grade()
+    later = {
+        **label,
+        "anchor_ts_ms": ANCHOR + 5000,
+        "label_maturity_ts_ms": ANCHOR + 305_000,
+    }
+    boundary = {
+        **label,
+        "anchor_ts_ms": ANCHOR + 300_000,
+        "label_maturity_ts_ms": ANCHOR + 600_000,
+    }
+    down = {**label, "direction": "down"}
+    longer = {**label, "horizon_seconds": 900, "label_maturity_ts_ms": ANCHOR + 900_000}
+    assert target.event_catalog([later, boundary, down, label, longer]) == [
+        down,
+        label,
+        longer,
+        boundary,
+    ]
+    with pytest.raises(ValueError, match="mix"):
+        target.event_catalog([label, {**label, "contract_sha256": "different"}])
+
+
+def test_invalid_series_cannot_silently_sort_or_mix_products():
+    rows = samples()
+    for bad in (
+        [rows[1], rows[0]],
+        [rows[0], rows[0]],
+        [rows[0], replace(rows[1], product_id="OTHER-USD")],
+        [replace(rows[0], ts_ms=1)],
+    ):
+        with pytest.raises(ValueError):
+            target.TargetEvaluator(bad)
+
+
+def test_trades_exactly_at_anchor_are_excluded_and_unknown_boundary_is_unavailable():
+    rows = [
+        (
+            replace(row, trade_count=3, trade_count_at_bucket_start=3)
+            if row.ts_ms == ANCHOR + 5000
+            else replace(row, trade_count=0)
+        )
+        for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["forward_trade_count"] == 0
+    assert result["verified_forward"] is False
+    rows = [
+        (
+            replace(row, trade_count_at_bucket_start=None)
+            if row.ts_ms == ANCHOR + 5000
+            else row
+        )
+        for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["reason"] == "unknown_boundary_trade_count"
+    assert result["verified_forward"] is None
+
+
+@pytest.mark.parametrize("sigma,spread", [(0.005, 2), (0.0015, 100)])
+def test_volatility_and_spread_each_can_raise_required_magnitude(sigma, spread):
+    rows = samples()
+    start_mid = next(row.mid for row in rows if row.ts_ms == ANCHOR)
+    rows = [
+        (
+            replace(
+                row,
+                bid=start_mid * (1 - spread / 20000),
+                ask=start_mid * (1 + spread / 20000),
+            )
+            if row.ts_ms == ANCHOR
+            else row
+        )
+        for row in rows
+    ]
+    _, result = grade(rows, base=baseline(sigma_1m=sigma))
+    assert result["required_terminal_log"] > result["terminal_residual_log"]
+    assert result["verified_forward"] is False
+
+
+def test_breakout_deadline_is_not_extended_to_get_a_success():
+    _, result = grade(
+        samples(residual=lambda t: 0 if t < 0 else 0.002 + (0.02 if t >= 200 else 0))
+    )
+    assert result["verified_forward"] is True
+    assert result["onset_candidate"] is True
+    assert result["breakout_ts_ms"] is None
+    assert result["verified_onset"] is False
+
+
+def test_healthy_zero_trade_buckets_are_known_observations():
+    rows = [
+        (
+            replace(row, trade_count=0, quote_volume_usd=0)
+            if row.ts_ms == ANCHOR + 50_000
+            else row
+        )
+        for row in samples()
+    ]
+    _, result = grade(rows)
+    assert result["status"] == "ready"
+    assert result["verified_forward"] is True
+
+
+def test_zero_move_is_a_complete_negative_and_is_retained_outside_boards():
+    _, result = grade(samples(residual=lambda t: 0))
+    assert result["status"] == "ready"
+    assert result["verified_forward"] is False
+    assert result["verified_onset"] is False
+    assert result["retention"] is None
+
+
+def test_exact_minimum_log_magnitude_passes_with_float_tolerance():
+    _, result = grade(
+        samples(residual=lambda t: 0 if t < 0 else 0.002 + 0.015 * min(t / 300, 1))
+    )
+    assert result["terminal_residual_log"] == pytest.approx(0.015)
+    assert result["verified_forward"] is True
+
+
+def test_unavailable_alert_quote_does_not_select_a_future_quote():
+    engine, label = grade()
+    with_gap = target.TargetEvaluator(
+        [row for row in samples() if row.ts_ms != ANCHOR - 5000]
+    )
+    assert with_gap.alert_timing(label, ANCHOR - 1)["timing"] == "unavailable"
+    with pytest.raises(ValueError, match="verified onset"):
+        engine.alert_timing({**label, "verified_onset": False}, ANCHOR)
+
+
+def test_contract_hash_and_scope_travel_with_every_label():
+    import hashlib
+
+    _, result = grade()
+    assert (
+        result["contract_sha256"]
+        == hashlib.sha256(
+            target.CONTRACT_PATH.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest()
+    )
+    assert result["evaluation_only"] is True
+    cfg, _ = target.load_contract()
+    assert cfg["fitting_allowed"] is False
+
+
+def test_contract_hash_is_portable_across_windows_and_unix_newlines(
+    tmp_path, monkeypatch
+):
+    cfg, expected = target.load_contract()
+    portable = tmp_path / "contract.json"
+    portable.write_bytes(
+        target.CONTRACT_PATH.read_text(encoding="utf-8")
+        .replace("\n", "\r\n")
+        .encode("utf-8")
+    )
+    monkeypatch.setattr(target, "CONTRACT_PATH", portable)
+    actual_cfg, actual = target.load_contract()
+    assert actual == expected and actual_cfg == cfg
+
+
+def test_missing_or_invalid_baseline_metadata_is_unavailable():
+    engine = target.TargetEvaluator(samples())
+    for base, reason in (
+        (None, "missing_baseline"),
+        (baseline(available_ts_ms=None), "invalid_baseline_metadata"),
+    ):
+        result = engine.evaluate(ANCHOR, base, "up", 300, ANCHOR + 300_000)
+        assert result["status"] == "unavailable" and result["reason"] == reason
+
+
+def test_invalid_asof_cannot_mature_future_labels():
+    engine = target.TargetEvaluator(samples())
+    with pytest.raises(ValueError, match="as-of"):
+        engine.evaluate(ANCHOR, baseline(), "up", 300, float("nan"))
+
+END FILE tests/test_instant_targets.py
+
+BEGIN FILE tests/test_instant_targets_v2.py
+SHA256 2f0ab6f9ae35b5397bd644f1eb4185f0d809f5f3e7db303e5528c98ed8b8866e
+
+"""Review counterexamples and the opt-in v2 draft; no empirical fitting."""
+
+from dataclasses import replace
+import hashlib
+import math
+
+import pytest
+
+from test_instant_targets import ANCHOR, baseline, samples, target
+
+
+def grade_v2(rows=None, direction="up", horizon=300, base=None, anchor=ANCHOR):
+    engine = target.TargetEvaluator(
+        rows if rows is not None else samples(direction),
+        contract_path=target.V2_CONTRACT_PATH,
+    )
+    base = base or baseline(
+        end_ts_ms=(anchor - 35000) // 60000 * 60000,
+        pace_end_ts_ms=anchor - 30000,
+    )
+    return engine, engine.evaluate(
+        anchor, base, direction, horizon, anchor + horizon * 1000
+    )
+
+
+def one_bps_dip(direction="up"):
+    rows = samples(direction)
+    at_anchor = next(row for row in rows if row.ts_ms == ANCHOR)
+    # A favorable-direction negative residual of exactly 1 bp at +5s.
+    sign = 1 if direction == "up" else -1
+    price = at_anchor.mid * math.exp(-sign * 0.0001)
+    return [
+        (
+            replace(row, bid=price * (1 - 0.0001), ask=price * (1 + 0.0001))
+            if row.ts_ms == ANCHOR + 5000
+            else row
+        )
+        for row in rows
+    ]
+
+
+def test_v1_contract_and_default_remain_pinned():
+    raw = target.CONTRACT_PATH.read_text(encoding="utf-8").encode("utf-8")
+    assert (
+        hashlib.sha256(raw).hexdigest()
+        == "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4"
+    )
+    engine = target.TargetEvaluator(samples())
+    label = engine.evaluate(ANCHOR, baseline(), "up", 300, ANCHOR + 300000)
+    assert label["contract_version"] == "instant-target-v1"
+    assert engine.alert_timing(label, ANCHOR)["consumed_fraction"] == 0
+    assert "evaluator_sha256" not in label
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+@pytest.mark.parametrize("horizon", [300, 900])
+def test_named_reference_metrics_count_the_pre_trigger_leg(direction, horizon):
+    engine, label = grade_v2(direction=direction, horizon=horizon)
+    timing = engine.alert_timing(label, ANCHOR)
+    assert timing["post_anchor_consumed_fraction"] == 0
+    assert timing["pre_window_consumed_fraction"] == pytest.approx(0.002 / 0.022)
+    assert timing["pre_window_reference_ts_ms"] == ANCHOR - 30000
+    assert timing["physical_onset_defined"] is False
+    assert timing["pre_window_reference_is_physical_origin"] is False
+    assert "consumed_fraction" not in timing
+    assert timing["timing"] == "early_after_activity_trigger"
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_forward_catalog_retains_real_moves_with_small_retracement(direction):
+    engine, label = grade_v2(one_bps_dip(direction), direction=direction)
+    assert label["verified_forward"] is True
+    assert label["verified_onset"] is False
+    assert target.event_catalog([label]) == []
+    forward = target.forward_event_catalog([label])
+    assert len(forward) == 1
+    assert forward[0]["catalog_kind"] == "forward_window_not_physical_impulse"
+    timing = engine.forward_alert_timing(forward[0], ANCHOR)
+    assert timing["association_kind"] == "forward_window_not_physical_impulse"
+    assert timing["timing"] == "within_forward_window_before_peak"
+    assert "pre_onset_prediction" not in timing.values()
+    with pytest.raises(ValueError, match="verified label"):
+        engine.alert_timing(label, ANCHOR)
+    legacy = target.TargetEvaluator(one_bps_dip(direction))
+    v1 = legacy.evaluate(ANCHOR, baseline(), direction, 300, ANCHOR + 300000)
+    assert v1["verified_forward"] is True and v1["verified_onset"] is False
+    assert target.event_catalog([v1]) == []
+
+
+def test_forward_target_and_catalog_do_not_require_activity_gate():
+    engine, label = grade_v2(
+        base=baseline(
+            end_ts_ms=ANCHOR - 60000,
+            pace_trade_median_30s=6,
+            pace_quote_usd_median_30s=60,
+        )
+    )
+    assert label["verified_forward"] is True
+    assert label["onset_candidate"] is False
+    assert len(target.forward_event_catalog([label])) == 1
+    assert (
+        engine.forward_alert_timing(label, ANCHOR)["pre_window_consumed_fraction"] > 0
+    )
+
+
+@pytest.mark.parametrize("offset", [0, 5000, 30000, 35000, 55000])
+def test_v2_baseline_cutoff_ends_before_both_velocity_windows(offset):
+    anchor = ANCHOR + offset
+    expected = (anchor - 35000) // 60000 * 60000
+    engine, label = grade_v2(anchor=anchor)
+    assert expected <= anchor - 35000
+    assert label["status"] == "ready"
+    if anchor // 60000 * 60000 > expected:
+        bad = baseline(end_ts_ms=anchor // 60000 * 60000, pace_end_ts_ms=anchor - 30000)
+        result = engine.evaluate(anchor, bad, "up", 300, anchor + 300000)
+        assert result["reason"] == "baseline_window_misaligned"
+
+
+@pytest.mark.parametrize("peak", [0, -1, None, float("nan"), float("inf")])
+def test_invalid_external_peak_is_rejected_before_division(peak):
+    engine, label = grade_v2()
+    with pytest.raises(ValueError, match="positive finite"):
+        engine.forward_alert_timing({**label, "peak_residual_log": peak}, ANCHOR)
+
+
+def test_pre_window_peak_includes_the_pre_trigger_path():
+    # A previous wick exceeds the subsequent peak. Do not erase it by
+    # merely shifting the post-anchor peak upward by the pre-anchor return.
+    rows = samples()
+    price = 100 * math.exp(0.04)
+    rows = [
+        (
+            replace(row, bid=price * (1 - 0.0001), ask=price * (1 + 0.0001))
+            if row.ts_ms == ANCHOR - 10000
+            else row
+        )
+        for row in rows
+    ]
+    engine, label = grade_v2(rows)
+    assert label["verified_forward"] is True
+    assert label["pre_window_peak_ts_ms"] == ANCHOR - 10000
+    timing = engine.forward_alert_timing(label, ANCHOR)
+    assert timing["pre_window_consumed_fraction"] == pytest.approx(0.002 / 0.04)
+    assert timing["lead_to_pre_window_peak_seconds"] == -10
+
+
+def test_reference_missingness_does_not_erase_complete_forward_label():
+    rows = [row for row in samples() if row.ts_ms != ANCHOR - 30000]
+    engine, label = grade_v2(rows)
+    assert label["verified_forward"] is True
+    assert label["pre_window_reference_status"] == "unavailable"
+    timing = engine.forward_alert_timing(label, ANCHOR)
+    assert timing["pre_window_consumed_fraction"] is None
+    assert timing["post_anchor_consumed_fraction"] == 0
+
+
+def test_reference_may_have_no_positive_peak_for_an_independent_forward_move():
+    # A deep pre-anchor decline followed by a qualifying rebound. The
+    # forward label remains valid while this reference has no positive peak.
+    rows = samples(residual=lambda t: 0.05 if t < 0 else 0.02 * min(t / 300, 1))
+    engine, label = grade_v2(rows)
+    assert label["verified_forward"] is True
+    assert label["pre_window_peak_residual_log"] == 0
+    assert (
+        engine.forward_alert_timing(label, ANCHOR)["pre_window_consumed_fraction"]
+        is None
+    )
+
+
+def test_crossing_does_not_algebraically_force_positive_F1_acceleration():
+    def path(t):
+        if t < -30:
+            return 0.012 * (t + 180) / 150
+        if t < 0:
+            return 0.012
+        return 0.014 + 0.02 * min(t / 300, 1)
+
+    engine, label = grade_v2(samples(residual=path))
+    assert label["verified_onset"] is True
+    fast = engine._residual(ANCHOR - 30000, ANCHOR, 1, 1)
+    prior = engine._residual(ANCHOR - 180000, ANCHOR - 30000, 1, 1)
+    assert fast - prior / 5 < 0
+
+
+def test_trade_count_pace_can_trigger_while_volume_pace_is_below_two():
+    _, label = grade_v2(
+        base=baseline(end_ts_ms=ANCHOR - 60000, pace_quote_usd_median_30s=100)
+    )
+    assert label["verified_onset"] is True
+    assert label["pace_multiple"] == 3  # 6 trades / median 2
+    assert 60 / 100 < 2  # volume ratio does not have to exceed 2
+
+
+def test_forged_implementation_and_mixed_catalog_versions_are_rejected():
+    engine, label = grade_v2()
+    other = {**label, "evaluator_sha256": "different"}
+    with pytest.raises(ValueError, match="this evaluator"):
+        engine.forward_alert_timing(other, ANCHOR)
+    with pytest.raises(ValueError, match="implementations"):
+        target.forward_event_catalog([label, other])
+
+
+def test_v2_stays_opt_in_and_operational_metrics_remain_gated():
+    engine, _ = grade_v2()
+    assert engine.cfg["fitting_allowed"] is False
+    assert engine.cfg["targets"]["primary_pointwise"] == "verified_forward"
+    assert (
+        engine.cfg["reference_metrics"][
+            "operational_false_alert_and_missed_move_rates_enabled"
+        ]
+        is False
+    )
+
+
+def test_trigger_timing_uses_the_declared_pre_window_halfway_boundary():
+    engine, label = grade_v2()
+    before = engine.alert_timing(label, ANCHOR - 5000)
+    assert before["timing"] == "before_activity_trigger"
+    assert "pre_onset_prediction" not in before.values()
+    half = engine.alert_timing(label, ANCHOR + 135000)
+    assert half["pre_window_consumed_fraction"] == pytest.approx(0.5)
+    assert half["post_anchor_consumed_fraction"] == pytest.approx(0.45)
+    assert half["timing"] == "late_after_activity_trigger"
+
+END FILE tests/test_instant_targets_v2.py
+
+BEGIN FILE docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json
+SHA256 ad6889f26e9a68987fa5f7ef8646556818d9d03a86b67c12c9913dc1fca64d31
+
+{
+  "scope": "synthetic_reproduction_only_no_real_outcome_analysis",
+  "evaluator_sha256": "53cd1776be9b1b830fe5b2a7b45d6febba2ec725688ed7f4e2bcc798d8edc810",
+  "v1_contract_sha256": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+  "v2_draft_contract_sha256": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3",
+  "at_activity_trigger": {
+    "v1_post_trigger_consumed_fraction": 0.0,
+    "v2_named_metrics": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": 0.09090909090909279,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "lead_to_pre_window_peak_seconds": 300.0,
+      "timing": "early_after_activity_trigger",
+      "association_kind": "strict_activity_trigger"
+    }
+  },
+  "one_bps_adverse_dip": {
+    "verified_forward": true,
+    "verified_onset": false,
+    "strict_onset_catalog_count": 0,
+    "forward_window_catalog_count": 1
+  },
+  "F1_counterexample": {
+    "verified_onset": true,
+    "fast_30s_log_return": 0.0019999999999998144,
+    "preceding_150s_log_return_per_30s": 0.0024000000000000106,
+    "acceleration_log": -0.0004000000000001962
+  },
+  "gate_claim_limits": [
+    "activity crossing does not algebraically force positive 30s-versus-150s acceleration",
+    "count-pace OR volume-pace gate does not force volume pace >2",
+    "unsigned activity gate does not determine signed taker imbalance"
+  ],
+  "guardrails": {
+    "fitting_allowed": false,
+    "physical_onset_defined": false,
+    "operational_missed_move_rates_enabled": false,
+    "v1_default_preserved": true
+  }
+}
+
+END FILE docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json

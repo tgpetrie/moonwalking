@@ -1,5 +1,20 @@
 # Moonwalking / BHABIT Handoff
 
+## Review prompts prepared; fundamentals driver review separate - 2026-10-30
+
+Four copy-ready role prompts and fresh v2 attachments are in
+[`docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md`](docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md).
+The full Gemini packet contains eight verified sources from `cc3b6a6`, with
+implementation `8b5b266`. Bounded local 14B/9B packets are also committed;
+convenience copies are in this PC's Downloads folder. These are prepared
+assignments, not newly dispatched work. The prior 14B review found no confirmed
+defect, and the 9B has not been assigned or run by Codex.
+
+The user separately authorized review of fundamentals driver `058d740` before
+discovery. That work is isolated in `Moonwalking-FundamentalsDriverReview`,
+branch `codex/fundamentals-driver-review-20261030`; it does not change this
+instant-radar implementation or authorize a fundamentals discovery/test run.
+
 ## Pre-source Gemini response archived - 2026-10-30
 
 The user supplied the full earlier Gemini response that declared no repository

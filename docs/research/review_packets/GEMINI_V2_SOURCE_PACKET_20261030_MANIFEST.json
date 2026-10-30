@@ -1,0 +1,65 @@
+{
+  "commit": "cc3b6a64e7db96f55a6008a8f387b97d5468763f",
+  "implementation": "8b5b26614de74459000ae29d39d71abe34567007",
+  "packet": "GEMINI_V2_SOURCE_PACKET_20261030.txt",
+  "sha256": "594f7a4c6b4a0afccda49849474f9243650c1005dc147d25f79b73cabf521628",
+  "bytes": 97859,
+  "files": [
+    {
+      "path": "docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md",
+      "bytes": 24078,
+      "sha256": "b43b781f626790097bfa2da5cdfa64db16a3ab1b143622b40a229301dae4a442",
+      "start": 615,
+      "end": 24693
+    },
+    {
+      "path": "docs/research/INSTANT_TARGET_CONTRACT_V1.json",
+      "bytes": 2329,
+      "sha256": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+      "start": 24893,
+      "end": 27222
+    },
+    {
+      "path": "docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json",
+      "bytes": 3832,
+      "sha256": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3",
+      "start": 27415,
+      "end": 31247
+    },
+    {
+      "path": "docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md",
+      "bytes": 14182,
+      "sha256": "f1634d6de38a483a075ae4b3f8b7102cc87d0782ba10ae16b1a945b6ed1446a9",
+      "start": 31449,
+      "end": 45631
+    },
+    {
+      "path": "scripts/scoring_experiment/instant_targets.py",
+      "bytes": 24250,
+      "sha256": "53cd1776be9b1b830fe5b2a7b45d6febba2ec725688ed7f4e2bcc798d8edc810",
+      "start": 45827,
+      "end": 70077
+    },
+    {
+      "path": "tests/test_instant_targets.py",
+      "bytes": 16283,
+      "sha256": "e602c8930bd9226588a0b248be32d4a0550b83638ab79635d12921a087c613ff",
+      "start": 70248,
+      "end": 86531
+    },
+    {
+      "path": "tests/test_instant_targets_v2.py",
+      "bytes": 9014,
+      "sha256": "2f0ab6f9ae35b5397bd644f1eb4185f0d809f5f3e7db303e5528c98ed8b8866e",
+      "start": 86689,
+      "end": 95703
+    },
+    {
+      "path": "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json",
+      "bytes": 1874,
+      "sha256": "ad6889f26e9a68987fa5f7ef8646556818d9d03a86b67c12c9913dc1fca64d31",
+      "start": 95903,
+      "end": 97777
+    }
+  ]
+}

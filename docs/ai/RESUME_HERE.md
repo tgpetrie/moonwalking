@@ -60,6 +60,12 @@ Read these next:
 
 ## Who owns the next actions
 
+Copy-ready [v2 review prompts and attachments](INSTANT_V2_REVIEW_PROMPTS_20261030.md)
+are prepared for Claude, Gemini, local 14B and local 9B. The new Gemini packet
+contains eight complete sources at `cc3b6a6` (implementation `8b5b266`), so it
+includes v2 rather than the old v1-only packet. Prompts are not dispatches;
+no new local/Claude/Gemini review was launched by Codex when preparing them.
+
 | Owner | Assignment | Verified status |
 |---|---|---|
 | Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Reviews triaged; v2 draft implemented/tested; awaiting independent v2 review |

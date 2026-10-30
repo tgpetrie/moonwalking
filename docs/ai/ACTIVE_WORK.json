@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T07:58:40.586198+00:00",
+  "updated_utc": "2026-10-30T08:25:32.010174+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -133,5 +133,30 @@
   ],
   "gemini_pre_source_review": "docs/research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md",
   "gemini_review_history_manifest": "docs/research/reviews/GEMINI_INSTANT_REVIEWS_20261030_MANIFEST.json",
-  "gemini_pre_source_disposition": "archived_as_conceptual_only; extra study suggestions recorded; no target/code/threshold changes"
+  "gemini_pre_source_disposition": "archived_as_conceptual_only; extra study suggestions recorded; no target/code/threshold changes",
+  "prepared_v2_review_prompts": {
+    "file": "docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md",
+    "roles": [
+      "Claude",
+      "Gemini",
+      "local 14B",
+      "local 9B"
+    ],
+    "status": "prepared_only_not_dispatched",
+    "source_checkpoint": "cc3b6a6",
+    "implementation": "8b5b266",
+    "packet": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030.txt",
+    "manifest": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030_MANIFEST.json",
+    "full_sources_verified": 8,
+    "downloads_folder": "C:\\Users\\tgpet\\Downloads\\Moonwalking-v2-Review-20261030"
+  },
+  "other_research_lanes": {
+    "fundamentals_driver_review": {
+      "status": "review_in_progress_discovery_not_run",
+      "branch": "codex/fundamentals-driver-review-20261030",
+      "worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-FundamentalsDriverReview",
+      "reviewed_input_commit": "058d740",
+      "scope": "separate broader fundamentals experiment; does not change instant targets"
+    }
+  }
 }
