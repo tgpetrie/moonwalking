@@ -167,16 +167,17 @@ class ReplayStore:
         if mono is not None:
             integer(mono)
         previous = self.db.execute(
-            "SELECT seq,receipt,mono FROM packets ORDER BY seq DESC LIMIT 1"
+            "SELECT seq,receipt FROM packets ORDER BY seq DESC LIMIT 1"
+        ).fetchone()
+        # Compare with the last packet that carried a monotonic time, so a packet
+        # without one cannot hide a later regression.
+        last_mono = self.db.execute(
+            "SELECT mono FROM packets WHERE mono IS NOT NULL ORDER BY seq DESC LIMIT 1"
         ).fetchone()
         if previous and (
             seq <= previous["seq"]
             or receipt < previous["receipt"]
-            or (
-                mono is not None
-                and previous["mono"] is not None
-                and mono < previous["mono"]
-            )
+            or (mono is not None and last_mono is not None and mono < last_mono[0])
         ):
             raise ValueError("receipt order or clock regressed; replay aborted")
         message = envelope["message"]
