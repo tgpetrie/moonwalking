@@ -44,7 +44,7 @@ def number(value):
 
 
 class ReplayStore:
-    def __init__(self, path, *, create=False):
+    def __init__(self, path, *, create=False, expected_recorder_sha256=None):
         path = Path(path)
         self.writable = create
         raw = CONTRACT_PATH.read_text(encoding="utf-8").encode("utf-8")
@@ -112,9 +112,50 @@ class ReplayStore:
         ):
             self.db.close()
             raise ValueError("replay database contract hash differs")
+        producer = self.db.execute(
+            "SELECT value FROM meta WHERE key='recorder_sha256'"
+        ).fetchone()
+        if (
+            producer is None
+            or len(producer[0]) != 64
+            or any(c not in "0123456789abcdef" for c in producer[0])
+        ):
+            self.db.close()
+            raise ValueError("missing or invalid recorder provenance")
+        if (
+            expected_recorder_sha256 is not None
+            and producer[0] != expected_recorder_sha256
+        ):
+            self.db.close()
+            raise ValueError("replay producer differs from the expected recorder hash")
 
     def close(self):
         self.db.close()
+
+    def provenance(self):
+        """Identify the producing and reading code without authenticating input claims."""
+        metadata = dict(self.db.execute("SELECT key,value FROM meta"))
+        source = (
+            json.loads(metadata["source_manifest"])
+            if "source_manifest" in metadata
+            else None
+        )
+        canonical = json.dumps(
+            source, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        reader = hashlib.sha256(
+            Path(__file__).read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest()
+        return dict(
+            producer_recorder_sha256=metadata["recorder_sha256"],
+            reader_recorder_sha256=reader,
+            producer_matches_reader=metadata["recorder_sha256"] == reader,
+            replay_contract_sha256=metadata["contract_sha256"],
+            source_manifest=source,
+            source_manifest_sha256=hashlib.sha256(
+                canonical.encode("utf-8")
+            ).hexdigest(),
+        )
 
     def _writeable(self):
         status = self.db.execute(
@@ -263,6 +304,7 @@ class ReplayStore:
                     source_manifest
                     or {"status": "caller_inputs_not_independently_verified"},
                     sort_keys=True,
+                    allow_nan=False,
                 ),
             ),
         )

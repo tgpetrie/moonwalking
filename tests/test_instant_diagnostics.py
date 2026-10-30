@@ -1,6 +1,7 @@
 """Reporting diagnostics preserve label semantics and show missingness explicitly."""
 
 import copy
+from dataclasses import replace
 import sys
 
 import pytest
@@ -93,6 +94,20 @@ def test_unavailable_publication_has_explicit_null_fields_even_in_strict_mode():
     assert report["pre_window_consumed_fraction"] is None
     assert report["pre_window_consumed_fraction_reason"] == "missing_grid_point"
     assert report["pre_window_to_forward_peak_consumed_fraction"] is None
+
+
+def test_reference_and_publication_failures_are_reported_independently():
+    rows = [
+        replace(r, price_source="last_trade") if r.ts_ms == ANCHOR - 15000 else r
+        for r in samples()
+        if r.ts_ms != ANCHOR - 100000
+    ]
+    engine, label = grade(rows)
+    report = diag.alert_report(engine, label, ANCHOR - 100000)
+    assert report["timing"] == "unavailable"
+    assert report["pre_window_consumed_fraction_reason"] == "price_fallback"
+    assert report["pre_window_reference_unavailable_reason"] == "price_fallback"
+    assert report["publication_unavailable_reason"] == "missing_grid_point"
 
 
 def test_catalog_gap_flag_does_not_change_selection_and_rejects_duplicates():

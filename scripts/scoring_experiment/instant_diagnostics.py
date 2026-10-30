@@ -56,6 +56,17 @@ def alert_report(evaluator, label, publish_ts_ms, *, strict_trigger=False):
         pre_window_to_forward_peak_consumed_fraction_reason=None,
         pre_window_to_forward_peak_ts_ms=None,
         whole_window_peak_precedes_anchor=None,
+        pre_window_reference_unavailable_reason=(
+            label.get("pre_window_reference_reason")
+            or "pre_window_reference_unavailable"
+            if label.get("pre_window_reference_status") != "ready"
+            else None
+        ),
+        publication_unavailable_reason=(
+            timing.get("reason") or "publication_unavailable"
+            if timing["timing"] in ("unavailable", "outside_event_window")
+            else None
+        ),
     )
     whole_reason = fraction_reason(label, label.get("pre_window_peak_residual_log"))
     if timing["timing"] in ("unavailable", "outside_event_window"):

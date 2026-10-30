@@ -15,6 +15,7 @@ def build_baseline(store, product, anchor, *, benchmark="BTC-USD"):
     sigma_start = sigma_end - 60 * 60000
     pace_end = anchor - 30000
     pace_start = pace_end - 120 * 30000
+    replay_provenance = store.provenance()
     provenance = dict(
         sigma_start_ts_ms=sigma_start,
         sigma_end_ts_ms=sigma_end,
@@ -22,6 +23,8 @@ def build_baseline(store, product, anchor, *, benchmark="BTC-USD"):
         pace_end_ts_ms=pace_end,
         knowledge_asof_ts_ms=anchor,
         builder_version="instant-micro-baseline-v1-draft",
+        replay_recorder_sha256=replay_provenance["producer_recorder_sha256"],
+        replay_provenance=replay_provenance,
         builder_sha256=hashlib.sha256(
             Path(__file__).read_text(encoding="utf-8").encode("utf-8")
         ).hexdigest(),

@@ -217,6 +217,44 @@ def test_existing_output_readonly_and_unfinished_artifact_protection(tmp_path):
     assert hashlib.sha256(path.read_bytes()).hexdigest() == frozen
 
 
+def test_reopen_can_pin_producer_hash_and_provenance_keeps_input_identity(tmp_path):
+    path = tmp_path / "identity.sqlite"
+    store = ReplayStore(path, create=True)
+    producer = store.provenance()["producer_recorder_sha256"]
+    source = {"input_sha256": {"packets": "a" * 64, "health": "b" * 64}}
+    store.finalize(source)
+    store.close()
+    reader = ReplayStore(path, expected_recorder_sha256=producer)
+    try:
+        identity = reader.provenance()
+        assert identity["producer_matches_reader"] is True
+        assert identity["source_manifest"] == source
+        assert len(identity["source_manifest_sha256"]) == 64
+    finally:
+        reader.close()
+    with pytest.raises(ValueError, match="expected recorder hash"):
+        ReplayStore(path, expected_recorder_sha256="0" * 64)
+
+
+def test_historical_producer_is_visible_without_relabeling_it_as_current(tmp_path):
+    path = tmp_path / "historical.sqlite"
+    store = ReplayStore(path, create=True)
+    current = store.provenance()["reader_recorder_sha256"]
+    store.db.execute("UPDATE meta SET value=? WHERE key='recorder_sha256'", ("0" * 64,))
+    store.finalize()
+    store.close()
+    reader = ReplayStore(path, expected_recorder_sha256="0" * 64)
+    try:
+        identity = reader.provenance()
+        assert identity["producer_matches_reader"] is False
+        assert identity["producer_recorder_sha256"] == "0" * 64
+        assert identity["reader_recorder_sha256"] == current
+    finally:
+        reader.close()
+    with pytest.raises(ValueError):
+        ReplayStore(path, expected_recorder_sha256=current)
+
+
 def baseline_store(
     tmp_path,
     *,
@@ -286,6 +324,11 @@ def test_baseline_builds_60_closed_returns_and_120_nonoverlapping_pace_windows(
     try:
         result = build_baseline(store, PID, anchor)
         assert result["status"] == "ready"
+        assert (
+            result["replay_recorder_sha256"]
+            == store.provenance()["producer_recorder_sha256"]
+        )
+        assert result["replay_provenance"] == store.provenance()
         b = result["baseline"]
         assert b.return_count == 60 and b.pace_window_count == 120
         assert (
