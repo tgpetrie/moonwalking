@@ -4,6 +4,17 @@ Rules live in `MW_SPEC.md`. This file records durable work status.
 
 Status keys: Open, In progress, Done, Blocked.
 
+## In progress - instant radar, 2026-10-29
+
+- Executable prospective forward/onset label contract and synthetic tests
+  are implemented on `codex/instant-radar-20261028`; see
+  `docs/research/INSTANT_TARGET_LABELS_20261029.md`.
+- First audit campaign hour completed with REST-reconciled sampled coverage;
+  thin-product side evidence is insufficient, so the overall gate is false.
+- Next: independent design/code review, resolve remaining audit evidence,
+  then freeze recorder/features/readiness before prospective collection and
+  fitting. Historical validation remains locked. Live scoring is unchanged.
+
 ## Done and verified on 2026-09-02
 
 ### P3.1 Local AI credit-saving helper

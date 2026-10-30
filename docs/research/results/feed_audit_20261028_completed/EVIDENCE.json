@@ -1,0 +1,41 @@
+{
+  "capture_code_commit": "dbdec830aa3bbc649fa410fca7a8833611612257",
+  "source_run": "feed_audit_campaign_20261028/attempt-01",
+  "replay": "coinbase_feed_audit.py analyze reproduced the retained report; raw manifest verified",
+  "raw_files_outside_git": true,
+  "derived_files_sha256": {
+    "REPORT.json": "358c842536a75ea1cd5145ea41f9c303091cd10ddae246988885ee695894506b",
+    "STATUS.json": "f7a4854b96893a20203c527064142f95470ce933c2dacc0d5f44a52ed6da3639",
+    "MANIFEST.json": "28604795437954e367db5bbe056192eebddf27e41d97d38b0ada194a56b8f8c9"
+  },
+  "campaign_status": {
+    "version": "feed-audit-campaign-v1",
+    "started_utc": "2026-10-28T16:28:30.054251+00:00",
+    "requested_seconds": 3600.0,
+    "max_attempts": 3,
+    "products": [
+      "BTC-USD",
+      "SOL-USD",
+      "ALCX-USD",
+      "AURORA-USD"
+    ],
+    "code_commit": "dbdec830aa3bbc649fa410fca7a8833611612257",
+    "controller_sha256": "b3463092030975022a75af8362ed9643e7d68953835ec428fdd4bccc04d86215",
+    "status": "complete_gate_inconclusive",
+    "attempts": [
+      {
+        "attempt": 1,
+        "directory": "attempt-01",
+        "process_exit_code": 0,
+        "completed": true,
+        "elapsed_seconds": 3600.156,
+        "errors": [],
+        "hour_gate_pass": false
+      }
+    ],
+    "hour_gate_pass": false,
+    "active_attempt": 1,
+    "report": "C:\\Users\\tgpet\\.moonwalking\\analysis\\feed_audit_campaign_20261028\\attempt-01\\REPORT.json"
+  },
+  "derived_hash_scheme": "sha256_of_LF_UTF8_committed_files"
+}

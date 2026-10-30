@@ -1,5 +1,13 @@
 # Instant radar: execution sequence - 2026-10-28
 
+**Update 2026-10-29:** The first campaign attempt completed a full hour with
+REST-reconciled sampled coverage, but thin-product side samples remain
+inconclusive. The [report](results/feed_audit_20261028_completed/REPORT.json)
+preserves the false gate. Step 2 now has an
+[executable target definition and synthetic tests](INSTANT_TARGET_LABELS_20261029.md).
+Review those explicit labeling choices before fitting; the 5s recorder is
+still gated. Earlier future-tense descriptions below document the sequence.
+
 **This continues Gemini's existing early-warning design.** Shared market
 data does not mean shared formulas. The instant radar, developing 3m move
 read and near/short/medium/long outlooks answer different questions and need

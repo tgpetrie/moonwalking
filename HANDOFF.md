@@ -1,5 +1,38 @@
 # Moonwalking / BHABIT Handoff
 
+## Instant target implementation - 2026-10-29
+
+Continue on `codex/instant-radar-20261028` from the independent local checkout
+`C:\Users\tgpet\Projects\Moonwalking-InstantRadar`. The executable evaluation
+contract, onset/forward labels, event deduplication and retrospective alert
+timing are implemented in `scripts/scoring_experiment/instant_targets.py`.
+Read [`docs/research/INSTANT_TARGET_LABELS_20261029.md`](docs/research/INSTANT_TARGET_LABELS_20261029.md)
+and its versioned JSON contract. Synthetic paths test both directions,
+horizons, gaps, future receipts/baselines, boundary trades, reversals, peak
+ties, no-move rows and cost scenarios. This is a label implementation;
+fitting, live-stage thresholds and recorder integration remain gated.
+
+The audit controller completed its first independent hour (3600.156s) with
+no transport errors and stopped. All sampled product intervals reconcile
+against REST. BTC/SOL's 21776/2641 paired trades support ticker taker-side
+semantics; ALCX/AURORA's 4/3 pairs remain insufficient. `hour_gate_pass` is
+false. The replayed report and verified raw hashes are under
+`docs/research/results/feed_audit_20261028_completed/`; raw packets remain
+outside Git. No new audit was launched to shop for a passing complete sample.
+
+Claude's separate checkout is `C:\Users\tgpet\Projects\Moonwalking-Claude`.
+Ready-to-use Claude/Gemini/local-model assignments are in
+[`docs/ai/INSTANT_RADAR_REVIEW_BRIEF_20261029.md`](docs/ai/INSTANT_RADAR_REVIEW_BRIEF_20261029.md).
+Review the new target definitions before any prospective outcome fitting.
+Historical validation stays locked; live scoring/production are unchanged.
+
+Validation: all 104 targeted label/audit/campaign/historical-contract/driver/
+restore/WS tests passed, as did formatting, repository guardrails, documentation
+links and all 11 frozen historical artifact hashes. A bounded local 14B review
+suggested two issues (missing boundary count and out-of-horizon peak); neither
+was supported by the implementation or reproducing tests. Claude's independent
+review remains pending.
+
 ## Continue Gemini's instant radar - 2026-10-28
 
 The instant board was always intended to use a distinct formula from the

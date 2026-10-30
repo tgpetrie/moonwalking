@@ -1,0 +1,239 @@
+{
+  "version": "coinbase-side-coverage-audit-v1",
+  "capture": {
+    "version": "coinbase-side-coverage-audit-v1",
+    "products": [
+      "BTC-USD",
+      "SOL-USD",
+      "ALCX-USD",
+      "AURORA-USD"
+    ],
+    "channels": [
+      "ticker",
+      "matches",
+      "heartbeat"
+    ],
+    "endpoint": "wss://ws-feed.exchange.coinbase.com",
+    "requested_seconds": 3600.0,
+    "rest_interval_seconds": 60,
+    "max_rest_pages": 20,
+    "script_sha256": "d35cd1a1ebc8f6735de50c802eae641c7bd4a24553018645fc94cc290ddb0c41",
+    "code_commit": "dbdec830aa3bbc649fa410fca7a8833611612257",
+    "code_dirty": false,
+    "python": "3.12.10",
+    "started_utc": "2026-10-28T16:28:30.536595+00:00",
+    "start_monotonic_ns": 732346609000000,
+    "connection_attempts": 1,
+    "reconnects": 0,
+    "completed": true,
+    "subscription_ack_utc": "2026-10-28T16:28:31.194324+00:00",
+    "end_monotonic_ns": 735946765000000,
+    "ended_utc": "2026-10-28T17:28:31.349922+00:00",
+    "errors": [],
+    "messages": 63258,
+    "elapsed_seconds": 3600.156
+  },
+  "raw_manifest": {
+    "sha256": {
+      "capture.json": "101c2a1f938d04522a85a4f48d2707bff9c515b81c093ec8c75313ee2686ca34",
+      "websocket.jsonl.gz": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b",
+      "rest.jsonl.gz": "a167fc0af1b9a29eb5cc3b449ee0b68ce9b63aa35d9b28a26f9e28ed888823ce"
+    }
+  },
+  "errors": {},
+  "rest_request_errors": 0,
+  "max_wall_monotonic_delta_seconds": 0.016,
+  "products": {
+    "BTC-USD": {
+      "messages": {
+        "ticker": 21777,
+        "last_match": 1,
+        "match": 21776,
+        "heartbeat": 3600
+      },
+      "unique_matches": 21776,
+      "unique_ticker_ids": 21777,
+      "overlap": 21776,
+      "ticker_only": 1,
+      "matches_without_ticker": 0,
+      "ticker_trade_count_coverage": 1.0,
+      "match_quote_usd": "25168751.9207696358",
+      "ticker_represented_match_quote_usd": "25168751.9207696358",
+      "ticker_trade_volume_coverage": 1.0,
+      "duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "conflicting_duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "reordered": {
+        "ticker": 0,
+        "match": 0
+      },
+      "side_cross_tab": {
+        "ticker_sell/match_buy": 10161,
+        "ticker_buy/match_sell": 11615
+      },
+      "price_size_discrepancies": 0,
+      "mapping_verdict": "ticker_taker_side_supported",
+      "heartbeat_boundaries": [
+        1111573741,
+        1111595511
+      ],
+      "heartbeat_max_gap_seconds": 1.218,
+      "match_id_gap_candidates": [],
+      "rest_id_gap_candidates": [],
+      "rest_mismatch_ids": [],
+      "coverage_verdict": "rest_reconciled",
+      "ticker_minus_match_receipt_ms_min": -62.0,
+      "ticker_minus_match_receipt_ms_max": 250.0
+    },
+    "SOL-USD": {
+      "messages": {
+        "ticker": 2642,
+        "last_match": 1,
+        "heartbeat": 3600,
+        "match": 2641
+      },
+      "unique_matches": 2641,
+      "unique_ticker_ids": 2642,
+      "overlap": 2641,
+      "ticker_only": 1,
+      "matches_without_ticker": 0,
+      "ticker_trade_count_coverage": 1.0,
+      "match_quote_usd": "1971626.4117734323",
+      "ticker_represented_match_quote_usd": "1971626.4117734323",
+      "ticker_trade_volume_coverage": 1.0,
+      "duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "conflicting_duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "reordered": {
+        "ticker": 0,
+        "match": 0
+      },
+      "side_cross_tab": {
+        "ticker_buy/match_sell": 1623,
+        "ticker_sell/match_buy": 1018
+      },
+      "price_size_discrepancies": 0,
+      "mapping_verdict": "ticker_taker_side_supported",
+      "heartbeat_boundaries": [
+        358902622,
+        358905263
+      ],
+      "heartbeat_max_gap_seconds": 1.218,
+      "match_id_gap_candidates": [],
+      "rest_id_gap_candidates": [],
+      "rest_mismatch_ids": [],
+      "coverage_verdict": "rest_reconciled",
+      "ticker_minus_match_receipt_ms_min": -16.0,
+      "ticker_minus_match_receipt_ms_max": 16.0
+    },
+    "ALCX-USD": {
+      "messages": {
+        "ticker": 5,
+        "last_match": 1,
+        "heartbeat": 3600,
+        "match": 4
+      },
+      "unique_matches": 4,
+      "unique_ticker_ids": 5,
+      "overlap": 4,
+      "ticker_only": 1,
+      "matches_without_ticker": 0,
+      "ticker_trade_count_coverage": 1.0,
+      "match_quote_usd": "56.896118",
+      "ticker_represented_match_quote_usd": "56.896118",
+      "ticker_trade_volume_coverage": 1.0,
+      "duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "conflicting_duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "reordered": {
+        "ticker": 0,
+        "match": 0
+      },
+      "side_cross_tab": {
+        "ticker_sell/match_buy": 1,
+        "ticker_buy/match_sell": 3
+      },
+      "price_size_discrepancies": 0,
+      "mapping_verdict": "inconclusive",
+      "heartbeat_boundaries": [
+        4270540,
+        4270544
+      ],
+      "heartbeat_max_gap_seconds": 1.219,
+      "match_id_gap_candidates": [],
+      "rest_id_gap_candidates": [],
+      "rest_mismatch_ids": [],
+      "coverage_verdict": "rest_reconciled",
+      "ticker_minus_match_receipt_ms_min": 0.0,
+      "ticker_minus_match_receipt_ms_max": 0.0
+    },
+    "AURORA-USD": {
+      "messages": {
+        "ticker": 4,
+        "last_match": 1,
+        "heartbeat": 3600,
+        "match": 3
+      },
+      "unique_matches": 3,
+      "unique_ticker_ids": 4,
+      "overlap": 3,
+      "ticker_only": 1,
+      "matches_without_ticker": 0,
+      "ticker_trade_count_coverage": 1.0,
+      "match_quote_usd": "25.62081840",
+      "ticker_represented_match_quote_usd": "25.62081840",
+      "ticker_trade_volume_coverage": 1.0,
+      "duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "conflicting_duplicates": {
+        "ticker": 0,
+        "match": 0
+      },
+      "reordered": {
+        "ticker": 0,
+        "match": 0
+      },
+      "side_cross_tab": {
+        "ticker_buy/match_sell": 1,
+        "ticker_sell/match_buy": 2
+      },
+      "price_size_discrepancies": 0,
+      "mapping_verdict": "inconclusive",
+      "heartbeat_boundaries": [
+        3538515,
+        3538518
+      ],
+      "heartbeat_max_gap_seconds": 1.219,
+      "match_id_gap_candidates": [],
+      "rest_id_gap_candidates": [],
+      "rest_mismatch_ids": [],
+      "coverage_verdict": "rest_reconciled",
+      "ticker_minus_match_receipt_ms_min": 0.0,
+      "ticker_minus_match_receipt_ms_max": 0.0
+    }
+  },
+  "hour_gate_pass": false,
+  "limits": [
+    "Coverage verdicts apply only between first/last heartbeat trade-ID watermarks.",
+    "Integer ID holes are candidates; REST reconciliation is required.",
+    "A sample is not a guarantee of future delivery or every product's side semantics.",
+    "Synchronous reader: no application queue; upstream/socket loss is checked by reconciliation."
+  ]
+}
