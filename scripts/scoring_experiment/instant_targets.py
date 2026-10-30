@@ -219,6 +219,7 @@ class TargetEvaluator:
         if self.is_v2:
             result.update(
                 evaluator_sha256=self.implementation_sha256,
+                grid_ms=self.cfg["grid_ms"],
                 primary_pointwise_target="verified_forward",
                 physical_onset_defined=False,
             )
@@ -572,6 +573,15 @@ def event_catalog(labels, *, target="verified_onset"):
     if target not in ("verified_onset", "verified_forward"):
         raise ValueError("unsupported catalog target")
     selected, ends = [], {}
+    statuses = {
+        (
+            row["product_id"],
+            row["direction"],
+            row["horizon_seconds"],
+            row["anchor_ts_ms"],
+        ): row.get("status")
+        for row in labels
+    }
     hashes = {row["contract_sha256"] for row in labels}
     if len(hashes) > 1:
         raise ValueError("cannot mix target contracts")
@@ -593,6 +603,16 @@ def event_catalog(labels, *, target="verified_onset"):
             and row.get("status") == "ready"
             and row["anchor_ts_ms"] >= ends.get(key, -math.inf)
         ):
+            if row.get("evaluator_sha256") is not None:
+                # v2 only, keeping v1 catalogs reproducible. One missing grid
+                # point makes every anchor up to H before it unavailable, so
+                # "earliest verified" can be dated late without this flag.
+                previous = statuses.get((*key, row["anchor_ts_ms"] - row["grid_ms"]))
+                row = {
+                    **row,
+                    "previous_anchor_status": previous,
+                    "left_censored": previous != "ready",
+                }
             selected.append(row)
             ends[key] = row["label_maturity_ts_ms"]
     return selected

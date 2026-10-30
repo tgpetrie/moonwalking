@@ -221,3 +221,40 @@ def test_trigger_timing_uses_the_declared_pre_window_halfway_boundary():
     assert half["pre_window_consumed_fraction"] == pytest.approx(0.5)
     assert half["post_anchor_consumed_fraction"] == pytest.approx(0.45)
     assert half["timing"] == "late_after_activity_trigger"
+
+
+def test_forward_catalog_flags_events_dated_after_a_data_gap():
+    def ramp(t):
+        return 0.002 + 0.06 * min(max(t / 900, 0), 1) if t >= 0 else 0
+
+    def catalog(rows):
+        engine = target.TargetEvaluator(rows, contract_path=target.V2_CONTRACT_PATH)
+        return target.forward_event_catalog(
+            engine.evaluate(
+                anchor,
+                baseline(
+                    end_ts_ms=(anchor - 35000) // 60000 * 60000,
+                    pace_end_ts_ms=anchor - 30000,
+                    available_ts_ms=anchor,
+                    beta_available_ts_ms=anchor,
+                    pace_available_ts_ms=anchor,
+                ),
+                "up",
+                300,
+                anchor + 300_000,
+            )
+            for anchor in range(ANCHOR - 120_000, ANCHOR + 400_000, 5000)
+        )
+
+    # Forward windows may start before the jump; -105s is the first to qualify.
+    complete = catalog(samples(residual=ramp))
+    assert complete[0]["anchor_ts_ms"] == ANCHOR - 105_000
+    assert complete[0]["previous_anchor_status"] == "ready"
+    assert complete[0]["left_censored"] is False
+    # One missing snapshot at +150s voids every anchor in [-150s, +150s].
+    gap = catalog(
+        [row for row in samples(residual=ramp) if row.ts_ms != ANCHOR + 150_000]
+    )
+    assert gap[0]["anchor_ts_ms"] == ANCHOR + 155_000
+    assert gap[0]["previous_anchor_status"] == "unavailable"
+    assert gap[0]["left_censored"] is True
