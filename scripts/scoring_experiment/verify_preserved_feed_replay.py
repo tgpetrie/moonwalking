@@ -222,6 +222,10 @@ def verify(capture, manifest_path, capture_key, output):
                 )
         if not total or total != metadata["messages"]:
             raise ValueError("capture message count mismatch")
+        if last_receipt - first_receipt > 3605000:
+            raise ValueError(
+                "actual receipt-time span exceeds the bounded capture profile"
+            )
         if len(connections) != 1 or None in connections or len(acknowledgments) != 1:
             raise ValueError(
                 "this bounded adapter requires one acknowledged connection"

@@ -43,7 +43,9 @@ def test_heartbeat_gaps_and_outside_watermark_buckets_are_not_asserted():
     assert replay.coverage_spans({}, hb, {"passed": False}) == []
 
 
-def fixture_capture(tmp_path, *, missing_ticker_subscription=False):
+def fixture_capture(
+    tmp_path, *, missing_ticker_subscription=False, oversized_receipt_span=False
+):
     capture = tmp_path / "capture"
     capture.mkdir()
     base = 1000000000000
@@ -105,6 +107,8 @@ def fixture_capture(tmp_path, *, missing_ticker_subscription=False):
         (10999, quote(12)),
         (11000, dict(type="heartbeat", product_id=pid, last_trade_id=12)),
     ]
+    if oversized_receipt_span:
+        messages[-1] = (4000000, messages[-1][1])
     with gzip.open(capture / "websocket.jsonl.gz", "wt", encoding="utf-8") as stream:
         for seq, (offset, message) in enumerate(messages, 1):
             stream.write(
@@ -235,3 +239,11 @@ def test_output_inside_the_preserved_capture_is_refused(tmp_path):
     with pytest.raises(ValueError, match="outside"):
         replay.verify(capture, manifest, "fixture", capture / "derived")
     assert not (capture / "derived").exists()
+
+
+def test_packet_time_span_is_bounded_independently_of_metadata_claim(tmp_path):
+    capture, manifest = fixture_capture(tmp_path, oversized_receipt_span=True)
+    with pytest.raises(ValueError, match="actual receipt-time span"):
+        replay.verify(capture, manifest, "fixture", tmp_path / "out")
+    assert (tmp_path / "out/FAILURE.json").exists()
+    assert not (tmp_path / "out/REPLAY_REPORT.json").exists()
