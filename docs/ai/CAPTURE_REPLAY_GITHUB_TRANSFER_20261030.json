@@ -1,0 +1,35 @@
+{
+  "verified_utc": "2026-10-30T23:54:32.496277+00:00",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "release_tag": "research-handoff-20261027",
+  "release_url": "https://github.com/tgpetrie/moonwalking/releases/tag/untagged-f4e62596e13c8bfe187f",
+  "draft": true,
+  "authenticated_github_access_required": true,
+  "assets": [
+    {
+      "name": "moonwalking-capture-replay-20261030.tar.gz",
+      "apiUrl": "https://api.github.com/repos/tgpetrie/moonwalking/releases/assets/693787593",
+      "url": "https://github.com/tgpetrie/moonwalking/releases/download/untagged-f4e62596e13c8bfe187f/moonwalking-capture-replay-20261030.tar.gz",
+      "size": 5175376,
+      "digest": "sha256:f1dddb23c35f918b7bf1976ce3072db1ac18f9e78bcd5f5a702b612581877e84"
+    },
+    {
+      "name": "CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json",
+      "apiUrl": "https://api.github.com/repos/tgpetrie/moonwalking/releases/assets/693787596",
+      "url": "https://github.com/tgpetrie/moonwalking/releases/download/untagged-f4e62596e13c8bfe187f/CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json",
+      "size": 1785,
+      "digest": "sha256:45244342c2b3377e34521fc465da799fa415f2e2e65d7ae9a06601736df6508d"
+    }
+  ],
+  "archive_downloaded_again": true,
+  "cloud_manifest_matches": true,
+  "github_server_digests_match": true,
+  "members_verified": 4,
+  "members_restored_to_fresh_directory": 4,
+  "restored_SQLite_quick_check": "ok",
+  "restored_unique_matches": 24424,
+  "verification_host": "Windows",
+  "native_Mac_cloud_execution_verified": false,
+  "manifest": "docs/ai/CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json",
+  "restore_destination": "~/.moonwalking/analysis"
+}

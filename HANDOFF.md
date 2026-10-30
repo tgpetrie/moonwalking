@@ -1,5 +1,33 @@
 # Moonwalking / BHABIT Handoff
 
+## Preserved feed replay complete; data-readiness blockers measured — 2026-10-30
+
+The completed October 28 capture was replayed once with adapter `837db34`;
+the follow-up receipt-span guard at **`a5bb397`** also accepts that unchanged
+3,600,154ms source span. Recorder `ab95159` and target `92fb51d` are unchanged.
+Read [the real-data verification results](docs/research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md).
+
+- 63,258 packets / 24,424 unique live matches are preserved; counts equal the
+  frozen audit and USD totals/bucket amounts agree within $0.000001.
+- All 719 interior buckets/product reconcile retrospectively. Endpoint
+  midpoint freshness is BTC 719, SOL 709, ALCX 6 and AURORA 4 out of 719.
+- The later coverage proof is never backdated: all 2,876 original-as-of
+  cutoff queries remain unverified. The hour also lacks full baseline warmup.
+- The original thin-side gate stays false. Stale quotes are unavailable,
+  not fresh carried values; no source/universe rule was relaxed.
+- 363 targeted checks, formatting, guardrails, six source hashes and all
+  11 historical contract hashes pass. Source files are unchanged.
+- The 29,020,160-byte derived SQLite/report/health evidence is on the existing
+  authenticated draft release. All four downloaded/restored members match
+  their hashes and SQLite integrity passes; manifests/receipt are in Git.
+
+Next is contemporaneous health/subscription/reconciliation availability and
+paired immutable samples, a declared thin-product quote policy, and at least
+62 complete warmup minutes before valid study rows. New source/universe or
+supplemental diagnostic changes must be versioned/predeclared. No capture,
+return-label study, fit, live service or ranking changed. Older "next replay"
+records below are superseded; no general AI review is queued for this replay.
+
 ## Independent offline review accepted — 2026-10-30
 
 Claude's new `f2cc436` offline review was verified and cherry-picked as

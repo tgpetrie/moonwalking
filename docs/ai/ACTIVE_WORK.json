@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T21:34:40.987109+00:00",
+  "updated_utc": "2026-10-30T23:54:33.336483+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "ab9515915fd77386a6e648c619d5ca9db8afe6c2",
+  "implementation_commit": "a5bb39746c5d10f5bde3b109b8cc86e800195d7f",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -20,14 +20,15 @@
     "operational_missed_move_rates_enabled": false,
     "study_frozen": false,
     "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
-    "recorder": "offline_review_accepted_last_known_monotonic_fix_no_live_integration",
-    "baseline_builder": "offline_review_numpy_verified_replay_producer_identity_exposed"
+    "recorder": "preserved_real_capture_counts_verified_no_live_integration",
+    "baseline_builder": "synthetic_math_verified_saved_capture_lacks_warmup_and_contemporaneous_coverage",
+    "health_adapter": "retrospective_adapter_verified_contemporaneous_monitor_pending"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "offline_review_verified_clock_fix_integrated_provenance_and_reasons_hardened_356_checks_passed"
+      "status": "completed_pinned_real_feed_replay_count_checks_and_cloud_verified_checkpoint_data_readiness_blocked"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -76,11 +77,11 @@
     }
   },
   "next_actions": [
-    "Bounded replay of preserved feed captures with pinned raw hashes; verify contemporaneous versus retrospective health and source adapters",
-    "Implement evidence-backed health/subscription/reconciliation monitoring and paired immutable target-sample adapters without backdating availability",
-    "Review and freeze exact five-feature, association/exposure, stage/model/readiness and meaningful-effect rules before scoring-model fitting",
-    "Resolve the unchanged feed gate through predeclared supplemental evidence or a separately amended universe; do not shop completed captures",
-    "After the required gates pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; preserve historical results and the Windows collector"
+    "Implement contemporaneous product subscription/receipt-health and reconciliation-availability records plus paired immutable target-sample adapters; preserve real publication/availability times",
+    "Declare a quote-source/freshness policy for thin products under the unchanged audit gate; version any new source or universe amendment before collection",
+    "Predeclare at least 62 minutes of complete baseline warmup and any bounded supplemental diagnostic; no capture is launched by this checkpoint",
+    "Implement and freeze the proposed five features, association/exposure, stages/model/readiness and meaningful-effect rules before fitting",
+    "After data gates pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; historical outcomes and the collector remain unchanged"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -91,15 +92,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 356,
+    "implementation_targeted_tests_passed": 363,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_ab95159",
+    "guardrails": "passed_at_a5bb397",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_ab95159",
+    "black_24_8": "passed_at_a5bb397",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -109,7 +110,10 @@
     "Gemini_v2_reported_source_hashes_matched": 8,
     "new_offline_cases": 33,
     "new_offline_layer_independent_review": "complete_at_f2cc436_on_8211262_fix_and_Codex_followups_verified",
-    "independent_offline_probes": 7
+    "independent_offline_probes": 7,
+    "new_capture_adapter_cases": 7,
+    "real_capture_packets_replayed": 63258,
+    "real_capture_unique_live_matches_verified": 24424
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -133,7 +137,15 @@
       ".env",
       "virtual environments",
       "AI chat/session folders"
-    ]
+    ],
+    "capture_replay_manifest": "docs/ai/CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json",
+    "capture_replay_receipt": "docs/ai/CAPTURE_REPLAY_GITHUB_TRANSFER_20261030.json",
+    "capture_replay_archive": {
+      "name": "moonwalking-capture-replay-20261030.tar.gz",
+      "bytes": 5175376,
+      "sha256": "f1dddb23c35f918b7bf1976ce3072db1ac18f9e78bcd5f5a702b612581877e84"
+    },
+    "capture_replay_cloud_members_verified": 4
   },
   "review_brief": "docs/ai/INSTANT_RADAR_REVIEW_BRIEF_20261029.md",
   "maintenance": "Update this record and RESUME_HERE.md on material changes, commit and push before handoff; preserve an active-branch pointer when work moves",
@@ -274,5 +286,23 @@
     "observed_tip": "4610bf2",
     "source_change": "b281f97",
     "disposition": "diff inspected; target changes not merged; gap annotation implemented in separate reporting contract; no independent-review completion claimed"
+  },
+  "preserved_capture_replay": {
+    "actual_adapter_commit": "837db341ed7fe305f04b91b18ef8e0380b4b5a67",
+    "current_adapter_commit": "a5bb39746c5d10f5bde3b109b8cc86e800195d7f",
+    "recorder_commit": "ab95159",
+    "source_capture_key": "feed_audit_campaign_20261028/attempt-01",
+    "report": "docs/research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md",
+    "machine_report": "docs/research/results/instant_capture_replay_20261030/REPLAY_REPORT.json",
+    "checks": "docs/research/results/instant_capture_replay_20261030/CHECKS.json",
+    "status": "counts_and_retrospective_adapter_verified_data_readiness_blocked",
+    "attempts": 1,
+    "source_capture_changed": false,
+    "new_capture": false,
+    "return_labels_evaluated": false,
+    "model_fit": false,
+    "live_integration": false,
+    "derived_evidence_cloud_backed_up": true,
+    "source_evidence_already_backed_up": true
   }
 }

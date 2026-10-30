@@ -30,7 +30,12 @@ Status keys: Open, In progress, Done, Blocked.
 - Independent offline review `f2cc436` is accepted through `ab95159`, with the
   last-known-monotonic clock fix and producer/reason improvements. 356 targeted
   checks pass. See `docs/research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md`.
-- Next: bounded replay of preserved feed data, verify real-data/health and immutable
+- Preserved one-hour capture replay completed once at `837db34`, with a bound
+  guard follow-up at `a5bb397`: 63,258 packets / 24,424 matches preserved;
+  363 targeted checks pass. See `docs/research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md`.
+  Retro coverage does not establish original live health; thin quotes and
+  full baseline warmup remain unavailable. Derived evidence is cloud backed up.
+- Next: implement contemporaneous real-data/health and immutable
   target-sample adapters, freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

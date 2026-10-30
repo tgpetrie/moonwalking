@@ -1,0 +1,43 @@
+{
+  "version": "moonwalking-capture-replay-transfer-v1",
+  "created_utc": "2026-10-30T23:48:41.307357+00:00",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "release_tag": "research-handoff-20261027",
+  "scope": "Derived offline public feed replay, retrospective availability and verification only; no account data, scoring outcomes or new capture",
+  "replay_adapter_commit": "837db341ed7fe305f04b91b18ef8e0380b4b5a67",
+  "recorder_commit": "ab9515915fd77386a6e648c619d5ca9db8afe6c2",
+  "source_manifest": "docs/ai/INSTANT_EVIDENCE_MANIFEST_20261029.json",
+  "source_capture_key": "feed_audit_campaign_20261028/attempt-01",
+  "restore_destination": "~/.moonwalking/analysis",
+  "archive": {
+    "name": "moonwalking-capture-replay-20261030.tar.gz",
+    "bytes": 5175376,
+    "sha256": "f1dddb23c35f918b7bf1976ce3072db1ac18f9e78bcd5f5a702b612581877e84"
+  },
+  "files": {
+    "instant_capture_replay_20261030/run-01/replay.sqlite": {
+      "bytes": 29020160,
+      "sha256": "99d37305117eac800125b59b33886dfbf19c453c229b181b917e29c7125ab35e"
+    },
+    "instant_capture_replay_20261030/run-01/retrospective_health.json": {
+      "bytes": 1323,
+      "sha256": "74d7cde93245e246198703db06a252e1a14805c2e75cabf292bfe31cad2939ee"
+    },
+    "instant_capture_replay_20261030/run-01/REPLAY_REPORT.json": {
+      "bytes": 8590,
+      "sha256": "1ed5a5951bfbf37fb97c8438b917a496363c216668644da9dbb6b3a7cb929245"
+    },
+    "instant_capture_replay_20261030/run-01/ARTIFACT_MANIFEST.json": {
+      "bytes": 443,
+      "sha256": "51d6e34d37245b3bd0f8a2605273d6a94a9b58b00008f590b9ea8bef0a31ac12"
+    }
+  },
+  "exclusions": [
+    "account and portfolio stores",
+    "credentials",
+    ".env",
+    "live services",
+    "scoring-model fits",
+    "historical outcome comparisons"
+  ]
+}

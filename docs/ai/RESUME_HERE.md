@@ -6,15 +6,16 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-Latest implementation: **`ab95159`** accepts Claude's `f2cc436` review of the
-[offline recorder, diagnostics and causal baseline builder](../research/INSTANT_OFFLINE_PIPELINE_20261030.md).
-356 targeted checks pass, including seven independent offline probes. The target evaluator and
-V1/V2 target contracts remain unchanged at `92fb51d`; no label regeneration is
-required solely for this additive layer. All feed/study/live gates remain off.
-The [offline review acceptance](../research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md)
-records the clock fix, producer provenance and qualified health/source notes.
-That review is complete. Next is bounded replay of preserved feed data,
-real-data health and paired immutable target-sample adapters.
+Latest verifier: **`a5bb397`**; the recorded preserved-capture run used
+`837db34`. Recorder `ab95159` and target evaluator/contracts `92fb51d` remain
+unchanged. Read the [real-data replay results](../research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md).
+All 63,258 packets / 24,424 unique live matches are preserved; **363 targeted
+checks pass**. Later coverage is not backdated. Thin quote freshness and full
+baseline warmup remain inadequate, so feed/study/live gates stay off.
+The derived database and report are cloud backed up and round-trip verified.
+Next is contemporaneous health/reconciliation availability and immutable
+sample construction, with a declared quote policy and >=62 complete warmup
+minutes. The target/offline reviews are complete; no general re-review is queued.
 
 October 30 update: both source-based Gemini responses have been received,
 reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
@@ -63,9 +64,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Offline layer `ab95159` (initial `8211262`); target evaluator unchanged `92fb51d` |
+| Current implementation | Verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 356 targeted checks pass including 40 offline cases/probes and 265 target cases; formatting, guardrails and 11 historical hashes pass; existing seed-fixture failure remains outside this suite |
+| Checks | 363 targeted checks pass; 63,258 real packets / 24,424 matches replayed; formatting, guardrails, six source files and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -104,7 +105,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline review accepted through `ab95159`; bounded real-data/health adapter verification next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Preserved-capture replay complete, evidence cloud verified; then-known health, thin quotes and warmup remain blockers |
 | Claude | Independent target and offline-pipeline reviews | V2 `10b0f96` and offline `f2cc436` accepted; no new general review pending; study freeze remains conditional |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
@@ -119,8 +120,9 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: bounded replay of preserved feed data and verification of real-data health
-and paired immutable target-sample adapters. The
+Next: contemporaneous health/subscription/reconciliation-availability records,
+paired immutable sample adapters, quote-source/freshness policy and complete
+warmup before a predeclared new diagnostic or study. The
 draft's formula, matching, stage/model and readiness policies still need
 implementation review and freeze before study fitting.
 Predeclare how to resolve the remaining
@@ -149,7 +151,7 @@ standard-library target evaluator. Activate the environment for your OS, then:
 
 ```bash
 python -m pip install -r docs/ai/requirements-macbook-research-20261027.txt
-python -m pytest -o addopts= -q tests/test_micro_replay_review.py tests/test_micro_replay.py tests/test_instant_diagnostics.py tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_instant_targets_v2_review.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
+python -m pytest -o addopts= -q tests/test_preserved_feed_replay.py tests/test_micro_replay_review.py tests/test_micro_replay.py tests/test_instant_diagnostics.py tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_instant_targets_v2_review.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
 bash scripts/validate_mw_guardrails.sh
 ```
 
@@ -166,6 +168,7 @@ access. A source checkout alone does not download release assets.
 |---|---|---|
 | `moonwalking-live-movers-evidence-20261027.tar.gz` (~112 MB) | Frozen public-market research DB/CSV, historical results and persistent validation-attempt marker, first interrupted audit | [Base manifest](MACBOOK_EVIDENCE_MANIFEST_20261027.json) |
 | `moonwalking-instant-evidence-20261029.tar.gz` (~9.55 MB) | Second interrupted audit and completed one-hour campaign, raw WS/REST captures, reports, original hashes and status | [Supplement manifest](INSTANT_EVIDENCE_MANIFEST_20261029.json) |
+| `moonwalking-capture-replay-20261030.tar.gz` (~5.18 MB) | Derived run-01 SQLite, explicitly retrospective health and replay/report hashes | [Replay manifest](CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json) |
 
 Download from any authenticated machine into a new `handoff-downloads` folder:
 
@@ -205,12 +208,14 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> The accepted offline layer is `ab95159`; target evaluator unchanged at `92fb51d`;
-> 356 targeted checks passed. Read INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md.
+> Latest verifier is `a5bb397`; preserved replay ran at `837db34`; recorder is
+> `ab95159`, target evaluator unchanged `92fb51d`. 363 targeted checks pass.
+> Read INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md for the real data findings.
 > Read the October 30 Claude acceptance and consolidated study-rule candidate.
 > Gemini's v2 response is received/reconciled; this is a draft, not frozen code.
-> V1 stays the default. The offline review is accepted; verify real-data and
-> immutable sample adapters, and freeze event association/exposure and
+> V1 stays default. The real replay is complete but then-known health,
+> thin quotes and baseline warmup remain blockers. Implement contemporaneous
+> health/immutable sample adapters and freeze event association/exposure and
 > remaining study rules before fitting; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and
