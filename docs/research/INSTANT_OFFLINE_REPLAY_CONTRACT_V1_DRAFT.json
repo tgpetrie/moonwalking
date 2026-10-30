@@ -1,0 +1,30 @@
+{
+  "version": "instant-micro-replay-v1-draft",
+  "scope": "offline_public_packet_replay_only_no_live_integration",
+  "grid_ms": 5000,
+  "event_attribution": "receipt_time_half_open_start_inclusive_end_exclusive",
+  "max_quote_age_ms": 10000,
+  "persistence": "raw_packets_quotes_unique_trades_sparse_occupied_bucket_index_health_and_conflicts",
+  "trade_identity": "product_id_and_trade_id_across_connections_first_receipt",
+  "taker_side": "invert_match_maker_side_unknown_amount_retained",
+  "excluded_executions": ["last_match", "ticker_last_size", "REST_recovery"],
+  "coverage": "explicit_completed_intervals_with_evidence_and_known_at_time_negative_assertions_veto",
+  "default_snapshot_knowledge": "cutoff_only_later_audits_require_explicit_asof_and_later_availability",
+  "healthy_empty_buckets": "read_time_zero_counts_carry_original_quote_age_no_invented_ohlc",
+  "missing_or_stale": "unavailable_never_zero_or_last_trade_fallback",
+  "clock_regression": "fail_artifact_closed",
+  "output_policy": "new_path_only_complete_sealed_artifacts_read_only_after_close",
+  "baseline": {
+    "sigma_end": "floor((anchor_ms-35000)/60000)*60000",
+    "sigma_source": "61_receipt_time_midpoint_minute_closes_60_log_returns",
+    "sigma_estimator": "sample_standard_deviation_ddof_1_raw_sigma_floor_applied_by_target",
+    "beta": "centered_OLS_coin_on_BTC_same_60_returns_flat_BTC_variance_fallback_1_flagged",
+    "pace_end": "anchor_ms-30000",
+    "pace": "median_count_and_USD_of_120_completed_nonoverlapping_30s_receipt_windows",
+    "availability": "all_inputs_and_coverage_known_by_anchor_not_backdated_to_historical_snapshots"
+  },
+  "feed_gate_pass": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "operational_rates_enabled": false
+}
