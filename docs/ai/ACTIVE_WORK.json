@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T08:38:16.659136+00:00",
+  "updated_utc": "2026-10-30T08:41:53.669876+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -10,7 +10,7 @@
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
-    "targets": "v1_default_preserved_opt_in_v2_draft_implemented_independent_v2_review_pending",
+    "targets": "v1_default_preserved_opt_in_v2_draft_implemented_Claude_independent_review_active_signoff_pending",
     "historical_comparison": "complete_locked_inconclusive",
     "feed_capture": "completed_3600.156_seconds",
     "feed_hour_gate_pass": false,
@@ -27,13 +27,18 @@
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "baseline_contribution_d711832_reviewed_and_adapted_into_v2_full_signoff_not_verified",
-      "branch": "claude/instant-radar-review",
-      "observed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+      "status": "v2_review_running_user_dispatched_verified_in_Claude_desktop",
+      "branch": "claude/instant-radar-v2-review",
+      "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
       "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude",
       "review_contribution_commit": "d711832774caed64063b6281d8acad6aae5a8791",
-      "v2_independent_review": "pending"
+      "v2_independent_review": "in_progress_signoff_pending",
+      "previous_review_branch": "claude/instant-radar-review",
+      "prior_observed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+      "dispatch_verified_utc": "2026-10-30T08:41:53.669876+00:00",
+      "dispatch_evidence": "Claude desktop session Fundamentals preparation review: user Start the review and full CLAUDE role prompt visible; active response reads v2 sources; Git worktree list confirms review branch at 5e02268",
+      "dispatch_by": "user; Codex observed existing activity and did not resend"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -75,7 +80,7 @@
     "guardrails": "passed_at_v2_implementation_checkpoint",
     "independent_claude_review": "baseline_contribution_reviewed_full_v2_signoff_pending",
     "native_mac_or_cloud_execution": "not_verified",
-    "independent_v2_review": "pending"
+    "independent_v2_review": "Claude_in_progress_no_completed_signoff"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -142,13 +147,19 @@
       "local 14B",
       "local 9B"
     ],
-    "status": "prepared_only_not_dispatched",
+    "status": "Claude_user_dispatched_active_other_v2_dispatch_unverified",
     "source_checkpoint": "cc3b6a6",
     "implementation": "8b5b266",
     "packet": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030.txt",
     "manifest": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030_MANIFEST.json",
     "full_sources_verified": 8,
-    "downloads_folder": "C:\\Users\\tgpet\\Downloads\\Moonwalking-v2-Review-20261030"
+    "downloads_folder": "C:\\Users\\tgpet\\Downloads\\Moonwalking-v2-Review-20261030",
+    "dispatch": {
+      "Claude": "user_dispatched_running_verified",
+      "Gemini": "unverified",
+      "local_14b": "unverified",
+      "local_9b": "unverified"
+    }
   },
   "other_research_lanes": {
     "fundamentals_driver_review": {

@@ -10,7 +10,8 @@ October 30 update: both source-based Gemini responses have been received,
 reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
 The opt-in v2 draft at `8b5b266` adds a forward-window catalog and names
 reference-dependent timing metrics; it incorporates Claude's reviewed
-baseline cutoff. V1 stays the default. Independent review of v2 is next.
+baseline cutoff. V1 stays the default. Claude's independent v2 review is now
+active; signoff remains pending.
 The original [source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
 and [manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
 remain pinned to `941f47a` as evidence of what Gemini reviewed; they do not
@@ -40,7 +41,7 @@ for that lane; its readiness does not enable instant-radar fitting.
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
 | Current implementation | `8b5b266` (original reviewed implementation: `cb7034a`) |
-| Instant targets | V1 default preserved; explicit v2 draft has separate forward-window coverage and named timing references; independent v2 review pending |
+| Instant targets | V1 default preserved; explicit v2 draft has separate forward-window coverage and named timing references; Claude v2 review active, signoff pending |
 | Checks | 130 targeted tests passed; guardrails, links, reproduction provenance and 11 frozen historical hashes passed |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
@@ -71,13 +72,14 @@ Read these next:
 Copy-ready [v2 review prompts and attachments](INSTANT_V2_REVIEW_PROMPTS_20261030.md)
 are prepared for Claude, Gemini, local 14B and local 9B. The new Gemini packet
 contains eight complete sources at `cc3b6a6` (implementation `8b5b266`), so it
-includes v2 rather than the old v1-only packet. Prompts are not dispatches;
-no new local/Claude/Gemini review was launched by Codex when preparing them.
+includes v2 rather than the old v1-only packet. Claude has now received the
+user's start instruction and full role prompt; Codex observed its active review
+in the Claude desktop app. Gemini/local v2 dispatch remains unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
 | Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Reviews triaged; v2 draft implemented/tested; awaiting independent v2 review |
-| Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | Baseline contribution `d711832` reviewed/adapted into v2; full signoff/v2 review not verified |
+| Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | User-dispatched v2 review active on `claude/instant-radar-v2-review`; no completed signoff yet; earlier `d711832` contribution preserved |
 | Gemini | Compare explicit onset choices with original design; define supporting/rejecting evidence for F1-F5 | Two source-based static responses received and triaged; v2 review pending |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
@@ -85,7 +87,8 @@ no new local/Claude/Gemini review was launched by Codex when preparing them.
 On this Windows PC, Codex works in
 `C:\Users\tgpet\Projects\Moonwalking-InstantRadar`. Claude's current review
 worktree is `C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
-`claude/instant-radar-review`; its original separate checkout is
+`claude/instant-radar-v2-review`; its earlier `claude/instant-radar-review` branch
+is preserved. Its original separate checkout is
 `C:\Users\tgpet\Projects\Moonwalking-Claude`. These are location hints for
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.

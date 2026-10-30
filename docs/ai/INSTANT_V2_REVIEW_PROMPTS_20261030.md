@@ -1,6 +1,12 @@
 # Instant-radar v2 review prompts - 2026-10-30
 
-Prepared prompts and attachments only; no new model was dispatched. Source implementation: `8b5b266`; full packet snapshot: `cc3b6a6`.
+Source implementation: `8b5b266`; full packet snapshot: `cc3b6a6`.
+
+Dispatch update: the user sent Claude "Start the review" and the full role prompt;
+Codex verified its active v2 review on `claude/instant-radar-v2-review` in
+`Moonwalking-InstantRadarReview`. Gemini/local v2 dispatch remains unverified.
+These prompts were initially prepared without dispatch; Claude's assignment is
+now active, with signoff still pending.
 
 Attachments: [Gemini full v2 sources](../research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030.txt), [local 14B bounded case](../research/review_packets/LOCAL_14B_V2_CASE.txt), [local 9B status](../research/review_packets/LOCAL_9B_V2_STATUS.txt). On this PC, convenience copies and four separate prompt text files are in `C:\Users\tgpet\Downloads\Moonwalking-v2-Review-20261030`.
 

@@ -15,7 +15,10 @@ Status keys: Open, In progress, Done, Blocked.
   v2 draft adds forward-window coverage and named timing references, and
   adapts Claude's baseline cutoff. V1 stays the default; 130 tests pass. Read
   `docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md`.
-- Next: independent v2 review, freeze event association/exposure and remaining
+- Claude's independent v2 review is active on `claude/instant-radar-v2-review`
+  in its separate review worktree; Codex observed the user dispatch and active
+  response. Signoff remains pending; Gemini/local v2 dispatch is unverified.
+- Next: finish independent v2 review, freeze event association/exposure and remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.

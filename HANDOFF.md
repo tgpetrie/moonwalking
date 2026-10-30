@@ -1,14 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
-## Review prompts prepared; fundamentals driver review complete - 2026-10-30
+## Claude v2 review active; fundamentals driver review complete - 2026-10-30
 
 Four copy-ready role prompts and fresh v2 attachments are in
 [`docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md`](docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md).
 The full Gemini packet contains eight verified sources from `cc3b6a6`, with
 implementation `8b5b266`. Bounded local 14B/9B packets are also committed;
-convenience copies are in this PC's Downloads folder. These are prepared
-assignments, not newly dispatched work. The prior 14B review found no confirmed
-defect, and the 9B has not been assigned or run by Codex.
+convenience copies are in this PC's Downloads folder. The user has now sent
+Claude "Start the review" and the full role prompt. Codex verified Claude's
+active response in the desktop app and its branch
+`claude/instant-radar-v2-review` in `Moonwalking-InstantRadarReview`, based on
+Codex documentation checkpoint `5e02268` with implementation `8b5b266`.
+Claude is reading/reviewing the v2 sources; no completed signoff is claimed.
+Codex did not resend the assignment or edit Claude's active worktree.
+Gemini/local v2 prompts remain prepared with dispatch unverified. The prior
+14B review found no confirmed defect, and the 9B has not been run by Codex.
+Fitting, historical reruns and live changes stay off.
 
 The separately authorized fundamentals driver review is complete and pushed at
 `8708c25` on `codex/fundamentals-driver-review-20261030` (reviewed code `6809933`).
