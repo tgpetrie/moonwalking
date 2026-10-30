@@ -5,6 +5,16 @@ branch `codex/instant-radar-20261028`. Other apps have not been dispatched by
 Codex; these are ready-to-use assignments. The Windows work does not require
 a MacBook. Use the branch's newest pushed commit for review.
 
+October 30 update: both source-based Gemini responses have been reproduced
+and triaged; Claude's `d711832` baseline contribution was reviewed/adapted
+into an explicit v2 draft. Review implementation `8b5b266` and
+[`INSTANT_TARGET_REVIEW_TRIAGE_20261030.md`](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md)
+next, especially `INSTANT_TARGET_CONTRACT_V2_DRAFT.json` and
+`tests/test_instant_targets_v2.py`. V1 remains the default; the old source
+packet is pinned historical evidence, not the v2 source. Original-proposal
+fidelity remains limited because Gemini lacked its separate unamended text.
+No external follow-up assignment was sent by Codex.
+
 ## Claude: independent implementation review
 
 Use the existing clean checkout `C:\Users\tgpet\Projects\Moonwalking-Claude`
@@ -40,9 +50,9 @@ rerun historical discovery/validation or touch live ranks/production.
 If repository retrieval fails, upload the complete
 [source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
 directly. It includes the five requested sources at the pinned review commit,
-with full file contents and provenance. Gemini's first response acknowledged
-no source inspection and remains preliminary; request a replacement grounded
-in this attachment before accepting implementation-level findings.
+with full file contents and provenance. That packet resolved the initial
+access issue; both resulting source-based reviews are now preserved in the
+triage. Use updated sources when reviewing v2.
 
 Read the corrected prospective contract and the executable target doc/JSON
 from the same GitHub branch. Compare them with your original early-warning

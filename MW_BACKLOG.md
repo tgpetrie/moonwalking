@@ -4,14 +4,19 @@ Rules live in `MW_SPEC.md`. This file records durable work status.
 
 Status keys: Open, In progress, Done, Blocked.
 
-## In progress - instant radar, 2026-10-29
+## In progress - instant radar, 2026-10-30
 
 - Executable prospective forward/onset label contract and synthetic tests
   are implemented on `codex/instant-radar-20261028`; see
   `docs/research/INSTANT_TARGET_LABELS_20261029.md`.
 - First audit campaign hour completed with REST-reconciled sampled coverage;
   thin-product side evidence is insufficient, so the overall gate is false.
-- Next: independent design/code review, resolve remaining audit evidence,
+- Both source-based Gemini responses have been reproduced/triaged. An opt-in
+  v2 draft adds forward-window coverage and named timing references, and
+  adapts Claude's baseline cutoff. V1 stays the default; 130 tests pass. Read
+  `docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md`.
+- Next: independent v2 review, freeze event association/exposure and remaining
+  study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.
 

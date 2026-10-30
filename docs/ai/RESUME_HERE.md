@@ -6,15 +6,16 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-October 30 update: Gemini's first response could not inspect the repository
-and is a conceptual review only. A complete, hash-verified
-[single-file source attachment](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
-now contains the five requested files exactly as committed at `941f47a`.
-Download it and upload it directly to Gemini with the existing review prompt;
-repository search/index access is unnecessary. Its
-[export manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
-identifies each source blob and byte range. Await a source-based replacement
-review before treating any claim as an implementation finding.
+October 30 update: both source-based Gemini responses have been received,
+reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
+The opt-in v2 draft at `8b5b266` adds a forward-window catalog and names
+reference-dependent timing metrics; it incorporates Claude's reviewed
+baseline cutoff. V1 stays the default. Independent review of v2 is next.
+The original [source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
+and [manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
+remain pinned to `941f47a` as evidence of what Gemini reviewed; they do not
+contain the v2 draft. Gemini did not inspect the original unamended proposal
+as a separate source, so a full original-fidelity claim is still unwarranted.
 
 Bookmark this page:
 <https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md>
@@ -25,9 +26,9 @@ Bookmark this page:
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Implementation / Claude review commit | `cb7034a` |
-| Instant targets | Executable forward/onset labels, event catalog and retrospective alert timing implemented; independent review pending |
-| Checks | 104 targeted tests passed at the implementation checkpoint; guardrails, links and 11 frozen historical hashes passed |
+| Current implementation | `8b5b266` (original reviewed implementation: `cb7034a`) |
+| Instant targets | V1 default preserved; explicit v2 draft has separate forward-window coverage and named timing references; independent v2 review pending |
+| Checks | 130 targeted tests passed; guardrails, links, reproduction provenance and 11 frozen historical hashes passed |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -42,8 +43,10 @@ Read these next:
 
 1. [Agent rules](../../AGENTS.md), [AI index](AI_INDEX.md),
    [handoff](../../HANDOFF.md) and [backlog](../../MW_BACKLOG.md).
-2. [Executable target definition](../research/INSTANT_TARGET_LABELS_20261029.md)
-   and [JSON contract](../research/INSTANT_TARGET_CONTRACT_V1.json).
+2. [Review triage / v2 draft specification](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md)
+   and [v2 JSON](../research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json); the
+   [v1 definition](../research/INSTANT_TARGET_LABELS_20261029.md) and
+   [v1 JSON](../research/INSTANT_TARGET_CONTRACT_V1.json) remain available.
 3. [Corrected prospective contract](../research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md),
    [execution sequence](../research/INSTANT_RADAR_NEXT_STEPS_20261028.md) and
    [locked historical results](../research/LIVE_MOVERS_RESULTS_20261027.md).
@@ -54,9 +57,9 @@ Read these next:
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Implementation pushed; awaiting independent review |
-| Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | Separate review worktree observed at `cb7034a`; completion not verified |
-| Gemini | Compare explicit onset choices with original design; define supporting/rejecting evidence for F1-F5 | Review brief prepared; delivery/completion not verified |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Reviews triaged; v2 draft implemented/tested; awaiting independent v2 review |
+| Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | Baseline contribution `d711832` reviewed/adapted into v2; full signoff/v2 review not verified |
+| Gemini | Compare explicit onset choices with original design; define supporting/rejecting evidence for F1-F5 | Two source-based static responses received and triaged; v2 review pending |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 
@@ -68,8 +71,9 @@ worktree is `C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: obtain independent reviews and reproduce concrete findings before
-changing the label definition. Then predeclare how to resolve the remaining
+Next: independently review the explicit v2 draft and its synthetic cases,
+then freeze event association/exposure and remaining target-study rules.
+Predeclare how to resolve the remaining
 thin-product audit evidence under the existing gate. Recorder/features/live
 stage thresholds, model readiness, collection and fitting remain subsequent
 steps. Do not repeat completed samples simply to seek a passing verdict.
@@ -95,7 +99,7 @@ standard-library target evaluator. Activate the environment for your OS, then:
 
 ```bash
 python -m pip install -r docs/ai/requirements-macbook-research-20261027.txt
-python -m pytest -o addopts= -q tests/test_instant_targets.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
+python -m pytest -o addopts= -q tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
 bash scripts/validate_mw_guardrails.sh
 ```
 
@@ -151,8 +155,10 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> The implementation checkpoint is `cb7034a`; 104 targeted tests passed.
-> Continue independent target/code review and resolve concrete findings.
+> The implementation checkpoint is `8b5b266`; 130 targeted tests passed.
+> Read the October 30 review triage and independently review the opt-in v2
+> draft. V1 is still the default. Freeze event association/exposure and
+> remaining study rules before fitting; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and
 > production unchanged. Update the portable checkpoint, commit and push

@@ -1,38 +1,43 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T07:27:31.785668+00:00",
+  "updated_utc": "2026-10-30T07:54:33.981496+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+  "implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
-    "targets": "implemented_independent_review_pending",
+    "targets": "v1_default_preserved_opt_in_v2_draft_implemented_independent_v2_review_pending",
     "historical_comparison": "complete_locked_inconclusive",
     "feed_capture": "completed_3600.156_seconds",
     "feed_hour_gate_pass": false,
     "fitting_allowed": false,
-    "live_change_authorized_by_evidence": false
+    "live_change_authorized_by_evidence": false,
+    "physical_onset_defined": false,
+    "operational_missed_move_rates_enabled": false
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
-      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar"
+      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
+      "status": "two_Gemini_responses_triaged_v2_draft_implemented_and_tested"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "review_worktree_prepared_completion_unverified",
+      "status": "baseline_contribution_d711832_reviewed_and_adapted_into_v2_full_signoff_not_verified",
       "branch": "claude/instant-radar-review",
       "observed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
-      "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude"
+      "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude",
+      "review_contribution_commit": "d711832774caed64063b6281d8acad6aae5a8791",
+      "v2_independent_review": "pending"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "preliminary_conceptual_response_received_no_source_inspection; attachment_prepared_source_based_review_pending"
+      "status": "two_source_based_static_reviews_received_reproduced_and_triaged_v2_review_pending"
     },
     "local_14b": {
       "role": "bounded_trace_or_source_review",
@@ -44,11 +49,11 @@
     }
   },
   "next_actions": [
-    "Obtain independent Claude and Gemini reviews of cb7034a and reproduce concrete findings",
-    "Resolve reviewed target/code defects before prospective outcome inspection; version any changed contract",
-    "Predeclare additional evidence collection needed for thin-product side audit without weakening existing gates or shopping completed samples",
-    "After the audit gate passes, freeze recorder, F1-F5 formulas, live stages, missingness, universe, storage and readiness before collection/fitting",
-    "Collect at least 14 valid shadow days, freeze on discovery and evaluate fresh validation once before any visible ranking change"
+    "Independently review v2 draft at 8b5b26614de74459000ae29d39d71abe34567007 against reproduced findings and the corrected proposal; obtain original unamended proposal for any full fidelity claim",
+    "Freeze event association/exposure, physical-origin or explicit proxy policy and operational metric denominators before fitting; forward windows are not physical impulse events",
+    "Freeze exact F1-F5 formulas, gate-conditioned comparators, live stages, missingness and readiness on discovery only",
+    "Predeclare additional thin-product side evidence collection under the unchanged feed gates without shopping completed samples",
+    "After the feed gate passes, implement and verify the recorder/universe/storage contract; collect at least 14 valid shadow days and evaluate fresh validation once"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -59,11 +64,12 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 104,
+    "implementation_targeted_tests_passed": 130,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_implementation_checkpoint",
-    "independent_claude_review": "pending",
-    "native_mac_or_cloud_execution": "not_verified"
+    "guardrails": "passed_at_v2_implementation_checkpoint",
+    "independent_claude_review": "baseline_contribution_reviewed_full_v2_signoff_pending",
+    "native_mac_or_cloud_execution": "not_verified",
+    "independent_v2_review": "pending"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -106,7 +112,17 @@
     "manifest": "docs/research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json",
     "full_source_files_verified": 5,
     "windows_convenience_copy": "C:\\Users\\tgpet\\Downloads\\Moonwalking-Gemini-941f47a.txt",
-    "next_action": "Upload the text attachment directly to Gemini and request a source-based replacement review",
-    "prior_response_scope": "conceptual_only_no_repository_files_inspected"
-  }
+    "next_action": "Use current v2 draft sources for follow-up review; this v1 packet stays pinned historical evidence",
+    "prior_response_scope": "initial_no_source_response_superseded_by_two_source_based_static_reviews",
+    "source_based_responses_received": 2
+  },
+  "original_reviewed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+  "review_triage": "docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md",
+  "default_contract": "docs/research/INSTANT_TARGET_CONTRACT_V1.json",
+  "opt_in_draft_contract": "docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json",
+  "review_reproductions": "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json",
+  "gemini_source_review_responses": [
+    "docs/research/reviews/GEMINI_INSTANT_REVIEW_A_20261030.md",
+    "docs/research/reviews/GEMINI_INSTANT_REVIEW_B_20261030.md"
+  ]
 }

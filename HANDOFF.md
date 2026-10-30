@@ -1,5 +1,31 @@
 # Moonwalking / BHABIT Handoff
 
+## Source-review triage and opt-in v2 draft - 2026-10-30
+
+Implementation checkpoint: `8b5b266` on `codex/instant-radar-20261028`.
+Both source-based Gemini responses are preserved and triaged in
+[`docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md`](docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
+Synthetic cases reproduce the trigger-origin/catalog limitations and reject
+overstated F1/F2 algebraic guarantees; LF hashing already works. The original
+proposal was not separately inspected by Gemini, so original-fidelity review
+remains limited to the corrected documents.
+
+V1 JSON/default valid-label behavior and the pinned source packet remain
+unchanged. Explicit `contract_path=V2_CONTRACT_PATH` enables a draft with
+`verified_forward` as the primary pointwise target, a separate forward-window
+catalog/timing API, and named pre-window/post-anchor consumed fractions.
+The pre-window boundary is not claimed as physical onset. Operational
+missed-move/false-alert rates and fitting remain disabled. The strict
+no-retrace rule is retained as a secondary diagnostic, not relaxed to improve
+results. Claude's reviewed `d711832` baseline cutoff is incorporated only in
+this versioned draft; its active review worktree is untouched.
+
+All 130 targeted tests, formatting, guardrails, links and provenance checks
+passed. Eleven historical hashes and the pinned Gemini export are unchanged.
+Next: independent v2 review and freeze the event-association/exposure and
+remaining study rules. The feed gate stays false; production/live rankings
+are unchanged. The portable checkpoint records these states for another host.
+
 ## Gemini source access - 2026-10-30
 
 Gemini returned a preliminary conceptual review while explicitly declaring
