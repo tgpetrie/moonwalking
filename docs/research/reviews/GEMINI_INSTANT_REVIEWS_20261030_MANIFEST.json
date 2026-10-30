@@ -1,5 +1,5 @@
 {
-  "scope": "one pre-source conceptual response and two source-based static reviews; findings require independent reproduction",
+  "scope": "one pre-source conceptual response, two v1 source-based static reviews and one v2 static design response; findings require independent reproduction",
   "reviewed_source_checkpoint": "941f47a",
   "test_execution_by_gemini": false,
   "responses": [
@@ -19,7 +19,7 @@
     }
   ],
   "transcript_normalization": "UTF-8 LF; trailing whitespace and final empty lines normalized; original attachment hash retained separately",
-  "source_based_response_count": 2,
+  "source_based_response_count": 3,
   "pre_source_response_count": 1,
   "pre_source_response": {
     "file": "GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md",
@@ -32,5 +32,13 @@
     "chronology": "before the two source-based responses A and B",
     "status": "conceptual hypotheses and design suggestions; not implementation verification",
     "is_original_unamended_proposal": false
+  },
+  "v2_design_followup": {
+    "file": "GEMINI_V2_DESIGN_REVIEW_20261030.md",
+    "manifest": "GEMINI_V2_DESIGN_REVIEW_20261030_MANIFEST.json",
+    "source_implementation": "8b5b266",
+    "acceptance_report_for": "92fb51d",
+    "codex_disposition": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md",
+    "tests_executed_by_gemini_verified": false
   }
 }

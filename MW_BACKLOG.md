@@ -17,11 +17,15 @@ Status keys: Open, In progress, Done, Blocked.
   `docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md`.
 - Claude's independent v2 code review completed at `10b0f96`; Codex accepted
   its catalog/version fix through `92fb51d`. 316 targeted checks pass. Read
-  `docs/research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md`. Gemini v2 review and
-  study freeze remain pending; wick timing, cutoff and null-reason choices
-  require explicit decisions. Fitting stays off.
-- Next: consolidate those decisions with Gemini, freeze event association/exposure and remaining
-  study rules, resolve remaining audit evidence,
+  `docs/research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md`.
+- Gemini v2 design response is received, source-hash checked and reconciled in
+  `docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md`. Whole-window and
+  forward-peak fractions stay separate; cutoffs remain causal; explicit null
+  reasons are proposed. Synthetic cases reject using broad event association
+  to erase failed fixed-horizon predictions. Study freeze/fitting stay off.
+- Next: version the additive diagnostics, prepare the offline recorder and
+  baseline-builder contract/replay tests, freeze association/exposure and the
+  remaining study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.
 

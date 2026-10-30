@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T09:03:54.941939+00:00",
+  "updated_utc": "2026-10-30T09:42:55.105639+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -10,20 +10,21 @@
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
-    "targets": "v1_default_preserved_opt_in_v2_code_review_accepted_study_freeze_pending",
+    "targets": "v1_default_preserved_v2_reviews_reconciled_consolidated_study_candidate_not_frozen",
     "historical_comparison": "complete_locked_inconclusive",
     "feed_capture": "completed_3600.156_seconds",
     "feed_hour_gate_pass": false,
     "fitting_allowed": false,
     "live_change_authorized_by_evidence": false,
     "physical_onset_defined": false,
-    "operational_missed_move_rates_enabled": false
+    "operational_missed_move_rates_enabled": false,
+    "study_frozen": false
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "Claude_patch_probes_and_report_reviewed_integrated_verified_protocol_decisions_pending"
+      "status": "Gemini_v2_design_reconciled_synthetic_cases_verified_consolidated_draft_prepared"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -45,13 +46,18 @@
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "two_source_based_static_reviews_received_reproduced_and_triaged_v2_review_pending",
+      "status": "v2_static_design_response_received_hash_checked_reconciled_with_Codex_counterexamples",
       "review_history": {
         "pre_source_conceptual_responses": 1,
-        "source_based_static_responses": 2,
+        "source_based_static_responses": 3,
         "independent_empirical_studies": 0,
-        "v2_review": "pending"
-      }
+        "v2_review": "received_reconciled_recommendations_qualified_study_not_frozen",
+        "v1_source_based_static_responses": 2,
+        "v2_design_responses": 1
+      },
+      "v2_response": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
+      "v2_response_manifest": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030_MANIFEST.json",
+      "source_scope": "initial 8b5b266 packet plus acceptance report; no independently verified test execution or full patched-source inspection"
     },
     "local_14b": {
       "role": "bounded_trace_or_source_review",
@@ -63,11 +69,11 @@
     }
   },
   "next_actions": [
-    "Consolidate Gemini v2 consistency review and explicit S1 earlier-wick timing, S2 sigma/pace cutoff and S3 null-reason decisions into one study-freeze candidate; obtain original unamended proposal for full fidelity",
-    "Freeze event association/exposure, physical-origin or explicit proxy policy and operational metric denominators before fitting; forward windows are not physical impulse events",
-    "Freeze exact F1-F5 formulas, gate-conditioned comparators, live stages, missingness and readiness on discovery only",
-    "Predeclare additional thin-product side evidence collection under the unchanged feed gates without shopping completed samples",
-    "After the feed gate passes, implement and verify the recorder/universe/storage contract; collect at least 14 valid shadow days and evaluate fresh validation once"
+    "Version the additive diagnostic/reporting amendment without overwriting existing whole-window metrics",
+    "Prepare an offline 5s recorder/replay and causal baseline-builder contract with bounded causality/coverage tests; do not integrate with production",
+    "Review and freeze the concrete five-feature draft, association/exposure, remaining stages/model/readiness and meaningful-effect rules before any prospective fitting",
+    "Resolve the unchanged feed gate through predeclared supplemental evidence or a separately amended universe; no retrospective gate pass or sample shopping",
+    "After required data gates pass, collect at least 14 valid shadow days, freeze discovery choices and evaluate fresh validation once; preserve historical validation"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -83,7 +89,7 @@
     "guardrails": "passed_at_92fb51d",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
-    "independent_v2_review": "Claude_code_review_complete_Gemini_v2_pending_study_definitions_open",
+    "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
     "black_24_8": "passed_at_92fb51d",
@@ -92,7 +98,8 @@
       "expected_points_each": 10,
       "actual_points_each": 60,
       "test_and_implementation_identical_to_8b5b266": true
-    }
+    },
+    "Gemini_v2_reported_source_hashes_matched": 8
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -146,7 +153,8 @@
   "review_reproductions": "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json",
   "gemini_source_review_responses": [
     "docs/research/reviews/GEMINI_INSTANT_REVIEW_A_20261030.md",
-    "docs/research/reviews/GEMINI_INSTANT_REVIEW_B_20261030.md"
+    "docs/research/reviews/GEMINI_INSTANT_REVIEW_B_20261030.md",
+    "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md"
   ],
   "gemini_pre_source_review": "docs/research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md",
   "gemini_review_history_manifest": "docs/research/reviews/GEMINI_INSTANT_REVIEWS_20261030_MANIFEST.json",
@@ -159,7 +167,7 @@
       "local 14B",
       "local 9B"
     ],
-    "status": "Claude_completed_fix_accepted_other_v2_dispatch_unverified",
+    "status": "Claude_completed_Gemini_v2_response_reconciled_local_v2_dispatch_unverified",
     "source_checkpoint": "cc3b6a6",
     "implementation": "8b5b266",
     "packet": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030.txt",
@@ -168,7 +176,7 @@
     "downloads_folder": "C:\\Users\\tgpet\\Downloads\\Moonwalking-v2-Review-20261030",
     "dispatch": {
       "Claude": "completed_at_10b0f96_fix_accepted_through_92fb51d",
-      "Gemini": "unverified",
+      "Gemini": "user_supplied_v2_static_response_received_and_reconciled",
       "local_14b": "unverified",
       "local_9b": "unverified"
     },
@@ -209,5 +217,21 @@
     },
     "original_reproduction_record": "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json",
     "original_record_scope": "pinned_initial_v2_source_hash; not current evaluator hash"
+  },
+  "study_rules_candidate": {
+    "file": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md",
+    "status": "draft_not_frozen",
+    "executable_target_code_unchanged": true,
+    "S1": "retain whole-window metric; any forward-peak reference gets a separate name",
+    "S2": "retain distinct causal sigma and pace cutoffs",
+    "S3": "propose explicit null-reason field in versioned reporting amendment; not implemented here",
+    "association": "keep fixed-horizon success separate from catalog coverage; proposed greedy matching remains a draft",
+    "features": "five concrete candidate formulas proposed before prospective outcome inspection; weights/stages/readiness not frozen",
+    "reproductions": "docs/research/results/instant_study_choices_20261030/REPRODUCTIONS.json",
+    "reproduction_script": "scripts/scoring_experiment/reproduce_instant_study_choices.py",
+    "fitting_allowed": false,
+    "operational_rates_enabled": false,
+    "original_unamended_proposal_available": false,
+    "verification": "docs/research/results/instant_study_choices_20261030/CHECKS.json"
   }
 }

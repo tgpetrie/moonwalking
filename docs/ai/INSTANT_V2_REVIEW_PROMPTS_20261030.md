@@ -4,7 +4,10 @@ Source implementation: `8b5b266`; full packet snapshot: `cc3b6a6`.
 
 Dispatch update: the user sent Claude "Start the review" and the full role prompt;
 Codex verified its active v2 review on `claude/instant-radar-v2-review` in
-`Moonwalking-InstantRadarReview`. Gemini/local v2 dispatch remains unverified.
+`Moonwalking-InstantRadarReview`. Gemini's v2 response was subsequently supplied
+by the user; local v2 dispatch remains unverified. Read the
+[consolidated study-rule candidate](../research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md)
+before reusing the historical review prompts below.
 These prompts were initially prepared without dispatch. Claude's review is now
 complete at `10b0f96`; its fix/probes are accepted through `92fb51d`. See the
 [acceptance report](../research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md). The

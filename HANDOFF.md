@@ -1,5 +1,35 @@
 # Moonwalking / BHABIT Handoff
 
+## Gemini v2 review reconciled; consolidated study draft — 2026-10-30
+
+Gemini's v2 response is archived at
+`docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md`; all eight claimed
+source hashes match the pinned packet. The source was initial `8b5b266` plus
+the acceptance report, not an independently executed review of patched code.
+The original unamended proposal remains absent.
+
+Read [the consolidated study-rule candidate](docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md).
+It retains the whole-reference-window peak and proposes a separately named
+forward-peak fraction, retains the distinct causal baseline cutoffs, and
+specifies missing-fraction reasons for a future additive schema amendment.
+Gemini's S1 is a metric change, not a violation of the existing contract.
+Its broad false-alert association rule can excuse failed 5m/15m predictions
+with a move outside their horizon; reproducible synthetic cases are committed.
+The draft keeps pointwise outcomes and window-coverage diagnostics separate.
+
+Five concrete feature formulas are proposed for implementation review, not
+frozen or fitted. No evaluator or executable JSON contract changed: current
+code remains **`92fb51d`**. The 316 targeted-check result belongs to that code
+checkpoint. New evidence here is a replayable synthetic design check plus
+archive/hash/link/guardrail verification, not market performance.
+
+Next concrete work is the versioned diagnostic/reporting amendment and an
+offline recorder/baseline-builder contract with bounded replay tests. Stage,
+model/readiness and final matching rules still need implementation/freeze;
+the feed gate stays false. No shadow campaign, fit, historical rerun, live
+service or other agent was launched or changed in this checkpoint. The older
+review/dispatch records below are historical, superseded by this section.
+
 ## Claude v2 review accepted; study definitions still open - 2026-10-30
 
 Claude completed the independent review at `10b0f96`. Codex reproduced and

@@ -1,0 +1,28 @@
+{
+  "scope": "design_review_draft_verification_only",
+  "verified_utc": "2026-10-30T09:44:31.758409+00:00",
+  "unchanged_executable_target_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
+  "script": "scripts/scoring_experiment/reproduce_instant_study_choices.py",
+  "script_utf8_lf_sha256": "aa163e64c7898e4b48af4a1ac03c1fe5416b0a0f05ccf1187a5eb9d598820eb5",
+  "synthetic_replay_identical": true,
+  "gemini_claimed_source_sections_verified_against_packet": 8,
+  "external_review_archive_hash_verified": true,
+  "frozen_historical_contract_hashes_verified": 11,
+  "evaluator_and_both_contract_jsons_unchanged": true,
+  "black_24_8": "passed",
+  "repository_guardrails": "passed",
+  "json_links_diff": "passed",
+  "previous_implementation_targeted_checks": {
+    "passed": 316,
+    "code_commit": "92fb51d",
+    "rerun_in_this_draft_checkpoint": false
+  },
+  "full_test_suite_run": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "operational_rates_enabled": false,
+  "feed_hour_gate_pass": false,
+  "live_changes": false,
+  "additional_capture_launched": false,
+  "historical_experiments_rerun": false
+}

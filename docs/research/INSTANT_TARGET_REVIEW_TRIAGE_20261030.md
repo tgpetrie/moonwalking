@@ -1,5 +1,12 @@
 # Instant target reviews: reproduced findings and v2 draft
 
+Latest disposition: Gemini's v2 design response is received and reconciled
+in the [study-rule candidate](INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md).
+Its recommendations are qualified by replayable wick/reference and fixed-
+horizon association counterexamples. Executable labels remain `92fb51d`;
+the study is not frozen and fitting remains off. The older review history
+and initial v2 source/proof records below retain their original scope.
+
 Subsequent checkpoint: Claude's independent v2 review at `10b0f96` is complete.
 Codex accepted its catalog/version guard fix through `92fb51d`; see the
 [acceptance and outstanding study decisions](INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md).

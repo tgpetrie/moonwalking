@@ -1,0 +1,29 @@
+{
+  "scope": "User-supplied Gemini v2 design recommendations; source claims checked against pinned packet, no Gemini execution independently verified",
+  "received_utc": "2026-10-30T09:35:30.073155+00:00",
+  "file": "GEMINI_V2_DESIGN_REVIEW_20261030.md",
+  "original_attachment_sha256": "e8f3dd6f80ce93cc70d6be63c994bc25c035db1637a392a43e3ef0ecb3ad0989",
+  "original_bytes": 25459,
+  "committed_utf8_lf_sha256": "b70995fa0f6bf41e98d2f366d7828e958a6cb76a1332dd96bfbfbaec6925b19c",
+  "committed_bytes": 25286,
+  "normalization": "UTF-8 LF only; content retained including external recommendations and formatting",
+  "reviewed_packet_snapshot": "cc3b6a64e7db96f55a6008a8f387b97d5468763f",
+  "reviewed_implementation": "8b5b26614de74459000ae29d39d71abe34567007",
+  "claimed_source_sections_matching_packet": [
+    "docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md",
+    "docs/research/INSTANT_TARGET_CONTRACT_V1.json",
+    "docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json",
+    "docs/research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md",
+    "scripts/scoring_experiment/instant_targets.py",
+    "tests/test_instant_targets.py",
+    "tests/test_instant_targets_v2.py",
+    "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json"
+  ],
+  "source_sections_hash_verified": 8,
+  "latest_code_scope": "Gemini had the review-acceptance report for 92fb51d, not the full patched source or Claude probes in the eight-section packet",
+  "original_unamended_proposal_available": false,
+  "tests_run_by_gemini_verified": false,
+  "independent_market_outcome_analysis": false,
+  "recommendations_are_user_authorization": false,
+  "codex_disposition": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md"
+}

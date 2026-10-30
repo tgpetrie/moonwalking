@@ -15,6 +15,15 @@ complete at `10b0f96`; Codex accepted its catalog/version guard fix through
 **`92fb51d`**, the current implementation. Read the
 [acceptance and remaining decisions](../research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md).
 The study remains unfrozen and fitting stays off.
+
+Gemini's v2 design response is now received and reconciled in the
+[consolidated study-rule candidate](../research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md).
+The eight reported source hashes match its pinned packet. Synthetic checks
+show why narrowing the peak window changes the metric, and why catalog
+association must not erase a failed prediction at its own horizon. The draft
+keeps both questions visible, retains causal cutoffs, proposes null reasons
+and concrete five-feature formulas. These are reviewable recommendations,
+not frozen code or fitted weights. Current executable labels stay at `92fb51d`.
 The original [source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
 and [manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
 remain pinned to `941f47a` as evidence of what Gemini reviewed; they do not
@@ -44,7 +53,7 @@ for that lane; its readiness does not enable instant-radar fitting.
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
 | Current implementation | `92fb51d` (initial v2: `8b5b266`; original v1: `cb7034a`) |
-| Instant targets | V1 default preserved; Claude code review/fix accepted; study decisions and Gemini v2 review remain open |
+| Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
 | Checks | 316 targeted checks pass including 265 target cases; formatting, guardrails and 11 historical hashes pass; unchanged isolated seed fixture fails |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
@@ -79,14 +88,14 @@ includes v2 rather than the old v1-only packet. Claude has now received the
 user's start instruction and full role prompt and completed its code review.
 Codex accepted its patch/probes; see the acceptance report. The full packet is
 still pinned to the initial v2 source, before the catalog guard fix. Include
-the acceptance report/patch as a follow-up addendum. Gemini/local v2 dispatch
-remains unverified.
+the acceptance report/patch as a follow-up addendum. Gemini's v2 response has
+now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Claude patch/probes accepted through `92fb51d`; consolidate remaining study decisions |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Claude patch accepted; Gemini reconciled into the study-rule draft with synthetic counterexamples |
 | Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | Completed at `10b0f96`; code review accepted, study freeze conditional; earlier `d711832` contribution preserved |
-| Gemini | Compare explicit onset choices with original design; define supporting/rejecting evidence for F1-F5 | Two source-based static responses received and triaged; v2 review pending |
+| Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 
@@ -99,8 +108,10 @@ is preserved. Its original separate checkout is
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: consolidate the three open definition choices with Gemini's v2 review,
-then freeze event association/exposure and remaining target-study rules.
+Next: implement the versioned diagnostic/reporting amendment and prepare the
+offline recorder/baseline-builder contract with bounded replay tests. The
+draft's formula, matching, stage/model and readiness policies still need
+implementation review and freeze before study fitting.
 Predeclare how to resolve the remaining
 thin-product audit evidence under the existing gate. Recorder/features/live
 stage thresholds, model readiness, collection and fitting remain subsequent
@@ -184,8 +195,10 @@ own machines. The Windows collector is a separate running service on port
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
 > The implementation checkpoint is `92fb51d`; 316 targeted checks passed.
-> Read the October 30 Claude review acceptance and remaining study decisions.
-> V1 is still the default. Consolidate Gemini's v2 review, freeze event association/exposure and
+> Read the October 30 Claude acceptance and consolidated study-rule candidate.
+> Gemini's v2 response is received/reconciled; this is a draft, not frozen code.
+> V1 stays the default. Version the reporting diagnostics, prepare the offline
+> recorder/baseline-builder contract/tests, and freeze event association/exposure and
 > remaining study rules before fitting; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and
