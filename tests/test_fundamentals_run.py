@@ -2,6 +2,7 @@
 
 Run: python -m unittest discover -s tests -p test_fundamentals_run.py -v
 """
+
 import json
 import sys
 import tempfile
@@ -11,7 +12,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "scoring_experiment"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[1] / "scripts" / "scoring_experiment")
+)
 import fundamentals as fd  # noqa: E402
 import fundamentals_run as fr  # noqa: E402
 import panel  # noqa: E402
@@ -24,16 +27,34 @@ def setup_world(tmp: Path, n_prod=22, n_days=300, seed=0):
     days = pd.date_range("2024-01-01", periods=n_days)
     prods = [f"P{i}-USD" for i in range(n_prod)]
     idx = pd.MultiIndex.from_product([days, prods], names=["date", "product"])
-    base = pd.DataFrame({"y1": rng.normal(size=len(idx)), "y7": rng.normal(size=len(idx)), "btc30": 0.0}, index=idx)
+    base = pd.DataFrame(
+        {
+            "y1": rng.normal(size=len(idx)),
+            "y7": rng.normal(size=len(idx)),
+            "btc30": 0.0,
+        },
+        index=idx,
+    )
     for f in panel.FEATURES:
         base["z_" + f] = rng.normal(size=len(idx))
     cohort = []
     for i, p in enumerate(prods):
-        chart = [[T0 + k * 86400, float(100 + rng.uniform(0, 50))] for k in range(n_days)]
+        chart = [
+            [T0 + k * 86400, float(100 + rng.uniform(0, 50))] for k in range(n_days)
+        ]
         path = tmp / f"{p}.json"
-        path.write_text(json.dumps({"slug": p, "totalDataChart": chart}), encoding="utf-8")
-        cohort.append({"product_id": p, "status": "approved", "scope": "chain" if i == 0 else "protocol",
-                       "series_files": {"fees": path.name}, "series_sha256": {"fees": fd.sha256(path)}})
+        path.write_text(
+            json.dumps({"slug": p, "totalDataChart": chart}), encoding="utf-8"
+        )
+        cohort.append(
+            {
+                "product_id": p,
+                "status": "approved",
+                "scope": "chain" if i == 0 else "protocol",
+                "series_files": {"fees": path.name},
+                "series_sha256": {"fees": fd.sha256(path)},
+            }
+        )
     return base, cohort
 
 
@@ -50,7 +71,9 @@ class DriverTests(unittest.TestCase):
         dm, _ = fr.build_matched(base, cohort, self.t, lag=2, min_n=20)
         first = dm.index.get_level_values("date").min()
         # 25 present days in the recent half and in the half 30 days earlier -> first defined on day 24 + 30, then the 2-day lag
-        self.assertEqual(first, pd.Timestamp("2024-01-01") + pd.Timedelta(days=24 + 30 + 2))
+        self.assertEqual(
+            first, pd.Timestamp("2024-01-01") + pd.Timedelta(days=24 + 30 + 2)
+        )
         self.assertTrue((dm["n_matched_day"] >= 20).all())
         held = [dict(cohort[0], status="held")] + cohort[1:]
         dm2, _ = fr.build_matched(base, held, self.t, lag=2, min_n=22)
@@ -68,35 +91,105 @@ class DriverTests(unittest.TestCase):
 
     def test_first_fit_readiness_uses_availability_and_embargo(self):
         days = pd.date_range("2024-01-01", "2024-06-30")
-        idx = pd.MultiIndex.from_product([days, [f"P{i}" for i in range(30)]], names=["date", "product"])
+        idx = pd.MultiIndex.from_product(
+            [days, [f"P{i}" for i in range(30)]], names=["date", "product"]
+        )
         d = pd.DataFrame({"z_a": 0.0, "y7": 1.0}, index=idx)
         # 30 rows/day: 5,000 rows need 167 days dated before (month start - 8 days)
-        self.assertEqual(fr.first_fit_readiness(d, 7, "2024-01-01", "2024-07-01", ["a"])["first_fit_month"], "2024-07-01")
-        d.loc[d.index.get_level_values("date") < "2024-02-01", "y7"] = np.nan   # labels not available
-        self.assertIsNone(fr.first_fit_readiness(d, 7, "2024-01-01", "2024-07-01", ["a"])["first_fit_month"])
-        d2 = pd.DataFrame({"z_a": 0.0, "y7": -5.0}, index=idx)  # label values do not matter, only presence
-        self.assertEqual(fr.first_fit_readiness(d2, 7, "2024-01-01", "2024-07-01", ["a"])["first_fit_month"], "2024-07-01")
+        self.assertEqual(
+            fr.first_fit_readiness(d, 7, "2024-01-01", "2024-07-01", ["a"])[
+                "first_fit_month"
+            ],
+            "2024-07-01",
+        )
+        d.loc[d.index.get_level_values("date") < "2024-02-01", "y7"] = (
+            np.nan
+        )  # labels not available
+        self.assertIsNone(
+            fr.first_fit_readiness(d, 7, "2024-01-01", "2024-07-01", ["a"])[
+                "first_fit_month"
+            ]
+        )
+        d2 = pd.DataFrame(
+            {"z_a": 0.0, "y7": -5.0}, index=idx
+        )  # label values do not matter, only presence
+        self.assertEqual(
+            fr.first_fit_readiness(d2, 7, "2024-01-01", "2024-07-01", ["a"])[
+                "first_fit_month"
+            ],
+            "2024-07-01",
+        )
 
     def test_verdict_rules(self):
         good = {"mean": 0.03, "lo": 0.01, "hi": 0.05, "moving_block": {"lo": 0.005}}
         self.assertEqual(fr.verdict(good, 0.01, 0.02, True), "supportive")
         self.assertEqual(fr.verdict(good, -0.01, 0.02, True), "inconclusive")
         self.assertEqual(fr.verdict(good, 0.01, 0.02, False), "inconclusive")
-        self.assertEqual(fr.verdict({**good, "moving_block": {"lo": -0.001}}, 0.01, 0.02, True), "inconclusive")
-        self.assertEqual(fr.verdict({"mean": 0.0, "lo": -0.01, "hi": 0.015}, 0.01, 0.02, True), "ruled out")
-        self.assertEqual(fr.verdict({"mean": None, "lo": None, "hi": None}, 0.01, 0.02, True), "inconclusive")
+        self.assertEqual(
+            fr.verdict({**good, "moving_block": {"lo": -0.001}}, 0.01, 0.02, True),
+            "inconclusive",
+        )
+        self.assertEqual(
+            fr.verdict({"mean": 0.0, "lo": -0.01, "hi": 0.015}, 0.01, 0.02, True),
+            "ruled out",
+        )
+        self.assertEqual(
+            fr.verdict({"mean": None, "lo": None, "hi": None}, 0.01, 0.02, True),
+            "inconclusive",
+        )
 
     def test_test_phase_refuses_without_matching_discovery(self):
         p = self.t / "disc.json"
         with self.assertRaises(SystemExit):
             fr.require_discovery(p, "h", "c")
-        for bad in ({"phase": "discovery", "provenance": {"combined_hash": "other"}, "code_commit": "c"},
-                    {"phase": "discovery", "provenance": {"combined_hash": "h"}, "code_commit": "old"},
-                    {"phase": "readiness", "provenance": {"combined_hash": "h"}, "code_commit": "c"}):
+        for bad in (
+            {
+                "phase": "discovery",
+                "provenance": {"combined_hash": "other"},
+                "experiment_fingerprint": "c",
+                "ready": True,
+                "frozen": {
+                    "btc30_tercile_thresholds": [-1, 1],
+                    "fee_coefficient_sign": 1,
+                    "discovery_difference_mean": 0.01,
+                },
+            },
+            {
+                "phase": "discovery",
+                "provenance": {"combined_hash": "h"},
+                "experiment_fingerprint": "old",
+            },
+            {
+                "phase": "readiness",
+                "provenance": {"combined_hash": "h"},
+                "experiment_fingerprint": "c",
+                "ready": True,
+                "frozen": {
+                    "btc30_tercile_thresholds": [-1, 1],
+                    "fee_coefficient_sign": 1,
+                    "discovery_difference_mean": 0.01,
+                },
+            },
+        ):
             p.write_text(json.dumps(bad), encoding="utf-8")
             with self.assertRaises(SystemExit):
                 fr.require_discovery(p, "h", "c")
-        p.write_text(json.dumps({"phase": "discovery", "provenance": {"combined_hash": "h"}, "code_commit": "c"}), encoding="utf-8")
+        p.write_text(
+            json.dumps(
+                {
+                    "phase": "discovery",
+                    "provenance": {"combined_hash": "h"},
+                    "experiment_fingerprint": "c",
+                    "ready": True,
+                    "frozen": {
+                        "btc30_tercile_thresholds": [-1, 1],
+                        "fee_coefficient_sign": 1,
+                        "discovery_difference_mean": 0.01,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         self.assertEqual(fr.require_discovery(p, "h", "c")["phase"], "discovery")
 
     def test_provenance_rejects_changed_capture_and_uses_frozen_level(self):
@@ -116,9 +209,26 @@ class DriverTests(unittest.TestCase):
         base, cohort = setup_world(self.t, n_days=330)
         cfg = {**panel.load_config(), "horizons_days": [7]}
         ecfg = fr.eval_cfg(cfg, fr.fcfg_load())
-        full = {7: pd.Series(np.random.default_rng(3).normal(size=len(base)), index=base.index)}
-        res = fr.run_lag(base, full, cohort, self.t, cfg, ecfg, {}, 2, ("2024-01-01", "2024-11-25"), "2024-01-01", "2024-11-01",
-                         [-1.0, 1.0], primary=True)
+        full = {
+            7: pd.Series(
+                np.random.default_rng(3).normal(size=len(base)), index=base.index
+            )
+        }
+        res = fr.run_lag(
+            base,
+            full,
+            cohort,
+            self.t,
+            cfg,
+            ecfg,
+            {},
+            2,
+            ("2024-01-01", "2024-11-25"),
+            "2024-01-01",
+            "2024-11-01",
+            [-1.0, 1.0],
+            primary=True,
+        )
         h = res["horizons"]["h7"]
         self.assertIn("incremental_ic_s1_minus_s0", h)
         self.assertIn("matched_trained_secondary", h)

@@ -131,3 +131,48 @@ Implementation choices, fixed before discovery:
 * Every run re-checks the hardened gate and each fee file's hash, records cohort/config/combined hashes and the commit, refuses with
   uncommitted experiment code, and the test refuses without a discovery result of the same hash and commit, or if a test result exists.
 * `revenue_trend` and `usd_tvl_change` are not run: the reviewed cohort has fee series only. Extreme-trend events are not implemented.
+
+**A2 (2026-10-30, pre-discovery Codex driver review).** No fundamentals discovery
+or primary test result exists. The 27-approved/5-held cohort, fee feature,
+lags, eligibility, date splits, ridge/grid, +0.02 criterion and 95% primary
+interval remain fixed. This amendment fixes execution/provenance rules and
+declares one descriptive attribution control before inspecting outcomes:
+
+* Readiness uses label-presence masks and the baseline walk-forward's purged
+  training-row gate. It never fits a model or consumes label magnitudes.
+  Constant placeholders communicate S0 prediction availability only. A
+  dedicated readiness output can preserve older shared readiness artifacts.
+* Test preflight checks discovery/input/code compatibility and prior results
+  before loading model data or fitting. A complete discovery freeze must be
+  committed and match the local artifact; commit/push it before testing.
+  Exclusive attempt markers are retained in local and repository result
+  directories before the first test fit, including on failure. Repository
+  result copies also prevent repeat runs. Discovery results cannot be silently
+  overwritten. Invalid/incomplete discovery artifacts do not authorize testing.
+* Compatibility uses experiment-source, protocol and runtime fingerprints,
+  rather than Git HEAD equality. Results/handoff-only commits can follow the
+  discovery freeze; changes to executable dependencies or this protocol cannot.
+  Cohort/config/fee hashes additionally bind the baseline pickle, build metadata
+  and raw-panel manifest. A cache's manifest must agree with its build metadata.
+* Primary scoring retains only labelled rows on dates with valid IC for both
+  S0 and S1. Prediction coverage and scored counts are separate. Daily paired
+  ICs are retained for auditing; unlabelled or unscorable dates do not inflate
+  scored row counts.
+* The four-week sensitivity samples actual consecutive ISO-week windows,
+  including correct year boundaries. Missing weeks are neither filled nor
+  stitched together; there is no end-to-start circular wrap. If any retained
+  week cannot participate in a valid four-week window, or fewer than 12 weeks
+  exist, this interval stays unavailable. The fixed supportive verdict still
+  requires its positive lower bound; no favorable-method selection is permitted.
+  Shared baseline/funding evaluation code is unchanged.
+* Add a **descriptive calibration-only control**: apply the same purged
+  walk-forward to S0 alone, and compare S1 against it on identical scoreable
+  rows/dates. The fixed primary remains S1 versus the raw full-universe S0
+  score. That primary estimates the value of the joint stack, which may include
+  S0 recalibration; it cannot alone attribute gains specifically to fees.
+  The additional control is reported regardless of sign and is not a new
+  confirmatory test, optimization choice or live-release criterion.
+* Scope exclusion of chains is grading-only, not a non-chain model refit.
+  Missing secondary diagnostics (including residualized fee IC and additional
+  scope/event analyses) are explicitly listed as not run. JSON writes are atomic
+  and reject nonfinite serialized results.
