@@ -13,6 +13,35 @@ These overlapping responses are not two independent empirical studies.
 Neither response inspected the original unamended proposal as a separate
 source. They cannot establish complete original-proposal fidelity.
 
+## Earlier response, before source access
+
+The subsequently supplied [full preliminary response](reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md)
+explicitly inspected **zero repository files** and ran no tests. The review
+history is one conceptual response followed by two overlapping source-based
+responses, not three independent confirmations. This additional review is
+also not the original unamended proposal being evaluated.
+
+Its main useful cautions are already represented in the v2 draft: separate
+forecast outcomes from activity triggers, include forward-only movers,
+name the timing reference, retain unknown data, and respect dependence.
+Its broad assertion that the implementation only graded post-trigger
+continuation was superseded by the later source inspection, which confirmed
+that independent forward labels and pre-trigger timing already existed.
+
+Additional suggestions are recorded without changing the current draft:
+
+| Preliminary suggestion | Disposition |
+|---|---|
+| Find a physical origin by scanning back to an extremum/compression boundary | Still an open label-design question. A fixed search interval, tie/boundary rules and maturity must be specified before outcomes are inspected. A favorable retrospective extremum is not automatically an objectively identified physical start. V2's `anchor-30s` reference remains an explicit proxy, not physical onset. |
+| Replace no-retrace with a volatility-scaled adverse bound or TWAP retention | Candidate alternatives, not verified fixes. Adverse excursion is already retained; the strict no-retrace subset does not gate the v2 primary target. The claimed routine 30-50% retracement frequency is not established by any supplied data. No tolerance or new retention target is selected here. |
+| Use matched quiet controls, lead lags and residualized features | Possible diagnostics to preregister. Matching must use causal covariates and preserve sampling/exposure information. Moving 15/30/60s before a selected trigger does not by itself prove physical anticipation or eliminate selection effects. Residualization is optional, discovery-fitted and cannot establish a physical mechanism on its own. |
+| Use two-way cluster-robust inference | An alternative inference design, not an automatic correction to the existing paired UTC-day block plan. The number of independent clusters/regimes and small-sample limits still matter. Do not switch methods after seeing which interval is favorable. |
+| Use overlapping 30s/180s acceleration, 180s compression or a cross-sectional market benchmark | These differ from the corrected proposal's non-overlapping 30s/prior-150s acceleration, active prior-candle compression context and declared BTC-beta residual. Exact feature formulas remain gated; this conceptual response does not silently replace them. |
+
+There are no new measurements or reproduced implementation failures in the
+pre-source response. V2 code, target thresholds and its pending-review status
+are unchanged by archiving it.
+
 ## Findings and decisions
 
 | Review claim | Verified assessment | Action |

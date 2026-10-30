@@ -1,5 +1,5 @@
 {
-  "scope": "untrusted external static reviews; findings require reproduction",
+  "scope": "one pre-source conceptual response and two source-based static reviews; findings require independent reproduction",
   "reviewed_source_checkpoint": "941f47a",
   "test_execution_by_gemini": false,
   "responses": [
@@ -18,5 +18,19 @@
       "committed_bytes": 31658
     }
   ],
-  "transcript_normalization": "UTF-8 LF; trailing whitespace and final empty lines normalized; original attachment hash retained separately"
+  "transcript_normalization": "UTF-8 LF; trailing whitespace and final empty lines normalized; original attachment hash retained separately",
+  "source_based_response_count": 2,
+  "pre_source_response_count": 1,
+  "pre_source_response": {
+    "file": "GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md",
+    "source_sha256": "675e7f1bf8fd9f864fdb2744e2fdcad268ba1e9d5d372b3101c947c5ba90784a",
+    "bytes": 25424,
+    "committed_utf8_lf_sha256": "202ff8fca0c20363ba9f4d0478650fa0fcd91f2194e5ceec7b0afbc8cb63ea47",
+    "committed_bytes": 25250,
+    "repository_sources_inspected": 0,
+    "tests_executed": false,
+    "chronology": "before the two source-based responses A and B",
+    "status": "conceptual hypotheses and design suggestions; not implementation verification",
+    "is_original_unamended_proposal": false
+  }
 }

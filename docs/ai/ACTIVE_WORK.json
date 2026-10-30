@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T07:54:33.981496+00:00",
+  "updated_utc": "2026-10-30T07:58:40.586198+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -37,7 +37,13 @@
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "two_source_based_static_reviews_received_reproduced_and_triaged_v2_review_pending"
+      "status": "two_source_based_static_reviews_received_reproduced_and_triaged_v2_review_pending",
+      "review_history": {
+        "pre_source_conceptual_responses": 1,
+        "source_based_static_responses": 2,
+        "independent_empirical_studies": 0,
+        "v2_review": "pending"
+      }
     },
     "local_14b": {
       "role": "bounded_trace_or_source_review",
@@ -124,5 +130,8 @@
   "gemini_source_review_responses": [
     "docs/research/reviews/GEMINI_INSTANT_REVIEW_A_20261030.md",
     "docs/research/reviews/GEMINI_INSTANT_REVIEW_B_20261030.md"
-  ]
+  ],
+  "gemini_pre_source_review": "docs/research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md",
+  "gemini_review_history_manifest": "docs/research/reviews/GEMINI_INSTANT_REVIEWS_20261030_MANIFEST.json",
+  "gemini_pre_source_disposition": "archived_as_conceptual_only; extra study suggestions recorded; no target/code/threshold changes"
 }

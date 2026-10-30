@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## Pre-source Gemini response archived - 2026-10-30
+
+The user supplied the full earlier Gemini response that declared no repository
+access. It is archived separately as
+`docs/research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md`.
+The review manifest and triage now distinguish one conceptual response from
+two source-based static responses. MAE/TWAP, a retrospective physical-origin
+rule, residualization and alternate inference/feature definitions are recorded
+as candidate study choices, not accepted code defects. The early broad
+continuation-only claim was corrected after source access. This is not the
+missing original unamended proposal. No v2 code or threshold changed; the
+implementation checkpoint remains `8b5b266`, with independent v2 review pending.
+
 ## Source-review triage and opt-in v2 draft - 2026-10-30
 
 Implementation checkpoint: `8b5b266` on `codex/instant-radar-20261028`.

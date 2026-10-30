@@ -16,6 +16,11 @@ and [manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.
 remain pinned to `941f47a` as evidence of what Gemini reviewed; they do not
 contain the v2 draft. Gemini did not inspect the original unamended proposal
 as a separate source, so a full original-fidelity claim is still unwarranted.
+The full [pre-source conceptual response](../research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md)
+is now archived separately. Its extra suggestions are classified in the triage;
+the review history is one conceptual response and two source-based responses.
+It supplies no additional implementation verification or reason to change
+the current v2 draft automatically.
 
 Bookmark this page:
 <https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md>
