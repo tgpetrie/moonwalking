@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T18:44:17.745587+00:00",
+  "updated_utc": "2026-10-30T21:34:40.987109+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14",
+  "implementation_commit": "ab9515915fd77386a6e648c619d5ca9db8afe6c2",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -19,20 +19,20 @@
     "physical_onset_defined": false,
     "operational_missed_move_rates_enabled": false,
     "study_frozen": false,
-    "reporting": "versioned_offline_diagnostics_implemented_review_pending",
-    "recorder": "offline_sparse_replay_prototype_implemented_not_live",
-    "baseline_builder": "offline_causal_60_return_120_window_builder_implemented_review_pending"
+    "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
+    "recorder": "offline_review_accepted_last_known_monotonic_fix_no_live_integration",
+    "baseline_builder": "offline_review_numpy_verified_replay_producer_identity_exposed"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "offline_diagnostics_sparse_replay_and_causal_baseline_prototypes_implemented_346_checks_passed"
+      "status": "offline_review_verified_clock_fix_integrated_provenance_and_reasons_hardened_356_checks_passed"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "independent_v2_code_review_complete_one_fix_accepted_study_freeze_conditional",
-      "branch": "claude/instant-radar-v2-review",
+      "status": "v2_and_offline_reviews_complete_offline_fix_accepted",
+      "branch": "claude/instant-offline-review",
       "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
       "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude",
@@ -45,7 +45,11 @@
       "dispatch_by": "user; Codex observed existing activity and did not resend",
       "v2_review_contribution_commit": "10b0f968fe5e5e50afa3428ffdfbc209ab85391a",
       "review_report": "docs/research/reviews/CLAUDE_INSTANT_V2_REVIEW_20261030.md",
-      "integrated_as": "1da6f4e"
+      "integrated_as": "1da6f4e",
+      "previous_v2_review_branch": "claude/instant-radar-v2-review",
+      "offline_review_commit": "f2cc436976089f4145e5a82ef7e5db6a164f50f8",
+      "offline_review_report": "docs/research/reviews/CLAUDE_INSTANT_OFFLINE_REVIEW_20261030.md",
+      "offline_review_integrated_as": "749e792"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -72,8 +76,8 @@
     }
   },
   "next_actions": [
-    "Independently review the new versioned diagnostics, sparse replay and causal baseline builder at 8211262; prepared Claude prompt is not dispatched",
-    "Verify contemporaneous health/subscription/reconciliation monitoring and build paired immutable target-sample adapters; bounded real-data replay and disk/throughput sizing next",
+    "Bounded replay of preserved feed captures with pinned raw hashes; verify contemporaneous versus retrospective health and source adapters",
+    "Implement evidence-backed health/subscription/reconciliation monitoring and paired immutable target-sample adapters without backdating availability",
     "Review and freeze exact five-feature, association/exposure, stage/model/readiness and meaningful-effect rules before scoring-model fitting",
     "Resolve the unchanged feed gate through predeclared supplemental evidence or a separately amended universe; do not shop completed captures",
     "After the required gates pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; preserve historical results and the Windows collector"
@@ -87,15 +91,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 346,
+    "implementation_targeted_tests_passed": 356,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_8211262",
+    "guardrails": "passed_at_ab95159",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_8211262",
+    "black_24_8": "passed_at_ab95159",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -103,8 +107,9 @@
       "test_and_implementation_identical_to_8b5b266": true
     },
     "Gemini_v2_reported_source_hashes_matched": 8,
-    "new_offline_cases": 30,
-    "new_offline_layer_independent_review": "pending_not_dispatched"
+    "new_offline_cases": 33,
+    "new_offline_layer_independent_review": "complete_at_f2cc436_on_8211262_fix_and_Codex_followups_verified",
+    "independent_offline_probes": 7
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -242,9 +247,9 @@
   },
   "target_evaluator_implementation_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
   "offline_pipeline": {
-    "implementation_commit": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14",
+    "implementation_commit": "ab9515915fd77386a6e648c619d5ca9db8afe6c2",
     "report": "docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md",
-    "checks": "docs/research/results/instant_offline_pipeline_20261030/CHECKS.json",
+    "checks": "docs/research/results/instant_offline_review_acceptance_20261030/CHECKS.json",
     "diagnostic_contract": "docs/research/INSTANT_DIAGNOSTIC_CONTRACT_V1_DRAFT.json",
     "replay_contract": "docs/research/INSTANT_OFFLINE_REPLAY_CONTRACT_V1_DRAFT.json",
     "live_integration": false,
@@ -252,12 +257,16 @@
     "raw_market_capture_launched": false,
     "new_raw_evidence_needed_for_handoff": false,
     "synthetic_inputs": "generated by committed tests; no new PC-only source files required",
-    "independent_review": "pending"
+    "independent_review": "complete_accepted_with_clock_fix_and_qualified_integration_items",
+    "initial_implementation_commit": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14",
+    "initial_checks": "docs/research/results/instant_offline_pipeline_20261030/CHECKS.json",
+    "review_commit": "f2cc436976089f4145e5a82ef7e5db6a164f50f8",
+    "review_acceptance": "docs/research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md"
   },
   "prepared_offline_review_prompt": {
     "file": "docs/ai/INSTANT_OFFLINE_REVIEW_PROMPT_20261030.md",
     "role": "Claude",
-    "status": "prepared_not_dispatched",
+    "status": "completed_at_f2cc436_accepted_through_ab95159",
     "implementation": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14"
   },
   "related_remote_review": {

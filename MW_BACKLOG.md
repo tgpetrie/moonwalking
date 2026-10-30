@@ -27,7 +27,10 @@ Status keys: Open, In progress, Done, Blocked.
   baseline builder are implemented at `8211262`; 346 targeted checks pass,
   including 30 new cases. Target evaluator/contracts remain unchanged.
   See `docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md`.
-- Next: bounded independent review, verify real-data/health and immutable
+- Independent offline review `f2cc436` is accepted through `ab95159`, with the
+  last-known-monotonic clock fix and producer/reason improvements. 356 targeted
+  checks pass. See `docs/research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md`.
+- Next: bounded replay of preserved feed data, verify real-data/health and immutable
   target-sample adapters, freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

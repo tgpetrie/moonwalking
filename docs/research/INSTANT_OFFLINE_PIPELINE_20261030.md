@@ -1,5 +1,10 @@
 # Instant offline diagnostics, replay and baselines — 2026-10-30
 
+Latest accepted code: **`ab95159`**, following Claude's independent `f2cc436`
+review of original `8211262`. The monotonic-gap fix, producer provenance and
+separate missing-data causes are accepted; **356 targeted checks pass**.
+Read [the review acceptance](INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md).
+
 This checkpoint implements the next step from the consolidated study draft.
 It is an **offline prototype**, not a running feed, frozen study or ranking
 change. The existing target evaluator/contracts remain unchanged at `92fb51d`.
@@ -21,6 +26,9 @@ the existing v2 timing call and preserves its fields. Added report fields:
 - `whole_window_peak_precedes_anchor`: explains why the existing strict
   timing can be late even with a low consumed fraction.
 - Diagnostic version/contract/source hashes alongside the target hashes.
+- `pre_window_reference_unavailable_reason` and
+  `publication_unavailable_reason` preserve both simultaneous causes;
+  the original fraction-reason precedence is unchanged.
 
 `forward_catalog_report(labels)` retains the target catalog's selection and
 adds `previous_anchor_status`, `left_censored` and a reason. A missing or
@@ -56,6 +64,13 @@ Only complete sealed artifacts are queried; reopen uses SQLite read-only mode.
 Input hashes are checked before/after replay and saved with contract/code
 hashes. Existing output files are refused.
 
+`ReplayStore(path, expected_recorder_sha256=...)` optionally pins the expected
+producer on reopen. `provenance()` distinguishes producer/reader hashes and
+retains the canonical input-manifest identity. Default historical reading
+does not require the producer and reader to match, but the difference is
+visible and baselines propagate it. Metadata identity is not authentication;
+freeze raw artifact hashes separately before prospective use.
+
 SQLite stores raw packets, quote observations, unique trades, explicit health
 assertions, conflicts, and a sparse `micro_bars_5s` **occupied-bucket index**.
 Bar values are derived from the normalized details, not dense carried writes.
@@ -68,9 +83,11 @@ This is not a disk-budgeted production aggregation/indexing design yet.
   intervals only once that contradiction is known. Trade-ID/exchange-time
   reordering does not move receipts to earlier buckets.
 - `last_match`, ticker `last_size`, heartbeat and separately tagged
-  `rest`/`rest_recovery` messages add no live executions. Source tags must be
-  explicit and recognized. Late recovery remains raw evidence, not an earlier
-  or recovery-time pace contribution.
+  `rest`/`rest_recovery` messages add no live executions. Absent tags default
+  to WS, matching actual audit envelopes. Present tags must be recognized.
+  Recovery adapters must retain an explicit non-WS source if they reshape
+  REST data into match-like messages. Shape/defaults do not authenticate
+  origin. Recovery remains raw evidence, not an earlier or recovery-time pace.
 - Receipt buckets are `[start,end)`; a receipt at `end` belongs to the next
   bucket. Queries expose the exact count at the bucket start for the existing
   target's boundary-exclusion rule. Quotes at `cutoff` are also excluded from
@@ -95,6 +112,14 @@ coverage evidence; the store does not certify an assertion merely because it
 has a nonempty evidence string. Completed intervals cannot be claimed known
 before their end. Negative assertions veto overlaps. An absent/unverified
 interval yields unknown counts, never zero.
+
+To verify every 5s decision cutoff, health spans must be completed and known
+by each cutoff. Coarser intervals verify only eligible endpoints. Five-second
+cadence alone cannot eliminate verification latency; if evidence arrives
+later, preserve that availability and withhold the original live snapshot.
+The eventual monitor/adapter contract must distinguish decision and
+publication times and retain contemporaneous evidence, without backdating
+later REST reconciliation.
 
 `snapshot(product, cutoff)` uses only knowledge available at that cutoff.
 Explicit `asof=later_time` permits retrospective coverage audit and reports
@@ -123,7 +148,8 @@ provides `build_baseline(store, product, anchor, benchmark="BTC-USD")`:
   Missing/stale endpoints and future-only health evidence fail closed. All
   inputs and coverage must be known by the anchor; late knowledge is not
   backdated to historical snapshots. Returned `Baseline` availability is the
-  current anchor, with exact windows and builder/contract hashes recorded.
+  current anchor, with exact windows, builder hash and producing replay/input
+  provenance recorded.
 
 ## Verification and remaining work
 
@@ -132,11 +158,13 @@ censoring, unknown versus zero, receipt boundaries, duplicates, reordered
 trades, unknown sides, late recovery, clocks, invalid/stale/carried quotes,
 as-of audits, read-only/non-overwrite behavior, baseline counts/cutoffs,
 future evidence and beta fallback. It also runs the existing target/feed/
-historical-contract/driver/restore/WS checks. **346 targeted checks pass**,
-including 30 new cases. See the
-[verification record](results/instant_offline_pipeline_20261030/CHECKS.json).
+historical-contract/driver/restore/WS checks. **356 targeted checks pass**,
+including 33 Codex offline cases and seven independent Claude probes. See the
+[current verification](results/instant_offline_review_acceptance_20261030/CHECKS.json).
+The [original 346-check record](results/instant_offline_pipeline_20261030/CHECKS.json)
+stays pinned to `8211262`.
 
-Still required: independent review of these new prototype contracts,
+Independent review is accepted with the documented fix. Still required:
 continuous health/subscription/reconciliation monitoring, an adapter that
 builds paired immutable target samples, bounded real-data replay/throughput
 and disk sizing, F1-F5 feature implementation, stages/model/readiness freeze,

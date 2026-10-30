@@ -1,5 +1,11 @@
 # Prepared Claude review prompt — offline instant pipeline
 
+Completed: the user supplied Claude's `f2cc436` review; Codex accepted the fix
+through `ab95159`. See
+[the acceptance](../research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md).
+Do not redispatch this completed general review. The original prompt below
+is preserved as the assignment record.
+
 Prepared only, not sent. Implementation `8211262` on
 `codex/instant-radar-20261028`. This is a new bounded assignment, distinct from
 the completed v2 target review and the remote onset/gap proposal.

@@ -1,5 +1,33 @@
 # Moonwalking / BHABIT Handoff
 
+## Independent offline review accepted — 2026-10-30
+
+Claude's new `f2cc436` offline review was verified and cherry-picked as
+`749e792`; current offline code is **`ab95159`**, including source provenance
+and independent missing-data reasons. The older pasted `10b0f96` v2 report
+was already integrated and was not reapplied. Read the
+[offline acceptance](docs/research/INSTANT_OFFLINE_REVIEW_ACCEPTANCE_20261030.md).
+
+The reproduced monotonic-clock hole (`100s, absent, 50s`) now fails closed.
+Untagged WS input compatibility is retained; recovery adapters must preserve
+source identity. Baselines expose producer/input provenance, reopen can pin
+the producer hash, and historical producers remain distinguishable from readers.
+Health evidence must be completed and known by each intended cutoff; cadence
+does not justify backdating delayed reconciliation. Assertions remain trusted
+inputs requiring independent evidence.
+
+**356 targeted checks pass**, including seven independent Claude probes and
+three new Codex producer/reason cases. Formatting, guardrails, 11 historical
+hashes and unchanged target-byte checks pass. The target evaluator/contracts
+remain `92fb51d`; no full-suite or native Mac pass is claimed. The unrelated
+seed-fixture failure remains outside this check set.
+
+The offline review is complete; no general re-review is queued. Next is
+bounded replay of preserved feed data plus evidence-backed health/subscription/
+reconciliation and paired immutable sample adapters. Feed/study/model/live
+gates remain off. No capture, fit, historical rerun, service or other worktree
+changed. Older prepared/pending review records below are superseded.
+
 ## Offline recorder/baseline implementation — 2026-10-30
 
 New offline layer implemented at **`8211262`** on
