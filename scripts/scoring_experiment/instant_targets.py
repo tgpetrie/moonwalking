@@ -604,6 +604,9 @@ def forward_event_catalog(labels):
     These are deduplicated qualifying forecast windows, not a definition of
     physical move onset or a completed operational missed-move denominator.
     """
+    labels = list(labels)
+    if any(row.get("contract_version") != "instant-target-v2-draft" for row in labels):
+        raise ValueError("forward-window catalog requires labels from the explicit v2 draft")
     return [
         {**row, "catalog_kind": "forward_window_not_physical_impulse"}
         for row in event_catalog(labels, target="verified_forward")
