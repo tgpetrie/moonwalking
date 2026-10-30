@@ -1,5 +1,11 @@
 # Instant radar: execution sequence - 2026-10-28
 
+**Update 2026-10-30:** Both source-based Gemini responses have been reproduced
+and triaged. An [opt-in v2 draft](INSTANT_TARGET_REVIEW_TRIAGE_20261030.md)
+separates forward-window coverage from strict activity-trigger diagnostics
+and names reference-dependent timing metrics. Review it before freezing the
+study; v1 remains the default, and fitting/recorder integration remain gated.
+
 **Update 2026-10-29:** The first campaign attempt completed a full hour with
 REST-reconciled sampled coverage, but thin-product side samples remain
 inconclusive. The [report](results/feed_audit_20261028_completed/REPORT.json)

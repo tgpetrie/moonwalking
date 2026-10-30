@@ -1,5 +1,11 @@
 # Instant radar: executable target labels - 2026-10-29
 
+October 30 review update: this document describes preserved **v1** behavior.
+See the [review triage and opt-in v2 draft](INSTANT_TARGET_REVIEW_TRIAGE_20261030.md)
+for named pre-window/post-trigger reference metrics, a separate forward-window
+catalog and the reviewed baseline-policy refinement. V2 is not the default
+and neither version is approved for fitting.
+
 Status: **label definition implemented; study and fitting remain gated**.
 This implements the next step of Gemini's existing prospective proposal.
 It does not establish an early-warning edge or change a live score.

@@ -1,0 +1,22 @@
+{
+  "scope": "untrusted external static reviews; findings require reproduction",
+  "reviewed_source_checkpoint": "941f47a",
+  "test_execution_by_gemini": false,
+  "responses": [
+    {
+      "file": "GEMINI_INSTANT_REVIEW_A_20261030.md",
+      "source_sha256": "2f1754da433831701196d7f03e5f3a75dacd2fd7b6429f9700b522e81db96706",
+      "bytes": 34839,
+      "committed_utf8_lf_sha256": "65197d235a32f3a7042910b1afb978340921a550b9f19422f5d5179c4bcd171e",
+      "committed_bytes": 34401
+    },
+    {
+      "file": "GEMINI_INSTANT_REVIEW_B_20261030.md",
+      "source_sha256": "dec18a494d43b2a20774a1c7fb3f8c6125d985220b4fce425ee00a32d6c2009f",
+      "bytes": 32065,
+      "committed_utf8_lf_sha256": "e8c94fbebb7aee71756efae7b51b2a0077db4dabc5353d175539f7f540cb0083",
+      "committed_bytes": 31658
+    }
+  ],
+  "transcript_normalization": "UTF-8 LF; trailing whitespace and final empty lines normalized; original attachment hash retained separately"
+}
