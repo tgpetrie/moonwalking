@@ -1,5 +1,12 @@
 # Instant target reviews: reproduced findings and v2 draft
 
+Subsequent checkpoint: Claude's independent v2 review at `10b0f96` is complete.
+Codex accepted its catalog/version guard fix through `92fb51d`; see the
+[acceptance and outstanding study decisions](INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md).
+316 targeted checks pass. The initial v2 reproduction/source records below
+remain pinned to `8b5b266`, not the current evaluator hash. Both contract JSON
+files are unchanged. Study freeze, Gemini v2 review and fitting remain gated.
+
 Date: October 30, 2026. Scope: static source review plus deterministic
 synthetic paths. **No real prospective outcomes, fitting or historical
 discovery/validation were inspected or rerun.**

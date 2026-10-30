@@ -1,0 +1,89 @@
+{
+  "scope": "synthetic_code_review_acceptance_only_no_fitting_or_market_outcome_analysis",
+  "verified_utc": "2026-10-30T09:01:09.085796+00:00",
+  "code_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
+  "review_source_commit": "10b0f968fe5e5e50afa3428ffdfbc209ab85391a",
+  "cherry_pick_commit": "1da6f4e",
+  "evaluator_sha256": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015",
+  "contract_sha256": {
+    "v1": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+    "v2_draft": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3"
+  },
+  "targeted_tests_passed": 316,
+  "instant_target_tests": 265,
+  "collected_target_cases_by_file": {
+    "test_instant_targets.py": 53,
+    "test_instant_targets_v2.py": 26,
+    "test_instant_targets_v2_review.py": 186
+  },
+  "guardrails": "passed",
+  "black_24_8": "passed",
+  "diff": "passed",
+  "formatting_ast_equivalent_ignoring_docstring_whitespace": true,
+  "v1_label_rejected_by_forward_catalog": true,
+  "v2_generator_catalog_accepted": true,
+  "empty_generator_catalog_accepted": true,
+  "frozen_historical_artifacts_verified": 11,
+  "unchanged_fixture_failure": {
+    "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
+    "expected_points_each": 10,
+    "actual_points_each": 60,
+    "test_and_implementation_identical_to_8b5b266": true
+  },
+  "earlier_wick_example": {
+    "verified_onset": true,
+    "pre_window_peak_ts_ms": 3770000,
+    "anchor_ts_ms": 3780000,
+    "strict_timing": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": 0.08888888888888974,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "lead_to_pre_window_peak_seconds": -10.0,
+      "timing": "late_after_activity_trigger",
+      "association_kind": "strict_activity_trigger"
+    }
+  },
+  "non_positive_reference_peak_example": {
+    "verified_forward": true,
+    "pre_window_peak_residual_log": 0.0,
+    "timing": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": null,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "timing": "within_forward_window_before_peak",
+      "association_kind": "forward_window_not_physical_impulse"
+    }
+  },
+  "study_decisions": {
+    "S1_earlier_wick_early_timing": "open_no_policy_change",
+    "S2_sigma_vs_pace_cutoff": "open_causal_not_leakage",
+    "S3_null_reference_fraction_reason": "open_reproduced_missing_diagnostic"
+  },
+  "remaining_gates": [
+    "Gemini v2 consistency review",
+    "original unamended proposal for full fidelity",
+    "physical-origin or explicitly named proxy policy",
+    "event association/exposure and operational denominators",
+    "exact F1-F5 formulas and stage/readiness rules",
+    "unchanged feed gate",
+    "recorder/universe contract",
+    "14 valid shadow days and fresh validation"
+  ],
+  "fitting_allowed": false,
+  "live_changes": false,
+  "historical_rerun": false
+}

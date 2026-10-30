@@ -1,6 +1,24 @@
 # Moonwalking / BHABIT Handoff
 
-## Claude v2 review active; fundamentals driver review complete - 2026-10-30
+## Claude v2 review accepted; study definitions still open - 2026-10-30
+
+Claude completed the independent review at `10b0f96`. Codex reproduced and
+accepted its catalog/version guard fix, cherry-picked the review/probes as
+`1da6f4e`, and formatted the code/tests at **`92fb51d`**, the current
+implementation. Both contract JSON files are unchanged. Read the
+[acceptance and remaining decisions](docs/research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md)
+and [Claude's report](docs/research/reviews/CLAUDE_INSTANT_V2_REVIEW_20261030.md).
+
+316 targeted checks pass, including 265 target cases. Guardrails, formatting
+and all 11 historical artifact hashes pass. The unchanged isolated seed fixture
+still fails (60 points versus 10); no full-suite pass is claimed. V2 evaluator
+hashes changed: regenerate unfrozen labels before evaluation. Earlier-wick
+timing, sigma/pace cutoffs and null-reference diagnostic policy remain explicit
+pre-freeze decisions. Gemini v2 review and the data/study gates remain open;
+fitting, historical reruns and live changes stay off.
+
+The dispatch record below is historical. Claude's code review is complete;
+do not redispatch it solely because an older prepared prompt says pending.
 
 Four copy-ready role prompts and fresh v2 attachments are in
 [`docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md`](docs/ai/INSTANT_V2_REVIEW_PROMPTS_20261030.md).

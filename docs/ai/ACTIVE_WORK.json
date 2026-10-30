@@ -1,16 +1,16 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T08:41:53.669876+00:00",
+  "updated_utc": "2026-10-30T09:03:54.941939+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
+  "implementation_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
-    "targets": "v1_default_preserved_opt_in_v2_draft_implemented_Claude_independent_review_active_signoff_pending",
+    "targets": "v1_default_preserved_opt_in_v2_code_review_accepted_study_freeze_pending",
     "historical_comparison": "complete_locked_inconclusive",
     "feed_capture": "completed_3600.156_seconds",
     "feed_hour_gate_pass": false,
@@ -23,22 +23,25 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "two_Gemini_responses_triaged_v2_draft_implemented_and_tested"
+      "status": "Claude_patch_probes_and_report_reviewed_integrated_verified_protocol_decisions_pending"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "v2_review_running_user_dispatched_verified_in_Claude_desktop",
+      "status": "independent_v2_code_review_complete_one_fix_accepted_study_freeze_conditional",
       "branch": "claude/instant-radar-v2-review",
       "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
       "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude",
       "review_contribution_commit": "d711832774caed64063b6281d8acad6aae5a8791",
-      "v2_independent_review": "in_progress_signoff_pending",
+      "v2_independent_review": "complete_with_open_study_decisions",
       "previous_review_branch": "claude/instant-radar-review",
       "prior_observed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
       "dispatch_verified_utc": "2026-10-30T08:41:53.669876+00:00",
       "dispatch_evidence": "Claude desktop session Fundamentals preparation review: user Start the review and full CLAUDE role prompt visible; active response reads v2 sources; Git worktree list confirms review branch at 5e02268",
-      "dispatch_by": "user; Codex observed existing activity and did not resend"
+      "dispatch_by": "user; Codex observed existing activity and did not resend",
+      "v2_review_contribution_commit": "10b0f968fe5e5e50afa3428ffdfbc209ab85391a",
+      "review_report": "docs/research/reviews/CLAUDE_INSTANT_V2_REVIEW_20261030.md",
+      "integrated_as": "1da6f4e"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -60,7 +63,7 @@
     }
   },
   "next_actions": [
-    "Independently review v2 draft at 8b5b26614de74459000ae29d39d71abe34567007 against reproduced findings and the corrected proposal; obtain original unamended proposal for any full fidelity claim",
+    "Consolidate Gemini v2 consistency review and explicit S1 earlier-wick timing, S2 sigma/pace cutoff and S3 null-reason decisions into one study-freeze candidate; obtain original unamended proposal for full fidelity",
     "Freeze event association/exposure, physical-origin or explicit proxy policy and operational metric denominators before fitting; forward windows are not physical impulse events",
     "Freeze exact F1-F5 formulas, gate-conditioned comparators, live stages, missingness and readiness on discovery only",
     "Predeclare additional thin-product side evidence collection under the unchanged feed gates without shopping completed samples",
@@ -75,12 +78,21 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 130,
+    "implementation_targeted_tests_passed": 316,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_v2_implementation_checkpoint",
-    "independent_claude_review": "baseline_contribution_reviewed_full_v2_signoff_pending",
+    "guardrails": "passed_at_92fb51d",
+    "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
-    "independent_v2_review": "Claude_in_progress_no_completed_signoff"
+    "independent_v2_review": "Claude_code_review_complete_Gemini_v2_pending_study_definitions_open",
+    "previous_implementation_targeted_tests_passed": 130,
+    "instant_target_tests_passed": 265,
+    "black_24_8": "passed_at_92fb51d",
+    "unrelated_fixture_failure": {
+      "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
+      "expected_points_each": 10,
+      "actual_points_each": 60,
+      "test_and_implementation_identical_to_8b5b266": true
+    }
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -147,7 +159,7 @@
       "local 14B",
       "local 9B"
     ],
-    "status": "Claude_user_dispatched_active_other_v2_dispatch_unverified",
+    "status": "Claude_completed_fix_accepted_other_v2_dispatch_unverified",
     "source_checkpoint": "cc3b6a6",
     "implementation": "8b5b266",
     "packet": "docs/research/review_packets/GEMINI_V2_SOURCE_PACKET_20261030.txt",
@@ -155,11 +167,12 @@
     "full_sources_verified": 8,
     "downloads_folder": "C:\\Users\\tgpet\\Downloads\\Moonwalking-v2-Review-20261030",
     "dispatch": {
-      "Claude": "user_dispatched_running_verified",
+      "Claude": "completed_at_10b0f96_fix_accepted_through_92fb51d",
       "Gemini": "unverified",
       "local_14b": "unverified",
       "local_9b": "unverified"
-    }
+    },
+    "packet_scope": "pinned_initial_v2_at_8b5b266_before_catalog_guard_fix; include current acceptance report and patch as follow-up addendum"
   },
   "other_research_lanes": {
     "fundamentals_driver_review": {
@@ -179,5 +192,22 @@
       "resume_url": "https://github.com/tgpetrie/moonwalking/blob/codex/fundamentals-driver-review-20261030/docs/ai/FUNDAMENTALS_RESUME_20261030.md",
       "primary_interpretation": "joint S1 stack versus raw S0; calibration-only descriptive control needed for fee attribution"
     }
+  },
+  "initial_v2_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
+  "implementation_evaluator_sha256": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015",
+  "v2_review_acceptance": {
+    "report": "docs/research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md",
+    "checks": "docs/research/results/instant_v2_review_acceptance_20261030/CHECKS.json",
+    "reviewed_commit": "10b0f968fe5e5e50afa3428ffdfbc209ab85391a",
+    "implementation_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
+    "study_frozen": false,
+    "unfrozen_v2_labels_require_regeneration": true,
+    "open_study_decisions": {
+      "S1_earlier_wick_early_timing": "open_no_policy_change",
+      "S2_sigma_vs_pace_cutoff": "open_causal_not_leakage",
+      "S3_null_reference_fraction_reason": "open_reproduced_missing_diagnostic"
+    },
+    "original_reproduction_record": "docs/research/results/instant_target_review_20261030/REPRODUCTIONS.json",
+    "original_record_scope": "pinned_initial_v2_source_hash; not current evaluator hash"
   }
 }
