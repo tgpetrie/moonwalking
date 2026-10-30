@@ -606,7 +606,9 @@ def forward_event_catalog(labels):
     """
     labels = list(labels)
     if any(row.get("contract_version") != "instant-target-v2-draft" for row in labels):
-        raise ValueError("forward-window catalog requires labels from the explicit v2 draft")
+        raise ValueError(
+            "forward-window catalog requires labels from the explicit v2 draft"
+        )
     return [
         {**row, "catalog_kind": "forward_window_not_physical_impulse"}
         for row in event_catalog(labels, target="verified_forward")
