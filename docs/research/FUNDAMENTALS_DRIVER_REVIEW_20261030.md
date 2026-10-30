@@ -35,10 +35,13 @@ primary effect threshold was selected or changed using outcomes.
 
 ## Readiness and remaining work
 
-Only corrected readiness will be run on the actual frozen inputs after the
-review code is committed. It consumes availability masks, hashes and counts;
-no comparison fits, ICs, discovery result or primary test are run in this review.
-The saved cohort gate already passed with 27 approved/5 held products.
+Corrected readiness **passed** on the actual frozen inputs at reviewed code
+`6809933`. Both the 1-day and 7-day horizons first satisfy the fit-size gate in
+December 2023: **5,355 training rows against the 5,000 minimum**. All G1-G5
+coverage gates pass for the saved 27-approved/5-held cohort. The
+[saved report](results/fundamentals_driver_review_20261030/READINESS.json) records
+`model_fits_run: false`. It consumes availability masks, hashes and counts;
+no comparison fits, ICs, discovery result or primary test ran in this review.
 
 After the readiness checkpoint passes, the next action is discovery using this
 reviewed driver, followed by a committed/pushed freeze and the single primary
@@ -50,10 +53,22 @@ The instant-radar v2 study is separate. Its 130-test result and pending design
 review do not establish this fundamentals driver's correctness; this driver
 has its own targeted regression checks and readiness evidence.
 
-Pre-readiness verification: **69 targeted research tests pass**, including
-12 independent driver-review regressions. Black 24.8.0 and diff checks pass.
+Verification: **77 targeted tests pass**: 70 research checks, including
+13 independent driver-review regressions, plus seven existing safe-restore
+checks imported unchanged from committed instant-radar checkpoint `1aa9926`.
+Black 24.8.0 and diff checks pass.
 The accepted cohort hash manifest and frozen feature/config/baseline/evaluation
 files match the original reviewed checkpoint. Full repository guardrails fail
 on the pre-existing `frontend/src/components/ScorecardPage.jsx` placeholder
 `BTC or BTC-USD` (line 775 at the reviewed checkpoint); that unchanged UI file
 is outside this research patch. No full-repository guardrail pass is claimed.
+
+## Portable checkpoint
+
+Start with [the fundamentals resume page](../ai/FUNDAMENTALS_RESUME_20261030.md).
+The code, protocol, accepted cohort, readiness and review live on the named
+GitHub branch. A separate hash-pinned input archive carries the project-generated
+baseline cache, build/panel provenance and the 27 approved fee captures. It
+excludes credentials, account databases, held captures and discovery/test output.
+The committed transfer receipt records verification after downloading from
+GitHub. Native Mac/cloud model execution remains unverified.

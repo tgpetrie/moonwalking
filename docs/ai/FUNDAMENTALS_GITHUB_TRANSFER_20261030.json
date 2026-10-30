@@ -1,0 +1,33 @@
+{
+  "verified_utc": "2026-10-30T08:37:24.265809+00:00",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "release_tag": "research-handoff-20261027",
+  "release_url": "https://github.com/tgpetrie/moonwalking/releases/tag/untagged-f4e62596e13c8bfe187f",
+  "draft": true,
+  "authenticated_github_access_required": true,
+  "assets": [
+    {
+      "name": "moonwalking-fundamentals-inputs-20261030.tar.gz",
+      "apiUrl": "https://api.github.com/repos/tgpetrie/moonwalking/releases/assets/691470289",
+      "url": "https://github.com/tgpetrie/moonwalking/releases/download/untagged-f4e62596e13c8bfe187f/moonwalking-fundamentals-inputs-20261030.tar.gz",
+      "size": 58441452,
+      "digest": "sha256:411559ae7154aa2cdc5b7528b666676ef56fb11784ca7933bab0561df3f3ecbd"
+    },
+    {
+      "name": "FUNDAMENTALS_INPUT_MANIFEST_20261030.json",
+      "apiUrl": "https://api.github.com/repos/tgpetrie/moonwalking/releases/assets/691470288",
+      "url": "https://github.com/tgpetrie/moonwalking/releases/download/untagged-f4e62596e13c8bfe187f/FUNDAMENTALS_INPUT_MANIFEST_20261030.json",
+      "size": 6208,
+      "digest": "sha256:78fb25a77fa4d4983ec2c729d3853de349854c822f7498a40d2c96b8494ac59f"
+    }
+  ],
+  "cloud_manifest_matches_committed_manifest": true,
+  "github_server_digests_match": true,
+  "archive_downloaded_again": true,
+  "members_verified": 30,
+  "members_restored_to_fresh_directory": 30,
+  "verification_host": "Windows",
+  "native_mac_cloud_model_execution_verified": false,
+  "manifest": "docs/ai/FUNDAMENTALS_INPUT_MANIFEST_20261030.json",
+  "restore_destination": "~/.moonwalking"
+}

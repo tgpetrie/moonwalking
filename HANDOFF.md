@@ -1,5 +1,29 @@
 # Moonwalking / BHABIT Handoff
 
+## Fundamentals research checkpoint — 2026-10-30
+
+- Active lane: `codex/fundamentals-driver-review-20261030`; reviewed code
+  `6809933` follows Claude's driver `058d740` and accepted cohort `095f71a`.
+- Start at `docs/ai/FUNDAMENTALS_RESUME_20261030.md`; machine-readable state is
+  `docs/ai/FUNDAMENTALS_ACTIVE_WORK_20261030.json`.
+- Driver review complete; corrected readiness passes all five coverage gates,
+  5,355 training rows for both horizons, and explicitly runs no model fits.
+- 77 targeted tests pass. Full guardrails hit the documented pre-existing
+  unrelated BTC-USD UI placeholder; no full guardrail pass is claimed.
+- Discovery and the primary test have **not** run. Next is discovery with this
+  reviewed driver, then a committed/pushed freeze before the single test.
+- The primary comparison tests a joint score stack. The calibration-only
+  descriptive control is needed to assess whether any gain belongs to fees.
+- The exact inputs are backed up separately on the existing authenticated
+  GitHub draft release; committed manifest/receipt and restore instructions
+  identify them. Do not rebuild/recapture the inputs for convenience.
+- Gemini's cohort work is accepted; no repeat is needed. Instant-radar v2 is a
+  separate branch and remains independently reviewed/gated before fitting.
+- Preserve the Windows collector on port 5003 and all other active worktrees.
+
+The July application handoff below is historical context, not the current
+fundamentals research status.
+
 ## Snapshot
 
 - Date: 2026-07-20

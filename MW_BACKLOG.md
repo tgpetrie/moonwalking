@@ -4,6 +4,18 @@ Rules live in `MW_SPEC.md`. This file records durable work status.
 
 Status keys: Open, In progress, Done, Blocked.
 
+## Fundamentals research — 2026-10-30
+
+Status: Driver review done; discovery not run.
+
+- Gemini cohort review accepted at `095f71a`; no repeat cohort request needed.
+- Claude's `058d740` driver independently reviewed and corrected through
+  `6809933`; 77 targeted checks pass and corrected no-fit readiness passes.
+- Next: discovery on the frozen inputs, commit/push the discovery freeze, then
+  the single primary test. Do not rerun completed funding/live-movers studies.
+- Read `docs/ai/FUNDAMENTALS_RESUME_20261030.md` for input restoration, identity,
+  test gates and the joint-stack/fee-attribution limitation.
+
 ## Done and verified on 2026-07-13
 
 ### P0.1 One-board layout and control stability

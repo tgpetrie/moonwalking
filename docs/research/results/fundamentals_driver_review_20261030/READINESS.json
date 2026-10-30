@@ -1,0 +1,131 @@
+{
+  "phase": "readiness",
+  "protocol": "docs/research/FUNDAMENTALS_EXPERIMENT_PROTOCOL.md",
+  "code_commit": "6809933d981ed8d5b30ce2c48d03ba416765b8a1",
+  "provenance": {
+    "cohort_file": "docs/research/results/fundamentals_cohort_acceptance_20261026/REVIEWED_COHORT.json",
+    "cohort_sha256": "8a610da026339dc2b72d8c931cedb5e62b5c719e9ef888b79720281d45638b82",
+    "fee_file_sha256": {
+      "AAVE-USD": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9",
+      "UNI-USD": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922",
+      "LDO-USD": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6",
+      "CRV-USD": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2",
+      "COMP-USD": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d",
+      "SNX-USD": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea",
+      "PENDLE-USD": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28",
+      "RPL-USD": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09",
+      "BAL-USD": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37",
+      "SUSHI-USD": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057",
+      "YFI-USD": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72",
+      "CVX-USD": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4",
+      "LQTY-USD": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb",
+      "JTO-USD": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18",
+      "ORCA-USD": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7",
+      "ETH-USD": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a",
+      "SOL-USD": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b",
+      "AVAX-USD": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691",
+      "NEAR-USD": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da",
+      "ARB-USD": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77",
+      "OP-USD": "ec9f1130286d261bcc9f22146cfa0cfd52d34be971aca46a15ed143dc0de0c2c",
+      "APT-USD": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7",
+      "SUI-USD": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517",
+      "SEI-USD": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8",
+      "INJ-USD": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa",
+      "STX-USD": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3",
+      "ADA-USD": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    },
+    "approved": [
+      "AAVE-USD",
+      "ADA-USD",
+      "APT-USD",
+      "ARB-USD",
+      "AVAX-USD",
+      "BAL-USD",
+      "COMP-USD",
+      "CRV-USD",
+      "CVX-USD",
+      "ETH-USD",
+      "INJ-USD",
+      "JTO-USD",
+      "LDO-USD",
+      "LQTY-USD",
+      "NEAR-USD",
+      "OP-USD",
+      "ORCA-USD",
+      "PENDLE-USD",
+      "RPL-USD",
+      "SEI-USD",
+      "SNX-USD",
+      "SOL-USD",
+      "STX-USD",
+      "SUI-USD",
+      "SUSHI-USD",
+      "UNI-USD",
+      "YFI-USD"
+    ],
+    "held": [
+      "1INCH-USD",
+      "AERO-USD",
+      "DYDX-USD",
+      "JUP-USD",
+      "RAY-USD"
+    ],
+    "baseline_config_hash": "782717dcf276b941",
+    "fundamentals_config_hash": "002c8370aa6b75d2",
+    "baseline_input_sha256": {
+      "long_base.pkl": "d76a08117c0e62a667fab7958b355a55895fbe49c8cc38f0fb1a7cb9d93f20cf",
+      "build_base.json": "d03358738e5e654e2877ff9c5e971af7a29d4c972086c04aef762ad247c1718e",
+      "panel_MANIFEST.json": "f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71"
+    },
+    "combined_hash": "b75dec237e03838a"
+  },
+  "experiment_fingerprint": "714f8ec60bd8f156",
+  "experiment_identity": {
+    "source_sha256": {
+      "scripts/scoring_experiment/fundamentals_run.py": "d0d1e154a23b5350524e368d6c4bcc111b058fc50c2b1788aad458bef579165b",
+      "scripts/scoring_experiment/fundamentals.py": "37e4b34679fa35046ee06ac667771bd1242f1114edefaff498abd38a3539f162",
+      "scripts/scoring_experiment/fundamentals_gate.py": "18ba4a95446135beb05ad2ed34e5e26decca7108265e9dd86136020718f9445f",
+      "scripts/scoring_experiment/model.py": "e2a10dc4ec41d6aa924f6a8dbabacad7c002e60b07fade41c9406b1c70bbd946",
+      "scripts/scoring_experiment/panel.py": "d96955d05a5de76df7056a79310fb623b609c93582e32bde3403c51508a4c0f8",
+      "scripts/scoring_experiment/evaluate.py": "b00d94073a381c9f22ebb506a8a14f7af3c3e57dd79feb9f6cd365f31aec343d",
+      "scripts/scoring_experiment/run.py": "485235d2d5cb07f51ff53d423f63fac72194a511356b4ca9a39ca205e089d717",
+      "scripts/scoring_data/freeze_daily_panel.py": "0f8db12637942a055233c3b538afa0b208350883cc91331f49379b4b5289b41c",
+      "docs/research/FUNDAMENTALS_EXPERIMENT_PROTOCOL.md": "b1e1df9c5f79989c27b6f12c773be33bcdf16a5be2822f8b8fe72a95e1baea70"
+    },
+    "runtime": {
+      "python": "3.12.10",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6"
+    },
+    "combined_hash": "714f8ec60bd8f156"
+  },
+  "interval_level": 0.95,
+  "gate": {
+    "G1": true,
+    "G2": true,
+    "G3": true,
+    "G4": true,
+    "G5": true
+  },
+  "labels": "retrospective backfilled DeFiLlama series; not point-in-time",
+  "not_run": [
+    "revenue_trend and usd_tvl_change: the reviewed cohort has fee series only",
+    "extreme-trend events and residualized fee IC",
+    "child-only/ecosystem scope exclusions and non-chain refits"
+  ],
+  "first_fit_readiness": {
+    "h1": {
+      "first_fit_month": "2023-12-01",
+      "available_training_rows": 5355,
+      "required": 5000
+    },
+    "h7": {
+      "first_fit_month": "2023-12-01",
+      "available_training_rows": 5355,
+      "required": 5000
+    }
+  },
+  "ready": true,
+  "model_fits_run": false,
+  "readiness_basis": "label presence and purged training-row counts only; no model predictions or outcome magnitudes"
+}

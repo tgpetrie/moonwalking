@@ -1,0 +1,78 @@
+{
+  "version": "moonwalking-fundamentals-work-v1",
+  "updated_utc": "2026-10-30T08:37:24.265809+00:00",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "resume_branch": "codex/fundamentals-driver-review-20261030",
+  "reviewed_input_commit": "058d740fd2fe95c3e55376a97039c47e738219ab",
+  "reviewed_code_commit": "6809933d981ed8d5b30ce2c48d03ba416765b8a1",
+  "resume_page": "docs/ai/FUNDAMENTALS_RESUME_20261030.md",
+  "status": {
+    "driver_review": "complete_corrected",
+    "cohort": "accepted_27_approved_5_held_no_repeat_needed",
+    "readiness_passed": true,
+    "readiness_model_fits_run": false,
+    "discovery_run": false,
+    "primary_test_run": false,
+    "live_changes": false
+  },
+  "first_fit_readiness": {
+    "h1": {
+      "first_fit_month": "2023-12-01",
+      "available_training_rows": 5355,
+      "required": 5000
+    },
+    "h7": {
+      "first_fit_month": "2023-12-01",
+      "available_training_rows": 5355,
+      "required": 5000
+    }
+  },
+  "experiment_fingerprint": "714f8ec60bd8f156",
+  "input_fingerprint": "b75dec237e03838a",
+  "runtime": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6"
+  },
+  "ownership": {
+    "codex": "driver_review_verification_and_portable_checkpoint_complete",
+    "claude": "original_driver_author; next implementation/discovery owner must use reviewed branch in own worktree",
+    "gemini": "cohort work accepted; no repeat cohort request",
+    "local_models": "no fundamentals assignment or empirical outcome verified"
+  },
+  "next_actions": [
+    "Run discovery once using the reviewed driver and exact frozen inputs",
+    "Commit and push the discovery artifact/frozen decisions before the single primary test",
+    "Check the calibration-only descriptive control before attributing joint-stack lift to fees"
+  ],
+  "primary_interpretation": "joint S1 stack versus raw S0; primary support alone does not establish fee-specific improvement",
+  "checks": {
+    "targeted_tests_passed": 77,
+    "research_tests": 70,
+    "independent_review_regressions": 13,
+    "restore_tests": 7,
+    "formatting": "passed",
+    "diff": "passed",
+    "full_repo_guardrail": "fails on pre-existing untouched ScorecardPage.jsx:775 BTC or BTC-USD placeholder"
+  },
+  "readiness_report": "docs/research/results/fundamentals_driver_review_20261030/READINESS.json",
+  "input_manifest": "docs/ai/FUNDAMENTALS_INPUT_MANIFEST_20261030.json",
+  "cloud_transfer_receipt": "docs/ai/FUNDAMENTALS_GITHUB_TRANSFER_20261030.json",
+  "evidence": {
+    "exact_public_market_inputs_backed_up": 30,
+    "cloud_download_and_fresh_restore_verified": true,
+    "native_mac_cloud_execution_verified": false
+  },
+  "constraints": [
+    "Do not rerun locked funding or historical live-movers studies",
+    "No outcomes were compared in this review",
+    "Do not change the frozen design after seeing outcomes",
+    "Preserve test attempt markers and require the committed discovery freeze",
+    "Preserve other agents worktrees and the Windows collector on port 5003"
+  ],
+  "separate_instant_lane": {
+    "branch": "codex/instant-radar-20261028",
+    "v2_review": "pending",
+    "fitting_allowed": false
+  }
+}

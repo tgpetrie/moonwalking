@@ -1,0 +1,145 @@
+{
+  "version": "moonwalking-fundamentals-inputs-v1",
+  "created_utc": "2026-10-30T08:34:26.472777+00:00",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "release_tag": "research-handoff-20261027",
+  "restore_destination": "~/.moonwalking",
+  "scope": "Exact reviewed public-market baseline cache, its build/panel provenance and 27 accepted dailyFees captures; no fresh capture or outcome result",
+  "trust": "long_base.pkl is this project's own generated pandas cache, pinned by hashes; load only this exact verified archive, never an arbitrary third-party pickle",
+  "excluded": [
+    "account/portfolio databases",
+    "credentials and .env",
+    "virtual environments",
+    "funding raw files",
+    "AI chats",
+    "unreviewed/held fee captures",
+    "discovery/test results"
+  ],
+  "archive": {
+    "name": "moonwalking-fundamentals-inputs-20261030.tar.gz",
+    "bytes": 58441452,
+    "sha256": "411559ae7154aa2cdc5b7528b666676ef56fb11784ca7933bab0561df3f3ecbd"
+  },
+  "files": {
+    "analysis/scoring_baseline/long_base.pkl": {
+      "bytes": 109920072,
+      "sha256": "d76a08117c0e62a667fab7958b355a55895fbe49c8cc38f0fb1a7cb9d93f20cf"
+    },
+    "analysis/scoring_baseline/build_base.json": {
+      "bytes": 1320,
+      "sha256": "d03358738e5e654e2877ff9c5e971af7a29d4c972086c04aef762ad247c1718e"
+    },
+    "data/daily_panel_2022_2026/MANIFEST.json": {
+      "bytes": 282899,
+      "sha256": "f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71"
+    },
+    "analysis/fundamentals_review_20261026/AAVE_fees.json": {
+      "bytes": 728277,
+      "sha256": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9"
+    },
+    "analysis/fundamentals_review_20261026/UNI_fees.json": {
+      "bytes": 1455216,
+      "sha256": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922"
+    },
+    "analysis/fundamentals_review_20261026/LDO_fees.json": {
+      "bytes": 131491,
+      "sha256": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6"
+    },
+    "analysis/fundamentals_review_20261026/CRV_fees.json": {
+      "bytes": 818849,
+      "sha256": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2"
+    },
+    "analysis/fundamentals_review_20261026/COMP_fees.json": {
+      "bytes": 352267,
+      "sha256": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d"
+    },
+    "analysis/fundamentals_review_20261026/SNX_fees.json": {
+      "bytes": 245194,
+      "sha256": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea"
+    },
+    "analysis/fundamentals_review_20261026/PENDLE_fees.json": {
+      "bytes": 299531,
+      "sha256": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28"
+    },
+    "analysis/fundamentals_review_20261026/RPL_fees.json": {
+      "bytes": 97375,
+      "sha256": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09"
+    },
+    "analysis/fundamentals_review_20261026/BAL_fees.json": {
+      "bytes": 657149,
+      "sha256": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37"
+    },
+    "analysis/fundamentals_review_20261026/SUSHI_fees.json": {
+      "bytes": 1498260,
+      "sha256": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057"
+    },
+    "analysis/fundamentals_review_20261026/YFI_fees.json": {
+      "bytes": 297333,
+      "sha256": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72"
+    },
+    "analysis/fundamentals_review_20261026/CVX_fees.json": {
+      "bytes": 147275,
+      "sha256": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4"
+    },
+    "analysis/fundamentals_review_20261026/LQTY_fees.json": {
+      "bytes": 146033,
+      "sha256": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb"
+    },
+    "analysis/fundamentals_review_20261026/JTO_fees.json": {
+      "bytes": 162609,
+      "sha256": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18"
+    },
+    "analysis/fundamentals_review_20261026/ORCA_fees.json": {
+      "bytes": 59599,
+      "sha256": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7"
+    },
+    "analysis/fundamentals_review_20261026/ETH_fees.json": {
+      "bytes": 272481,
+      "sha256": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a"
+    },
+    "analysis/fundamentals_review_20261026/SOL_fees.json": {
+      "bytes": 131870,
+      "sha256": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b"
+    },
+    "analysis/fundamentals_review_20261026/AVAX_fees.json": {
+      "bytes": 96508,
+      "sha256": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691"
+    },
+    "analysis/fundamentals_review_20261026/NEAR_fees.json": {
+      "bytes": 121315,
+      "sha256": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da"
+    },
+    "analysis/fundamentals_review_20261026/ARB_fees.json": {
+      "bytes": 121872,
+      "sha256": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77"
+    },
+    "analysis/fundamentals_review_20261026/OP_alternative_fees.json": {
+      "bytes": 123497,
+      "sha256": "ec9f1130286d261bcc9f22146cfa0cfd52d34be971aca46a15ed143dc0de0c2c"
+    },
+    "analysis/fundamentals_review_20261026/APT_fees.json": {
+      "bytes": 83714,
+      "sha256": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7"
+    },
+    "analysis/fundamentals_review_20261026/SUI_fees.json": {
+      "bytes": 46889,
+      "sha256": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517"
+    },
+    "analysis/fundamentals_review_20261026/SEI_fees.json": {
+      "bytes": 42916,
+      "sha256": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8"
+    },
+    "analysis/fundamentals_review_20261026/INJ_fees.json": {
+      "bytes": 126575,
+      "sha256": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa"
+    },
+    "analysis/fundamentals_review_20261026/STX_fees.json": {
+      "bytes": 31764,
+      "sha256": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3"
+    },
+    "analysis/fundamentals_review_20261026/ADA_fees.json": {
+      "bytes": 176959,
+      "sha256": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    }
+  }
+}

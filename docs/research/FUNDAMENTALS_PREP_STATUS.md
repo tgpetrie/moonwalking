@@ -1,5 +1,13 @@
 # Fundamentals preparation: status (2026-10-26)
 
+> Superseded checkpoint, 2026-10-30: Gemini's cohort submission was already
+> reviewed and accepted (27 approved, five held). Claude built the comparison
+> driver at `058d740`; Codex reviewed and corrected it through `6809933`.
+> Corrected no-fit readiness passes; discovery and the primary test remain
+> unrun. See [the current review](FUNDAMENTALS_DRIVER_REVIEW_20261030.md) and
+> [resume instructions](../ai/FUNDAMENTALS_RESUME_20261030.md). Do not ask Gemini
+> to repeat the accepted cohort work. The original preparation record follows.
+
 Branch `claude/fundamentals-prep` (from `codex/scoring-results-review-20261026` at `b9e48c3`). No fundamentals value has been joined to a return or label.
 
 ## 1. Funding result preserved

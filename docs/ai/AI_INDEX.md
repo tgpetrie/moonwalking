@@ -2,6 +2,12 @@
 
 Project: BHABIT Moonwalking
 
+Current fundamentals research checkpoint (2026-10-30): begin with
+[`FUNDAMENTALS_RESUME_20261030.md`](FUNDAMENTALS_RESUME_20261030.md) and
+[`FUNDAMENTALS_ACTIVE_WORK_20261030.json`](FUNDAMENTALS_ACTIVE_WORK_20261030.json).
+The driver review and no-fit readiness are complete; discovery/test are unrun.
+This is separate from instant-radar v2 on `codex/instant-radar-20261028`.
+
 Read in this order before implementation:
 
 1. `MW_SPEC.md`
