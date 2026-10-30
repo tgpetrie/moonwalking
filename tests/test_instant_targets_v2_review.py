@@ -16,6 +16,7 @@ V1_REFERENCE_COMMIT = (
 )
 V2_KEYS = {
     "evaluator_sha256",
+    "grid_ms",
     "primary_pointwise_target",
     "physical_onset_defined",
     "pre_window_reference_ts_ms",
