@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T09:42:55.105639+00:00",
+  "updated_utc": "2026-10-30T18:44:17.745587+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
+  "implementation_commit": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -18,13 +18,16 @@
     "live_change_authorized_by_evidence": false,
     "physical_onset_defined": false,
     "operational_missed_move_rates_enabled": false,
-    "study_frozen": false
+    "study_frozen": false,
+    "reporting": "versioned_offline_diagnostics_implemented_review_pending",
+    "recorder": "offline_sparse_replay_prototype_implemented_not_live",
+    "baseline_builder": "offline_causal_60_return_120_window_builder_implemented_review_pending"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "Gemini_v2_design_reconciled_synthetic_cases_verified_consolidated_draft_prepared"
+      "status": "offline_diagnostics_sparse_replay_and_causal_baseline_prototypes_implemented_346_checks_passed"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -69,11 +72,11 @@
     }
   },
   "next_actions": [
-    "Version the additive diagnostic/reporting amendment without overwriting existing whole-window metrics",
-    "Prepare an offline 5s recorder/replay and causal baseline-builder contract with bounded causality/coverage tests; do not integrate with production",
-    "Review and freeze the concrete five-feature draft, association/exposure, remaining stages/model/readiness and meaningful-effect rules before any prospective fitting",
-    "Resolve the unchanged feed gate through predeclared supplemental evidence or a separately amended universe; no retrospective gate pass or sample shopping",
-    "After required data gates pass, collect at least 14 valid shadow days, freeze discovery choices and evaluate fresh validation once; preserve historical validation"
+    "Independently review the new versioned diagnostics, sparse replay and causal baseline builder at 8211262; prepared Claude prompt is not dispatched",
+    "Verify contemporaneous health/subscription/reconciliation monitoring and build paired immutable target-sample adapters; bounded real-data replay and disk/throughput sizing next",
+    "Review and freeze exact five-feature, association/exposure, stage/model/readiness and meaningful-effect rules before scoring-model fitting",
+    "Resolve the unchanged feed gate through predeclared supplemental evidence or a separately amended universe; do not shop completed captures",
+    "After the required gates pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; preserve historical results and the Windows collector"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -84,22 +87,24 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 316,
+    "implementation_targeted_tests_passed": 346,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_92fb51d",
+    "guardrails": "passed_at_8211262",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_92fb51d",
+    "black_24_8": "passed_at_8211262",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
       "actual_points_each": 60,
       "test_and_implementation_identical_to_8b5b266": true
     },
-    "Gemini_v2_reported_source_hashes_matched": 8
+    "Gemini_v2_reported_source_hashes_matched": 8,
+    "new_offline_cases": 30,
+    "new_offline_layer_independent_review": "pending_not_dispatched"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -224,7 +229,7 @@
     "executable_target_code_unchanged": true,
     "S1": "retain whole-window metric; any forward-peak reference gets a separate name",
     "S2": "retain distinct causal sigma and pace cutoffs",
-    "S3": "propose explicit null-reason field in versioned reporting amendment; not implemented here",
+    "S3": "implemented in separately versioned report API; target outputs unchanged",
     "association": "keep fixed-horizon success separate from catalog coverage; proposed greedy matching remains a draft",
     "features": "five concrete candidate formulas proposed before prospective outcome inspection; weights/stages/readiness not frozen",
     "reproductions": "docs/research/results/instant_study_choices_20261030/REPRODUCTIONS.json",
@@ -232,6 +237,33 @@
     "fitting_allowed": false,
     "operational_rates_enabled": false,
     "original_unamended_proposal_available": false,
-    "verification": "docs/research/results/instant_study_choices_20261030/CHECKS.json"
+    "verification": "docs/research/results/instant_study_choices_20261030/CHECKS.json",
+    "implementation_addendum": "docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md"
+  },
+  "target_evaluator_implementation_commit": "92fb51d3859c04323eccc37a72f683bc753a5298",
+  "offline_pipeline": {
+    "implementation_commit": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14",
+    "report": "docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md",
+    "checks": "docs/research/results/instant_offline_pipeline_20261030/CHECKS.json",
+    "diagnostic_contract": "docs/research/INSTANT_DIAGNOSTIC_CONTRACT_V1_DRAFT.json",
+    "replay_contract": "docs/research/INSTANT_OFFLINE_REPLAY_CONTRACT_V1_DRAFT.json",
+    "live_integration": false,
+    "target_evaluator_changed": false,
+    "raw_market_capture_launched": false,
+    "new_raw_evidence_needed_for_handoff": false,
+    "synthetic_inputs": "generated by committed tests; no new PC-only source files required",
+    "independent_review": "pending"
+  },
+  "prepared_offline_review_prompt": {
+    "file": "docs/ai/INSTANT_OFFLINE_REVIEW_PROMPT_20261030.md",
+    "role": "Claude",
+    "status": "prepared_not_dispatched",
+    "implementation": "8211262c40ee880777b9c7fb4dfa7bcec93d1c14"
+  },
+  "related_remote_review": {
+    "branch": "claude/instant-radar-onset-review-20261030",
+    "observed_tip": "4610bf2",
+    "source_change": "b281f97",
+    "disposition": "diff inspected; target changes not merged; gap annotation implemented in separate reporting contract; no independent-review completion claimed"
   }
 }

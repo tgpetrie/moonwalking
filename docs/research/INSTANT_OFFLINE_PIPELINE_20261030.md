@@ -3,7 +3,7 @@
 This checkpoint implements the next step from the consolidated study draft.
 It is an **offline prototype**, not a running feed, frozen study or ranking
 change. The existing target evaluator/contracts remain unchanged at `92fb51d`.
-No raw market capture, historical experiment or predictive fit ran here.
+No raw market capture, historical experiment or scoring-model fit ran here.
 
 ## Versioned diagnostics
 
@@ -115,7 +115,7 @@ provides `build_baseline(store, product, anchor, benchmark="BTC-USD")`:
   candles or a read from the historical candle archive.
 - Beta is centered OLS on the same 60 paired returns. A completely observed
   flat BTC denominator gives beta 1 with `beta_fallback=True`; missing BTC
-  history stays unavailable. No predictor/model weights are trained.
+  history stays unavailable. No scoring-model weights are trained.
 - Pace is the median count and USD volume over 120 completed nonoverlapping
   30s receipt windows ending at `anchor-30000`. Genuine zero baselines stay
   zero and will fail the existing onset pace rule, rather than gaining epsilon.
@@ -132,8 +132,9 @@ censoring, unknown versus zero, receipt boundaries, duplicates, reordered
 trades, unknown sides, late recovery, clocks, invalid/stale/carried quotes,
 as-of audits, read-only/non-overwrite behavior, baseline counts/cutoffs,
 future evidence and beta fallback. It also runs the existing target/feed/
-historical-contract/driver/restore/WS checks. See the committed checkpoint
-record under `results/instant_offline_pipeline_20261030/` for exact counts.
+historical-contract/driver/restore/WS checks. **346 targeted checks pass**,
+including 30 new cases. See the
+[verification record](results/instant_offline_pipeline_20261030/CHECKS.json).
 
 Still required: independent review of these new prototype contracts,
 continuous health/subscription/reconciliation monitoring, an adapter that

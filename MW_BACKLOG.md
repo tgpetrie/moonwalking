@@ -23,9 +23,13 @@ Status keys: Open, In progress, Done, Blocked.
   forward-peak fractions stay separate; cutoffs remain causal; explicit null
   reasons are proposed. Synthetic cases reject using broad event association
   to erase failed fixed-horizon predictions. Study freeze/fitting stay off.
-- Next: version the additive diagnostics, prepare the offline recorder and
-  baseline-builder contract/replay tests, freeze association/exposure and the
-  remaining study rules, resolve remaining audit evidence,
+- Additive versioned diagnostics plus offline sparse recorder and causal
+  baseline builder are implemented at `8211262`; 346 targeted checks pass,
+  including 30 new cases. Target evaluator/contracts remain unchanged.
+  See `docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md`.
+- Next: bounded independent review, verify real-data/health and immutable
+  target-sample adapters, freeze association/exposure and the remaining
+  study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.
 

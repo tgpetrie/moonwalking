@@ -1,5 +1,33 @@
 # Moonwalking / BHABIT Handoff
 
+## Offline recorder/baseline implementation — 2026-10-30
+
+New offline layer implemented at **`8211262`** on
+`codex/instant-radar-20261028`. Read
+[usage and scope](docs/research/INSTANT_OFFLINE_PIPELINE_20261030.md).
+The existing target evaluator and V1/V2 contract bytes remain at `92fb51d`.
+
+- Versioned reporting adds explicit null reasons, a separately named
+  forward-peak fraction and catalog gap/sampling-edge censoring flags.
+- Sparse SQLite packet replay deduplicates live matches, inverts maker side,
+  retains unknown amounts, excludes recovery/last_match/ticker sizes from
+  execution totals, and reconstructs healthy empty buckets without new OHLC.
+- Coverage is explicitly known-at; late audit knowledge cannot backdate a
+  live snapshot. Quotes preserve age, and gaps/clock regressions fail closed.
+- The builder derives 60 closed minute returns and 120 nonoverlapping pace
+  windows at the prescribed cutoffs, with causal metadata and beta fallback.
+- **346 targeted checks pass**, including 30 new diagnostic/replay/baseline
+  cases. Black 24.8.0, guardrails, 11 historical hashes and target-byte checks
+  pass. No full-suite or native Mac pass is claimed.
+
+Next is bounded independent review of this new layer and real-data/reconciliation
+adapter verification. A [Claude prompt](docs/ai/INSTANT_OFFLINE_REVIEW_PROMPT_20261030.md)
+is prepared, not dispatched. The remote Claude onset/gap branch was inspected
+and recorded; it was not merged into the target module. No raw-data campaign,
+service, predictive scoring fit, live ranking or other worktree changed.
+Feed, stage/model/readiness, study freeze and shadow-data gates remain open.
+The older "next implementation" records below are now historical checkpoints.
+
 ## Gemini v2 review reconciled; consolidated study draft — 2026-10-30
 
 Gemini's v2 response is archived at

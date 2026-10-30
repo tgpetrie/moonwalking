@@ -1,5 +1,12 @@
 # Instant study rules: consolidated freeze candidate — 2026-10-30
 
+Subsequent implementation: the additive reporting schema and offline sparse
+replay/baseline prototype are now implemented at `8211262`; read the
+[implementation checkpoint](INSTANT_OFFLINE_PIPELINE_20261030.md).
+This does not freeze these study rules or change the target evaluator at
+`92fb51d`. The "next implementation" descriptions below retain their draft
+history; independent review and real-data verification of the new layer are next.
+
 **Status: draft for review, not frozen, not permission to fit or deploy.**
 Executable labels remain at `92fb51d`; V1 stays the default. Neither executable
 contract nor the evaluator changes in this checkpoint. This document combines

@@ -6,6 +6,15 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+Latest implementation: **`8211262`** adds the
+[offline recorder, diagnostics and causal baseline builder](../research/INSTANT_OFFLINE_PIPELINE_20261030.md).
+346 targeted checks pass, including 30 new cases. The target evaluator and
+V1/V2 target contracts remain unchanged at `92fb51d`; no label regeneration is
+required solely for this additive layer. All feed/study/live gates remain off.
+Next is bounded review using the
+[prepared Claude prompt](INSTANT_OFFLINE_REVIEW_PROMPT_20261030.md), then
+real-data/health and target-sample adapter verification. No review was dispatched.
+
 October 30 update: both source-based Gemini responses have been received,
 reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
 The opt-in v2 draft at `8b5b266` adds a forward-window catalog and names
@@ -52,9 +61,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | `92fb51d` (initial v2: `8b5b266`; original v1: `cb7034a`) |
+| Current implementation | Offline layer `8211262`; target evaluator unchanged `92fb51d` (initial v2: `8b5b266`) |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 316 targeted checks pass including 265 target cases; formatting, guardrails and 11 historical hashes pass; unchanged isolated seed fixture fails |
+| Checks | 346 targeted checks pass including 30 new cases and 265 target cases; formatting, guardrails and 11 historical hashes pass; existing seed-fixture failure remains outside this suite |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -93,7 +102,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Claude patch accepted; Gemini reconciled into the study-rule draft with synthetic counterexamples |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline reporting/replay/baseline prototypes implemented at `8211262`; bounded review/real-data verification next |
 | Claude | Review target contract/code/tests for leakage, label errors and missing counterexamples | Completed at `10b0f96`; code review accepted, study freeze conditional; earlier `d711832` contribution preserved |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
@@ -108,8 +117,8 @@ is preserved. Its original separate checkout is
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: implement the versioned diagnostic/reporting amendment and prepare the
-offline recorder/baseline-builder contract with bounded replay tests. The
+Next: independently review the new offline layer and verify real-data health
+and immutable target-sample adapters. The
 draft's formula, matching, stage/model and readiness policies still need
 implementation review and freeze before study fitting.
 Predeclare how to resolve the remaining
@@ -138,7 +147,7 @@ standard-library target evaluator. Activate the environment for your OS, then:
 
 ```bash
 python -m pip install -r docs/ai/requirements-macbook-research-20261027.txt
-python -m pytest -o addopts= -q tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_instant_targets_v2_review.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
+python -m pytest -o addopts= -q tests/test_instant_diagnostics.py tests/test_micro_replay.py tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_instant_targets_v2_review.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
 bash scripts/validate_mw_guardrails.sh
 ```
 
@@ -194,11 +203,12 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> The implementation checkpoint is `92fb51d`; 316 targeted checks passed.
+> The offline layer is `8211262`; target evaluator unchanged at `92fb51d`;
+> 346 targeted checks passed. Read INSTANT_OFFLINE_PIPELINE_20261030.md.
 > Read the October 30 Claude acceptance and consolidated study-rule candidate.
 > Gemini's v2 response is received/reconciled; this is a draft, not frozen code.
-> V1 stays the default. Version the reporting diagnostics, prepare the offline
-> recorder/baseline-builder contract/tests, and freeze event association/exposure and
+> V1 stays the default. Review the new offline layer, verify real-data and
+> immutable sample adapters, and freeze event association/exposure and
 > remaining study rules before fitting; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and
