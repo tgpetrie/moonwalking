@@ -1,0 +1,54 @@
+{
+  "repository": "tgpetrie/moonwalking",
+  "commit": "941f47a901659892c34e9586edcd9afbd6faa22e",
+  "packet": "GEMINI_SOURCE_PACKET_941f47a.txt",
+  "packet_bytes": 71329,
+  "packet_sha256": "873eb6a5c2ff0923e8046e00605f3328d7eb20d2056b664e6447d7072eaaf368",
+  "files": [
+    {
+      "path": "docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md",
+      "git_blob": "9edf93a789541a813734569da8a6b1d127c7fe70",
+      "sha256": "b43b781f626790097bfa2da5cdfa64db16a3ab1b143622b40a229301dae4a442",
+      "bytes": 24078,
+      "lines": 385,
+      "packet_byte_start": 1709,
+      "packet_byte_end_exclusive": 25787
+    },
+    {
+      "path": "docs/research/INSTANT_TARGET_CONTRACT_V1.json",
+      "git_blob": "2f89ddc9b2110e6f134b90b90878373374f44e00",
+      "sha256": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+      "bytes": 2329,
+      "lines": 58,
+      "packet_byte_start": 26105,
+      "packet_byte_end_exclusive": 28434
+    },
+    {
+      "path": "docs/research/INSTANT_TARGET_LABELS_20261029.md",
+      "git_blob": "1637825ec149b28f2417dfa47ea08fd4217449c6",
+      "sha256": "55c40f28724bf56b14e282f595e09aa734f4a37434a5dc8f3d68d31c4b9e7216",
+      "bytes": 9178,
+      "lines": 162,
+      "packet_byte_start": 28741,
+      "packet_byte_end_exclusive": 37919
+    },
+    {
+      "path": "scripts/scoring_experiment/instant_targets.py",
+      "git_blob": "24005f0c2523cc874c2a5e8675cd795fe791503e",
+      "sha256": "ac664e775023a5e3d9a5ce34c4e07f7a6bb65b0329359a753c49fef60a75740c",
+      "bytes": 16465,
+      "lines": 440,
+      "packet_byte_start": 38227,
+      "packet_byte_end_exclusive": 54692
+    },
+    {
+      "path": "tests/test_instant_targets.py",
+      "git_blob": "1595b6baa8d20d10a9812d0a7f0d0a767bc23317",
+      "sha256": "e602c8930bd9226588a0b248be32d4a0550b83638ab79635d12921a087c613ff",
+      "bytes": 16283,
+      "lines": 474,
+      "packet_byte_start": 54982,
+      "packet_byte_end_exclusive": 71265
+    }
+  ]
+}

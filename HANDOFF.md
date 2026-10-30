@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## Gemini source access - 2026-10-30
+
+Gemini returned a preliminary conceptual review while explicitly declaring
+that none of the five repository sources were inspected. To unblock the
+requested independent review, the complete pinned sources from `941f47a`
+are exported into
+`docs/research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt` with an
+adjacent manifest. Every source section was verified byte-for-byte against
+its committed Git blob. A convenience copy is in this PC's Downloads folder
+as `Moonwalking-Gemini-941f47a.txt`; other machines can download the committed
+packet. Upload that text file directly to Gemini, then request the same
+review grounded in the attachment. Source-based review is still pending.
+
 ## Portable checkpoint - 2026-10-29
 
 Start with [`docs/ai/RESUME_HERE.md`](docs/ai/RESUME_HERE.md) and

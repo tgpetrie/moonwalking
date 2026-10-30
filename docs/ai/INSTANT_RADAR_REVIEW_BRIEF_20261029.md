@@ -37,6 +37,13 @@ rerun historical discovery/validation or touch live ranks/production.
 
 ## Gemini: design consistency and falsifiable hypotheses
 
+If repository retrieval fails, upload the complete
+[source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
+directly. It includes the five requested sources at the pinned review commit,
+with full file contents and provenance. Gemini's first response acknowledged
+no source inspection and remains preliminary; request a replacement grounded
+in this attachment before accepting implementation-level findings.
+
 Read the corrected prospective contract and the executable target doc/JSON
 from the same GitHub branch. Compare them with your original early-warning
 proposal. Explicitly assess the now-fixed breakout origin, full-horizon

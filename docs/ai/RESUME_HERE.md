@@ -1,10 +1,20 @@
 # Resume Moonwalking from anywhere
 
-Updated October 29, 2026 (Pacific). This page is the current portable
+Updated October 30, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
+
+October 30 update: Gemini's first response could not inspect the repository
+and is a conceptual review only. A complete, hash-verified
+[single-file source attachment](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
+now contains the five requested files exactly as committed at `941f47a`.
+Download it and upload it directly to Gemini with the existing review prompt;
+repository search/index access is unnecessary. Its
+[export manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
+identifies each source blob and byte range. Await a source-based replacement
+review before treating any claim as an implementation finding.
 
 Bookmark this page:
 <https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md>
