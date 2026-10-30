@@ -1,0 +1,33 @@
+{
+  "repository": "tgpetrie/moonwalking",
+  "resume_branch": "codex/instant-radar-20261028",
+  "implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+  "verified_utc": "2026-10-30T03:46:26.946107+00:00",
+  "release_id": 426331654,
+  "release_tag": "research-handoff-20261027",
+  "release_url": "https://github.com/tgpetrie/moonwalking/releases/tag/untagged-f4e62596e13c8bfe187f",
+  "draft": true,
+  "assets": [
+    {
+      "id": 690825064,
+      "name": "INSTANT_EVIDENCE_MANIFEST_20261029.json",
+      "size": 2840,
+      "digest": "sha256:ab08eedc2d32269ed596ea6bf5484a7fa556d006525533c037a995981a211b60",
+      "state": "uploaded"
+    },
+    {
+      "id": 690825062,
+      "name": "moonwalking-instant-evidence-20261029.tar.gz",
+      "size": 9549587,
+      "digest": "sha256:c3af127e71346a7d0cf20d6c0ca1d0c36eda0e81952eab878bde2ebbe7eab9f3",
+      "state": "uploaded"
+    }
+  ],
+  "round_trip": {
+    "downloaded_with_authenticated_gh": true,
+    "downloaded_manifest_equals_committed_copy": true,
+    "archive_and_member_hashes_verified": true,
+    "members_restored_to_fresh_verification_directory": 13
+  },
+  "base_bundle_receipt": "docs/ai/MACBOOK_GITHUB_TRANSFER_20261027.json"
+}

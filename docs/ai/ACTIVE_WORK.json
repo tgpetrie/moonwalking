@@ -1,0 +1,103 @@
+{
+  "version": "moonwalking-active-work-v1",
+  "updated_utc": "2026-10-30T03:46:26.946107+00:00",
+  "display_date_pacific": "2026-10-29",
+  "lane": "instant_radar_scoring",
+  "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "resume_branch": "codex/instant-radar-20261028",
+  "implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+  "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
+  "start_page": "docs/ai/RESUME_HERE.md",
+  "status": {
+    "targets": "implemented_independent_review_pending",
+    "historical_comparison": "complete_locked_inconclusive",
+    "feed_capture": "completed_3600.156_seconds",
+    "feed_hour_gate_pass": false,
+    "fitting_allowed": false,
+    "live_change_authorized_by_evidence": false
+  },
+  "owners": {
+    "codex": {
+      "role": "implementation_verification_and_portable_checkpoint",
+      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar"
+    },
+    "claude": {
+      "role": "independent_code_and_target_review",
+      "status": "review_worktree_prepared_completion_unverified",
+      "branch": "claude/instant-radar-review",
+      "observed_implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+      "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
+      "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude"
+    },
+    "gemini": {
+      "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
+      "status": "brief_prepared_delivery_and_completion_unverified"
+    },
+    "local_14b": {
+      "role": "bounded_trace_or_source_review",
+      "status": "bounded_review_completed_two_suggestions_not_confirmed"
+    },
+    "local_9b": {
+      "role": "bounded_status_or_failure_summary",
+      "status": "no_active_assignment_verified"
+    }
+  },
+  "next_actions": [
+    "Obtain independent Claude and Gemini reviews of cb7034a and reproduce concrete findings",
+    "Resolve reviewed target/code defects before prospective outcome inspection; version any changed contract",
+    "Predeclare additional evidence collection needed for thin-product side audit without weakening existing gates or shopping completed samples",
+    "After the audit gate passes, freeze recorder, F1-F5 formulas, live stages, missingness, universe, storage and readiness before collection/fitting",
+    "Collect at least 14 valid shadow days, freeze on discovery and evaluate fresh validation once before any visible ranking change"
+  ],
+  "constraints": [
+    "Do not rerun historical discovery or validation",
+    "Keep input cutoffs separate from forward outcomes",
+    "Onset/peak/retention/consumed fraction are evaluation-only",
+    "Preserve other agents active worktrees",
+    "Keep the Windows always-on collector on port 5003 unchanged",
+    "No live weights, ranking, recorder integration or deployment was changed"
+  ],
+  "checks": {
+    "implementation_targeted_tests_passed": 104,
+    "frozen_historical_artifact_hashes_verified": 11,
+    "guardrails": "passed_at_implementation_checkpoint",
+    "independent_claude_review": "pending",
+    "native_mac_or_cloud_execution": "not_verified"
+  },
+  "evidence": {
+    "release_tag": "research-handoff-20261027",
+    "draft_requires_authenticated_github_access": true,
+    "base_manifest": "docs/ai/MACBOOK_EVIDENCE_MANIFEST_20261027.json",
+    "base_receipt": "docs/ai/MACBOOK_GITHUB_TRANSFER_20261027.json",
+    "supplement_manifest": "docs/ai/INSTANT_EVIDENCE_MANIFEST_20261029.json",
+    "supplement_receipt": "docs/ai/INSTANT_GITHUB_TRANSFER_20261029.json",
+    "supplement_archive": {
+      "name": "moonwalking-instant-evidence-20261029.tar.gz",
+      "bytes": 9549587,
+      "sha256": "c3af127e71346a7d0cf20d6c0ca1d0c36eda0e81952eab878bde2ebbe7eab9f3"
+    },
+    "supplement_members_verified_after_cloud_download": 13,
+    "restore_tool": "scripts/restore_macbook_evidence.py",
+    "restore_destination": "~/.moonwalking/analysis",
+    "newest_audit_raw_backed_up": true,
+    "excluded_machine_state": [
+      "live account/portfolio databases",
+      "production credentials",
+      ".env",
+      "virtual environments",
+      "AI chat/session folders"
+    ]
+  },
+  "review_brief": "docs/ai/INSTANT_RADAR_REVIEW_BRIEF_20261029.md",
+  "maintenance": "Update this record and RESUME_HERE.md on material changes, commit and push before handoff; preserve an active-branch pointer when work moves",
+  "portable_checkpoint_checks": {
+    "restore_tests_passed": 7,
+    "supplement_cloud_download_member_hashes_verified": 13,
+    "supplement_cloud_download_members_restored_to_fresh_directory": 13,
+    "github_server_asset_digests_matched": true,
+    "documentation_links_and_json": "passed",
+    "guardrails": "passed",
+    "frozen_historical_hashes_unchanged": 11
+  }
+}

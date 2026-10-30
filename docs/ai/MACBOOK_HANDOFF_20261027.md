@@ -1,5 +1,11 @@
 # MacBook continuation: live movers - 2026-10-27
 
+**Superseded continuation pointer:** Use [RESUME_HERE.md](RESUME_HERE.md) and
+[ACTIVE_WORK.json](ACTIVE_WORK.json) for the current branch, completed audit
+status and supplemental evidence bundle. This document preserves the earlier
+base-bundle transfer procedure; its old next-action/run instructions are
+historical.
+
 **Resume branch: `codex/macbook-resume-20261027`.** It combines scoring work
 at `2199848` and audit work at `7e3b4fb`: scripts, tests, corrected contracts,
 locked results and the full handoff. Large evidence is attached to draft

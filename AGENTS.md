@@ -33,3 +33,10 @@ Before handing work to another agent or declaring it complete:
 2. Commit coherent changes with a descriptive message.
 3. Push the branch unless the user explicitly requests a local-only checkpoint.
 4. Report the branch, commit, checks run, and any remaining modified or untracked files.
+5. For the instant-radar lane, update `docs/ai/RESUME_HERE.md` and
+   `docs/ai/ACTIVE_WORK.json` whenever the active branch, implementation
+   checkpoint, review ownership/status, evidence location, gates or next
+   action changes. Push the checkpoint with the work. Keep code-commit
+   references distinct from later documentation-only commits, preserve other
+   agents' status unless verified, and carry a pointer forward if the active
+   branch changes. Another computer/session must be able to resume from GitHub.

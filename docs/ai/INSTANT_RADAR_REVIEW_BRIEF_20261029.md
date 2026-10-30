@@ -14,6 +14,13 @@ inspect the target branch without overwriting local work. For any fixes,
 create your own branch/worktree under the repository's `AGENTS.md` workflow.
 Never edit Codex's active worktree.
 
+Update: a separate review worktree is now prepared at
+`C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
+`claude/instant-radar-review`, observed at implementation commit `cb7034a`.
+Use that suitable review worktree if continuing the existing review; inspect
+its status before changes. Review completion is not yet verified. See
+[the portable checkpoint](RESUME_HERE.md) for current ownership/status.
+
 Review the diff of `origin/codex/instant-radar-20261028`, especially:
 
 - `docs/research/INSTANT_TARGET_CONTRACT_V1.json`

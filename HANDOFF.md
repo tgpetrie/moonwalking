@@ -1,5 +1,15 @@
 # Moonwalking / BHABIT Handoff
 
+## Portable checkpoint - 2026-10-29
+
+Start with [`docs/ai/RESUME_HERE.md`](docs/ai/RESUME_HERE.md) and
+[`docs/ai/ACTIVE_WORK.json`](docs/ai/ACTIVE_WORK.json). These are the current
+GitHub-backed record for this scoring lane: implementation commit, active
+branch, owners/review status, next actions, constraints and evidence restore.
+The latest audit raw evidence is backed up as a supplementary draft-release
+asset; code/docs and both evidence manifests are in this branch. Older
+MacBook-specific resume instructions below are historical checkpoints.
+
 ## Instant target implementation - 2026-10-29
 
 Continue on `codex/instant-radar-20261028` from the independent local checkout

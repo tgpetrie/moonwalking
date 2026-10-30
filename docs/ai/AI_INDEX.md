@@ -2,6 +2,10 @@
 
 Project: BHABIT Moonwalking
 
+Current instant-radar continuation: [Resume from anywhere](RESUME_HERE.md)
+and [active work record](ACTIVE_WORK.json). Check these before relying on
+an older chat or MacBook handoff for the current research branch/state.
+
 Local no-credit helper: `scripts/local_ai.py`
 
 - Usage and safety: `docs/ai/LOCAL_ASSISTANT.md`

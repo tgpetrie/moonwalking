@@ -2,6 +2,12 @@
 
 Moonwalking supports two complementary workflows.
 
+For the current instant-radar work, begin with
+[`RESUME_HERE.md`](RESUME_HERE.md) and [`ACTIVE_WORK.json`](ACTIVE_WORK.json).
+They identify the active GitHub branch, implementation checkpoint, agent
+assignments, remaining gates and both downloadable research-evidence bundles.
+Use the same checkpoint from Windows, Mac, a cloud checkout or another agent.
+
 ## Work on another computer through GitHub
 
 Use this for normal development. Each computer has its own checkout, dependencies, and Claude/Codex sessions. GitHub carries the code, project documentation, agent rules, branches, commits, and handoff state.
