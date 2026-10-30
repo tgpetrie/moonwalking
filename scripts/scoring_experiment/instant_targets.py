@@ -158,7 +158,12 @@ class TargetEvaluator:
             return "invalid_baseline"
         if baseline.return_count < self.cfg["minimum_baseline_returns"]:
             return "baseline_warming"
-        if baseline.end_ts_ms != anchor // 60000 * 60000:
+        # The last baseline minute must close before the onset's previous
+        # velocity window starts, or the move being graded inflates sigma.
+        onset_start = anchor - (
+            self.cfg["onset"]["velocity_window_seconds"] * 1000 + self.cfg["grid_ms"]
+        )
+        if baseline.end_ts_ms != onset_start // 60000 * 60000:
             return "baseline_window_misaligned"
         if baseline.available_ts_ms > anchor or baseline.beta_available_ts_ms > anchor:
             return "future_baseline"

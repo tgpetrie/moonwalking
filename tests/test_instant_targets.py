@@ -25,7 +25,7 @@ def baseline(**kwargs):
             sigma_1m=0.0015,
             beta=1.0,
             return_count=60,
-            end_ts_ms=ANCHOR,
+            end_ts_ms=ANCHOR - 60_000,
             available_ts_ms=ANCHOR,
             beta_available_ts_ms=ANCHOR,
             beta_fallback=False,
@@ -187,7 +187,7 @@ def test_label_waits_for_full_horizon_instead_of_using_partial_success():
     [
         ({"available_ts_ms": ANCHOR + 1}, "future_baseline"),
         ({"beta_available_ts_ms": ANCHOR + 1}, "future_baseline"),
-        ({"end_ts_ms": ANCHOR - 60_000}, "baseline_window_misaligned"),
+        ({"end_ts_ms": ANCHOR}, "baseline_window_misaligned"),
         ({"return_count": 59}, "baseline_warming"),
         ({"sigma_1m": float("nan")}, "invalid_baseline"),
     ],
@@ -472,3 +472,21 @@ def test_invalid_asof_cannot_mature_future_labels():
     engine = target.TargetEvaluator(samples())
     with pytest.raises(ValueError, match="as-of"):
         engine.evaluate(ANCHOR, baseline(), "up", 300, float("nan"))
+
+
+@pytest.mark.parametrize("offset", [0, 5_000, 30_000])
+def test_baseline_minute_overlapping_the_onset_velocity_window_is_rejected(offset):
+    """[anchor-35s, anchor] must not fall inside the last baseline 1m return."""
+    anchor = ANCHOR + offset
+    engine = target.TargetEvaluator(samples())
+    contaminated = baseline(end_ts_ms=anchor // 60_000 * 60_000)
+    result = engine.evaluate(anchor, contaminated, "up", 300, anchor + 300_000)
+    assert result["reason"] == "baseline_window_misaligned"
+
+
+def test_baseline_may_end_at_anchor_minute_once_velocity_window_is_clear():
+    anchor = ANCHOR + 35_000
+    engine = target.TargetEvaluator(samples())
+    clean = baseline(end_ts_ms=ANCHOR, pace_end_ts_ms=anchor - 30_000)
+    result = engine.evaluate(anchor, clean, "up", 300, anchor + 300_000)
+    assert result["status"] == "ready"

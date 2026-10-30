@@ -29,8 +29,9 @@ Forward quote states are at times strictly after the anchor. The anchor
 itself supplies the starting price, spread and causal baseline.
 
 `Baseline` supplies sigma from the preceding 60 closed 1m log returns,
-ending exactly at the anchor's last completed minute, with availability at
-or before the anchor. Require at least 60 returns; apply and expose the
+ending at the last completed minute before the onset's earliest velocity
+window (`anchor-35s`), with availability at or before the anchor. A baseline
+minute overlapping that window would let the graded move inflate sigma. Require at least 60 returns; apply and expose the
 0.0015 per-minute floor. Beta is frozen at the anchor with availability
 and fallback flags. No rolling future beta/sigma can change the outcome path.
 The evaluator checks metadata; candle/beta calculation belongs to the
