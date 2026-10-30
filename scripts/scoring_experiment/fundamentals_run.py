@@ -71,9 +71,9 @@ def provenance(
         files[e["product_id"]] = got
     p = {
         "cohort_file": (
-            str(cohort_path.relative_to(REPO))
+            cohort_path.relative_to(REPO).as_posix()
             if cohort_path.is_relative_to(REPO)
-            else str(cohort_path)
+            else cohort_path.as_posix()
         ),
         "cohort_sha256": fd.sha256(cohort_path),
         "fee_file_sha256": files,

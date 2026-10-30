@@ -158,6 +158,16 @@ def test_baseline_cache_bytes_are_bound_into_input_provenance(tmp_path):
     assert a["combined_hash"] != b["combined_hash"]
 
 
+def test_cohort_provenance_path_is_portable_between_computers(tmp_path, monkeypatch):
+    _, cohort = setup_world(tmp_path, n_prod=3)
+    monkeypatch.setattr(fr, "REPO", tmp_path)
+    cp = tmp_path / "docs/research/cohort.json"
+    cp.parent.mkdir(parents=True)
+    cp.write_text(json.dumps(cohort))
+    result = fr.provenance(panel.load_config(), fr.fcfg_load(), cp, cohort, tmp_path)
+    assert result["cohort_file"] == "docs/research/cohort.json"
+
+
 def test_missing_labels_and_unscorable_days_are_not_counted_as_scored_rows(
     tmp_path, monkeypatch
 ):
