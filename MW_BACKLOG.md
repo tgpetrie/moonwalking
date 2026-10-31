@@ -35,8 +35,14 @@ Status keys: Open, In progress, Done, Blocked.
   363 targeted checks pass. See `docs/research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md`.
   Retro coverage does not establish original live health; thin quotes and
   full baseline warmup remain unavailable. Derived evidence is cloud backed up.
-- Next: implement contemporaneous real-data/health and immutable
-  target-sample adapters, freeze association/exposure and the remaining
+- Offline receipt/ID monitor and immutable same-cutoff coin/BTC samples are
+  implemented at `4ed9045`; 405 targeted checks pass, including 42 new cases.
+  The monitor records actual processing-completion availability and does not
+  certify full-feed/quote health. Read
+  `docs/research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md`.
+- Next: implement/test the declared Exchange `level2_batch` book adapter and
+  draft explicit feature-window/publication-time targets for delayed proofs;
+  preserve current pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.

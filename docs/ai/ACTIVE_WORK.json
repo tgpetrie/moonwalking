@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-30T23:54:33.336483+00:00",
+  "updated_utc": "2026-10-31T02:42:37.948213+00:00",
   "display_date_pacific": "2026-10-30",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "a5bb39746c5d10f5bde3b109b8cc86e800195d7f",
+  "implementation_commit": "4ed90459e7076fb09267c6b270d6c7273e699a64",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -22,13 +22,15 @@
     "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
     "recorder": "preserved_real_capture_counts_verified_no_live_integration",
     "baseline_builder": "synthetic_math_verified_saved_capture_lacks_warmup_and_contemporaneous_coverage",
-    "health_adapter": "retrospective_adapter_verified_contemporaneous_monitor_pending"
+    "health_adapter": "offline_evidence_timed_receipt_ID_monitor_implemented_not_live_feed_certification",
+    "sample_adapter": "immutable_same_cutoff_legacy_ticker_pairing_implemented_no_later_asof_override",
+    "quote_source_candidate": "Exchange_level2_batch_declared_offline_book_adapter_next_existing_gate_unchanged"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "completed_pinned_real_feed_replay_count_checks_and_cloud_verified_checkpoint_data_readiness_blocked"
+      "status": "implemented_offline_coverage_monitor_sample_pairing_and_quote_policy_405_targeted_checks_pass_no_live_integration"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -77,11 +79,11 @@
     }
   },
   "next_actions": [
-    "Implement contemporaneous product subscription/receipt-health and reconciliation-availability records plus paired immutable target-sample adapters; preserve real publication/availability times",
-    "Declare a quote-source/freshness policy for thin products under the unchanged audit gate; version any new source or universe amendment before collection",
-    "Predeclare at least 62 minutes of complete baseline warmup and any bounded supplemental diagnostic; no capture is launched by this checkpoint",
-    "Implement and freeze the proposed five features, association/exposure, stages/model/readiness and meaningful-effect rules before fitting",
-    "After data gates pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; historical outcomes and the collector remain unchanged"
+    "Implement and test an offline Exchange level2_batch book adapter under the declared source/freshness policy; preserve the four-product pilot and original feed gate",
+    "Draft explicit feature-window versus actual-publication timing and target amendments; never relabel delayed evidence as known at an earlier cutoff",
+    "Predeclare a bounded source/latency diagnostic measuring receipt, processing and durable-publication availability before choosing numerical lag limits or launching collection",
+    "Require at least 62 complete warmup minutes and valid source/readiness evidence; implement and freeze F1-F5, association/exposure, stages/model/readiness and meaningful-effect rules",
+    "After gates and study freeze pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; historical outcomes and collector remain unchanged"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -92,15 +94,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 363,
+    "implementation_targeted_tests_passed": 405,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_a5bb397",
+    "guardrails": "passed_at_4ed9045",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_a5bb397",
+    "black_24_8": "passed_at_4ed9045",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -113,7 +115,8 @@
     "independent_offline_probes": 7,
     "new_capture_adapter_cases": 7,
     "real_capture_packets_replayed": 63258,
-    "real_capture_unique_live_matches_verified": 24424
+    "real_capture_unique_live_matches_verified": 24424,
+    "new_coverage_and_sample_cases": 42
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -304,5 +307,28 @@
     "live_integration": false,
     "derived_evidence_cloud_backed_up": true,
     "source_evidence_already_backed_up": true
+  },
+  "coverage_and_samples": {
+    "implementation_commit": "4ed90459e7076fb09267c6b270d6c7273e699a64",
+    "policy": "docs/research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md",
+    "coverage_contract": "docs/research/INSTANT_COVERAGE_CONTRACT_V1_DRAFT.json",
+    "paired_sample_contract": "docs/research/INSTANT_PAIRED_SAMPLE_CONTRACT_V1_DRAFT.json",
+    "checks": "docs/research/results/instant_coverage_monitor_20261030/CHECKS.json",
+    "scope": "offline_engineering_checks_only_no_full_feed_certification",
+    "monitor_clock": "actual_processing_completion_and_strict_receipt_boundary_no_replay_backdating",
+    "monitor_proofs_are_recorder_health_drop_in": false,
+    "sample_source": "unchanged_legacy_ticker_recorder_with_explicit_health_assertion_trust",
+    "quote_candidate": "Coinbase_Exchange_level2_batch_50ms",
+    "quote_adapter_implemented": false,
+    "initial_quote_TTL_ms": 10000,
+    "heartbeat_refreshes_quote_timestamp": false,
+    "publication_timing_amendment": "required_before_using_delayed_proofs_at_live_publication",
+    "numerical_publication_lag_limit_frozen": false,
+    "new_real_capture_or_replay_run": false,
+    "independent_review_of_new_code": "not_claimed",
+    "previous_target_and_offline_reviews": "complete_unchanged",
+    "new_PC_only_evidence_needed_for_handoff": false,
+    "synthetic_inputs": "generated_by_committed_tests",
+    "live_integration": false
   }
 }

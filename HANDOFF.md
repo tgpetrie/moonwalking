@@ -1,5 +1,31 @@
 # Moonwalking / BHABIT Handoff
 
+## Offline coverage monitor and paired samples ready — 2026-10-30
+
+Implementation **`4ed9045`** adds an offline monitor with actual processing-
+completion timestamps, per-product acknowledged sessions, strict receipt/ID
+checks and separate transport/quote status. Delayed evidence and conflicts
+cannot rewrite an earlier as-of decision. It is not full-feed certification
+or a drop-in health assertion. Immutable same-cutoff coin/BTC sample pairing
+preserves missing reasons, real zeros, quote age and boundary counts.
+
+Read [the implementation and quote-source policy](docs/research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md)
+and [405 passing targeted checks](docs/research/results/instant_coverage_monitor_20261030/CHECKS.json).
+These include 42 new adversarial cases and a synthetic offline CLI round trip.
+Formatting, guardrails and 11 historical hashes pass. Target evaluator/contracts,
+recorder and baseline code remain unchanged. No new real replay/capture or
+independent review of this new implementation is claimed.
+
+Next: implement/test an offline Exchange `level2_batch` book adapter with the
+declared initial 10s observation TTL, then draft explicit publication-time
+targets for delayed coverage proofs. The source choice is documented against
+official Coinbase docs; actual freshness/processing lag still needs measurement.
+The four pilot products and original feed gate remain unchanged. At least
+62 complete warmup minutes and the remaining study/feature/readiness freeze
+are still required. No fit, runtime integration or live ranking changed.
+Code, synthetic tests, policy and current handoff are sufficient to resume
+from GitHub; existing raw-evidence bundles remain valid and unchanged.
+
 ## Preserved feed replay complete; data-readiness blockers measured — 2026-10-30
 
 The completed October 28 capture was replayed once with adapter `837db34`;

@@ -6,16 +6,30 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-Latest verifier: **`a5bb397`**; the recorded preserved-capture run used
+Latest implementation: **`4ed9045`** adds the offline evidence-timed coverage
+monitor and immutable coin/BTC sample pairing. Read the
+[coverage and quote policy](../research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md)
+and [405 passing checks](../research/results/instant_coverage_monitor_20261030/CHECKS.json).
+The 42 new cases cover actual processing-completion availability, late proofs,
+receipt boundaries, clock/logger failures, session resets and missing/zero
+sample behavior. This does not certify live completeness or quote health.
+Next is the offline `level2_batch` book adapter and an explicit publication-time
+target amendment before using delayed proofs. Preserve the 10s initial quote
+TTL, pilot products and existing gate. No new capture, real replay, fit or
+live integration ran. New inputs are synthetic and reproducible from Git;
+the existing cloud evidence bundles remain sufficient and unchanged.
+
+Latest preserved-capture verifier: **`a5bb397`**; its recorded run used
 `837db34`. Recorder `ab95159` and target evaluator/contracts `92fb51d` remain
 unchanged. Read the [real-data replay results](../research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md).
 All 63,258 packets / 24,424 unique live matches are preserved; **363 targeted
 checks pass**. Later coverage is not backdated. Thin quote freshness and full
 baseline warmup remain inadequate, so feed/study/live gates stay off.
 The derived database and report are cloud backed up and round-trip verified.
-Next is contemporaneous health/reconciliation availability and immutable
-sample construction, with a declared quote policy and >=62 complete warmup
-minutes. The target/offline reviews are complete; no general re-review is queued.
+The new offline monitor/sample step is recorded above. Full contemporaneous
+source/durable-publication verification and >=62 complete warmup minutes
+remain required. The earlier target/offline reviews are complete; no independent
+review of the new `4ed9045` code is claimed and no general re-review is queued.
 
 October 30 update: both source-based Gemini responses have been received,
 reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
@@ -64,9 +78,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Monitor/sample adapter `4ed9045`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 363 targeted checks pass; 63,258 real packets / 24,424 matches replayed; formatting, guardrails, six source files and 11 historical hashes pass; no full-suite claim |
+| Checks | 405 targeted checks pass, including 42 new coverage/sample cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -105,7 +119,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Preserved-capture replay complete, evidence cloud verified; then-known health, thin quotes and warmup remain blockers |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline monitor/sample adapters and quote policy implemented; next book adapter and publication-timing draft; source/readiness gates remain off |
 | Claude | Independent target and offline-pipeline reviews | V2 `10b0f96` and offline `f2cc436` accepted; no new general review pending; study freeze remains conditional |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
