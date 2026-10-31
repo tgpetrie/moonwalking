@@ -1,0 +1,21 @@
+{
+  "version": "instant-coverage-monitor-v1-draft",
+  "scope": "offline_receipt_and_trade_id_evidence_not_live_eligibility",
+  "max_packets": 100000,
+  "max_id_span": 100000,
+  "max_heartbeat_gap_ms": 5000,
+  "knowledge": "actual_processing_time_and_strict_receipt_boundary_no_historical_backdating",
+  "trade_check": "same_connection_acknowledged_heartbeat_pair_expected_ID_set_equals_unique_live_receipt_interval_ID_set",
+  "receipt_window": "start_inclusive_end_exclusive",
+  "recovery": "never_fills_live_counts_or_repairs_an_old_proof",
+  "deduplication": "product_and_trade_ID_first_receipt_conflicts_veto_when_known",
+  "subscription_changes": "full_acknowledged_state_per_product_reset_when_required_membership_is_lost",
+  "logger_integrity": "contiguous_local_receipt_sequence_wall_and_monotonic_clock_required_fail_artifact_closed",
+  "transport_is_not_completeness": true,
+  "quote_coverage_verified": false,
+  "replay_store_health_drop_in": false,
+  "feed_gate_pass": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "live_integration": false
+}
