@@ -6,14 +6,25 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The user's Claude session is reviewing input-evidence stage 1 (user-reported;
+no pushed result received yet). Codex has prepared the separate
+[Gemini methodology task](GEMINI_METHOD_REVIEW_20261104.md) and a single
+[uploadable packet](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7.txt)
+with 29 complete files pinned to `fee55a7`. Its
+[manifest](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7_MANIFEST.json)
+verifies all source bodies and the identical Downloads copy. Attach the actual
+file in Gemini; a local path or private GitHub link alone is not access.
+Gemini dispatch/response is not yet verified. Claude owns the ledger code
+review; Gemini reviews target/F1-F5 methodology and remaining freeze decisions.
+
 Current implementation **`8607a36`** adds input-evidence stage 1: complete
 declared product/cutoff/direction accounting, measured new packet/trade
 processing completion, coin/BTC component checks and frozen cutoff cohorts.
 **1,195 targeted tests pass**, including 32 new cases. Read
 [the scope](../research/INSTANT_INPUT_EVIDENCE_20261104.md) and
 [checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
-[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is prepared,
-not dispatched. This is the eligibility foundation; positive eligibility,
+[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is running per
+the user; no result has been received. This is the eligibility foundation; positive eligibility,
 timed baseline/features, full-health and publication evidence remain open.
 No real-data replay/capture, outcome analysis, fit or live change occurred.
 
@@ -189,10 +200,10 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence foundation `8607a36` implemented; review prepared; timed baseline/features and full source/readiness gates remain open |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` awaiting Claude review; 29-file Gemini packet prepared; timed baseline/features and full source/readiness gates remain open |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
-| Cloud Claude / Fable | Completed association/book/directional reviews; proposed input-evidence review | New bounded prompt prepared, not dispatched; use a distinct review branch; no repeat of accepted tasks |
-| Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
+| Cloud Claude / Fable | Completed earlier reviews; current input-evidence review | User reports it is running on its own scope; no new result received; no second session should share its branch |
+| Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | Prior source reviews remain reconciled; new 29-file upload packet prepared, not yet dispatched/answered; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 

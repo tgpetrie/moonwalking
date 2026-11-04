@@ -67,11 +67,15 @@ Status keys: Open, In progress, Done, Blocked.
   `docs/research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md`.
 - Input-evidence stage 1 is implemented at `8607a36`: complete declared-slot
   accounting, measured new packet/trade completion and immutable cutoff cohorts.
-  1,195 targeted tests pass, including 32 new cases. Independent review is
-  prepared, not dispatched. Positive eligibility and a directional-report
+  1,195 targeted tests pass, including 32 new cases. The user reports Claude's
+  independent review is running; no result received yet. Positive eligibility and a directional-report
   bridge remain unsupported; timed baseline/feature and full-health evidence
   are still required. See `docs/research/INSTANT_INPUT_EVIDENCE_20261104.md`.
-- Next: independently review stage 1, build timed baseline/F1-F5 evidence,
+- Gemini's separate methodology task now has a 29-file source upload packet
+  pinned to `fee55a7`, with all source sections and the Downloads copy verified.
+  Prepared, not dispatched/answered. See `docs/ai/GEMINI_METHOD_REVIEW_20261104.md`.
+- Next: reconcile Claude's stage-1 review and Gemini's methodology response
+  when received, build timed baseline/F1-F5 evidence,
   version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current

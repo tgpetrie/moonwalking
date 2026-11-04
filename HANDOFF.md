@@ -1,5 +1,22 @@
 # Moonwalking / BHABIT Handoff
 
+## Gemini upload packet prepared; Claude reviewing — 2026-11-04
+
+The user confirms Claude is doing the input-evidence review. No pushed review
+result has been received; Codex did not create a competing review branch.
+The separate [Gemini methodology task](docs/ai/GEMINI_METHOD_REVIEW_20261104.md)
+is now packaged with 29 complete source files at `fee55a7`. The 262,148-byte
+packet and manifest are committed under `docs/research/review_packets/`.
+Every section was compared byte-for-byte with normalized pinned Git text;
+the Downloads convenience copy is identical. Upload the file to Gemini rather
+than asking it to open a PC path or private repository URL. Dispatch/response
+is not yet verified. Gemini reviews measurement and F1-F5 falsifiability;
+Claude retains the separate ledger code-review assignment.
+
+No implementation changed and no runtime suite or market data was rerun for
+packaging. The prior 1,195-test result remains pinned to `8607a36`; original
+feed, study, fitting and live gates remain unchanged.
+
 ## Input-evidence foundation implemented — 2026-11-04
 
 Code **`8607a36`** adds stage 1 of the eligibility producer: a declared static
