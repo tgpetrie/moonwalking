@@ -66,6 +66,51 @@ and counts into an F2 observation. This adapter uses the recorder's existing
 trusted health inputs; it neither strengthens them nor supports the new
 book source yet. The target evaluator and V1/V2 JSON bytes stay unchanged.
 
+## Amendment 1: bounded merged reconciliation (November 3, 2026)
+
+The strict per-interval rule above stays the first check, and its failed records
+are kept. On the preserved hour, all 33 failed proofs were heartbeat/match
+ordering races with no ID lost, yet BTC's vetoes alone would have left 41% of
+5-minute and 3% of 15-minute anchors clean, clustered in busy tape. See the
+[review](reviews/CLAUDE_INSTANT_COVERAGE_REVIEW_20261103.md). So adjacent failed
+proofs may be re-checked as one span, within explicit limits:
+
+| Limit | Value | Reason |
+|---|---:|---|
+| Proofs in one merged span | **4** | One race spans two proofs; this allows two consecutive races |
+| Merged span duration | **10,000ms** | Bounds the added proof latency; normal heartbeat spacing is about 1s |
+| Merged trade-ID span | **100,000** | The existing per-pair bound, applied to the whole span |
+| Mergeable failures | `missing_live_match_ids`, `receipt_ids_outside_watermarks` only | Only these can be an ordering race |
+
+- **Same rule, larger span.** The expected IDs must exactly equal the unique IDs
+  received on that connection. A truly lost or unexpected ID still fails.
+- **Never merged:** heartbeat gaps, watermark regressions, ID-span failures,
+  verified intervals, a different connection, or any break in receipt-time or
+  watermark continuity. A known conflicting duplicate still vetoes the span.
+- **Merges stay disjoint.** A run ends at an earlier merged proof, so a race nested
+  around an already merged pair stays vetoed even though all its IDs arrived. This
+  is a deliberate false veto, chosen so `assess` never handles overlapping proofs.
+  It did not occur on the preserved hour. Measure it in the next pilot.
+- **No attribution change.** Trades keep their first receipt time, so bucket counts
+  do not move. This supersedes the earlier statement only in that a boundary race
+  may later be repaired; executions are still never reassigned.
+- **No backdating.** A merged proof is known at the closing heartbeat's processing
+  completion. Until then the failed interval still fails. Certifying a bucket can
+  therefore take longer, which the publication-timing draft must account for.
+- **Limits were chosen after seeing coverage from that one hour** (trade IDs, receipt
+  times and counts; no prices, returns or labels) and are not fitted to outcomes.
+  Check them against the next pilot's run lengths; change them only by a new
+  versioned amendment made before reading outcomes.
+
+**Replay of the preserved hour:** all 33 failed proofs reconciled into 16 merged
+proofs, none unreconciled; the 14,363 strict proofs are unchanged. The largest merge
+used 3 proofs and spanned 2,990ms, so no limit was reached. The earliest repaired
+interval waited a median of 967ms longer (maximum 1,993ms). This is one hour, not a
+rate estimate, and no quote or label availability is implied.
+
+The monitor remains offline. Quote coverage, the feed gate and live eligibility are
+unchanged, and it is still not wired into `Sample` coverage.
+
 ## Quote-source choice for the next implementation
 
 Use **Coinbase Exchange `level2_batch`**, initially alongside `ticker`,

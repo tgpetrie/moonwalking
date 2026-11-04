@@ -44,7 +44,11 @@ lost mainly around active BTC tape, which is when a move radar most needs them. 
 Limits: this is one hour, descriptive, and counterfactual, because the monitor is not wired into `Sample` today. These
 shares count trade-ID vetoes only; quote freshness, warmup and proof latency remove further rows.
 
-**Recommended amendment (not implemented).** Allow a bounded reconciliation of adjacent failed proofs on one connection:
+**Status update: adopted by the user and implemented on `claude/instant-coverage-reconciliation`** as coverage
+contract amendment 1 (limits: 4 proofs, 10,000ms, 100,000 IDs). Correction to the cap remark below: merging the smallest
+closing run splits the run of 4 into two pairs, so the largest merge actually needed on this hour is 3 proofs.
+
+**Recommended amendment.** Allow a bounded reconciliation of adjacent failed proofs on one connection:
 * The merged span must satisfy the same exact rule: expected IDs in `(low, high]` equal the unique IDs received in it.
 * Merge only `missing_live_match_ids` and `receipt_ids_outside_watermarks`, never a heartbeat gap, regression, ID-span or
   conflict failure. A truly lost ID still fails.
