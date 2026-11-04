@@ -9,7 +9,9 @@ commit, owners, gates and next actions in machine-readable form.
 A [new cloud book/publication review](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md)
 is prepared, not dispatched, to use remaining credit before November 4 at
 11:59 PM Pacific. The previous association task is complete; do not repeat it.
-Codex separately owns review of local reconciliation `bfab9c8`.
+Codex separately owns review of local reconciliation `bfab9c8`. A
+[blocking same-millisecond continuity case](../research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md)
+is reproduced; reconciliation remains unmerged pending correction.
 
 Current code **`8631231`** accepts cloud association/exposure `96f5652`
 (as `e3529c2`) with two validation fixes and three additional tests.
