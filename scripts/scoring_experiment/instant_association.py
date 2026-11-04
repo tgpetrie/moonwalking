@@ -114,7 +114,11 @@ def _labels(labels, asof):
             row["direction"],
             row["horizon_seconds"],
         )
-        if direction not in DIRECTIONS or horizon not in HORIZONS:
+        if (
+            direction not in DIRECTIONS
+            or type(horizon) is not int
+            or horizon not in HORIZONS
+        ):
             raise ValueError("unsupported label direction or horizon")
         anchor, maturity = _grid(row["anchor_ts_ms"]), _integer(
             row["label_maturity_ts_ms"]
@@ -363,7 +367,10 @@ def exposure_report(labels, eligibility, *, asof_ts_ms, ranker_slots=None):
             exclusions[failed] += 1
     rankers = {}
     for name, scored in (ranker_slots or {}).items():
-        scored = {(_text(p), _grid(ts)) for p, ts in scored}
+        records = [(_text(p), _grid(ts)) for p, ts in scored]
+        scored = set(records)
+        if len(scored) != len(records):
+            raise ValueError("duplicate ranker slot")
         if not scored <= set(slots):
             raise ValueError("ranker slots must be recorded eligibility slots")
         rankers[_text(name)] = scored

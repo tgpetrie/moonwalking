@@ -84,6 +84,24 @@ def slot(product, offset, **flags):
 ASOF = B + 3_000_000
 
 
+def test_duplicate_ranker_slots_are_rejected_instead_of_collapsed():
+    with pytest.raises(ValueError, match="duplicate ranker slot"):
+        assoc.exposure_report(
+            [],
+            [slot(PRODUCT, 0)],
+            asof_ts_ms=ASOF,
+            ranker_slots={"ranker": [(PRODUCT, B), (PRODUCT, B)]},
+        )
+
+
+@pytest.mark.parametrize("horizon", [300.0, 900.0])
+def test_horizon_identity_requires_integer_even_with_valid_integer_maturity(horizon):
+    row = label(0, horizon=horizon)
+    row["label_maturity_ts_ms"] = int(row["label_maturity_ts_ms"])
+    with pytest.raises(ValueError, match="unsupported label"):
+        assoc.association_report([row], [], asof_ts_ms=ASOF)
+
+
 def oracle_labels(direction, horizon):
     """Three verified windows spaced one horizon apart, with censor context."""
     h = horizon * 1000
