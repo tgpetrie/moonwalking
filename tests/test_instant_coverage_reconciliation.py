@@ -124,7 +124,7 @@ def test_failed_records_stay_unmodified_and_trade_attribution_does_not_move():
     feed.hb(3000, 11)
     assert intervals(feed)[0] == failed[0]
     assert intervals(feed)[0]["verified"] is False
-    assert feed.monitor.trades[PID] == [(2500, 11, 1)]
+    assert feed.monitor.trades[PID] == [(2500, 11, 1, feed.monitor.epochs[PID])]
     assert feed.monitor.seen[(PID, 11)][1] == 2500
 
 
@@ -356,7 +356,7 @@ def test_randomized_tape_never_certifies_a_session_with_a_lost_id(seed):
         assert span <= instant_coverage.MAX_MERGED_SPAN_MS
         received = {
             tid
-            for ts, tid, _ in feed.monitor.trades[PID]
+            for ts, tid, *_ in feed.monitor.trades[PID]
             if proof["start_ts_ms"] <= ts < proof["end_ts_ms"]
         }
         expected = range(
