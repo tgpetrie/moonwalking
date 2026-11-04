@@ -1,0 +1,70 @@
+{
+  "scope": "independent_review_of_opt_in_directional_exposure_report_synthetic_probes_only",
+  "verified_utc": "2026-11-04T11:22:12+00:00",
+  "owner": "Claude Code cloud session; pending Codex review",
+  "branch": "claude/instant-directional-exposure-review-20261104",
+  "inspected_codex_tip": "f5617066397d26191d342b1956590aee65bc0f48",
+  "reviewed_implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
+  "reviewed_hashes_match_Codex_CHECKS": true,
+  "reviewed_source_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_directional_exposure.py": "638db051a2eb20c66431281606b384cec101f7cb2114b3dd72e045d89692f424",
+    "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json": "6bc6681803fbbea29b544a7af0dbc702938c6361077fb0328ef1987d3189a920",
+    "tests/test_instant_directional_exposure.py": "2a5287538ccba0564cf28c19df517565313b0d947ce8cb746aa8f0a9b6d23ba2"
+  },
+  "dependency_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_association.py": "0e79b8f1d609157d40f1ed3d34e7f01b85201c37489bc80e3b065d897bb485c3",
+    "docs/research/INSTANT_ASSOCIATION_CONTRACT_V1_DRAFT.json": "4a66c231401eaa64d07edb6dde6011bc23215561ea4a05265388e36fe0905e66",
+    "tests/test_instant_association.py": "0cd3d21442ace3d25cc80a105015b04203778d5d26c5905466b2bee675752abe"
+  },
+  "probe_file_hash_UTF8_LF": "f0ae85b338e37debd57043a695dfa9ff3b005db87e6ea7e59520212260e47f7e",
+  "environment": {
+    "os": "Linux cloud container",
+    "python": "3.12.3",
+    "pytest": "8.3.5",
+    "black": "24.8.0",
+    "pinned_python_3_12_10": false,
+    "native_windows_or_mac": false
+  },
+  "review_probe_cases": 51,
+  "probes_passed_on_unmodified_implementation": 51,
+  "confirmed_defects": 0,
+  "patch_applied": false,
+  "mutants_killed": {
+    "ready_failure_made_ungradable": 6,
+    "maturity_boundary_off_by_one": 2,
+    "ranker_union_not_intersection": 1,
+    "available_checked_against_asof": 1,
+    "either_board_sum_not_union": 1,
+    "pairing_check_skipped": 1,
+    "opposite_label_required": 4
+  },
+  "directional_and_association_tests_passed": 101,
+  "targeted_checks_passed": 1163,
+  "previous_codex_targeted_checks": 1112,
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "historical_hash_source": "docs/research/results/live_movers_contract_20261027/SHA256SUMS.json",
+  "protected_sources_unchanged_from": "3c859ef",
+  "codex_checkpoint_files_altered_on_this_branch": false,
+  "eligibility_is_caller_assertion": true,
+  "eligibility_authenticated": false,
+  "universe_completeness_proven": false,
+  "feed_bridge_or_producer_implemented": false,
+  "suggestions": [
+    "S1_ranker_slot_shape_TypeError",
+    "S2_association_anchor_after_asof_out_of_scope",
+    "S3_report_rankers_scoring_each_board",
+    "S4_document_up_board_universe_count"
+  ],
+  "new_capture": false,
+  "market_outcome_analysis": false,
+  "model_fit": false,
+  "historical_rerun": false,
+  "threshold_tuning": false,
+  "live_changes": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "full_suite_run": false,
+  "test_command": "python -m pytest -o addopts= -q --tb=short tests/test_instant_*.py tests/test_micro_replay.py tests/test_micro_replay_review.py tests/test_preserved_feed_replay.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py"
+}
