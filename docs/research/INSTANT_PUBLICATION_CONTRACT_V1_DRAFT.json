@@ -1,0 +1,20 @@
+{
+  "version": "instant-publication-clock-v1-draft",
+  "scope": "offline_clock_diagnostics_only_no_labels_or_live_decisions",
+  "grid_ms": 5000,
+  "feature_cutoff": "closed_receipt_window_end",
+  "inputs_available": "latest_actual_input_and_coverage_processing_completion",
+  "decision_completed": "at_or_after_feature_cutoff_and_all_input_availability",
+  "published": "actual_recorded_publication_at_or_after_decision_completion",
+  "clock_trust": "caller_assertions_not_authenticated_durable_publication",
+  "legacy_target_anchor": "unchanged_decision_cutoff_V1_V2",
+  "publication_target": "separate_proposed_amendment_no_executable_target_change",
+  "late_verification": "retained_as_lag_never_backdated_into_old_Sample",
+  "max_feature_age_ms": null,
+  "age_limit_status": "requires_predeclared_data_only_latency_diagnostic_before_freeze",
+  "physical_onset_defined": false,
+  "operational_rates_enabled": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "live_integration": false
+}

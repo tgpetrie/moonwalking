@@ -1,0 +1,23 @@
+{
+  "version": "instant-book-replay-v1-draft",
+  "scope": "bounded_offline_Exchange_level2_batch_last_fully_processed_state_only",
+  "source_channel": "level2_batch",
+  "max_levels_per_product": 100000,
+  "max_quote_age_ms": 10000,
+  "snapshot": "full_nonempty_unique_positive_price_levels_on_both_sides",
+  "updates": "atomic_whole_batch_absolute_sizes_zero_deletes_last_change_at_price_wins",
+  "book_validity": "finite_representable_positive_amounts_best_bid_strictly_less_than_best_ask",
+  "ordering": "receipt_order_not_exchange_time_partial_channel_sequence_not_assumed_contiguous",
+  "observation_age": "last_actual_snapshot_or_update_receipt_heartbeat_never_refreshes",
+  "change_ages": "whole_book_and_BBO_change_receipts_retained_separately",
+  "knowledge": "actual_processing_completion_never_backdated_on_replay",
+  "recovery": "fresh_ack_and_snapshot_after_connection_or_subscription_loss_new_snapshot_after_bad_book_queue_loss_or_heartbeat_gap",
+  "query": "strict_receipt_before_cutoff_and_state_known_by_explicit_asof_later_diagnostics_do_not_rewrite_earlier_asof",
+  "continuous_F3_or_intrabatch_path_verified": false,
+  "full_feed_verified": false,
+  "target_sample_adapter_supported": false,
+  "feed_gate_pass": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "live_integration": false
+}
