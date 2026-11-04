@@ -56,7 +56,13 @@ Status keys: Open, In progress, Done, Blocked.
   tests pass, including the newer book/publication code. The same-millisecond
   blocker above is resolved. Read
   `docs/research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md`.
-- Next: define per-direction eligibility/exposure, version publication-target/later-grading
+- Directional exposure report is implemented as opt-in `9da4987`; 1,112
+  targeted tests pass, including 48 new cases. Independent review is prepared,
+  not dispatched. Eligibility evidence production remains open; existing joint
+  reporting and targets are unchanged. See
+  `docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md`.
+- Next: independently review the directional report, produce verified eligibility,
+  version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining

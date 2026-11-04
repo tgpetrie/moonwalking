@@ -1,0 +1,29 @@
+{
+  "verified_utc": "2026-11-04T11:13:54.613139+00:00",
+  "implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
+  "base_checkpoint": "3c859ef",
+  "targeted_tests_passed": 1112,
+  "new_directional_cases": 48,
+  "pytest_command": "python -m pytest -o addopts= -q --tb=short tests/test_instant_*.py tests/test_micro_replay.py tests/test_micro_replay_review.py tests/test_preserved_feed_replay.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "platform": "Windows",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "protected_existing_implementation_and_contracts_unchanged_from": "3c859ef",
+  "source_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_directional_exposure.py": "638db051a2eb20c66431281606b384cec101f7cb2114b3dd72e045d89692f424",
+    "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json": "6bc6681803fbbea29b544a7af0dbc702938c6361077fb0328ef1987d3189a920",
+    "tests/test_instant_directional_exposure.py": "2a5287538ccba0564cf28c19df517565313b0d947ce8cb746aa8f0a9b6d23ba2"
+  },
+  "independent_review_status": "prepared_not_dispatched",
+  "eligibility_producer_implemented": false,
+  "new_market_data_or_outcomes": false,
+  "full_suite_run": false,
+  "native_Mac_verified": false,
+  "model_fit": false,
+  "study_frozen": false,
+  "feed_gate_pass": false,
+  "live_changes": false
+}

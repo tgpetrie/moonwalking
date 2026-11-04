@@ -1,5 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
+## Directional exposure draft implemented — 2026-11-04
+
+Code **`9da4987`** adds an opt-in report with own-direction gradability,
+explicit causal board eligibility, per-board/either-board time unions and
+same-direction ranker comparison rows. Existing joint reporting, greedy
+association, targets, adapters and production are unchanged. **1,112 targeted
+tests pass**, including 48 new hand-calculated/adversarial cases; formatting,
+guardrails and 11 historical hashes pass. Read
+[the draft](docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md).
+
+The new [Claude review prompt](docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md)
+is prepared, not dispatched. The older association, book and reconciliation
+tasks are complete. Eligibility inputs remain caller assertions; the evidence
+producer, later grading/row clocks, streaming/publication and full study freeze
+remain open. No market run, fitting or live change occurred.
+
 ## Bounded reconciliation accepted — 2026-11-04
 
 Local Claude's `bfab9c8`, corrected by `d26c57d` and supplemented by `1af0a64`,

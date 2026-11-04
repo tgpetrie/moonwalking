@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T10:55:40.070215+00:00",
+  "updated_utc": "2026-11-04T11:13:54.613139+00:00",
   "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "055d5900bc883c4d1e6451da9d1c359bc690c732",
+  "implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -26,13 +26,14 @@
     "sample_adapter": "legacy_immutable_pairing_unchanged_per_row_processing_and_later_grading_evidence_open",
     "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
     "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
-    "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen"
+    "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen",
+    "directional_exposure": "opt_in_reporting_implemented_pending_independent_review_eligibility_producer_open"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "reconciliation_integrated_1064_targeted_tests_pass_cloud_book_and_association_complete"
+      "status": "directional_reporting_implemented_1112_targeted_tests_pass_independent_review_prompt_prepared"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -98,7 +99,8 @@
     }
   },
   "next_actions": [
-    "Define evidence-producing eligibility and per-direction gradability before treating joint complete rows as board-specific exposure; retain deterministic greedy association",
+    "Independently review opt-in directional report 9da4987 using the prepared prompt; older association/book/reconciliation assignments are complete",
+    "Build a versioned eligibility evidence producer and intended universe inventory; current directional flags and clocks remain caller assertions",
     "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
     "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
     "Implement and freeze F1-F5, stages/model/readiness/effect rules before 14 valid shadow days and fresh validation once; historical validation and production unchanged"
@@ -112,15 +114,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1064,
+    "implementation_targeted_tests_passed": 1112,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_055d590",
+    "guardrails": "passed_at_9da4987",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_055d590",
+    "black_24_8": "passed_at_9da4987",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -144,7 +146,8 @@
     "book_review_prepatch_reproduction": "4_defect_cases_fail_54_controls_pass",
     "reconciliation_prepatch_reproduction": "26_failures_4_controls_pass_on_unmodified_bfab9c8_all_30_pass_on_1af0a64",
     "reconciliation_new_cases": 485,
-    "reconciliation_runtime": "Codex_Windows_3_12_10_pytest_8_3_5_Claude_reported_Linux_3_12_3"
+    "reconciliation_runtime": "Codex_Windows_3_12_10_pytest_8_3_5_Claude_reported_Linux_3_12_3",
+    "new_directional_exposure_cases": 48
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -411,13 +414,15 @@
     "S1": "retain_whole_reference_peak_for_strict_timing_and_separately_named_forward_peak_diagnostic"
   },
   "next_cloud_assignment": {
-    "file": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
-    "status": "complete_review_accepted_6abd95e_as_5ff6a8f",
-    "scope": "one_independent_book_publication_adversarial_review_and_reproduced_fixes",
+    "file": "docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md",
+    "status": "prepared_not_dispatched",
+    "scope": "one_independent_directional_exposure_review_synthetic_counterexamples_only",
     "base_contains": "7671e58",
     "current_association_task": "complete_accepted",
-    "credit_remaining": "user_response_pending_no_budget_estimate",
-    "credit_remaining_user_reported_usd": 83
+    "credit_remaining": "last_user_report_is_historical_not_a_current_budget",
+    "credit_remaining_user_reported_usd": 83,
+    "implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
+    "previous_completed_assignment": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md"
   },
   "reconciliation_review": {
     "commit": "1af0a64a50b863f51270979de3e4d64fa982edb6",
@@ -460,5 +465,18 @@
     "publication_code_changed": false,
     "new_capture": false,
     "live_changes": false
+  },
+  "directional_exposure": {
+    "implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
+    "contract": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json",
+    "report": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md",
+    "checks": "docs/research/results/instant_directional_exposure_20261104/CHECKS.json",
+    "status": "implemented_draft_pending_independent_review",
+    "own_direction_gradability": true,
+    "legacy_joint_report_unchanged": true,
+    "eligibility_producer_implemented": false,
+    "eligibility_evidence_authenticated": false,
+    "fitting_allowed": false,
+    "live_integration": false
   }
 }
