@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T07:21:09.798913+00:00",
+  "updated_utc": "2026-11-04T07:44:52.886253+00:00",
   "display_date_pacific": "2026-11-03",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "4ed90459e7076fb09267c6b270d6c7273e699a64",
+  "implementation_commit": "652f5af63a996bae2f85a17c031560e08ed16c37",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -22,20 +22,21 @@
     "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
     "recorder": "preserved_real_capture_counts_verified_no_live_integration",
     "baseline_builder": "synthetic_math_verified_saved_capture_lacks_warmup_and_contemporaneous_coverage",
-    "health_adapter": "offline_evidence_timed_receipt_ID_monitor_implemented_not_live_feed_certification",
-    "sample_adapter": "immutable_same_cutoff_legacy_ticker_pairing_implemented_no_later_asof_override",
-    "quote_source_candidate": "Exchange_level2_batch_declared_offline_book_adapter_next_existing_gate_unchanged"
+    "health_adapter": "coverage_review_fixes_accepted_strict_monitor_retained_bounded_reconciliation_pending",
+    "sample_adapter": "legacy_immutable_pairing_unchanged_per_row_processing_and_later_grading_evidence_open",
+    "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
+    "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "implemented_offline_coverage_monitor_sample_pairing_and_quote_policy_405_targeted_checks_pass_no_live_integration"
+      "status": "book_publication_implemented_coverage_review_accepted_468_targeted_checks_pass_no_live_integration"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "v2_and_offline_reviews_complete_offline_fix_accepted",
-      "branch": "claude/instant-offline-review",
+      "status": "coverage_review_91f3043_accepted_as_652f5af_user_assigned_bounded_reconciliation_pending",
+      "branch": "claude/instant-coverage-reconciliation",
       "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
       "original_checkout": "C:\\Users\\tgpet\\Projects\\Moonwalking-Claude",
@@ -52,7 +53,12 @@
       "previous_v2_review_branch": "claude/instant-radar-v2-review",
       "offline_review_commit": "f2cc436976089f4145e5a82ef7e5db6a164f50f8",
       "offline_review_report": "docs/research/reviews/CLAUDE_INSTANT_OFFLINE_REVIEW_20261030.md",
-      "offline_review_integrated_as": "749e792"
+      "offline_review_integrated_as": "749e792",
+      "previous_offline_review_branch": "claude/instant-offline-review",
+      "coverage_review_commit": "91f304380c0e5d1d8595eb564fb0df0da5fda690",
+      "coverage_review_integrated_as": "652f5af63a996bae2f85a17c031560e08ed16c37",
+      "coverage_acceptance": "docs/research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md",
+      "reconciliation_authorization": "user screenshot shows Adopt merging and instruction to implement on own branch with explicit limits/tests"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -76,14 +82,20 @@
     "local_9b": {
       "role": "bounded_status_or_failure_summary",
       "status": "no_active_assignment_verified"
+    },
+    "claude_cloud": {
+      "role": "standalone_offline_association_and_exposure_implementation",
+      "status": "user_screenshot_verifies_Fable_5_1_cloud_assignment_reading_code_and_push_pending",
+      "base_branch": "codex/instant-radar-20261028",
+      "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md"
     }
   },
   "next_actions": [
-    "Implement and test an offline Exchange level2_batch book adapter under the declared source/freshness policy; preserve the four-product pilot and original feed gate",
-    "Draft explicit feature-window versus actual-publication timing and target amendments; never relabel delayed evidence as known at an earlier cutoff",
-    "Predeclare a bounded source/latency diagnostic measuring receipt, processing and durable-publication availability before choosing numerical lag limits or launching collection",
-    "Require at least 62 complete warmup minutes and valid source/readiness evidence; implement and freeze F1-F5, association/exposure, stages/model/readiness and meaningful-effect rules",
-    "After gates and study freeze pass, collect at least 14 valid shadow days and evaluate fresh frozen validation once; historical outcomes and collector remain unchanged"
+    "Review local Claude bounded reconciliation on its own branch; require versioned limits, exact ID equality and genuine-loss/late-availability tests before integration",
+    "Verify cloud Claude association/exposure contribution when pushed; freeze that component only after executable matching and causal versus gradable exposure review",
+    "Version later grading vetoes while preserving immutable decision inputs; add per-row processing, real connection epochs and tested streaming persistence/rotation",
+    "Declare actual publication and off-grid entry/target rules plus bounded source/latency diagnostic before choosing numerical feature-age limits or collecting new data",
+    "Require >=62 complete warmup minutes and original feed gate; implement/freeze F1-F5, stages/model/readiness and meaningful-effect rules before 14 valid shadow days and fresh validation once"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -94,15 +106,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 405,
+    "implementation_targeted_tests_passed": 468,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_4ed9045",
+    "guardrails": "passed_at_652f5af",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "not_verified",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_4ed9045",
+    "black_24_8": "passed_at_652f5af",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -116,7 +128,10 @@
     "new_capture_adapter_cases": 7,
     "real_capture_packets_replayed": 63258,
     "real_capture_unique_live_matches_verified": 24424,
-    "new_coverage_and_sample_cases": 42
+    "new_coverage_and_sample_cases": 42,
+    "new_book_publication_cases": 54,
+    "independent_coverage_review_probes": 9,
+    "coverage_prepatch_reproduction": "five_C1_C3_cases_fail_four_controls_pass"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -319,26 +334,45 @@
     "monitor_proofs_are_recorder_health_drop_in": false,
     "sample_source": "unchanged_legacy_ticker_recorder_with_explicit_health_assertion_trust",
     "quote_candidate": "Coinbase_Exchange_level2_batch_50ms",
-    "quote_adapter_implemented": false,
+    "quote_adapter_implemented": true,
     "initial_quote_TTL_ms": 10000,
     "heartbeat_refreshes_quote_timestamp": false,
     "publication_timing_amendment": "required_before_using_delayed_proofs_at_live_publication",
     "numerical_publication_lag_limit_frozen": false,
     "new_real_capture_or_replay_run": false,
-    "independent_review_of_new_code": "not_claimed",
+    "independent_review_of_new_code": "monitor_sample_review_91f3043_accepted_new_book_publication_not_independently_reviewed",
     "previous_target_and_offline_reviews": "complete_unchanged",
     "new_PC_only_evidence_needed_for_handoff": false,
     "synthetic_inputs": "generated_by_committed_tests",
-    "live_integration": false
+    "live_integration": false,
+    "current_monitor_commit": "652f5af63a996bae2f85a17c031560e08ed16c37",
+    "quote_adapter_scope": "standalone_offline_no_legacy_Sample_bridge_no_full_feed_certification"
   },
   "cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
-    "status": "prepared_not_dispatched",
+    "status": "user_screenshot_verifies_cloud_Fable_5_1_reading_assignment_implementation_push_pending",
     "proposed_owner": "Claude_Code_cloud",
     "base_checkpoint": "6c229528047bfd5ed75fd0a44b35e95c9e9b0614",
     "scope": "standalone_offline_association_and_exposure_implementation_synthetic_checks",
-    "Codex_continues": "offline_book_adapter_and_publication_timing",
+    "Codex_continues": "book_publication_implementation_complete_review_integration_and_portable_checkpoint",
     "credit_expiry_from_user_screenshot": "2026-11-04 23:59 Pacific",
     "no_cloud_spend_or_message_sent_by_Codex": true
+  },
+  "book_and_publication": {
+    "implementation_commit": "8c51878aac4a52d7896827bb7b7943d08c9eca7b",
+    "combined_monitor_code_checkpoint": "652f5af63a996bae2f85a17c031560e08ed16c37",
+    "report": "docs/research/INSTANT_BOOK_AND_PUBLICATION_20261103.md",
+    "book_contract": "docs/research/INSTANT_BOOK_CONTRACT_V1_DRAFT.json",
+    "publication_contract": "docs/research/INSTANT_PUBLICATION_CONTRACT_V1_DRAFT.json",
+    "checks": "docs/research/results/instant_book_publication_20261103/CHECKS.json",
+    "book_states_have_processing_completion": true,
+    "legacy_trade_and_quote_rows_have_processing_completion": false,
+    "max_feature_age_policy_frozen": false,
+    "publication_anchored_outcomes_implemented": false,
+    "continuous_F3_or_live_readiness_verified": false,
+    "independent_new_book_review": "not_claimed",
+    "new_capture": false,
+    "live_integration": false,
+    "new_PC_only_evidence_needed": false
   }
 }

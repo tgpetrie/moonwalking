@@ -1,0 +1,142 @@
+{
+  "scope": "independent_monitor_review_ID_checks_only_no_price_return_or_label_analysis",
+  "source_sha256": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b",
+  "packets": 63258,
+  "unique_live_matches": 24424,
+  "strict_proofs": 14396,
+  "strict_failed": 33,
+  "pre_post_proofs_identical_except_processing_time": true,
+  "products": {
+    "BTC-USD": {
+      "proofs": 3599,
+      "failed_proofs": 29,
+      "expected_IDs": 21770,
+      "absent_IDs": 0,
+      "failed_runs": 13,
+      "runs": [
+        {
+          "start": 1793205037724,
+          "end": 1793205039720,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793205471711,
+          "end": 1793205473710,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793205497714,
+          "end": 1793205499775,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793205579715,
+          "end": 1793205581716,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793205711699,
+          "end": 1793205713727,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793206696692,
+          "end": 1793206698686,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793206942686,
+          "end": 1793206944696,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793207101689,
+          "end": 1793207104679,
+          "proof_count": 3,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793207110676,
+          "end": 1793207112693,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793207959670,
+          "end": 1793207963675,
+          "proof_count": 4,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793208085683,
+          "end": 1793208087661,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793208099670,
+          "end": 1793208101663,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793208422672,
+          "end": 1793208424658,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        }
+      ]
+    },
+    "SOL-USD": {
+      "proofs": 3599,
+      "failed_proofs": 4,
+      "expected_IDs": 2641,
+      "absent_IDs": 0,
+      "failed_runs": 2,
+      "runs": [
+        {
+          "start": 1793206696692,
+          "end": 1793206698686,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        },
+        {
+          "start": 1793207816665,
+          "end": 1793207818662,
+          "proof_count": 2,
+          "exact_ID_set_equal": true
+        }
+      ]
+    },
+    "ALCX-USD": {
+      "proofs": 3599,
+      "failed_proofs": 0,
+      "expected_IDs": 4,
+      "absent_IDs": 0,
+      "failed_runs": 0,
+      "runs": []
+    },
+    "AURORA-USD": {
+      "proofs": 3599,
+      "failed_proofs": 0,
+      "expected_IDs": 3,
+      "absent_IDs": 0,
+      "failed_runs": 0,
+      "runs": []
+    }
+  },
+  "monitor_review_commit": "91f304380c0e5d1d8595eb564fb0df0da5fda690",
+  "integrated_commit": "652f5af63a996bae2f85a17c031560e08ed16c37",
+  "interpretation": "Exact merged ID equality is diagnostic only. No bounded reconciliation implementation or gate pass follows.",
+  "new_capture": false,
+  "model_fits": false,
+  "outcome_labels_evaluated": false,
+  "source_unchanged": true
+}

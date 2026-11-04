@@ -104,21 +104,23 @@ clock boundaries/completion, reconnect and subscription/audit failures,
 unavailable states, immutable history, and publication chronology/age bounds.
 No real `level2_batch` data or empirical improvement is claimed.
 
-The existing Gemini/Claude target and offline reviews remain accepted. Claude
-has now independently reviewed the later monitor/sample code on
-`claude/instant-coverage-review`; Codex must reproduce and review that new
-commit before integration. Its separate proposed reconciliation and grading
-amendments require explicit contracts. The held original `d711832` remains
-unmerged; opt-in V2 already contains its adapted policy.
+The existing Gemini/Claude target and offline reviews remain accepted. Claude's
+new monitor/sample review at `91f3043` is now independently reproduced and
+accepted as `652f5af`; read the
+[acceptance and remaining amendments](INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md).
+The combined targeted suite passes 468 tests, including 54 new book/timing
+cases and nine independent review probes. Reconciliation and later-grading
+amendments still require explicit contracts. The held original `d711832`
+remains unmerged; opt-in V2 already contains its adapted policy.
 
 The [cloud association/exposure assignment](../ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md)
-is prepared; user setup is in progress, with task dispatch unverified. It owns
-new association/exposure code on its own branch. Codex owns book/timing code
-here. Do not mark association/exposure or the whole study frozen until its
+is dispatched by the user; its screenshot shows Fable 5.1 reading the required
+sources. Implementation/push is pending. It owns new association/exposure
+code on its own branch. Codex owns book/timing here. Do not mark the study frozen until its
 executable rules, review and remaining source/model/readiness gates are done.
 
-Next: verify/integrate the new local Claude fixes, declare bounded reordering
-reconciliation and later-grading evidence, then instrument/validate the
+Next: declare/verify bounded reordering reconciliation and later-grading
+evidence, then instrument/validate the
 streaming source and publication path before a predeclared pilot. Preserve
 the four-product gate, >=62 complete warmup minutes, final label maturity,
 14 valid shadow days, no physical-onset inference and locked historical

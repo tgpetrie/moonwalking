@@ -1,6 +1,8 @@
 # Claude Code cloud assignment: association and exposure
 
-Prepared November 3, 2026 (Pacific). **Prepared, not dispatched by Codex.**
+Prepared November 3, 2026 (Pacific). **User cloud dispatch/source-reading is
+verified by screenshot; implementation/push remains pending.** Codex did not
+start the session. The screenshot shows Fable 5.1 in the cloud.
 The user has cloud-session promotional credit expiring November 4 at 11:59 PM
 Pacific, according to the supplied Usage screenshot. This task needs only
 repository sources and synthetic tests; no PC-only files or raw market data.
@@ -12,8 +14,11 @@ with monitor/sample code `4ed9045` and 405 recorded targeted checks. Later
 Codex commits may implement the book adapter; do not duplicate that work.
 
 The promotional credit is applied automatically to eligible cloud sessions;
-ordinary chat, Cowork and local Remote Control are excluded. Paid usage credits
-are not required for this bonus. Verify the remaining balance after starting.
+ordinary chat, Cowork and local Remote Control are excluded. Included models
+can use the bonus without paid usage credits. On Pro, Fable requires usage
+credits enabled with a positive purchased balance; eligible cloud sessions
+use the bonus first. Auto-reload is a separate purchase control. Verify which
+balance decreases after starting.
 [Official promotion](https://support.claude.com/en/articles/17152539-cloud-sessions-bonus-credit-promotion).
 [Cloud workflow](https://support.claude.com/en/articles/12618689-use-claude-code-in-the-cloud).
 

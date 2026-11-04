@@ -6,39 +6,40 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-November 3 continuation: GitHub tip `6c22952` and completed reviews verified.
-The user's older 363-check resume prompt is superseded by the 405-check
-monitor/sample checkpoint below. Codex is continuing with the offline book
-adapter and publication timing. A separate
-[Claude Code cloud assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md) for
-association/exposure implementation is prepared, **not dispatched**. It can
-use the user's expiring cloud-session credit with synthetic inputs only.
-No cloud spending, new capture, fit or original held-commit merge occurred.
+Latest code: book/publication draft **`8c51878`** plus accepted coverage-review
+fixes **`652f5af`**. Read the
+[book/timing implementation](../research/INSTANT_BOOK_AND_PUBLICATION_20261103.md),
+[review acceptance](../research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md)
+and [468 passing checks](../research/results/instant_book_publication_20261103/CHECKS.json).
+The user's older 363-check resume prompt is superseded by these checkpoints.
+Do not rebuild completed adapters or repeat general accepted reviews.
 
-Latest implementation: **`4ed9045`** adds the offline evidence-timed coverage
-monitor and immutable coin/BTC sample pairing. Read the
-[coverage and quote policy](../research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md)
-and [405 passing checks](../research/results/instant_coverage_monitor_20261030/CHECKS.json).
-The 42 new cases cover actual processing-completion availability, late proofs,
-receipt boundaries, clock/logger failures, session resets and missing/zero
-sample behavior. This does not certify live completeness or quote health.
-Next is the offline `level2_batch` book adapter and an explicit publication-time
-target amendment before using delayed proofs. Preserve the 10s initial quote
-TTL, pilot products and existing gate. No new capture, real replay, fit or
-live integration ran. New inputs are synthetic and reproducible from Git;
-the existing cloud evidence bundles remain sufficient and unchanged.
+The user explicitly assigned local Claude bounded merging on
+`claude/instant-coverage-reconciliation`; completion is pending. Cloud Fable
+5.1 is reading the separate
+[association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md), as
+verified by the user's screenshot; implementation/push is not yet verified.
+Codex owns book/timing and integration. No capture, fit, held `d711832` merge
+or live integration occurred. New sources/tests/results are in Git; existing
+raw-evidence bundles remain valid.
 
-Latest preserved-capture verifier: **`a5bb397`**; its recorded run used
-`837db34`. Recorder `ab95159` and target evaluator/contracts `92fb51d` remain
-unchanged. Read the [real-data replay results](../research/INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md).
-All 63,258 packets / 24,424 unique live matches are preserved; **363 targeted
-checks pass**. Later coverage is not backdated. Thin quote freshness and full
-baseline warmup remain inadequate, so feed/study/live gates stay off.
-The derived database and report are cloud backed up and round-trip verified.
-The new offline monitor/sample step is recorded above. Full contemporaneous
-source/durable-publication verification and >=62 complete warmup minutes
-remain required. The earlier target/offline reviews are complete; no independent
-review of the new `4ed9045` code is claimed and no general re-review is queued.
+Book replay preserves atomic batches, original quote/change ages and measured
+processing completion. It does not enter legacy target samples or certify
+continuous F3/full-feed readiness. Publication clocks are explicit; a
+publication-anchored target and numerical lag limit remain separate drafts.
+Next: review bounded reconciliation and association/exposure contributions;
+version later grading/row-availability and streaming/publication evidence
+before a predeclared source pilot. Preserve >=62 complete warmup minutes,
+the original feed gate and remaining feature/study/readiness freeze.
+
+The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
+recorder/baseline `ab95159`, and target evaluator/V1/V2 `92fb51d`.
+Earlier replay preserved 63,258 packets / 24,424 live matches. The new review
+check independently confirms 33 strict ID failures reconcile across adjacent
+runs without changing receipt counts; no expected ID in the heartbeat ranges
+is absent. All 14,396 raw proofs are unchanged by the fixes apart from actual
+processing time. This is not a gate pass, a new capture or a return/label study.
+The old 363- and 405-check records remain pinned historical checkpoints.
 
 October 30 update: both source-based Gemini responses have been received,
 reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
@@ -87,9 +88,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Monitor/sample adapter `4ed9045`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Book/publication `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 405 targeted checks pass, including 42 new coverage/sample cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 468 targeted checks pass, including 54 new book/timing cases and nine independent review probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -128,8 +129,9 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline monitor/sample adapters and quote policy implemented; next book adapter and publication-timing draft; source/readiness gates remain off |
-| Claude | Independent target and offline-pipeline reviews | V2 `10b0f96` and offline `f2cc436` accepted; no new general review pending; study freeze remains conditional |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Book/timing draft implemented; coverage review accepted as `652f5af`; source/readiness gates remain off |
+| Local Claude | Review plus bounded reconciliation implementation | V2/offline/coverage reviews accepted; user assigned `claude/instant-coverage-reconciliation`; implementation pending |
+| Cloud Claude / Fable | Standalone association/exposure implementation | Cloud environment/model and assignment source-reading verified by user screenshot; code/push not yet verified |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
@@ -137,21 +139,20 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 On this Windows PC, Codex works in
 `C:\Users\tgpet\Projects\Moonwalking-InstantRadar`. Claude's current review
 worktree is `C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
-`claude/instant-offline-review`; its earlier `claude/instant-radar-v2-review`
+`claude/instant-coverage-reconciliation`; its earlier `claude/instant-radar-v2-review`
 and `claude/instant-radar-review` branches are preserved. Its original separate checkout is
 `C:\Users\tgpet\Projects\Moonwalking-Claude`. These are location hints for
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: contemporaneous health/subscription/reconciliation-availability records,
-paired immutable sample adapters, quote-source/freshness policy and complete
-warmup before a predeclared new diagnostic or study. The
-draft's formula, matching, stage/model and readiness policies still need
-implementation review and freeze before study fitting.
-Predeclare how to resolve the remaining
-thin-product audit evidence under the existing gate. Recorder/features/live
-stage thresholds, model readiness, collection and fitting remain subsequent
-steps. Do not repeat completed samples simply to seek a passing verdict.
+Next: verify local bounded reconciliation and cloud association/exposure,
+then version/test later grading evidence and a streaming recorder with per-row
+processing, actual connection identity and durable publication. Predeclare
+source/latency collection and lag limits before a pilot. Keep the four-product
+gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
+association/exposure review and overall study freeze remain required before
+14 valid shadow days and fitting. Do not repeat completed outcomes or captures
+merely to seek a favorable verdict.
 
 ## Code and environment on another computer
 

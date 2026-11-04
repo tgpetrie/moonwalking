@@ -1,5 +1,36 @@
 # Moonwalking / BHABIT Handoff
 
+## Book/publication draft implemented; monitor review accepted — 2026-11-03
+
+Book and publication-clock code is **`8c51878`**; Claude's coverage review
+`91f3043` was reproduced and integrated as **`652f5af`**. **468 targeted checks
+pass**, including 54 new book/timing cases and nine independent review probes.
+Read [the book/timing implementation](docs/research/INSTANT_BOOK_AND_PUBLICATION_20261103.md)
+and [the review acceptance](docs/research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md).
+Targets/V1/V2, recorder/baseline and locked historical artifacts are unchanged.
+
+The book adapter applies atomic absolute-size batches, preserves observation
+and change ages, requires fresh state after faults and measures processing
+completion. It is offline and not a legacy target-sample bridge. Publication
+diagnostics preserve cutoff, input availability, computation and publication
+as separate clocks; publication-anchored targets and numerical lag policy
+are still amendments, not silently implemented labels.
+
+Codex independently confirmed all 33 strict failures in the pinned hour have
+exact merged receipt-ID equality, with no absent IDs in the heartbeat ranges;
+all 14,396 raw proofs are unchanged by the fixes apart from processing time.
+This removes no gate and evaluates no return/label. The strict rule stays until
+a bounded amendment is reviewed. Source freshness, actual publication, legacy
+row availability, later grading evidence and streaming bounds remain open.
+
+The user explicitly assigned local Claude bounded merging on its separate
+`claude/instant-coverage-reconciliation` branch; completion is pending.
+The user's cloud screenshot shows Fable 5.1 reading the separate
+[association/exposure assignment](docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md).
+Its implementation/push is unverified. Codex owns book/timing and integration.
+Keep the scopes separate; original `d711832` stays held. No capture, fit,
+historical validation rerun, production or live ranking changed.
+
 ## Offline coverage monitor and paired samples ready — 2026-10-30
 
 Implementation **`4ed9045`** adds an offline monitor with actual processing-
