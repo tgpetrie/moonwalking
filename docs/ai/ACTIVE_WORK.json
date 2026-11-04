@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T07:44:52.886253+00:00",
-  "display_date_pacific": "2026-11-03",
+  "updated_utc": "2026-11-04T09:49:10.062833+00:00",
+  "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "652f5af63a996bae2f85a17c031560e08ed16c37",
+  "implementation_commit": "863123152ac730c7cbd286a5da6044e49dd97467",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -25,17 +25,18 @@
     "health_adapter": "coverage_review_fixes_accepted_strict_monitor_retained_bounded_reconciliation_pending",
     "sample_adapter": "legacy_immutable_pairing_unchanged_per_row_processing_and_later_grading_evidence_open",
     "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
-    "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen"
+    "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
+    "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "book_publication_implemented_coverage_review_accepted_468_targeted_checks_pass_no_live_integration"
+      "status": "cloud_association_reviewed_integrated_and_tightened_521_targeted_checks_pass"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "coverage_review_91f3043_accepted_as_652f5af_user_assigned_bounded_reconciliation_pending",
+      "status": "coverage_review_accepted_bounded_reconciliation_pushed_bfab9c8_review_pending",
       "branch": "claude/instant-coverage-reconciliation",
       "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
@@ -58,7 +59,8 @@
       "coverage_review_commit": "91f304380c0e5d1d8595eb564fb0df0da5fda690",
       "coverage_review_integrated_as": "652f5af63a996bae2f85a17c031560e08ed16c37",
       "coverage_acceptance": "docs/research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md",
-      "reconciliation_authorization": "user screenshot shows Adopt merging and instruction to implement on own branch with explicit limits/tests"
+      "reconciliation_authorization": "user screenshot shows Adopt merging and instruction to implement on own branch with explicit limits/tests",
+      "reconciliation_observed_tip": "bfab9c8"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -85,17 +87,19 @@
     },
     "claude_cloud": {
       "role": "standalone_offline_association_and_exposure_implementation",
-      "status": "user_screenshot_verifies_Fable_5_1_cloud_assignment_reading_code_and_push_pending",
+      "status": "96f5652_accepted_as_e3529c2_validation_followup_8631231",
       "base_branch": "codex/instant-radar-20261028",
-      "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md"
+      "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
+      "implementation_commit": "96f565241ca43f15196f14a59999c98d22806d06",
+      "review_acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md"
     }
   },
   "next_actions": [
-    "Review local Claude bounded reconciliation on its own branch; require versioned limits, exact ID equality and genuine-loss/late-availability tests before integration",
-    "Verify cloud Claude association/exposure contribution when pushed; freeze that component only after executable matching and causal versus gradable exposure review",
-    "Version later grading vetoes while preserving immutable decision inputs; add per-row processing, real connection epochs and tested streaming persistence/rotation",
-    "Declare actual publication and off-grid entry/target rules plus bounded source/latency diagnostic before choosing numerical feature-age limits or collecting new data",
-    "Require >=62 complete warmup minutes and original feed gate; implement/freeze F1-F5, stages/model/readiness and meaningful-effect rules before 14 valid shadow days and fresh validation once"
+    "Independently review bounded reconciliation bfab9c8 and reproduce cap, true-loss, availability and protected-code checks before integration",
+    "Define evidence-producing eligibility and per-direction gradability before treating joint complete rows as board-specific exposure; retain deterministic greedy association",
+    "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
+    "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
+    "Implement and freeze F1-F5, stages/model/readiness/effect rules before 14 valid shadow days and fresh validation once; historical validation and production unchanged"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -106,15 +110,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 468,
+    "implementation_targeted_tests_passed": 521,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_652f5af",
+    "guardrails": "passed_at_8631231",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
-    "native_mac_or_cloud_execution": "not_verified",
+    "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_652f5af",
+    "black_24_8": "passed_at_8631231",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -131,7 +135,9 @@
     "new_coverage_and_sample_cases": 42,
     "new_book_publication_cases": 54,
     "independent_coverage_review_probes": 9,
-    "coverage_prepatch_reproduction": "five_C1_C3_cases_fail_four_controls_pass"
+    "coverage_prepatch_reproduction": "five_C1_C3_cases_fail_four_controls_pass",
+    "cloud_association_cases": 50,
+    "Codex_association_validation_cases": 3
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -350,7 +356,7 @@
   },
   "cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
-    "status": "user_screenshot_verifies_cloud_Fable_5_1_reading_assignment_implementation_push_pending",
+    "status": "completed_accepted_cloud_code_plus_Codex_validation_followup",
     "proposed_owner": "Claude_Code_cloud",
     "base_checkpoint": "6c229528047bfd5ed75fd0a44b35e95c9e9b0614",
     "scope": "standalone_offline_association_and_exposure_implementation_synthetic_checks",
@@ -374,5 +380,24 @@
     "new_capture": false,
     "live_integration": false,
     "new_PC_only_evidence_needed": false
+  },
+  "association_exposure": {
+    "cloud_commit": "96f565241ca43f15196f14a59999c98d22806d06",
+    "integrated_as": "e3529c2",
+    "validation_followup": "863123152ac730c7cbd286a5da6044e49dd97467",
+    "acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md",
+    "checks": "docs/research/results/instant_association_acceptance_20261104/CHECKS.json",
+    "status": "draft_accepted_full_study_not_frozen",
+    "matching": "declared_greedy_earliest_unused_not_maximum",
+    "exposure_gradability": "explicit_joint_both_directions_per_direction_producer_rules_still_required",
+    "physical_onset_defined": false,
+    "fitting_allowed": false,
+    "live_integration": false
+  },
+  "older_onset_review_reconciliation": {
+    "commit": "4610bf2",
+    "merged": false,
+    "left_censoring": "provided_by_reporting_wrapper_used_by_new_association_module_raw_target_API_unchanged",
+    "S1": "retain_whole_reference_peak_for_strict_timing_and_separately_named_forward_peak_diagnostic"
   }
 }

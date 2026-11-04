@@ -1,12 +1,27 @@
 # Resume Moonwalking from anywhere
 
-Updated November 3, 2026 (Pacific). This page is the current portable
+Updated November 4, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-Latest code: book/publication draft **`8c51878`** plus accepted coverage-review
+Current code **`8631231`** accepts cloud association/exposure `96f5652`
+(as `e3529c2`) with two validation fixes and three additional tests.
+**521 targeted checks pass** in pinned Windows Python 3.12.10. Read the
+[acceptance](../research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md) and
+[verification](../research/results/instant_association_acceptance_20261104/CHECKS.json).
+Claude's Linux/3.13 report is retained; no native Mac or full-suite pass is claimed.
+
+The cloud assignment is complete and accepted as a reporting draft. Local
+Claude's bounded reconciliation is pushed at `bfab9c8`, awaiting independent
+review/integration. Do not repeat the completed cloud implementation.
+The older `4610bf2` raw-catalog change is not merged: the reporting wrapper
+already supplies left-censor flags and is used by association. S1 retains
+whole-window strict timing plus a separately named forward-peak diagnostic.
+Targets/V1/V2 and all production code remain unchanged; the study is unfrozen.
+
+Previous checkpoint: book/publication draft **`8c51878`** plus accepted coverage-review
 fixes **`652f5af`**. Read the
 [book/timing implementation](../research/INSTANT_BOOK_AND_PUBLICATION_20261103.md),
 [review acceptance](../research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md)
@@ -14,11 +29,10 @@ and [468 passing checks](../research/results/instant_book_publication_20261103/C
 The user's older 363-check resume prompt is superseded by these checkpoints.
 Do not rebuild completed adapters or repeat general accepted reviews.
 
-The user explicitly assigned local Claude bounded merging on
-`claude/instant-coverage-reconciliation`; completion is pending. Cloud Fable
-5.1 is reading the separate
-[association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md), as
-verified by the user's screenshot; implementation/push is not yet verified.
+Local Claude owns `claude/instant-coverage-reconciliation`; its `bfab9c8`
+contribution is pushed and pending review. Cloud Fable completed the separate
+[association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md); its
+implementation is accepted in the current checkpoint above.
 Codex owns book/timing and integration. No capture, fit, held `d711832` merge
 or live integration occurred. New sources/tests/results are in Git; existing
 raw-evidence bundles remain valid.
@@ -27,7 +41,7 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next: review bounded reconciliation and association/exposure contributions;
+Next: review bounded reconciliation and define directional exposure/eligibility;
 version later grading/row-availability and streaming/publication evidence
 before a predeclared source pilot. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
@@ -88,9 +102,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Book/publication `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Association `8631231`; book/publication `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 468 targeted checks pass, including 54 new book/timing cases and nine independent review probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 521 targeted checks pass, including 50 cloud association cases and three Codex validation cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -129,9 +143,9 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Book/timing draft implemented; coverage review accepted as `652f5af`; source/readiness gates remain off |
-| Local Claude | Review plus bounded reconciliation implementation | V2/offline/coverage reviews accepted; user assigned `claude/instant-coverage-reconciliation`; implementation pending |
-| Cloud Claude / Fable | Standalone association/exposure implementation | Cloud environment/model and assignment source-reading verified by user screenshot; code/push not yet verified |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Cloud association accepted through `8631231`; reconciliation review next; source/readiness gates remain off |
+| Local Claude | Review plus bounded reconciliation implementation | V2/offline/coverage reviews accepted; `claude/instant-coverage-reconciliation` pushed `bfab9c8`; independent review pending |
+| Cloud Claude / Fable | Standalone association/exposure implementation | Cloud implementation `96f5652` accepted with Codex validation followup `8631231` |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |

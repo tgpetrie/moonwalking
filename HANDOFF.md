@@ -1,5 +1,25 @@
 # Moonwalking / BHABIT Handoff
 
+## Cloud association/exposure accepted — 2026-11-04
+
+Cloud implementation `96f5652` is accepted as `e3529c2`; **`8631231`** tightens
+ranker-duplicate and horizon identity checks. **521 targeted tests pass** in
+pinned Windows Python 3.12.10, with formatting, guardrails and 11 historical
+hashes verified. Read [the acceptance](docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md).
+Claude's original Linux/3.13 check record is preserved. The cloud's branch-only
+handoff commit was not merged over this authoritative checkpoint.
+
+Primary pointwise results remain separate from greedy window coverage.
+Joint both-direction gradability is explicit; per-direction producer/exposure
+rules remain pre-freeze work. The older `4610bf2` proposal is superseded by
+left-censor reporting in the wrapper. S1 keeps whole-window strict timing
+and the separately named forward-peak diagnostic. Target bytes are unchanged.
+
+Local reconciliation `bfab9c8` is pushed but not reviewed/integrated here;
+that is next. Publication/row evidence, streaming bounds, features/model and
+source/readiness freeze still gate collection/fitting. No new capture, fit,
+historical rerun, physical-onset claim or live change occurred.
+
 ## Book/publication draft implemented; monitor review accepted — 2026-11-03
 
 Book and publication-clock code is **`8c51878`**; Claude's coverage review

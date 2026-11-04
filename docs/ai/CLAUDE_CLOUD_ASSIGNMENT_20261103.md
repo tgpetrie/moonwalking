@@ -1,5 +1,10 @@
 # Claude Code cloud assignment: association and exposure
 
+Completed: cloud implementation `96f5652` was accepted as `e3529c2`, with
+Codex validation followup `8631231` and 521 passing targeted checks.
+Read [the November 4 acceptance](../research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md).
+The assignment below is preserved history; do not redispatch it as new work.
+
 Prepared November 3, 2026 (Pacific). **User cloud dispatch/source-reading is
 verified by screenshot; implementation/push remains pending.** Codex did not
 start the session. The screenshot shows Fable 5.1 in the cloud.

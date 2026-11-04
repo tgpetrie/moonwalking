@@ -44,9 +44,10 @@ Status keys: Open, In progress, Done, Blocked.
   Claude's new coverage review `91f3043` is accepted as `652f5af`. 468 targeted
   checks pass. Read `docs/research/INSTANT_BOOK_AND_PUBLICATION_20261103.md`
   and `docs/research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md`.
-- Local Claude owns bounded reconciliation on its separate branch; cloud
-  Fable is reading the association/exposure assignment. Neither contribution
-  is complete. Codex owns book/timing and integration.
+- Cloud association/exposure `96f5652` is accepted with validation followup
+  `8631231`; 521 targeted checks pass. Local reconciliation `bfab9c8` is
+  pushed and pending independent review. See
+  `docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md`.
 - Next: verify those contributions, version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
