@@ -1,7 +1,7 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-10-31T02:42:37.948213+00:00",
-  "display_date_pacific": "2026-10-30",
+  "updated_utc": "2026-11-04T07:21:09.798913+00:00",
+  "display_date_pacific": "2026-11-03",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
@@ -330,5 +330,15 @@
     "new_PC_only_evidence_needed_for_handoff": false,
     "synthetic_inputs": "generated_by_committed_tests",
     "live_integration": false
+  },
+  "cloud_assignment": {
+    "file": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
+    "status": "prepared_not_dispatched",
+    "proposed_owner": "Claude_Code_cloud",
+    "base_checkpoint": "6c229528047bfd5ed75fd0a44b35e95c9e9b0614",
+    "scope": "standalone_offline_association_and_exposure_implementation_synthetic_checks",
+    "Codex_continues": "offline_book_adapter_and_publication_timing",
+    "credit_expiry_from_user_screenshot": "2026-11-04 23:59 Pacific",
+    "no_cloud_spend_or_message_sent_by_Codex": true
   }
 }

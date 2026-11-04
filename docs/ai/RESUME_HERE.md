@@ -1,10 +1,19 @@
 # Resume Moonwalking from anywhere
 
-Updated October 30, 2026 (Pacific). This page is the current portable
+Updated November 3, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
+
+November 3 continuation: GitHub tip `6c22952` and completed reviews verified.
+The user's older 363-check resume prompt is superseded by the 405-check
+monitor/sample checkpoint below. Codex is continuing with the offline book
+adapter and publication timing. A separate
+[Claude Code cloud assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md) for
+association/exposure implementation is prepared, **not dispatched**. It can
+use the user's expiring cloud-session credit with synthetic inputs only.
+No cloud spending, new capture, fit or original held-commit merge occurred.
 
 Latest implementation: **`4ed9045`** adds the offline evidence-timed coverage
 monitor and immutable coin/BTC sample pairing. Read the
