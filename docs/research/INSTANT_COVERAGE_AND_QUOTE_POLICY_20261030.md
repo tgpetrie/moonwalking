@@ -87,6 +87,17 @@ proofs may be re-checked as one span, within explicit limits:
 - **Never merged:** heartbeat gaps, watermark regressions, ID-span failures,
   verified intervals, a different connection, or any break in receipt-time or
   watermark continuity. A known conflicting duplicate still vetoes the span.
+- **Continuity barriers (correction, November 4, 2026).** Each product carries a
+  continuity epoch, advanced in receipt-sequence order at a connection change, an
+  audit, transport or queue failure, and a lost or re-added required subscription.
+  No merged proof, `assess` chain or interval trade count crosses an epoch, even
+  when every event shares one millisecond and recovery reuses the connection ID.
+  Codex found the false pass this closes in
+  `docs/research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md` on
+  `codex/instant-radar-20261028`. Intervals on either side still verify and
+  reconcile on their own. A healthy repeated acknowledgement is not a barrier. A
+  trade received before a barrier at the barrier's millisecond is not counted after
+  it, which can only add a veto.
 - **Merges stay disjoint.** A run ends at an earlier merged proof, so a race nested
   around an already merged pair stays vetoed even though all its IDs arrived. This
   is a deliberate false veto, chosen so `assess` never handles overlapping proofs.

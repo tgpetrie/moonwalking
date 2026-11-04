@@ -17,7 +17,6 @@ import json
 from pathlib import Path
 import time
 
-
 VERSION = "instant-coverage-monitor-v1-draft-amendment-1"
 CONTRACT = (
     Path(__file__).resolve().parents[2]
@@ -115,6 +114,11 @@ class CoverageMonitor:
         self.connection = None
         self.active = set()
         self.beats = {}
+        # Continuity epoch per product, advanced at every lifecycle barrier in
+        # receipt-sequence order: connection change, audit/transport/queue
+        # failure, or lost/re-added required membership. Receipt milliseconds
+        # and a reused connection ID cannot identify a barrier; this can.
+        self.epochs = {p: 0 for p in products}
         self.seen = {}
         self.trades = {p: [] for p in products}
         self.times = {p: [] for p in products}
@@ -135,6 +139,11 @@ class CoverageMonitor:
                 reason=reason,
             )
         )
+
+    def _barrier(self, products):
+        for product in products:
+            self.epochs[product] += 1
+            self.beats.pop(product, None)
 
     def ingest(self, envelope):
         if self.failed:
@@ -197,7 +206,7 @@ class CoverageMonitor:
         if connection != self.connection:
             self.connection = connection
             self.active.clear()
-            self.beats.clear()
+            self._barrier(self.products)
             for product in self.products:
                 self._state(product, receipt, known, seq, "subscription_unconfirmed")
         message = env["message"]
@@ -207,7 +216,7 @@ class CoverageMonitor:
             isinstance(kind, str) and kind.startswith("audit_")
         ):
             self.active.clear()
-            self.beats.clear()
+            self._barrier(self.products)
             for pid in self.products:
                 self._state(pid, receipt, known, seq, kind)
             return
@@ -228,8 +237,10 @@ class CoverageMonitor:
                 if all(p in subscriptions.get(c, ()) for c in self.required_channels)
             }
             for pid in self.products:
+                # Lost or newly (re)gained membership ends continuity; a
+                # healthy repeated acknowledgement does not.
                 if pid not in active or pid not in self.active:
-                    self.beats.pop(pid, None)
+                    self._barrier((pid,))
                 self._state(
                     pid,
                     receipt,
@@ -266,20 +277,27 @@ class CoverageMonitor:
                 return
             self.seen[key] = (signature, receipt)
             self.times[product].append(receipt)
-            self.trades[product].append((receipt, trade_id, connection))
+            # Attribution keeps the first receipt time and its receipt-order
+            # epoch; a barrier at the same millisecond never moves it.
+            self.trades[product].append(
+                (receipt, trade_id, connection, self.epochs[product])
+            )
         elif kind == "heartbeat" and product in self.active:
             watermark = _integer(message["last_trade_id"])
             previous = self.beats.get(product)
+            epoch = self.epochs[product]
             if previous:
-                start, low, prior_seq = previous
+                start, low, prior_seq, prior_epoch = previous
+                if prior_epoch != epoch:
+                    raise ValueError("baseline survived a continuity barrier")
                 if receipt > start:
                     left, right = (
                         bisect_left(self.times[product], t) for t in (start, receipt)
                     )
                     ids = {
                         tid
-                        for _, tid, owner in self.trades[product][left:right]
-                        if owner == connection
+                        for _, tid, owner, era in self.trades[product][left:right]
+                        if owner == connection and era == epoch
                     }
                     delta = watermark - low
                     reason = None
@@ -306,13 +324,14 @@ class CoverageMonitor:
                             verified=reason is None,
                             reason=reason,
                             connection_id=connection,
+                            continuity_epoch=epoch,
                             start_heartbeat_seq=prior_seq,
                             end_heartbeat_seq=seq,
                             scope=INTERVAL_SCOPE,
                         )
                     )
                     if reason in MERGEABLE_REASONS:
-                        self._reconcile(product, connection)
+                        self._reconcile(product, connection, epoch)
                 # Same-millisecond heartbeat baselines are ambiguous: retain the
                 # older watermark so a new one cannot erase boundary trades.
                 else:
@@ -320,10 +339,10 @@ class CoverageMonitor:
                         product, receipt, known, seq, "heartbeat_time_collision"
                     )
                     return
-            self.beats[product] = (receipt, watermark, seq)
+            self.beats[product] = (receipt, watermark, seq, epoch)
             self._state(product, receipt, known, seq, "heartbeat_observed")
 
-    def _reconcile(self, product, connection):
+    def _reconcile(self, product, connection, epoch):
         """Re-check the trailing run of adjacent failed proofs as one span.
 
         Only a heartbeat/match ordering race is repairable: the merged span must
@@ -342,6 +361,7 @@ class CoverageMonitor:
                 len(run) == MAX_MERGED_PROOFS
                 or proof["reason"] not in MERGEABLE_REASONS
                 or proof["connection_id"] != connection
+                or proof["continuity_epoch"] != epoch
                 or (
                     run
                     and (
@@ -364,8 +384,8 @@ class CoverageMonitor:
             left, right = (bisect_left(self.times[product], t) for t in (start, end))
             ids = {
                 tid
-                for _, tid, owner in self.trades[product][left:right]
-                if owner == connection
+                for _, tid, owner, era in self.trades[product][left:right]
+                if owner == connection and era == epoch
             }
             if ids != set(range(low + 1, high + 1)):
                 continue
@@ -382,6 +402,7 @@ class CoverageMonitor:
                     verified=True,
                     reason=None,
                     connection_id=connection,
+                    continuity_epoch=epoch,
                     start_heartbeat_seq=first["start_heartbeat_seq"],
                     end_heartbeat_seq=last["end_heartbeat_seq"],
                     scope=MERGED_SCOPE,
@@ -457,9 +478,11 @@ class CoverageMonitor:
                     continue
                 if span["start_ts_ms"] > cursor:
                     break
-                # Touching timestamps alone do not prove the ID sequence continued.
+                # Touching timestamps alone do not prove the ID sequence
+                # continued, and nothing joins across a continuity barrier.
                 if prior and (
                     span["connection_id"] != prior["connection_id"]
+                    or span["continuity_epoch"] != prior["continuity_epoch"]
                     or span["lower_trade_id_exclusive"]
                     != prior["upper_trade_id_inclusive"]
                 ):
