@@ -1,0 +1,89 @@
+{
+  "scope": "independent_review_of_input_evidence_stage_1_synthetic_probes_only",
+  "verified_utc": "2026-11-04T19:58:24+00:00",
+  "owner": "Claude Code cloud session; pending Codex review",
+  "branch": "claude/instant-input-evidence-review-20261104",
+  "inspected_codex_tip": "fee55a7dd2bbb32c661c531d6fe9a8432db9400d",
+  "reviewed_implementation_commit": "8607a36e3d1d6a04c4f4176f89ca3dc3ea55eef8",
+  "reviewed_hashes_match_Codex_CHECKS": true,
+  "reviewed_source_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_input_evidence.py": "f507998c51427d193ffb95baa60ca652ab84fd53b253cf2b3eb16f6a435442f6",
+    "docs/research/INSTANT_INPUT_EVIDENCE_CONTRACT_V1_DRAFT.json": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+    "tests/test_instant_input_evidence.py": "240ef221589d8a6f44833b0cef831c58d5c806e67092c6474befd61daeaedec0"
+  },
+  "dependency_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_book.py": "c06834d77694e1e624abe765aafa26edb7105d704d891af599cf7719d8cb6db9",
+    "scripts/scoring_experiment/instant_coverage.py": "0682e1346ac43f090268099caa81b4336b0efce2ac3f242e6cce9d7020e5ea7e",
+    "scripts/scoring_experiment/instant_directional_exposure.py": "638db051a2eb20c66431281606b384cec101f7cb2114b3dd72e045d89692f424",
+    "scripts/scoring_experiment/instant_targets.py": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015"
+  },
+  "probe_file_hash_UTF8_LF": "ab0517b7e605e59ad337671c0ff6dddb717cb2fe076f6f64b89dfb35aa4b63e3",
+  "environment": {
+    "os": "Linux cloud container",
+    "python": "3.12.3",
+    "pytest": "8.3.5",
+    "black": "24.8.0",
+    "pinned_python_3_12_10": false,
+    "native_windows_or_mac": false
+  },
+  "review_probe_cases": 46,
+  "probes_passed_on_unmodified_implementation": 46,
+  "confirmed_defects": 0,
+  "patch_applied": false,
+  "mutants": {
+    "killed": [
+      "quote_producer_gate_dropped",
+      "proof_heartbeat_gate_dropped",
+      "epoch_ignored_in_continuity",
+      "predeclaration_boundary_lte",
+      "taker_side_not_inverted",
+      "cohort_not_cached",
+      "first_sequence_unchecked",
+      "dedup_by_seen_removed"
+    ],
+    "equivalent_survivors": [
+      "verified_count_from_rows",
+      "rows_filtered_by_asof"
+    ],
+    "survivor_explanation": "trade_row_payload_completion_is_always_at_or_before_the_closing_heartbeat_completion_under_sequential_ingest_so_len_known_equals_len_rows_whenever_the_proof_is_known"
+  },
+  "existing_input_evidence_tests_passed": 32,
+  "targeted_checks_passed": 1241,
+  "previous_codex_targeted_checks": 1195,
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "historical_hash_source": "docs/research/results/live_movers_contract_20261027/SHA256SUMS.json",
+  "protected_sources_unchanged_from": "fd1079d",
+  "codex_checkpoint_files_altered_on_this_branch": false,
+  "scope_confirmed": {
+    "positive_eligibility_supported": false,
+    "baseline_feature_evidence": false,
+    "continuous_quote_health": false,
+    "durable_publication": false,
+    "full_feed_certification": false,
+    "healthy_tape_rows_all_unavailable": true,
+    "empty_tape_accounts_every_row_but_all_components_unavailable": true,
+    "completeness_relative_to_plan_only": true,
+    "module_imports_no_directional_association_target_or_network_code": true
+  },
+  "observations": [
+    "O1_len_known_eq_len_rows_branch_unreachable_defensive",
+    "O2_quote_reason_precedence",
+    "O3_failed_run_refuses_cached_cohorts_by_design",
+    "O4_decimal_exponent_rendering",
+    "O5_replay_can_never_predeclare_pilot_must_load_plan_first"
+  ],
+  "new_capture": false,
+  "real_data_run": false,
+  "market_outcome_analysis": false,
+  "model_fit": false,
+  "historical_rerun": false,
+  "threshold_tuning": false,
+  "source_pilot": false,
+  "live_changes": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "full_suite_run": false,
+  "test_command": "python -m pytest -o addopts= -q --tb=short tests/test_instant_*.py tests/test_micro_replay.py tests/test_micro_replay_review.py tests/test_preserved_feed_replay.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py"
+}
