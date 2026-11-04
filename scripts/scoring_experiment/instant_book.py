@@ -113,6 +113,7 @@ class BookReplay:
         self.last_heartbeat = {}
         self.history = {p: [] for p in self.monitor.products}
         self.awaiting_ack = set(self.monitor.products)
+        self.completed = {}  # receipt_seq -> this packet's book completion.
         self.failed = False
 
     def _invalidate(self, product, reason):
@@ -174,6 +175,9 @@ class BookReplay:
                 raise ValueError("book processing clock regressed")
             self.monitor.last = (*self.monitor.last[:3], finished)
             receipt, seq = envelope["receipt_ts_ms"], envelope["receipt_seq"]
+            # Monitor records from this packet are not book knowledge until the
+            # book has processed the same packet (e.g. a heartbeat gap).
+            self.completed[seq] = max(finished, receipt + 1)
             for product, reason in self.pending:
                 book = self.books.get(product)
                 self.history[product].append(
@@ -266,7 +270,10 @@ class BookReplay:
         changed = previous is None or any(
             candidate[s] != previous[s] for s in ("buy", "sell")
         )
-        bbo_changed = previous is None or best != self._best(previous)
+        # Compare amounts, not spellings: "3" -> "3.00" is not a BBO change.
+        bbo_changed = previous is None or tuple(map(Decimal, best)) != tuple(
+            map(Decimal, self._best(previous))
+        )
         candidate.update(
             observation=receipt,
             book_change=receipt if changed else previous["book_change"],
@@ -298,6 +305,7 @@ class BookReplay:
             if r["product_id"] == product
             and r["receipt_ts_ms"] < cutoff
             and r["available_ts_ms"] <= asof
+            and self.completed[r["receipt_seq"]] <= asof
         ]
         latest = transport[-1] if transport else None
         age = (
