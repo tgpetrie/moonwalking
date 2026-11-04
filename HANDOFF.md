@@ -1,5 +1,23 @@
 # Moonwalking / BHABIT Handoff
 
+## Input-evidence foundation implemented — 2026-11-04
+
+Code **`8607a36`** adds stage 1 of the eligibility producer: a declared static
+product/cutoff/direction inventory, measured packet/trade payload completion,
+coin/BTC component checks and frozen cutoff cohorts. **1,195 targeted tests
+pass**, including 32 new cases; formatting, guardrails and 11 historical
+hashes pass. Read [the scope and usage](docs/research/INSTANT_INPUT_EVIDENCE_20261104.md).
+All existing implementation, contracts and production remain unchanged.
+
+This completes inventory accounting and the new timed input ledger, not
+positive study eligibility. Missing rows remain explicit, late proofs are
+separate diagnostics, and baseline/feature/full-health/publication gates remain
+unavailable. The old recorder's historical rows have not gained new timestamps.
+No real capture/replay or outcome analysis ran. Review is
+[prepared, not dispatched](docs/ai/CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md).
+Next: independently review this stage, then timed baseline/F1-F5 evidence and
+remaining grading/streaming/publication rules. No fitting or live change.
+
 ## Directional review accepted — 2026-11-04
 
 Claude `583a73a` is accepted as **`4925ac5`**, adding 51 independent probes

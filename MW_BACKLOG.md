@@ -65,7 +65,13 @@ Status keys: Open, In progress, Done, Blocked.
   51 probes with no defect or code patch. 1,163 targeted tests pass; review
   assignment complete. See
   `docs/research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md`.
-- Next: produce evidence-backed eligibility and an intended product/cutoff inventory,
+- Input-evidence stage 1 is implemented at `8607a36`: complete declared-slot
+  accounting, measured new packet/trade completion and immutable cutoff cohorts.
+  1,195 targeted tests pass, including 32 new cases. Independent review is
+  prepared, not dispatched. Positive eligibility and a directional-report
+  bridge remain unsupported; timed baseline/feature and full-health evidence
+  are still required. See `docs/research/INSTANT_INPUT_EVIDENCE_20261104.md`.
+- Next: independently review stage 1, build timed baseline/F1-F5 evidence,
   version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
