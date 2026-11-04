@@ -18,7 +18,7 @@ from pathlib import Path
 import time
 
 
-VERSION = "instant-coverage-monitor-v1-draft"
+VERSION = "instant-coverage-monitor-v1-draft-amendment-1"
 CONTRACT = (
     Path(__file__).resolve().parents[2]
     / "docs/research/INSTANT_COVERAGE_CONTRACT_V1_DRAFT.json"
@@ -26,6 +26,14 @@ CONTRACT = (
 MAX_PACKETS = 100000
 MAX_ID_SPAN = 100000
 MAX_HEARTBEAT_GAP_MS = 5000
+# Amendment 1: adjacent failed proofs may be re-checked as one span. One race
+# spans two proofs, so four allows two consecutive races. Engineering limits,
+# not fitted to outcomes; the span limit also bounds added proof latency.
+MAX_MERGED_PROOFS = 4
+MAX_MERGED_SPAN_MS = 10000
+MERGEABLE_REASONS = ("missing_live_match_ids", "receipt_ids_outside_watermarks")
+INTERVAL_SCOPE = "receipt_interval_ws_trade_ids_only"
+MERGED_SCOPE = "merged_adjacent_receipt_intervals_ws_trade_ids_only"
 
 
 def _integer(value):
@@ -77,12 +85,24 @@ class CoverageMonitor:
             )
         raw = CONTRACT.read_text(encoding="utf-8").encode("utf-8")
         cfg = json.loads(raw)
+        merge = cfg.get("reconciliation") or {}
         if (
             cfg["version"],
             cfg["max_packets"],
             cfg["max_id_span"],
             cfg["max_heartbeat_gap_ms"],
-        ) != (VERSION, MAX_PACKETS, MAX_ID_SPAN, MAX_HEARTBEAT_GAP_MS):
+            merge.get("max_merged_proofs"),
+            merge.get("max_merged_span_ms"),
+            tuple(merge.get("mergeable_reasons", ())),
+        ) != (
+            VERSION,
+            MAX_PACKETS,
+            MAX_ID_SPAN,
+            MAX_HEARTBEAT_GAP_MS,
+            MAX_MERGED_PROOFS,
+            MAX_MERGED_SPAN_MS,
+            MERGEABLE_REASONS,
+        ):
             raise ValueError("coverage contract and implementation differ")
         self.contract_sha256 = hashlib.sha256(raw).hexdigest()
         self.source_sha256 = hashlib.sha256(
@@ -288,9 +308,11 @@ class CoverageMonitor:
                             connection_id=connection,
                             start_heartbeat_seq=prior_seq,
                             end_heartbeat_seq=seq,
-                            scope="receipt_interval_ws_trade_ids_only",
+                            scope=INTERVAL_SCOPE,
                         )
                     )
+                    if reason in MERGEABLE_REASONS:
+                        self._reconcile(product, connection)
                 # Same-millisecond heartbeat baselines are ambiguous: retain the
                 # older watermark so a new one cannot erase boundary trades.
                 else:
@@ -300,6 +322,76 @@ class CoverageMonitor:
                     return
             self.beats[product] = (receipt, watermark, seq)
             self._state(product, receipt, known, seq, "heartbeat_observed")
+
+    def _reconcile(self, product, connection):
+        """Re-check the trailing run of adjacent failed proofs as one span.
+
+        Only a heartbeat/match ordering race is repairable: the merged span must
+        satisfy the same exact rule (expected IDs == unique IDs received on this
+        connection), so a truly lost ID still fails. Trade receipt times and
+        bucket counts are untouched. ingest stamps the merged proof with the
+        closing heartbeat's processing completion, so nothing is backdated.
+        """
+        run = []
+        for proof in reversed(self.proofs):
+            if proof["product_id"] != product:
+                continue
+            # Verified intervals and earlier merged proofs have no reason, so
+            # they end the run: merges stay disjoint and a nested race fails closed.
+            if (
+                len(run) == MAX_MERGED_PROOFS
+                or proof["reason"] not in MERGEABLE_REASONS
+                or proof["connection_id"] != connection
+                or (
+                    run
+                    and (
+                        proof["end_ts_ms"] != run[-1]["start_ts_ms"]
+                        or proof["upper_trade_id_inclusive"]
+                        != run[-1]["lower_trade_id_exclusive"]
+                    )
+                )
+            ):
+                break
+            run.append(proof)
+        # Smallest closing run first, so two separate races stay separate proofs.
+        for size in range(2, len(run) + 1):
+            first, last = run[size - 1], run[0]
+            start, end = first["start_ts_ms"], last["end_ts_ms"]
+            low = first["lower_trade_id_exclusive"]
+            high = last["upper_trade_id_inclusive"]
+            if end - start > MAX_MERGED_SPAN_MS or high - low > MAX_ID_SPAN:
+                return
+            left, right = (bisect_left(self.times[product], t) for t in (start, end))
+            ids = {
+                tid
+                for _, tid, owner in self.trades[product][left:right]
+                if owner == connection
+            }
+            if ids != set(range(low + 1, high + 1)):
+                continue
+            self.proofs.append(
+                dict(
+                    product_id=product,
+                    start_ts_ms=start,
+                    end_ts_ms=end,
+                    available_ts_ms=None,
+                    lower_trade_id_exclusive=low,
+                    upper_trade_id_inclusive=high,
+                    observed_unique_trade_count=len(ids),
+                    expected_trade_count=high - low,
+                    verified=True,
+                    reason=None,
+                    connection_id=connection,
+                    start_heartbeat_seq=first["start_heartbeat_seq"],
+                    end_heartbeat_seq=last["end_heartbeat_seq"],
+                    scope=MERGED_SCOPE,
+                    merged_proof_count=size,
+                    supersedes_end_heartbeat_seqs=sorted(
+                        p["end_heartbeat_seq"] for p in run[:size]
+                    ),
+                )
+            )
+            return
 
     def assess(self, product, start, end, *, asof):
         if self.failed:
@@ -333,6 +425,19 @@ class CoverageMonitor:
             and p["end_ts_ms"] > start
             and p["available_ts_ms"] <= asof
         ]
+        # A failed proof is superseded only once a merged proof covering it is
+        # known. The failed record itself is never rewritten.
+        superseded = {
+            seq
+            for p in spans
+            if p["scope"] == MERGED_SCOPE
+            for seq in p["supersedes_end_heartbeat_seqs"]
+        }
+        spans = [
+            p
+            for p in spans
+            if p["scope"] == MERGED_SCOPE or p["end_heartbeat_seq"] not in superseded
+        ]
         conflict = any(
             c["product_id"] == product
             and c["start_ts_ms"] < end
@@ -345,7 +450,7 @@ class CoverageMonitor:
             if conflict
             else next((p["reason"] for p in spans if not p["verified"]), None)
         )
-        cursor, available, prior = start, end, None
+        cursor, available, prior, merged_used = start, end, None, 0
         if reason is None:
             for span in sorted(spans, key=lambda p: (p["start_ts_ms"], p["end_ts_ms"])):
                 if span["end_ts_ms"] <= cursor:
@@ -360,6 +465,7 @@ class CoverageMonitor:
                 ):
                     break
                 prior = span
+                merged_used += span["scope"] == MERGED_SCOPE
                 cursor = span["end_ts_ms"]
                 available = max(available, span["available_ts_ms"])
                 if cursor >= end:
@@ -375,6 +481,7 @@ class CoverageMonitor:
             receipt_id_check_passed=reason is None,
             receipt_id_check_reason=reason,
             receipt_id_check_available_ts_ms=available if reason is None else None,
+            receipt_id_check_merged_proofs=merged_used if reason is None else 0,
             transport_observed_ok=transport_reason is None,
             transport_reason=transport_reason,
             full_feed_verified=False,
@@ -415,6 +522,13 @@ def main():
             raise ValueError("empty input is not a completed coverage check")
         if _hash(source) != before:
             raise ValueError("source changed while checking")
+        intervals = [p for p in monitor.proofs if p["scope"] == INTERVAL_SCOPE]
+        repaired = {
+            (p["product_id"], seq)
+            for p in monitor.proofs
+            if p["scope"] == MERGED_SCOPE
+            for seq in p["supersedes_end_heartbeat_seqs"]
+        }
         proof_path = output / "trade_coverage_proofs.jsonl"
         with proof_path.open("x", encoding="utf-8", newline="\n") as stream:
             for proof in monitor.proofs:
@@ -427,10 +541,15 @@ def main():
             contract_sha256=monitor.contract_sha256,
             packet_count=monitor.packet_count,
             unique_ws_matches=len(monitor.seen),
-            proof_count=len(monitor.proofs),
-            verified_proofs=sum(p["verified"] for p in monitor.proofs),
-            proof_reasons=dict(
-                Counter(p["reason"] or "verified" for p in monitor.proofs)
+            proof_count=len(intervals),
+            verified_proofs=sum(p["verified"] for p in intervals),
+            proof_reasons=dict(Counter(p["reason"] or "verified" for p in intervals)),
+            merged_proofs=len(monitor.proofs) - len(intervals),
+            failed_proofs_reconciled=len(repaired),
+            failed_proofs_unreconciled=sum(
+                not p["verified"]
+                and (p["product_id"], p["end_heartbeat_seq"]) not in repaired
+                for p in intervals
             ),
             products=list(monitor.products),
             required_channels=sorted(monitor.required_channels),

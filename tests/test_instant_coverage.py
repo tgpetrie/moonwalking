@@ -167,20 +167,25 @@ def test_conflicting_duplicate_vetoes_only_when_the_conflict_is_known():
     assert check(feed) == original
 
 
-def test_late_match_does_not_repair_old_coverage_or_its_own_receipt_interval():
+def test_late_match_repairs_only_through_a_later_known_merged_proof():
+    # Amended by coverage contract amendment 1. Before it, a late match left
+    # both intervals failed permanently. The failed records and earlier
+    # knowledge are still untouched; repair exists only from the closing proof.
     feed = Feed()
     feed.ack(900)
     feed.hb(1000, 10)
     feed.hb(2000, 11)
     old = check(feed)
+    assert old["receipt_id_check_reason"] == "missing_live_match_ids"
     feed.trade(2100, 11)
     feed.hb(3000, 11)
-    assert check(feed, asof=3001)["receipt_id_check_reason"] == "missing_live_match_ids"
-    assert (
-        check(feed, start=2000, end=3000, asof=3001)["receipt_id_check_reason"]
-        == "receipt_ids_outside_watermarks"
-    )
+    reasons = [p["reason"] for p in feed.monitor.proofs if not p["verified"]]
+    assert reasons == ["missing_live_match_ids", "receipt_ids_outside_watermarks"]
     assert check(feed) == old
+    repaired = check(feed, asof=3001)
+    assert repaired["receipt_id_check_passed"] is True
+    assert repaired["receipt_id_check_available_ts_ms"] == 3001
+    assert repaired["receipt_id_check_merged_proofs"] == 1
 
 
 @pytest.mark.parametrize("when", [1000, 2000])

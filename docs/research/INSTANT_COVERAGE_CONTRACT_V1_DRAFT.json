@@ -1,5 +1,5 @@
 {
-  "version": "instant-coverage-monitor-v1-draft",
+  "version": "instant-coverage-monitor-v1-draft-amendment-1",
   "scope": "offline_receipt_and_trade_id_evidence_not_live_eligibility",
   "max_packets": 100000,
   "max_id_span": 100000,
@@ -17,5 +17,26 @@
   "feed_gate_pass": false,
   "study_frozen": false,
   "fitting_allowed": false,
-  "live_integration": false
+  "live_integration": false,
+  "reconciliation": {
+    "max_merged_proofs": 4,
+    "max_merged_span_ms": 10000,
+    "mergeable_reasons": [
+      "missing_live_match_ids",
+      "receipt_ids_outside_watermarks"
+    ],
+    "requires": "same_connection_contiguous_receipt_intervals_and_watermarks_exact_ID_set_equality_over_the_merged_span",
+    "never_merges": [
+      "heartbeat_gap",
+      "watermark_regression",
+      "id_span_bound",
+      "verified_proofs"
+    ],
+    "conflicts": "known_conflicting_duplicates_still_veto_overlapping_evidence",
+    "attribution": "trade_receipt_times_and_bucket_counts_unchanged_first_receipt_wins",
+    "knowledge": "merged_proof_available_at_the_closing_heartbeat_processing_completion_never_backdated",
+    "originals": "failed_proof_records_retained_unmodified_superseded_only_once_the_merged_proof_is_known",
+    "cap_reasoning": "one_race_spans_two_proofs_so_four_allows_two_consecutive_races_chosen_after_seeing_preserved_hour_coverage_only_no_prices_returns_or_labels_read_not_fitted_to_outcomes",
+    "merges_are_disjoint": "a_run_ends_at_an_earlier_merged_proof_so_a_race_nested_around_a_merged_pair_stays_vetoed_fail_closed"
+  }
 }
