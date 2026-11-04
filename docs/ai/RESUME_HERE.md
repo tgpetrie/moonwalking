@@ -6,6 +6,11 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+A [new cloud book/publication review](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md)
+is prepared, not dispatched, to use remaining credit before November 4 at
+11:59 PM Pacific. The previous association task is complete; do not repeat it.
+Codex separately owns review of local reconciliation `bfab9c8`.
+
 Current code **`8631231`** accepts cloud association/exposure `96f5652`
 (as `e3529c2`) with two validation fixes and three additional tests.
 **521 targeted checks pass** in pinned Windows Python 3.12.10. Read the

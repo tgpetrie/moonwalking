@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T09:49:10.062833+00:00",
+  "updated_utc": "2026-11-04T09:52:46.343994+00:00",
   "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -399,5 +399,13 @@
     "merged": false,
     "left_censoring": "provided_by_reporting_wrapper_used_by_new_association_module_raw_target_API_unchanged",
     "S1": "retain_whole_reference_peak_for_strict_timing_and_separately_named_forward_peak_diagnostic"
+  },
+  "next_cloud_assignment": {
+    "file": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
+    "status": "prepared_not_dispatched",
+    "scope": "one_independent_book_publication_adversarial_review_and_reproduced_fixes",
+    "base_contains": "7671e58",
+    "current_association_task": "complete_accepted",
+    "credit_remaining": "user_response_pending_no_budget_estimate"
   }
 }
