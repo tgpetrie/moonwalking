@@ -11,6 +11,20 @@ is prepared, not dispatched, to use remaining credit before November 4 at
 11:59 PM Pacific. The previous association task is complete; do not repeat it.
 Codex separately owns review of local reconciliation `bfab9c8`.
 
+Branch `claude/instant-book-publication-review-20261104` contains that cloud
+review, **pending Codex review and not merged**. The authoritative resume branch
+is still `codex/instant-radar-20261028`. Read the
+[report](../research/reviews/CLAUDE_BOOK_PUBLICATION_REVIEW_20261104.md).
+It reproduces two book defects on the pinned tip `3ad47b3` and fixes them in
+`instant_book.py` only:
+
+- B1: a heartbeat was used before the book had processed it, so a
+  heartbeat-gap packet could make an invalid book look fresh.
+- B2: the BBO change clock moved when only the text of an amount changed.
+
+The publication module has no defect. 58 probes; 579 targeted checks pass on
+Linux Python 3.12.3.
+
 Current code **`8631231`** accepts cloud association/exposure `96f5652`
 (as `e3529c2`) with two validation fixes and three additional tests.
 **521 targeted checks pass** in pinned Windows Python 3.12.10. Read the

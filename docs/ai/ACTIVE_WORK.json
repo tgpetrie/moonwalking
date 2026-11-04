@@ -92,6 +92,18 @@
       "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
       "implementation_commit": "96f565241ca43f15196f14a59999c98d22806d06",
       "review_acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md"
+    },
+    "claude_cloud_book_review": {
+      "role": "independent_offline_book_publication_adversarial_review",
+      "status": "review_and_two_reproduced_book_fixes_pushed_579_targeted_checks_pending_Codex_review",
+      "branch": "claude/instant-book-publication-review-20261104",
+      "base_codex_tip": "3ad47b36",
+      "assignment": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
+      "report": "docs/research/reviews/CLAUDE_BOOK_PUBLICATION_REVIEW_20261104.md",
+      "probes": "tests/test_instant_book_review.py",
+      "checks": "docs/research/results/claude_book_publication_review_20261104/CHECKS.json",
+      "authoritative_branch": "codex/instant-radar-20261028",
+      "merged": false
     }
   },
   "next_actions": [
@@ -402,7 +414,7 @@
   },
   "next_cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
-    "status": "prepared_not_dispatched",
+    "status": "dispatched_completed_on_claude/instant-book-publication-review-20261104_pending_Codex_review_not_merged",
     "scope": "one_independent_book_publication_adversarial_review_and_reproduced_fixes",
     "base_contains": "7671e58",
     "current_association_task": "complete_accepted",
