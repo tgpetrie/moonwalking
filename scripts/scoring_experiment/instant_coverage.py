@@ -182,7 +182,10 @@ class CoverageMonitor:
                 self._state(product, receipt, known, seq, "subscription_unconfirmed")
         message = env["message"]
         kind, product = message.get("type"), message.get("product_id")
-        if kind in ("connection_closed", "error", "queue_overflow"):
+        # scripts/coinbase_feed_audit.py records its failures as audit_* markers.
+        if kind in ("connection_closed", "error", "queue_overflow") or (
+            isinstance(kind, str) and kind.startswith("audit_")
+        ):
             self.active.clear()
             self.beats.clear()
             for pid in self.products:
@@ -243,7 +246,7 @@ class CoverageMonitor:
                 return
             self.seen[key] = (signature, receipt)
             self.times[product].append(receipt)
-            self.trades[product].append((receipt, trade_id))
+            self.trades[product].append((receipt, trade_id, connection))
         elif kind == "heartbeat" and product in self.active:
             watermark = _integer(message["last_trade_id"])
             previous = self.beats.get(product)
@@ -253,7 +256,11 @@ class CoverageMonitor:
                     left, right = (
                         bisect_left(self.times[product], t) for t in (start, receipt)
                     )
-                    ids = {tid for _, tid in self.trades[product][left:right]}
+                    ids = {
+                        tid
+                        for _, tid, owner in self.trades[product][left:right]
+                        if owner == connection
+                    }
                     delta = watermark - low
                     reason = None
                     if receipt - start > MAX_HEARTBEAT_GAP_MS:
@@ -338,13 +345,21 @@ class CoverageMonitor:
             if conflict
             else next((p["reason"] for p in spans if not p["verified"]), None)
         )
-        cursor, available = start, end
+        cursor, available, prior = start, end, None
         if reason is None:
             for span in sorted(spans, key=lambda p: (p["start_ts_ms"], p["end_ts_ms"])):
                 if span["end_ts_ms"] <= cursor:
                     continue
                 if span["start_ts_ms"] > cursor:
                     break
+                # Touching timestamps alone do not prove the ID sequence continued.
+                if prior and (
+                    span["connection_id"] != prior["connection_id"]
+                    or span["lower_trade_id_exclusive"]
+                    != prior["upper_trade_id_inclusive"]
+                ):
+                    break
+                prior = span
                 cursor = span["end_ts_ms"]
                 available = max(available, span["available_ts_ms"])
                 if cursor >= end:
