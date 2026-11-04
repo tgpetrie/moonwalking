@@ -4,13 +4,17 @@ November 4, 2026 (Pacific). This opt-in reporting addition follows the
 accepted cloud association work and corrected reconciliation checkpoint
 `3c859ef`. It resolves the report's directional-denominator choice; the
 evidence-producing eligibility adapter and overall study remain unfinished.
-Independent review of this addition is pending.
+Claude's independent review `583a73a` is accepted as **`4925ac5`** with no
+defect found and no code patch. **1,163 targeted tests pass**, including 51
+new independent probes. Read
+[the acceptance](INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md).
 
 Implementation **`9da4987`** passes **1,112 targeted tests**, including 48
 new directional cases. Black 24.8.0, guardrails and all 11 historical hashes
 pass on Windows Python 3.12.10 / pytest 8.3.5. Existing implementation and
 contracts are unchanged. No full-suite, native Mac or independent-review pass
-is claimed.
+was claimed at that initial checkpoint. The acceptance above records the
+subsequent independent review and Windows verification.
 
 Code: `scripts/scoring_experiment/instant_directional_exposure.py`.
 [Contract](INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json),
@@ -54,7 +58,10 @@ declared semantics.
 
 Both directions must explicitly account for each submitted product/cutoff,
 with the same universe membership. Other flags may differ by board. Unpaired
-records, duplicates and coerced booleans are rejected. These checks cannot
+records are rejected; universe counts use up-board membership only because
+paired equal membership is enforced. Relaxing either rule requires revisiting
+the counting rule. Malformed records, duplicates and coerced booleans are
+rejected. These checks cannot
 detect products or cutoffs omitted from both boards: a complete intended
 inventory and independently verified evidence are still producer requirements.
 The reporter explicitly identifies eligibility as **caller assertions**, not
@@ -82,7 +89,7 @@ causal cutoffs, exclusions and malformed inputs. The existing association
 tests verify its joint and greedy behavior still holds. No market data or
 historical outcome experiment is run for this addition.
 
-Next is independent review of this small report, then a separately versioned
+The independent review is complete. Next is a separately versioned
 eligibility/grading evidence producer with per-row completion, actual connection
 identity, streaming bounds and durable publication. Publication entry/targets,
 feature ages, F1-F5, stages/model/readiness and the full study still need freeze.

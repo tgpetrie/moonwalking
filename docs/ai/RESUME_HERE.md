@@ -8,12 +8,13 @@ commit, owners, gates and next actions in machine-readable form.
 
 Current implementation **`9da4987`** adds an opt-in directional exposure
 report with own-direction gradability, explicit eligibility cutoffs, time
-unions and same-direction ranker comparison rows. **1,112 targeted tests pass**,
-including 48 new cases. Read
+unions and same-direction ranker comparison rows. Claude review `583a73a`
+is accepted as **`4925ac5`** with no defect found or code patch. **1,163 targeted
+tests pass**, including 51 independent review probes. Read
 [the draft](../research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md) and
-[checks](../research/results/instant_directional_exposure_20261104/CHECKS.json).
+[acceptance/checks](../research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md).
 The focused [Claude review prompt](CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md)
-is prepared, not dispatched. The eligibility evidence producer is still open;
+is complete; do not repeat it. The eligibility evidence producer is still open;
 these flags and clocks are caller assertions. Existing joint reporting,
 greedy association, targets, monitor, book/publication and production are unchanged.
 
@@ -26,8 +27,8 @@ receipt attribution remain preserved. Read the
 [checks](../research/results/instant_reconciliation_acceptance_20261104/CHECKS.json).
 The unchanged hour's 33 ordering failures reconcile into 16 bounded proofs.
 This does not pass the feed gate or enable fitting. No new capture, outcome
-study, target or live change occurred. Next is independent review of the
-directional report and evidence-producing eligibility plus versioned
+study, target or live change occurred. Next is evidence-producing eligibility
+and an intended product/cutoff inventory plus versioned
 grading/row-availability, streaming and publication evidence.
 
 Book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
@@ -75,7 +76,7 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next: independently review the directional report and produce eligibility evidence;
+Next: produce eligibility evidence and an intended product/cutoff inventory;
 version later grading/row-availability and streaming/publication evidence
 before a predeclared source pilot. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
@@ -136,9 +137,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Directional reporting draft `9da4987`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Directional draft `9da4987`, review probes accepted `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,112 targeted tests pass, including 48 new directional cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,163 targeted tests pass, including 51 independent directional probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -177,9 +178,9 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Directional reporting `9da4987` implemented; independent review prepared; earlier contributions accepted; source/readiness gates remain off |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Directional review accepted `4925ac5`, code unchanged `9da4987`; eligibility producer/inventory next; source/readiness gates remain off |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
-| Cloud Claude / Fable | Completed association/book assignments; next proposed directional-report review | Earlier tasks accepted; new bounded review prompt prepared, not dispatched; use one new distinct review branch |
+| Cloud Claude / Fable | Completed association/book/directional review assignments | Directional review `583a73a` accepted; no active new assignment or duplicate review queued |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
@@ -193,7 +194,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: independently review the directional report, produce eligibility evidence
+Next: produce eligibility evidence and an intended product/cutoff inventory,
 and version/test later grading evidence and a streaming recorder with per-row
 processing, actual connection identity and durable publication. Predeclare
 source/latency collection and lag limits before a pilot. Keep the four-product
@@ -280,9 +281,9 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> Directional reporting draft is `9da4987`, pending independent review.
+> Directional reporting draft is `9da4987`, independent review accepted `4925ac5`.
 > Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
-> at `5ff6a8f`, association at `8631231`. 1,112 targeted tests pass.
+> at `5ff6a8f`, association at `8631231`. 1,163 targeted tests pass.
 > Latest preserved-capture verifier is `a5bb397`; replay ran at `837db34`;
 > recorder is `ab95159`, target evaluator unchanged `92fb51d`.
 > Read INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md for the real data findings.
@@ -291,8 +292,9 @@ own machines. The Windows collector is a separate running service on port
 > V1 stays default. The real replay is complete but then-known health,
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
-> implementations are complete; do not rebuild them. Review the new directional
-> reporter and produce eligibility evidence; version later grading, per-row clocks, streaming bounds and
+> implementations and directional review are complete; do not repeat them.
+> Produce eligibility evidence and an intended product/cutoff inventory; version
+> later grading, per-row clocks, streaming bounds and
 > publication evidence before a predeclared source pilot and full study freeze.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation

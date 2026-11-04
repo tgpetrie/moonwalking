@@ -1,6 +1,8 @@
 # One bounded independent review: directional exposure
 
-Prepared for the user to dispatch to one Claude session. Not sent by Codex.
+Completed by the user's Claude session at `583a73a`; accepted as `4925ac5`.
+Read [the acceptance](../research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md).
+The original prompt below is retained for provenance; do not dispatch it again.
 The older association and reconciliation assignments are complete and accepted.
 New implementation to review: **`9da4987`**, with 48 new cases and 1,112
 combined targeted tests passing in Windows. Documentation-only commits may

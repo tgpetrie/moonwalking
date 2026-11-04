@@ -61,7 +61,11 @@ Status keys: Open, In progress, Done, Blocked.
   not dispatched. Eligibility evidence production remains open; existing joint
   reporting and targets are unchanged. See
   `docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md`.
-- Next: independently review the directional report, produce verified eligibility,
+- Independent directional review `583a73a` is accepted as `4925ac5`, adding
+  51 probes with no defect or code patch. 1,163 targeted tests pass; review
+  assignment complete. See
+  `docs/research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md`.
+- Next: produce evidence-backed eligibility and an intended product/cutoff inventory,
   version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current

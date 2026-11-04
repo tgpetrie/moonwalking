@@ -1,5 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
+## Directional review accepted — 2026-11-04
+
+Claude `583a73a` is accepted as **`4925ac5`**, adding 51 independent probes
+with no defect found and no code patch. Implementation remains `9da4987`.
+**1,163 targeted tests pass** locally on Windows Python 3.12.10; formatting,
+guardrails and all 11 historical hashes pass. Read
+[the acceptance](docs/research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md).
+All existing implementation and contract bytes are unchanged.
+
+The directional review is complete; no duplicate review is queued. Its
+limitation probes confirm that caller times cannot be authenticated and a
+product omitted from both boards is invisible. Next is an evidence-producing
+eligibility adapter and intended product/cutoff inventory, followed by remaining
+grading, row clocks, streaming and publication evidence. No new cloud task was
+dispatched. Study freeze, fitting, the feed gate and live behavior are unchanged.
+
 ## Directional exposure draft implemented — 2026-11-04
 
 Code **`9da4987`** adds an opt-in report with own-direction gradability,

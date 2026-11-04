@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T11:13:54.613139+00:00",
+  "updated_utc": "2026-11-04T12:26:19.767922+00:00",
   "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -27,13 +27,13 @@
     "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
     "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
     "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen",
-    "directional_exposure": "opt_in_reporting_implemented_pending_independent_review_eligibility_producer_open"
+    "directional_exposure": "independent_review_complete_accepted_implementation_unchanged_eligibility_producer_open"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "directional_reporting_implemented_1112_targeted_tests_pass_independent_review_prompt_prepared"
+      "status": "directional_review_accepted_1163_targeted_tests_pass_eligibility_evidence_producer_and_inventory_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -95,11 +95,16 @@
       "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
       "implementation_commit": "96f565241ca43f15196f14a59999c98d22806d06",
       "review_acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md",
-      "book_publication_review": "6abd95e_accepted_as_5ff6a8f"
+      "book_publication_review": "6abd95e_accepted_as_5ff6a8f",
+      "directional_review": {
+        "commit": "583a73a081be74e5c0960b178399b60e14da3312",
+        "integrated_as": "4925ac5904cbdf8524a2b9971845702ddf5a3e83",
+        "status": "complete_no_defect_no_patch",
+        "assignment": "docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md"
+      }
     }
   },
   "next_actions": [
-    "Independently review opt-in directional report 9da4987 using the prepared prompt; older association/book/reconciliation assignments are complete",
     "Build a versioned eligibility evidence producer and intended universe inventory; current directional flags and clocks remain caller assertions",
     "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
     "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
@@ -114,15 +119,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1112,
+    "implementation_targeted_tests_passed": 1163,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_9da4987",
+    "guardrails": "passed_at_4925ac5",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_9da4987",
+    "black_24_8": "passed_at_4925ac5",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -147,7 +152,9 @@
     "reconciliation_prepatch_reproduction": "26_failures_4_controls_pass_on_unmodified_bfab9c8_all_30_pass_on_1af0a64",
     "reconciliation_new_cases": 485,
     "reconciliation_runtime": "Codex_Windows_3_12_10_pytest_8_3_5_Claude_reported_Linux_3_12_3",
-    "new_directional_exposure_cases": 48
+    "new_directional_exposure_cases": 48,
+    "independent_directional_probes": 51,
+    "directional_review": "accepted_no_defect_found_no_patch_51_pass_on_unchanged_implementation"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -415,14 +422,16 @@
   },
   "next_cloud_assignment": {
     "file": "docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md",
-    "status": "prepared_not_dispatched",
+    "status": "complete_directional_review_accepted_no_new_assignment_queued",
     "scope": "one_independent_directional_exposure_review_synthetic_counterexamples_only",
     "base_contains": "7671e58",
     "current_association_task": "complete_accepted",
     "credit_remaining": "last_user_report_is_historical_not_a_current_budget",
     "credit_remaining_user_reported_usd": 83,
     "implementation_commit": "9da4987007989bce526a963c294486b95e5b544e",
-    "previous_completed_assignment": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md"
+    "previous_completed_assignment": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
+    "review_commit": "583a73a081be74e5c0960b178399b60e14da3312",
+    "integrated_as": "4925ac5904cbdf8524a2b9971845702ddf5a3e83"
   },
   "reconciliation_review": {
     "commit": "1af0a64a50b863f51270979de3e4d64fa982edb6",
@@ -471,12 +480,16 @@
     "contract": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json",
     "report": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md",
     "checks": "docs/research/results/instant_directional_exposure_20261104/CHECKS.json",
-    "status": "implemented_draft_pending_independent_review",
+    "status": "draft_independent_review_accepted_evidence_producer_still_open",
     "own_direction_gradability": true,
     "legacy_joint_report_unchanged": true,
     "eligibility_producer_implemented": false,
     "eligibility_evidence_authenticated": false,
     "fitting_allowed": false,
-    "live_integration": false
+    "live_integration": false,
+    "review_commit": "583a73a081be74e5c0960b178399b60e14da3312",
+    "review_integrated_as": "4925ac5904cbdf8524a2b9971845702ddf5a3e83",
+    "review_acceptance": "docs/research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md",
+    "review_checks": "docs/research/results/instant_directional_review_acceptance_20261104/CHECKS.json"
   }
 }
