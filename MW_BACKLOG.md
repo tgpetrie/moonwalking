@@ -48,6 +48,9 @@ Status keys: Open, In progress, Done, Blocked.
   `8631231`; 521 targeted checks pass. Local reconciliation `bfab9c8` is
   pushed and pending independent review. See
   `docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md`.
+- Cloud book/publication review `6abd95e` is accepted as `5ff6a8f`;
+  579 targeted tests pass. Both cloud tasks are complete. Local reconciliation
+  remains unmerged pending its documented same-millisecond boundary fix.
 - Next: verify those contributions, version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current

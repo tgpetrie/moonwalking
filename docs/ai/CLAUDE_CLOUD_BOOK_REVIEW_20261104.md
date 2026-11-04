@@ -1,6 +1,8 @@
-# Next cloud task: independent book and publication review
+# Completed cloud task: independent book and publication review
 
-Prepared November 4, 2026 (Pacific). **Not dispatched by Codex.**
+Completed: `6abd95e` independently verified and accepted as `5ff6a8f`, with
+579 targeted checks passing. The assignment below is historical; do not
+redispatch it. See `docs/research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md`.
 The previous cloud association assignment is complete and accepted. This is
 new code-review work, aimed at shipping useful fixes before the user's cloud
 credit expires tonight. No dollar or completion-time estimate is assumed.

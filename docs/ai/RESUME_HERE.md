@@ -6,14 +6,17 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-A [new cloud book/publication review](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md)
-is prepared, not dispatched, to use remaining credit before November 4 at
-11:59 PM Pacific. The previous association task is complete; do not repeat it.
-Codex separately owns review of local reconciliation `bfab9c8`. A
-[blocking same-millisecond continuity case](../research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md)
-is reproduced; reconciliation remains unmerged pending correction.
+Current book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
+premature heartbeat knowledge and text-only BBO clock changes. **579 targeted
+tests pass** in pinned Windows Python 3.12.10. Read the
+[acceptance](../research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md) and
+[checks](../research/results/instant_book_review_acceptance_20261104/CHECKS.json).
+The [cloud review assignment](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md) is complete.
+Do not repeat it. Local reconciliation still has the independently reproduced
+[same-millisecond continuity blocker](../research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md)
+and remains unmerged. The publication module and targets are unchanged.
 
-Current code **`8631231`** accepts cloud association/exposure `96f5652`
+Previous checkpoint **`8631231`** accepts cloud association/exposure `96f5652`
 (as `e3529c2`) with two validation fixes and three additional tests.
 **521 targeted checks pass** in pinned Windows Python 3.12.10. Read the
 [acceptance](../research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md) and
@@ -109,9 +112,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Association `8631231`; book/publication `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Book fixes `5ff6a8f`; association `8631231`; book/publication base `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 521 targeted checks pass, including 50 cloud association cases and three Codex validation cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 579 targeted checks pass, including 58 independent book-review probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |

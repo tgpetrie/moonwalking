@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T10:02:06.918978+00:00",
+  "updated_utc": "2026-11-04T10:16:29.468950+00:00",
   "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "863123152ac730c7cbd286a5da6044e49dd97467",
+  "implementation_commit": "5ff6a8fbb0d3aa7bdc8f1b08b96b39630652ad23",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -32,7 +32,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "cloud_association_reviewed_integrated_and_tightened_521_targeted_checks_pass"
+      "status": "book_publication_review_verified_two_fixes_integrated_579_targeted_tests_pass_reconciliation_blocked"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -91,7 +91,8 @@
       "base_branch": "codex/instant-radar-20261028",
       "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
       "implementation_commit": "96f565241ca43f15196f14a59999c98d22806d06",
-      "review_acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md"
+      "review_acceptance": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md",
+      "book_publication_review": "6abd95e_accepted_as_5ff6a8f"
     }
   },
   "next_actions": [
@@ -110,15 +111,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 521,
+    "implementation_targeted_tests_passed": 579,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_8631231",
+    "guardrails": "passed_at_5ff6a8f",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_8631231",
+    "black_24_8": "passed_at_5ff6a8f",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -137,7 +138,9 @@
     "independent_coverage_review_probes": 9,
     "coverage_prepatch_reproduction": "five_C1_C3_cases_fail_four_controls_pass",
     "cloud_association_cases": 50,
-    "Codex_association_validation_cases": 3
+    "Codex_association_validation_cases": 3,
+    "independent_book_publication_probes": 58,
+    "book_review_prepatch_reproduction": "4_defect_cases_fail_54_controls_pass"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -376,10 +379,11 @@
     "max_feature_age_policy_frozen": false,
     "publication_anchored_outcomes_implemented": false,
     "continuous_F3_or_live_readiness_verified": false,
-    "independent_new_book_review": "not_claimed",
+    "independent_new_book_review": "6abd95e_independently_reproduced_and_accepted_as_5ff6a8f",
     "new_capture": false,
     "live_integration": false,
-    "new_PC_only_evidence_needed": false
+    "new_PC_only_evidence_needed": false,
+    "current_book_commit": "5ff6a8fbb0d3aa7bdc8f1b08b96b39630652ad23"
   },
   "association_exposure": {
     "cloud_commit": "96f565241ca43f15196f14a59999c98d22806d06",
@@ -402,7 +406,7 @@
   },
   "next_cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_BOOK_REVIEW_20261104.md",
-    "status": "prepared_not_dispatched",
+    "status": "complete_review_accepted_6abd95e_as_5ff6a8f",
     "scope": "one_independent_book_publication_adversarial_review_and_reproduced_fixes",
     "base_contains": "7671e58",
     "current_association_task": "complete_accepted",
@@ -417,5 +421,16 @@
     "scope": "synthetic_same_ms_audit_reset_then_resubscribe_on_same_connection",
     "actual": "merged_proof_and_receipt_ID_pass",
     "expected": "continuity_boundary_prevents_merging"
+  },
+  "book_publication_review_acceptance": {
+    "source_commit": "6abd95ef728c58bee66f21b1f86f6f3d1182e94d",
+    "integrated_as": "5ff6a8fbb0d3aa7bdc8f1b08b96b39630652ad23",
+    "acceptance": "docs/research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md",
+    "checks": "docs/research/results/instant_book_review_acceptance_20261104/CHECKS.json",
+    "tests_passed": 579,
+    "new_independent_probes": 58,
+    "publication_code_changed": false,
+    "new_capture": false,
+    "live_changes": false
   }
 }

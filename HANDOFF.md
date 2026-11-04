@@ -1,5 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
+## Book/publication review accepted — 2026-11-04
+
+Cloud `6abd95e` was independently reproduced (four defect cases fail, 54
+controls pass before the fix) and accepted as **`5ff6a8f`**. **579 targeted tests
+pass** on pinned Windows Python 3.12.10. The book uses packet completion
+consistently for transport knowledge and compares BBO changes numerically.
+Read [the acceptance](docs/research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md).
+Only book code changes; publication/targets, monitor, contracts, historical
+artifacts and production are unchanged. Formatting, guardrails and 11 hashes
+pass. No full-suite or native Mac claim; no market run or fit.
+
+Both cloud assignments are complete. Local reconciliation remains unmerged
+pending the same-millisecond continuity correction. The later-grading,
+streaming/publication, direction-specific eligibility and full study freeze
+requirements remain open before any source pilot or fitting.
+
 ## Cloud association/exposure accepted — 2026-11-04
 
 Cloud implementation `96f5652` is accepted as `e3529c2`; **`8631231`** tightens
