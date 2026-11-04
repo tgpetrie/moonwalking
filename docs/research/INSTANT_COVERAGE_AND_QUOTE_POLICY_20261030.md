@@ -116,8 +116,12 @@ proofs may be re-checked as one span, within explicit limits:
 **Replay of the preserved hour:** all 33 failed proofs reconciled into 16 merged
 proofs, none unreconciled; the 14,363 strict proofs are unchanged. The largest merge
 used 3 proofs and spanned 2,990ms, so no limit was reached. The earliest repaired
-interval waited a median of 967ms longer (maximum 1,993ms). This is one hour, not a
-rate estimate, and no quote or label availability is implied.
+interval in each of the 16 merges waited a median of 965.5ms longer (maximum
+1,993ms), measured between receipt boundaries. Codex independently verified
+these counts and accepted the continuity correction; see
+[the acceptance](INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md). This is one
+hour, not a rate estimate or live processing-latency measurement, and no quote
+or label availability is implied.
 
 The monitor remains offline. Quote coverage, the feed gate and live eligibility are
 unchanged, and it is still not wired into `Sample` coverage.

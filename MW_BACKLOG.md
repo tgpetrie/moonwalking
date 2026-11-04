@@ -51,7 +51,12 @@ Status keys: Open, In progress, Done, Blocked.
 - Cloud book/publication review `6abd95e` is accepted as `5ff6a8f`;
   579 targeted tests pass. Both cloud tasks are complete. Local reconciliation
   remains unmerged pending its documented same-millisecond boundary fix.
-- Next: verify those contributions, version publication-target/later-grading
+- Bounded reconciliation `bfab9c8`, continuity correction `d26c57d` and the
+  second probe set `1af0a64` are accepted through `055d590`; 1,064 targeted
+  tests pass, including the newer book/publication code. The same-millisecond
+  blocker above is resolved. Read
+  `docs/research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md`.
+- Next: define per-direction eligibility/exposure, version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining

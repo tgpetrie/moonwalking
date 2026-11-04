@@ -6,15 +6,27 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-Current book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
+Current reconciliation checkpoint **`055d590`** accepts local Claude's bounded
+merging, continuity correction `d26c57d` (as `d80418e`) and second probe set
+`1af0a64`. **1,064 targeted tests pass**, including the newer book/publication
+tests. The same-millisecond blocker is resolved; original failures and
+receipt attribution remain preserved. Read the
+[acceptance](../research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md) and
+[checks](../research/results/instant_reconciliation_acceptance_20261104/CHECKS.json).
+The unchanged hour's 33 ordering failures reconcile into 16 bounded proofs.
+This does not pass the feed gate or enable fitting. No new capture, outcome
+study, target or live change occurred. Next is per-direction eligibility and
+versioned grading/row-availability, streaming and publication evidence.
+
+Book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
 premature heartbeat knowledge and text-only BBO clock changes. **579 targeted
 tests pass** in pinned Windows Python 3.12.10. Read the
 [acceptance](../research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md) and
 [checks](../research/results/instant_book_review_acceptance_20261104/CHECKS.json).
 The [cloud review assignment](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md) is complete.
-Do not repeat it. Local reconciliation still has the independently reproduced
+Do not repeat it. The former
 [same-millisecond continuity blocker](../research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md)
-and remains unmerged. The publication module and targets are unchanged.
+is resolved by the acceptance above. The publication module and targets are unchanged.
 
 Previous checkpoint **`8631231`** accepts cloud association/exposure `96f5652`
 (as `e3529c2`) with two validation fixes and three additional tests.
@@ -24,8 +36,8 @@ Previous checkpoint **`8631231`** accepts cloud association/exposure `96f5652`
 Claude's Linux/3.13 report is retained; no native Mac or full-suite pass is claimed.
 
 The cloud assignment is complete and accepted as a reporting draft. Local
-Claude's bounded reconciliation is pushed at `bfab9c8`, awaiting independent
-review/integration. Do not repeat the completed cloud implementation.
+Claude's bounded reconciliation is accepted through `055d590`, including the
+two follow-up commits. Do not repeat the completed cloud implementation.
 The older `4610bf2` raw-catalog change is not merged: the reporting wrapper
 already supplies left-censor flags and is used by association. S1 retains
 whole-window strict timing plus a separately named forward-peak diagnostic.
@@ -39,8 +51,8 @@ and [468 passing checks](../research/results/instant_book_publication_20261103/C
 The user's older 363-check resume prompt is superseded by these checkpoints.
 Do not rebuild completed adapters or repeat general accepted reviews.
 
-Local Claude owns `claude/instant-coverage-reconciliation`; its `bfab9c8`
-contribution is pushed and pending review. Cloud Fable completed the separate
+Local Claude's `claude/instant-coverage-reconciliation` is pushed at `1af0a64`
+and accepted through `055d590`. Cloud Fable completed the separate
 [association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md); its
 implementation is accepted in the current checkpoint above.
 Codex owns book/timing and integration. No capture, fit, held `d711832` merge
@@ -51,7 +63,7 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next: review bounded reconciliation and define directional exposure/eligibility;
+Next: define directional exposure/eligibility;
 version later grading/row-availability and streaming/publication evidence
 before a predeclared source pilot. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
@@ -112,9 +124,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Book fixes `5ff6a8f`; association `8631231`; book/publication base `8c51878`; coverage fixes `652f5af`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; verifier `a5bb397` (recorded run `837db34`); recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 579 targeted checks pass, including 58 independent book-review probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,064 targeted tests pass, including the reconciliation/barrier and newer book/publication tests; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -153,9 +165,9 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Cloud association accepted through `8631231`; reconciliation review next; source/readiness gates remain off |
-| Local Claude | Review plus bounded reconciliation implementation | V2/offline/coverage reviews accepted; `claude/instant-coverage-reconciliation` pushed `bfab9c8`; independent review pending |
-| Cloud Claude / Fable | Standalone association/exposure implementation | Cloud implementation `96f5652` accepted with Codex validation followup `8631231` |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Reconciliation accepted through `055d590`; book and association reviews complete; source/readiness gates remain off |
+| Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
+| Cloud Claude / Fable | Association/exposure and independent book/publication review | Both assignments complete and accepted; no duplicate review queued |
 | Gemini | Compare target choices with the corrected proposal; define supporting/rejecting evidence for F1-F5 | Two v1 source reviews plus a v2 design response received; eight v2 hashes checked; recommendations accepted/qualified in the draft; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
@@ -169,8 +181,8 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: verify local bounded reconciliation and cloud association/exposure,
-then version/test later grading evidence and a streaming recorder with per-row
+Next: define per-direction eligibility/exposure and version/test later grading
+evidence and a streaming recorder with per-row
 processing, actual connection identity and durable publication. Predeclare
 source/latency collection and lag limits before a pilot. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
@@ -256,15 +268,20 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> Latest verifier is `a5bb397`; preserved replay ran at `837db34`; recorder is
-> `ab95159`, target evaluator unchanged `92fb51d`. 363 targeted checks pass.
+> Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
+> at `5ff6a8f`, association at `8631231`. 1,064 targeted tests pass.
+> Latest preserved-capture verifier is `a5bb397`; replay ran at `837db34`;
+> recorder is `ab95159`, target evaluator unchanged `92fb51d`.
 > Read INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md for the real data findings.
 > Read the October 30 Claude acceptance and consolidated study-rule candidate.
 > Gemini's v2 response is received/reconciled; this is a draft, not frozen code.
 > V1 stays default. The real replay is complete but then-known health,
-> thin quotes and baseline warmup remain blockers. Implement contemporaneous
-> health/immutable sample adapters and freeze event association/exposure and
-> remaining study rules before fitting; no physical onset is inferred yet.
+> thin quotes and baseline warmup remain blockers. Read the November 4
+> reconciliation, book and association acceptance reports. Those draft
+> implementations are complete; do not rebuild them. Define per-direction
+> eligibility and version later grading, per-row clocks, streaming bounds and
+> publication evidence before a predeclared source pilot and full study freeze.
+> Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and
 > production unchanged. Update the portable checkpoint, commit and push

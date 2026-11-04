@@ -1,5 +1,27 @@
 # Moonwalking / BHABIT Handoff
 
+## Bounded reconciliation accepted — 2026-11-04
+
+Local Claude's `bfab9c8`, corrected by `d26c57d` and supplemented by `1af0a64`,
+is integrated through **`055d590`** (monitor fix **`d80418e`**). Codex reproduced
+26 failures/four controls on the old code and all 30 passes on the correction.
+**1,064 targeted tests pass**, including the newer book/publication tests.
+Formatting, guardrails and 11 historical hashes pass. Read
+[the acceptance](docs/research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md).
+
+Per-product continuity epochs prevent merges, assessment chains and trade
+counts from crossing lifecycle barriers, even within one millisecond on a
+reused connection. Original failures, receipt attribution and known-at timing
+remain preserved. The unchanged hour's 33 strict failures reconcile into 16
+bounded proofs; this is an ID-quality check, not an outcome or feed-gate pass.
+Targets, recorder, book/publication and production are unchanged.
+
+Both cloud tasks and this local correction are complete. Next: direction-
+specific eligibility/exposure and versioned grading/row-availability,
+streaming and publication evidence before a predeclared source pilot and
+study freeze. Fitting remains off; historical validation remains locked.
+The older pending/blocker entries below are superseded by this acceptance.
+
 ## Book/publication review accepted — 2026-11-04
 
 Cloud `6abd95e` was independently reproduced (four defect cases fail, 54

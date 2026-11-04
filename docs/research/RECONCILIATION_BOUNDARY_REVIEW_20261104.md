@@ -1,5 +1,10 @@
 # Reconciliation review: continuity boundary blocker
 
+Resolution, November 4: `d26c57d` fixes the reproduced blocker and `1af0a64`
+adds a second probe set. Codex accepted them through `055d590`; 1,064 targeted
+tests pass. Read [the acceptance](INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md).
+The original reproduction below remains a record of unmodified `bfab9c8`.
+
 November 4, 2026. Proposed commit `bfab9c86394a9117951b8f4fb970da88a34a7e32`
 was inspected read-only in local Claude's worktree. It has **not been merged**
 into `codex/instant-radar-20261028`. Codex reproduced one blocking violation;

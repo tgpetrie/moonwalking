@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T10:16:29.468950+00:00",
+  "updated_utc": "2026-11-04T10:55:40.070215+00:00",
   "display_date_pacific": "2026-11-04",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "5ff6a8fbb0d3aa7bdc8f1b08b96b39630652ad23",
+  "implementation_commit": "055d5900bc883c4d1e6451da9d1c359bc690c732",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -22,7 +22,7 @@
     "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
     "recorder": "preserved_real_capture_counts_verified_no_live_integration",
     "baseline_builder": "synthetic_math_verified_saved_capture_lacks_warmup_and_contemporaneous_coverage",
-    "health_adapter": "coverage_review_fixes_accepted_strict_monitor_retained_bounded_reconciliation_pending",
+    "health_adapter": "bounded_reconciliation_amendment_and_continuity_barriers_independently_verified_accepted_no_full_feed_certification",
     "sample_adapter": "legacy_immutable_pairing_unchanged_per_row_processing_and_later_grading_evidence_open",
     "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
     "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
@@ -32,11 +32,11 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "book_publication_review_verified_two_fixes_integrated_579_targeted_tests_pass_reconciliation_blocked"
+      "status": "reconciliation_integrated_1064_targeted_tests_pass_cloud_book_and_association_complete"
     },
     "claude": {
       "role": "independent_code_and_target_review",
-      "status": "reconciliation_bfab9c8_review_blocked_confirmed_same_ms_audit_boundary_false_pass_not_merged",
+      "status": "reconciliation_1af0a64_review_complete_corrected_barriers_accepted_through_055d590",
       "branch": "claude/instant-coverage-reconciliation",
       "observed_implementation_commit": "8b5b26614de74459000ae29d39d71abe34567007",
       "windows_review_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarReview",
@@ -60,7 +60,9 @@
       "coverage_review_integrated_as": "652f5af63a996bae2f85a17c031560e08ed16c37",
       "coverage_acceptance": "docs/research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md",
       "reconciliation_authorization": "user screenshot shows Adopt merging and instruction to implement on own branch with explicit limits/tests",
-      "reconciliation_observed_tip": "bfab9c8"
+      "reconciliation_observed_tip": "1af0a64a50b863f51270979de3e4d64fa982edb6",
+      "reconciliation_monitor_fix": "d26c57df5dd52476e05a70330c712902c7965ac5",
+      "reconciliation_integrated_as": "055d5900bc883c4d1e6451da9d1c359bc690c732"
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
@@ -96,7 +98,6 @@
     }
   },
   "next_actions": [
-    "Correct and independently verify same-millisecond audit/subscription continuity barrier failure in local reconciliation before integration",
     "Define evidence-producing eligibility and per-direction gradability before treating joint complete rows as board-specific exposure; retain deterministic greedy association",
     "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
     "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
@@ -111,15 +112,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 579,
+    "implementation_targeted_tests_passed": 1064,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_5ff6a8f",
+    "guardrails": "passed_at_055d590",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_5ff6a8f",
+    "black_24_8": "passed_at_055d590",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -140,7 +141,10 @@
     "cloud_association_cases": 50,
     "Codex_association_validation_cases": 3,
     "independent_book_publication_probes": 58,
-    "book_review_prepatch_reproduction": "4_defect_cases_fail_54_controls_pass"
+    "book_review_prepatch_reproduction": "4_defect_cases_fail_54_controls_pass",
+    "reconciliation_prepatch_reproduction": "26_failures_4_controls_pass_on_unmodified_bfab9c8_all_30_pass_on_1af0a64",
+    "reconciliation_new_cases": 485,
+    "reconciliation_runtime": "Codex_Windows_3_12_10_pytest_8_3_5_Claude_reported_Linux_3_12_3"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -348,14 +352,16 @@
     "heartbeat_refreshes_quote_timestamp": false,
     "publication_timing_amendment": "required_before_using_delayed_proofs_at_live_publication",
     "numerical_publication_lag_limit_frozen": false,
-    "new_real_capture_or_replay_run": false,
-    "independent_review_of_new_code": "monitor_sample_review_91f3043_accepted_new_book_publication_not_independently_reviewed",
+    "new_real_capture_or_replay_run": true,
+    "independent_review_of_new_code": "monitor_and_samples_review_accepted_reconciliation_accepted_through_055d590_book_review_accepted_as_5ff6a8f",
     "previous_target_and_offline_reviews": "complete_unchanged",
     "new_PC_only_evidence_needed_for_handoff": false,
     "synthetic_inputs": "generated_by_committed_tests",
     "live_integration": false,
-    "current_monitor_commit": "652f5af63a996bae2f85a17c031560e08ed16c37",
-    "quote_adapter_scope": "standalone_offline_no_legacy_Sample_bridge_no_full_feed_certification"
+    "current_monitor_commit": "d80418ed3f1ad50caf5b732055475ada4df16278",
+    "quote_adapter_scope": "standalone_offline_no_legacy_Sample_bridge_no_full_feed_certification",
+    "preserved_ID_check_repeated": true,
+    "latest_real_data_check_scope": "same_preserved_hour_ID_and_receipt_quality_only_no_new_capture_or_outcomes"
   },
   "cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
@@ -369,7 +375,7 @@
   },
   "book_and_publication": {
     "implementation_commit": "8c51878aac4a52d7896827bb7b7943d08c9eca7b",
-    "combined_monitor_code_checkpoint": "652f5af63a996bae2f85a17c031560e08ed16c37",
+    "combined_monitor_code_checkpoint": "055d5900bc883c4d1e6451da9d1c359bc690c732",
     "report": "docs/research/INSTANT_BOOK_AND_PUBLICATION_20261103.md",
     "book_contract": "docs/research/INSTANT_BOOK_CONTRACT_V1_DRAFT.json",
     "publication_contract": "docs/research/INSTANT_PUBLICATION_CONTRACT_V1_DRAFT.json",
@@ -414,13 +420,35 @@
     "credit_remaining_user_reported_usd": 83
   },
   "reconciliation_review": {
-    "commit": "bfab9c86394a9117951b8f4fb970da88a34a7e32",
-    "status": "blocking_counterexample_reproduced_full_acceptance_not_claimed",
-    "report": "docs/research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md",
-    "merged": false,
-    "scope": "synthetic_same_ms_audit_reset_then_resubscribe_on_same_connection",
-    "actual": "merged_proof_and_receipt_ID_pass",
-    "expected": "continuity_boundary_prevents_merging"
+    "commit": "1af0a64a50b863f51270979de3e4d64fa982edb6",
+    "status": "complete_continuity_correction_accepted",
+    "report": "docs/research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md",
+    "merged": true,
+    "source_commits": {
+      "amendment": "bfab9c86394a9117951b8f4fb970da88a34a7e32",
+      "continuity_fix": "d26c57df5dd52476e05a70330c712902c7965ac5",
+      "second_probe_set": "1af0a64a50b863f51270979de3e4d64fa982edb6"
+    },
+    "integrated_commits": {
+      "amendment": "a82f182f6f22294233390b236bab988e4100750a",
+      "continuity_fix": "d80418ed3f1ad50caf5b732055475ada4df16278",
+      "second_probe_set": "055d5900bc883c4d1e6451da9d1c359bc690c732"
+    },
+    "supersedes_blocker_report": "docs/research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md",
+    "checks": "docs/research/results/instant_reconciliation_acceptance_20261104/CHECKS.json",
+    "prepatch_failures": 26,
+    "prepatch_controls": 4,
+    "postpatch_second_probes_passed": 30,
+    "combined_targeted_tests_passed": 1064,
+    "limits": {
+      "max_merged_proofs": 4,
+      "max_merged_span_ms": 10000,
+      "max_id_span": 100000
+    },
+    "preserved_hour_failed_proofs_reconciled": 33,
+    "full_feed_gate_pass": false,
+    "study_frozen": false,
+    "live_changes": false
   },
   "book_publication_review_acceptance": {
     "source_commit": "6abd95ef728c58bee66f21b1f86f6f3d1182e94d",
