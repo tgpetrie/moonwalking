@@ -85,9 +85,16 @@
     },
     "claude_cloud": {
       "role": "standalone_offline_association_and_exposure_implementation",
-      "status": "user_screenshot_verifies_Fable_5_1_cloud_assignment_reading_code_and_push_pending",
+      "status": "association_exposure_draft_implemented_and_pushed_518_targeted_checks_pending_Codex_review",
       "base_branch": "codex/instant-radar-20261028",
-      "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md"
+      "assignment": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
+      "branch": "claude/instant-association-cloud-20261103",
+      "base_codex_tip": "1d394e48",
+      "implementation_commit": "96f56524",
+      "report": "docs/research/INSTANT_ASSOCIATION_EXPOSURE_20261103.md",
+      "contract": "docs/research/INSTANT_ASSOCIATION_CONTRACT_V1_DRAFT.json",
+      "checks": "docs/research/results/instant_association_20261103/CHECKS.json",
+      "merged": false
     }
   },
   "next_actions": [
@@ -350,7 +357,7 @@
   },
   "cloud_assignment": {
     "file": "docs/ai/CLAUDE_CLOUD_ASSIGNMENT_20261103.md",
-    "status": "user_screenshot_verifies_cloud_Fable_5_1_reading_assignment_implementation_push_pending",
+    "status": "implemented_on_claude/instant-association-cloud-20261103_at_96f5652_pending_Codex_review_not_merged",
     "proposed_owner": "Claude_Code_cloud",
     "base_checkpoint": "6c229528047bfd5ed75fd0a44b35e95c9e9b0614",
     "scope": "standalone_offline_association_and_exposure_implementation_synthetic_checks",

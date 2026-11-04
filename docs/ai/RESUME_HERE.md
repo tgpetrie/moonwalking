@@ -20,7 +20,13 @@ The user explicitly assigned local Claude bounded merging on
 [association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md), as
 verified by the user's screenshot; implementation/push is not yet verified.
 Codex owns book/timing and integration. No capture, fit, held `d711832` merge
-or live integration occurred. New sources/tests/results are in Git; existing
+or live integration occurred.
+
+Cloud Claude's association/exposure draft is implemented at `96f5652` on
+`claude/instant-association-cloud-20261103`, based on `1d394e4`; read the
+[report](../research/INSTANT_ASSOCIATION_EXPOSURE_20261103.md). 518 targeted
+checks pass there. It is pending Codex review and is not merged; this page's
+authoritative branch remains `codex/instant-radar-20261028`. New sources/tests/results are in Git; existing
 raw-evidence bundles remain valid.
 
 Book replay preserves atomic batches, original quote/change ages and measured
