@@ -78,8 +78,13 @@ Status keys: Open, In progress, Done, Blocked.
   46 probes, no defect/code patch, 1,241 targeted tests pass. The user's Gemini
   response is the already reconciled older eight-file review; the new 29-file
   response remains outstanding. See `docs/research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md`.
-- Next: build timed baseline/F1-F5 evidence and reconcile the new Gemini
-  methodology response when received,
+- The new 29-file Gemini methodology response is received/reconciled at
+  `840ff97`: candidate formulas retained, availability/budget/entry claims
+  corrected or qualified, no numeric rule frozen. Six synthetic boundary
+  checks bring the targeted suite to 1,247 passes. See
+  `docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md`.
+- Next: implement timed baseline/component evidence with separate actual
+  completion and provenance, preserve existing cutoff APIs, then build F1-F5,
   version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current

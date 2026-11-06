@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-06T08:11:22.420117+00:00",
+  "updated_utc": "2026-11-06T08:37:13.450684+00:00",
   "display_date_pacific": "2026-11-06",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -34,7 +34,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "input_review_accepted_1241_targeted_tests_pass_timed_baseline_features_next"
+      "status": "new_Gemini_methodology_reconciled_1247_targeted_tests_pass_timed_baseline_component_evidence_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -68,23 +68,26 @@
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "prior_v2_design_reconciled_new_current_methodology_upload_packet_prepared_not_dispatched",
+      "status": "current_29_file_methodology_response_received_reconciled_static_only_no_freeze",
       "review_history": {
         "pre_source_conceptual_responses": 1,
-        "source_based_static_responses": 3,
+        "source_based_static_responses": 4,
         "independent_empirical_studies": 0,
         "v2_review": "received_reconciled_recommendations_qualified_study_not_frozen",
         "v1_source_based_static_responses": 2,
-        "v2_design_responses": 1
+        "v2_design_responses": 1,
+        "current_methodology_responses": 1
       },
       "v2_response": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
       "v2_response_manifest": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030_MANIFEST.json",
       "source_scope": "initial 8b5b266 packet plus acceptance report; no independently verified test execution or full patched-source inspection",
       "current_assignment": {
         "file": "docs/ai/GEMINI_METHOD_REVIEW_20261104.md",
-        "status": "prepared_not_dispatched",
+        "status": "complete_response_received_reconciled",
         "source_commit": "fee55a7dd2bbb32c661c531d6fe9a8432db9400d",
-        "scope": "targets_F1_F5_falsifiability_and_prefreeze_decisions_not_ledger_code_audit"
+        "scope": "targets_F1_F5_falsifiability_and_prefreeze_decisions_not_ledger_code_audit",
+        "response": "docs/research/reviews/GEMINI_METHOD_REVIEW_20261106.md",
+        "triage": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md"
       }
     },
     "local_14b": {
@@ -121,11 +124,11 @@
     }
   },
   "next_actions": [
-    "Build timed baseline and F1-F5 evidence; input-evidence stage 1 review is complete and needs no duplicate review",
-    "Receive new Gemini methodology response for the 29-file fee55a7 packet; November 6 pasted response is the older already reconciled eight-file review",
-    "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
-    "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
-    "Implement and freeze F1-F5, stages/model/readiness/effect rules before 14 valid shadow days and fresh validation once; historical validation and production unchanged"
+    "Implement timed baseline/component evidence with separate observation cutoff, evidence knowledge and actual completion; do not reinterpret existing Sample or eligibility availability",
+    "Declare F3 integration and F4 candle-source/alignment rules before feature wiring; preserve the fixed five candidate formulas and matched comparisons",
+    "Version delayed-decision and later-grading interfaces, actual connection identity, streaming/persistence and durable publication; no positive eligibility bridge yet",
+    "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
+    "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -136,15 +139,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1241,
+    "implementation_targeted_tests_passed": 1247,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_086eb20",
+    "guardrails": "passed_at_840ff97",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_086eb20",
+    "black_24_8": "passed_at_840ff97",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -174,7 +177,8 @@
     "directional_review": "accepted_no_defect_found_no_patch_51_pass_on_unchanged_implementation",
     "new_input_evidence_cases": 32,
     "independent_input_evidence_probes": 46,
-    "input_evidence_review": "accepted_no_defect_no_patch_46_probes_pass_on_unchanged_source"
+    "input_evidence_review": "accepted_no_defect_no_patch_46_probes_pass_on_unchanged_source",
+    "Gemini_methodology_boundary_cases": 6
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -542,12 +546,28 @@
     "sha256": "57a5d02b9e1175cc3ebfd488f8eb08b73fbdf6a647fc39ba855bc5ded6b570bf",
     "upload_convenience_copy": "C:\\Users\\tgpet\\Downloads\\Moonwalking-Gemini-Methodology-20261104-fee55a7.txt",
     "upload_required_not_a_local_path_or_private_link": true,
-    "status": "new_response_not_received_user_supplied_already_reconciled_eight_file_review",
+    "status": "new_29_file_response_received_reconciled",
     "all_29_source_bodies_verified_against_git": true,
     "downloads_copy_byte_identical": true,
     "runtime_tests_rerun_for_packaging": false,
     "scope": "static_methodology_review_no_Claude_ledger_code_audit_no_empirical_performance_claim",
-    "November_6_user_response_identified_as": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
-    "input_implementation_unchanged_after_Claude_review": true
+    "input_implementation_unchanged_after_Claude_review": true,
+    "earlier_November_6_response_identified_as": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
+    "response": "docs/research/reviews/GEMINI_METHOD_REVIEW_20261106.md",
+    "response_manifest": "docs/research/reviews/GEMINI_METHOD_REVIEW_20261106_MANIFEST.json",
+    "triage": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md",
+    "supplied_source_metadata_matched": 29,
+    "Gemini_tests_run": false,
+    "Gemini_hashes_computed": false,
+    "Codex_new_synthetic_boundary_cases": 6
+  },
+  "latest_verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
+  "methodology_review_20261106": {
+    "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
+    "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
+    "triage": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md",
+    "checks": "docs/research/results/instant_method_review_20261106/CHECKS.json",
+    "fitting_allowed": false,
+    "study_frozen": false
   }
 }

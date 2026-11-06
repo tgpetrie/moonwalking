@@ -7,25 +7,27 @@ The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
 Claude's input-evidence review `f1ab7d5` is accepted as **`086eb20`** with
-46 independent probes, no defect and no code patch. **1,241 targeted tests pass**
+46 independent probes, no defect and no code patch. Its **1,241 targeted tests passed**
 on Windows Python 3.12.10. Read [the acceptance](../research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
-Codex has prepared the separate
-[Gemini methodology task](GEMINI_METHOD_REVIEW_20261104.md) and a single
+The separate [Gemini methodology task](GEMINI_METHOD_REVIEW_20261104.md) used the
 [uploadable packet](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7.txt)
 with 29 complete files pinned to `fee55a7`. Its
 [manifest](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7_MANIFEST.json)
-verifies all source bodies and the identical Downloads copy. Attach the actual
-file in Gemini; a local path or private GitHub link alone is not access.
-The November 6 user-supplied Gemini response is the older, already reconciled
-eight-file review at `cc3b6a6`, not the new 29-file response. The latter remains
-outstanding. Gemini owns methodology; Claude's ledger code review is complete.
+verifies all source bodies and the identical Downloads copy. Keep the pinned
+packet as provenance; there is no need to upload it for a duplicate review.
+The new 29-file response is now received and
+[reconciled](../research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md) at **`840ff97`**.
+**1,247 targeted tests pass**, including six new synthetic timing-boundary cases.
+The candidate formulas remain, but late-proof availability cannot be relabelled
+as receipt-only; the 2,500ms budget and entry/model/readiness choices remain
+unfrozen. Both external assignments are complete; no duplicate review is queued.
 
-Current implementation **`8607a36`** (review accepted `086eb20`) adds input-evidence stage 1: complete
+Runtime implementation **`8607a36`** (review accepted `086eb20`) adds input-evidence stage 1: complete
 declared product/cutoff/direction accounting, measured new packet/trade
 processing completion, coin/BTC component checks and frozen cutoff cohorts.
-**1,241 targeted tests pass**, including 46 independent review probes. Read
+Read
 [the scope](../research/INSTANT_INPUT_EVIDENCE_20261104.md) and
-[checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
+[initial checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
 [Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is complete and accepted. This is the eligibility foundation; positive eligibility,
 timed baseline/features, full-health and publication evidence remain open.
 No real-data replay/capture, outcome analysis, fit or live change occurred.
@@ -162,7 +164,7 @@ for that lane; its readiness does not enable instant-radar fitting.
 | Resume branch | `codex/instant-radar-20261028` |
 | Current implementation | Input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,241 targeted tests pass, including 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,247 targeted tests pass, including six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -201,10 +203,10 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` reviewed/accepted `086eb20`; 29-file Gemini packet prepared; timed baseline/features and full source/readiness gates remain open |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` accepted `086eb20`; methodology reconciled `840ff97`; timed baseline/features and full source/readiness gates remain open |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
-| Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | Prior source reviews remain reconciled; new 29-file upload packet prepared, not yet dispatched/answered; no empirical study |
+| Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 
@@ -305,7 +307,7 @@ own machines. The Windows collector is a separate running service on port
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
 > Input-evidence foundation is `8607a36`, review accepted `086eb20`;
-> 1,241 targeted tests pass. It accounts for every declared slot and new
+> 1,247 targeted tests pass; methodology reconciliation is `840ff97`. It accounts for every declared slot and new
 > processing time but does not emit positive eligibility. Directional reporting
 > draft is `9da4987`, independent review accepted `4925ac5`.
 > Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
@@ -314,7 +316,7 @@ own machines. The Windows collector is a separate running service on port
 > recorder is `ab95159`, target evaluator unchanged `92fb51d`.
 > Read INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md for the real data findings.
 > Read the October 30 Claude acceptance and consolidated study-rule candidate.
-> Gemini's v2 response is received/reconciled; this is a draft, not frozen code.
+> Gemini's v2 and current 29-file methodology responses are received/reconciled; the study remains unfrozen.
 > V1 stays default. The real replay is complete but then-known health,
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft

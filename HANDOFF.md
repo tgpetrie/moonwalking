@@ -1,5 +1,27 @@
 # Moonwalking / BHABIT Handoff
 
+## Current Gemini methodology review reconciled — 2026-11-06
+
+The user supplied the new 29-file response. It is archived in full and
+reconciled at **`840ff97`**; read
+[the dispositions](docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md).
+All 29 supplied source path/hash entries match packet metadata; Gemini ran
+no tests or empirical study. **1,247 targeted tests pass** locally, including
+six new synthetic timing-boundary checks. Black, guardrails and 11 historical
+hashes pass. Runtime implementation remains `8607a36`; no contract changed.
+
+Retain the five fixed candidate formulas and accepted outcome/diagnostic
+architecture. Correct Gemini's receipt-only reinterpretation of availability:
+existing Sample and directional eligibility reject late knowledge. A future
+two-clock interface needs its own version. The proposed 2,500ms limit,
+post-publication entry rules, F4 alignment, model/threshold/readiness numbers
+remain unfrozen; the latency and quote-source claims are qualified explicitly.
+
+Both external assignments are complete; do not request duplicate reviews.
+Next: implement timed baseline/component evidence with real completion and
+provenance, preserving existing cutoff APIs and then explicit F3/F4 boundaries.
+No new capture, fit, locked validation rerun or live change occurred.
+
 ## Input-evidence review accepted — 2026-11-06
 
 Claude `f1ab7d5` is accepted as **`086eb20`**, adding 46 independent probes

@@ -1,5 +1,12 @@
 # Instant study rules: consolidated freeze candidate — 2026-10-30
 
+November 6 addendum: the current 29-file Gemini methodology response is
+[archived and reconciled](INSTANT_METHOD_REVIEW_TRIAGE_20261106.md). Retain
+the candidate formulas and existing metrics. A two-clock decision interface
+must be separately versioned; Sample availability is not receipt-only.
+The proposed 2,500ms budget, entry/candle/model/readiness rules are not frozen.
+Six synthetic boundary checks pass; no target or runtime implementation changed.
+
 Subsequent implementation: the additive reporting schema and offline sparse
 replay/baseline prototype were implemented at `8211262` and independently
 reviewed/accepted through `ab95159`; read the

@@ -11,5 +11,6 @@
   "Gemini_tests_run": false,
   "Gemini_empirical_performance_verified": false,
   "metadata_note": "Source 07 contains an extra shortened hash token, with the correct full packet hash also explicitly supplied; original text retained verbatim apart from LF normalization",
-  "disposition": "methodology_review_received_pending_Codex_triage_no_contract_or_live_change"
+  "disposition": "received_reconciled_at_840ff97_no_runtime_contract_or_numeric_policy_change",
+  "triage": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md"
 }
