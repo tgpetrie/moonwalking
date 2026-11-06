@@ -1,0 +1,15 @@
+{
+  "received_date_pacific": "2026-11-06",
+  "review_archive": "docs/research/reviews/GEMINI_METHOD_REVIEW_20261106.md",
+  "raw_attachment_sha256": "d14982c02ad014c18fadc905b07980593ccd2fbb78f7e161ed741b01f099ca3d",
+  "archive_sha256_UTF8_LF": "d4c3ce4fefcf0b89ad0ab4b08c230395a5eaddee681bd8f0f33dffd7bb9acdb3",
+  "source_packet_commit": "fee55a7dd2bbb32c661c531d6fe9a8432db9400d",
+  "source_packet_sha256": "57a5d02b9e1175cc3ebfd488f8eb08b73fbdf6a647fc39ba855bc5ded6b570bf",
+  "listed_source_metadata_matched": 29,
+  "source_availability": "Gemini reports all 29 sections and footer readable; Codex verifies the supplied path/hash metadata matches the pinned packet, not independent Gemini execution",
+  "Gemini_hashes_computed": false,
+  "Gemini_tests_run": false,
+  "Gemini_empirical_performance_verified": false,
+  "metadata_note": "Source 07 contains an extra shortened hash token, with the correct full packet hash also explicitly supplied; original text retained verbatim apart from LF normalization",
+  "disposition": "methodology_review_received_pending_Codex_triage_no_contract_or_live_change"
+}
