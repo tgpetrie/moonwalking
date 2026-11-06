@@ -1,7 +1,8 @@
 # Bounded review: inventory and processing-time evidence
 
-Prepared, not dispatched. Earlier directional, association, book and
-reconciliation reviews are complete; do not repeat them.
+Completed at Claude `f1ab7d5`, accepted as `086eb20` on November 6, 2026.
+Read [the acceptance](../research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
+The original prompt below is retained for provenance; do not dispatch it again.
 
 > Fetch `tgpetrie/moonwalking`, verify the current tip of
 > `origin/codex/instant-radar-20261028`, and read AGENTS.md, HANDOFF.md,

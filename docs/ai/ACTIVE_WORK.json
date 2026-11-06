@@ -1,7 +1,7 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-04T19:55:19.741591+00:00",
-  "display_date_pacific": "2026-11-04",
+  "updated_utc": "2026-11-06T08:11:22.420117+00:00",
+  "display_date_pacific": "2026-11-06",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
@@ -28,13 +28,13 @@
     "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
     "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen",
     "directional_exposure": "independent_review_complete_accepted_implementation_unchanged_eligibility_producer_open",
-    "input_evidence_foundation": "stage_1_implemented_review_running_per_user_positive_eligibility_still_unsupported"
+    "input_evidence_foundation": "stage_1_review_accepted_no_patch_positive_eligibility_unsupported"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "Gemini_29_file_methodology_packet_prepared_Claude_input_review_user_reported_running_no_competing_review_branch"
+      "status": "input_review_accepted_1241_targeted_tests_pass_timed_baseline_features_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -110,18 +110,19 @@
         "assignment": "docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md"
       },
       "input_evidence_review": {
-        "status": "user_reported_running_no_result_received",
+        "status": "complete_no_defect_no_patch",
         "expected_branch": "claude/instant-input-evidence-review-20261104",
         "implementation_commit": "8607a36",
         "dispatch_by": "user",
-        "Codex_did_not_create_or_message_review_session": true
+        "Codex_did_not_create_or_message_review_session": true,
+        "review_commit": "f1ab7d52a7ce9eb9512cf81a8111d71b299792ce",
+        "integrated_as": "086eb20863855098c299892b00dff8cfceffe9e7"
       }
     }
   },
   "next_actions": [
-    "Receive and independently verify Claude input-evidence review; user reports it is running, do not duplicate its branch/session",
-    "User uploads prepared 29-file packet to Gemini for methodology review; reconcile response before finalizing remaining target/feature/evaluation study rules",
-    "Build timed baseline and F1-F5 evidence plus full-health and publication policy before a positive eligibility adapter; stage 1 only accounts for declared inventory and scoped inputs",
+    "Build timed baseline and F1-F5 evidence; input-evidence stage 1 review is complete and needs no duplicate review",
+    "Receive new Gemini methodology response for the 29-file fee55a7 packet; November 6 pasted response is the older already reconciled eight-file review",
     "Version later grading evidence, per-row processing and actual connection identity; test streaming/persistence limits and durable publication",
     "Freeze publication entry/target and feature-age rules under a predeclared data-only source/latency pilot, preserving the original feed gate and >=62 complete warmup minutes",
     "Implement and freeze F1-F5, stages/model/readiness/effect rules before 14 valid shadow days and fresh validation once; historical validation and production unchanged"
@@ -135,15 +136,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1195,
+    "implementation_targeted_tests_passed": 1241,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_8607a36",
+    "guardrails": "passed_at_086eb20",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_8607a36",
+    "black_24_8": "passed_at_086eb20",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -171,7 +172,9 @@
     "new_directional_exposure_cases": 48,
     "independent_directional_probes": 51,
     "directional_review": "accepted_no_defect_found_no_patch_51_pass_on_unchanged_implementation",
-    "new_input_evidence_cases": 32
+    "new_input_evidence_cases": 32,
+    "independent_input_evidence_probes": 46,
+    "input_evidence_review": "accepted_no_defect_no_patch_46_probes_pass_on_unchanged_source"
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -439,7 +442,7 @@
   },
   "next_cloud_assignment": {
     "file": "docs/ai/CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md",
-    "status": "user_reported_running_no_result_received",
+    "status": "complete_input_evidence_review_accepted_no_new_assignment_queued",
     "scope": "one_independent_input_ledger_inventory_and_clock_review_synthetic_only",
     "base_contains": "7671e58",
     "current_association_task": "complete_accepted",
@@ -447,7 +450,9 @@
     "credit_remaining_user_reported_usd": 83,
     "implementation_commit": "8607a36e3d1d6a04c4f4176f89ca3dc3ea55eef8",
     "previous_completed_assignment": "docs/ai/CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md",
-    "dispatch_evidence": "User confirmed Claude is doing the assigned input-evidence review; no pushed review result observed"
+    "dispatch_evidence": "User confirmed Claude is doing the assigned input-evidence review; no pushed review result observed",
+    "review_commit": "f1ab7d52a7ce9eb9512cf81a8111d71b299792ce",
+    "integrated_as": "086eb20863855098c299892b00dff8cfceffe9e7"
   },
   "reconciliation_review": {
     "commit": "1af0a64a50b863f51270979de3e4d64fa982edb6",
@@ -513,7 +518,7 @@
     "contract": "docs/research/INSTANT_INPUT_EVIDENCE_CONTRACT_V1_DRAFT.json",
     "report": "docs/research/INSTANT_INPUT_EVIDENCE_20261104.md",
     "checks": "docs/research/results/instant_input_evidence_20261104/CHECKS.json",
-    "status": "implemented_Claude_review_user_reported_running_no_result_received",
+    "status": "review_accepted_stage_1_scope_complete_positive_eligibility_open",
     "complete_declared_slot_accounting": true,
     "new_packet_and_trade_payload_completion_measured": true,
     "legacy_rows_upgraded": false,
@@ -521,7 +526,11 @@
     "directional_report_adapter_supported": false,
     "baseline_feature_evidence_implemented": false,
     "durable_publication_verified": false,
-    "live_integration": false
+    "live_integration": false,
+    "review_commit": "f1ab7d52a7ce9eb9512cf81a8111d71b299792ce",
+    "review_integrated_as": "086eb20863855098c299892b00dff8cfceffe9e7",
+    "review_acceptance": "docs/research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md",
+    "review_checks": "docs/research/results/instant_input_review_acceptance_20261106/CHECKS.json"
   },
   "gemini_current_methodology_packet": {
     "assignment": "docs/ai/GEMINI_METHOD_REVIEW_20261104.md",
@@ -533,10 +542,12 @@
     "sha256": "57a5d02b9e1175cc3ebfd488f8eb08b73fbdf6a647fc39ba855bc5ded6b570bf",
     "upload_convenience_copy": "C:\\Users\\tgpet\\Downloads\\Moonwalking-Gemini-Methodology-20261104-fee55a7.txt",
     "upload_required_not_a_local_path_or_private_link": true,
-    "status": "prepared_not_dispatched_no_response_received",
+    "status": "new_response_not_received_user_supplied_already_reconciled_eight_file_review",
     "all_29_source_bodies_verified_against_git": true,
     "downloads_copy_byte_identical": true,
     "runtime_tests_rerun_for_packaging": false,
-    "scope": "static_methodology_review_no_Claude_ledger_code_audit_no_empirical_performance_claim"
+    "scope": "static_methodology_review_no_Claude_ledger_code_audit_no_empirical_performance_claim",
+    "November_6_user_response_identified_as": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
+    "input_implementation_unchanged_after_Claude_review": true
   }
 }

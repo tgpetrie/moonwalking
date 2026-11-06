@@ -1,5 +1,21 @@
 # Moonwalking / BHABIT Handoff
 
+## Input-evidence review accepted — 2026-11-06
+
+Claude `f1ab7d5` is accepted as **`086eb20`**, adding 46 independent probes
+with no defect or code patch. Implementation remains `8607a36`.
+**1,241 targeted tests pass** on Windows Python 3.12.10; Black, guardrails and
+11 historical hashes pass. Read
+[the acceptance](docs/research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
+Stage 1 is complete within its declared scope; positive eligibility remains
+unsupported. Next implementation is timed baseline/F1-F5 evidence and remaining
+grading/streaming/publication policy. No fitting, capture or live change ran.
+
+The user supplied the older eight-file Gemini review at `cc3b6a6`, already
+archived/reconciled. It is not the new 29-file methodology response, which
+remains outstanding. The existing upload packet still covers unchanged code.
+Do not repeat accepted reviews or reapply the older S1/alert-forgiveness proposals.
+
 ## Gemini upload packet prepared; Claude reviewing — 2026-11-04
 
 The user confirms Claude is doing the input-evidence review. No pushed review

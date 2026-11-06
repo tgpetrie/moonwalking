@@ -74,8 +74,12 @@ Status keys: Open, In progress, Done, Blocked.
 - Gemini's separate methodology task now has a 29-file source upload packet
   pinned to `fee55a7`, with all source sections and the Downloads copy verified.
   Prepared, not dispatched/answered. See `docs/ai/GEMINI_METHOD_REVIEW_20261104.md`.
-- Next: reconcile Claude's stage-1 review and Gemini's methodology response
-  when received, build timed baseline/F1-F5 evidence,
+- Claude's stage-1 review `f1ab7d5` is accepted as `086eb20` on November 6:
+  46 probes, no defect/code patch, 1,241 targeted tests pass. The user's Gemini
+  response is the already reconciled older eight-file review; the new 29-file
+  response remains outstanding. See `docs/research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md`.
+- Next: build timed baseline/F1-F5 evidence and reconcile the new Gemini
+  methodology response when received,
   version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current

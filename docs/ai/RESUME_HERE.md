@@ -1,30 +1,32 @@
 # Resume Moonwalking from anywhere
 
-Updated November 4, 2026 (Pacific). This page is the current portable
+Updated November 6, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-The user's Claude session is reviewing input-evidence stage 1 (user-reported;
-no pushed result received yet). Codex has prepared the separate
+Claude's input-evidence review `f1ab7d5` is accepted as **`086eb20`** with
+46 independent probes, no defect and no code patch. **1,241 targeted tests pass**
+on Windows Python 3.12.10. Read [the acceptance](../research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
+Codex has prepared the separate
 [Gemini methodology task](GEMINI_METHOD_REVIEW_20261104.md) and a single
 [uploadable packet](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7.txt)
 with 29 complete files pinned to `fee55a7`. Its
 [manifest](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7_MANIFEST.json)
 verifies all source bodies and the identical Downloads copy. Attach the actual
 file in Gemini; a local path or private GitHub link alone is not access.
-Gemini dispatch/response is not yet verified. Claude owns the ledger code
-review; Gemini reviews target/F1-F5 methodology and remaining freeze decisions.
+The November 6 user-supplied Gemini response is the older, already reconciled
+eight-file review at `cc3b6a6`, not the new 29-file response. The latter remains
+outstanding. Gemini owns methodology; Claude's ledger code review is complete.
 
-Current implementation **`8607a36`** adds input-evidence stage 1: complete
+Current implementation **`8607a36`** (review accepted `086eb20`) adds input-evidence stage 1: complete
 declared product/cutoff/direction accounting, measured new packet/trade
 processing completion, coin/BTC component checks and frozen cutoff cohorts.
-**1,195 targeted tests pass**, including 32 new cases. Read
+**1,241 targeted tests pass**, including 46 independent review probes. Read
 [the scope](../research/INSTANT_INPUT_EVIDENCE_20261104.md) and
 [checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
-[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is running per
-the user; no result has been received. This is the eligibility foundation; positive eligibility,
+[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is complete and accepted. This is the eligibility foundation; positive eligibility,
 timed baseline/features, full-health and publication evidence remain open.
 No real-data replay/capture, outcome analysis, fit or live change occurred.
 
@@ -49,8 +51,7 @@ receipt attribution remain preserved. Read the
 [checks](../research/results/instant_reconciliation_acceptance_20261104/CHECKS.json).
 The unchanged hour's 33 ordering failures reconcile into 16 bounded proofs.
 This does not pass the feed gate or enable fitting. No new capture, outcome
-study, target or live change occurred. Next is review of input-evidence stage 1,
-timed baseline/feature evidence and versioned
+study, target or live change occurred. Next is timed baseline/feature evidence and versioned
 grading/row-availability, streaming and publication evidence.
 
 Book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
@@ -98,7 +99,7 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next: independently review input-evidence stage 1 and build timed baseline/feature evidence;
+Next: build timed baseline/feature evidence;
 version later grading/row-availability and streaming/publication evidence
 before a predeclared source pilot. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
@@ -159,9 +160,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | New input-evidence stage 1 `8607a36`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,195 targeted tests pass, including 32 new input-evidence cases; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,241 targeted tests pass, including 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -200,9 +201,9 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` awaiting Claude review; 29-file Gemini packet prepared; timed baseline/features and full source/readiness gates remain open |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` reviewed/accepted `086eb20`; 29-file Gemini packet prepared; timed baseline/features and full source/readiness gates remain open |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
-| Cloud Claude / Fable | Completed earlier reviews; current input-evidence review | User reports it is running on its own scope; no new result received; no second session should share its branch |
+| Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | Prior source reviews remain reconciled; new 29-file upload packet prepared, not yet dispatched/answered; no empirical study |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
@@ -216,7 +217,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: independently review input-evidence stage 1, build timed baseline/feature
+Next: build timed baseline/feature
 evidence, and version/test later grading evidence and a streaming recorder with per-row
 processing, actual connection identity and durable publication. Predeclare
 source/latency collection and lag limits before a pilot. Keep the four-product
@@ -303,8 +304,8 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> New input-evidence foundation is `8607a36`, pending independent review;
-> 1,195 targeted tests pass. It accounts for every declared slot and new
+> Input-evidence foundation is `8607a36`, review accepted `086eb20`;
+> 1,241 targeted tests pass. It accounts for every declared slot and new
 > processing time but does not emit positive eligibility. Directional reporting
 > draft is `9da4987`, independent review accepted `4925ac5`.
 > Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
@@ -318,7 +319,7 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Review the new input-evidence stage, then build timed baseline/feature evidence; version
+> The input-evidence review is complete. Build timed baseline/feature evidence; version
 > later grading, per-row clocks, streaming bounds and
 > publication evidence before a predeclared source pilot and full study freeze.
 > Fitting remains off; no physical onset is inferred yet.
