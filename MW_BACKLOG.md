@@ -92,8 +92,11 @@ Status keys: Open, In progress, Done, Blocked.
 - Delayed decisions and later cutoff grading are implemented at `ad67a3a`.
   Decision snapshots stay immutable while later known evidence can veto a
   grade. 1,271 targeted checks pass. See `docs/research/INSTANT_DELAYED_DECISION_20261107.md`.
-- Next, implement a recorder with per-row clocks, real connection IDs,
-  durable publication and tested streaming limits before a bounded source/latency pilot. Preserve current
+- Bounded journal `ce2dd03` records connection lifecycle, packet processing
+  and local publication commits. 1,283 targeted checks pass, including
+  a process exit during acknowledgment. See `docs/research/INSTANT_STREAM_JOURNAL_20261107.md`.
+- Next, wire and dry-run socket callbacks and predeclare the bounded
+  source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

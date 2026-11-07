@@ -1,0 +1,33 @@
+{
+  "verified_utc": "2026-11-07T18:34:33.145090+00:00",
+  "implementation_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
+  "base_checkpoint": "9835355992c48d5deff0bef4b63cb4693b3a4717",
+  "targeted_tests_passed": 1283,
+  "new_synthetic_cases": 12,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "scripts/scoring_experiment/instant_stream_journal.py": "9fa3c94d7d6f274366adbcea007020fdc7cb631e688485b59f9ce6fe7a21581d",
+    "tests/test_instant_stream_journal.py": "5a23a6576f0d9964618b65b05147ed04d00260b364c0ea50b6ea54498c0df3ce",
+    "docs/research/INSTANT_STREAM_JOURNAL_20261107.md": "62eaa31855d3604c021b7d4cacbb1698e7240f91cfc694e14dd8afa80d89f3c6"
+  },
+  "protected_sources_verified_against": "9835355992c48d5deff0bef4b63cb4693b3a4717",
+  "scope": "bounded_stream_journal_and_local_commit_observation",
+  "hard_exit_recovery_verified": true,
+  "host_power_loss_tested": false,
+  "socket_adapter_exercised": false,
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "real_capture_exercised": false,
+  "external_publication_delivery_verified": false,
+  "positive_eligibility_supported": false,
+  "fitting_allowed": false,
+  "study_frozen": false,
+  "historical_validation_rerun": false,
+  "live_changes": false
+}

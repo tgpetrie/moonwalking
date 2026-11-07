@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T18:24:46.700782+00:00",
+  "updated_utc": "2026-11-07T18:34:33.145090+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "ad67a3a6c595c86318929ac6a231ff5914e37ebf",
+  "implementation_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -30,13 +30,14 @@
     "directional_exposure": "independent_review_complete_accepted_implementation_unchanged_eligibility_producer_open",
     "input_evidence_foundation": "stage_1_review_accepted_no_patch_positive_eligibility_unsupported",
     "feature_builder": "offline_F1_F5_timing_and_missingness_synthetic_verified_real_readiness_open",
-    "decision_and_grading": "offline_snapshot_publication_observation_and_later_cutoff_grading_verified_synthetically"
+    "decision_and_grading": "offline_snapshot_publication_observation_and_later_cutoff_grading_verified_synthetically",
+    "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "delayed_decision_and_grading_implemented_1271_targeted_tests_pass_streaming_and_durable_publication_next"
+      "status": "stream_journal_implemented_1283_targeted_tests_pass_pilot_socket_adapter_and_protocol_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -126,7 +127,7 @@
     }
   },
   "next_actions": [
-    "Implement a bounded streaming recorder with actual connection identities, measured row completion, persistence/recovery and durable publication evidence.",
+    "Wire and dry-run the journal on an owned socket callback path. Test loss and reconnect handling and measure callback and commit latency before the data-only pilot.",
     "Define a separate publication-time quote benchmark and later outcome evidence policy before connecting study eligibility.",
     "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -140,15 +141,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1271,
+    "implementation_targeted_tests_passed": 1283,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_ad67a3a",
+    "guardrails": "passed_at_ce2dd03",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_ad67a3a",
+    "black_24_8": "passed_at_ce2dd03",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -564,7 +565,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "ad67a3a6c595c86318929ac6a231ff5914e37ebf",
+  "latest_verification_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -610,6 +611,20 @@
     "publication_timestamp_source": "caller_observation",
     "durable_publication_verified": false,
     "real_capture_exercised": false,
+    "fitting_allowed": false
+  },
+  "stream_journal": {
+    "implementation_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
+    "version": "instant-stream-journal-v1-draft",
+    "report": "docs/research/INSTANT_STREAM_JOURNAL_20261107.md",
+    "checks": "docs/research/results/instant_stream_journal_20261107/CHECKS.json",
+    "status": "synthetic_and_process_exit_recovery_verified",
+    "scope": "one_writer_one_active_connection_per_segment",
+    "local_publication_commit_receipts": true,
+    "resume_policy": "recover_committed_prefix_then_open_fresh_segment",
+    "socket_adapter_exercised": false,
+    "real_capture_exercised": false,
+    "external_publication_delivery_verified": false,
     "fitting_allowed": false
   }
 }

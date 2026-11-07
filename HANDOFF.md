@@ -1,5 +1,17 @@
 # Moonwalking / BHABIT Handoff
 
+## Streaming input journal and local publication receipts — 2026-11-07
+
+**`ce2dd03`** adds a bounded SQLite journal for one writer and one active
+socket. It records connection lifecycle, measured processing and local
+publication commit observations. A process exit preserves the committed
+prefix and leaves an interrupted acknowledgment absent.
+**1,283 targeted tests pass**, including twelve new cases. Black, guardrails
+and 11 historical hashes pass. [Journal draft](docs/research/INSTANT_STREAM_JOURNAL_20261107.md) and [checks](docs/research/results/instant_stream_journal_20261107/CHECKS.json).
+
+Next, wire and dry-run the socket callback path and predeclare the data-only
+coverage and latency pilot.
+
 ## Delayed decisions and later cutoff grading — 2026-11-07
 
 **`ad67a3a`** freezes each diagnostic decision's feature row and clocks.
