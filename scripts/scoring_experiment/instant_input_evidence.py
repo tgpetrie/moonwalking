@@ -94,7 +94,9 @@ class InputEvidenceRecorder:
     Frozen cutoff cohorts cannot be rewritten by later messages or failures.
     """
 
-    def __init__(self, products, first_cutoff, stop_cutoff, *, clock_ms=None):
+    def __init__(
+        self, products, first_cutoff, stop_cutoff, *, clock_ms=None, packet_limit=None
+    ):
         for value in (first_cutoff, stop_cutoff):
             _integer(value)
         if (
@@ -157,7 +159,9 @@ class InputEvidenceRecorder:
         self.clock = clock_ms or (lambda: time.time_ns() // 1000000)
         self.last_clock = None
         self.inventory_recorded_ts_ms = self._now()
-        self.book = BookReplay(self.products, clock_ms=self._now)
+        self.book = BookReplay(
+            self.products, clock_ms=self._now, packet_limit=packet_limit
+        )
         self.packets = []
         self.trades = []
         self._packet_by_seq = {}

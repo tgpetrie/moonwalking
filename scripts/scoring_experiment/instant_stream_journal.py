@@ -9,7 +9,7 @@ from threading import get_ident
 import time
 from uuid import uuid4
 
-from instant_coverage import MAX_PACKETS, _integer
+from instant_coverage import MAX_PACKETS, WARMUP_PACKET_LIMIT, _integer
 from instant_delayed_decision import _check_prefix
 from instant_input_evidence import InputEvidenceRecorder, _json, _sha
 
@@ -116,12 +116,16 @@ class StreamJournal:
         clock_ms=None,
         monotonic_ns=None,
     ):
-        if not 1 <= _integer(max_packets) <= MAX_PACKETS or not (
+        if not 1 <= _integer(max_packets) <= WARMUP_PACKET_LIMIT or not (
             1 <= _integer(max_record_bytes) <= MAX_RECORD_BYTES
         ):
             raise ValueError("journal bounds exceed the supported range")
         self.evidence = InputEvidenceRecorder(
-            products, first_cutoff, stop_cutoff, clock_ms=clock_ms
+            products,
+            first_cutoff,
+            stop_cutoff,
+            clock_ms=clock_ms,
+            packet_limit=max_packets,
         )
         self._monotonic = monotonic_ns or time.monotonic_ns
         self._max_packets = max_packets

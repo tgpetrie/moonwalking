@@ -5,7 +5,7 @@ import json
 import pytest
 
 from test_instant_stream_journal import Clock
-from instant_source_pilot import CHANNELS, PRODUCTS, capture, _coverage
+from instant_source_pilot import CHANNELS, PRODUCTS, PilotCallbacks, capture, _coverage
 from instant_stream_journal import StreamJournal, iter_packets
 
 
@@ -49,7 +49,7 @@ def run(tmp_path, frames, **options):
             journal,
             lambda: next(connections),
             monotonic=lambda: clock.now / 1000,
-            monotonic_ns=clock.mono,
+            duration_ns=clock.mono,
             progress=lambda *args, **kwargs: None,
             **options,
         )
@@ -183,3 +183,24 @@ def test_exchange_legacy_ack_name_activates_book_and_heartbeat(tmp_path):
     assert result["stop"] == "duration"
     assert packets[1]["envelope"]["message"]["channels"][0]["name"] == "level2_50"
     assert result["frames"]["snapshot:BTC-USD"] == 1
+
+
+def test_callback_duration_is_independent_of_receipt_wall_clock(tmp_path):
+    clock = Clock()
+    socket = FakeSocket(clock, [])
+    samples = iter([1_000_000, 1_125_000])
+    with StreamJournal(
+        tmp_path / "clocks.sqlite",
+        PRODUCTS,
+        30000,
+        35000,
+        clock_ms=clock,
+        monotonic_ns=clock.mono,
+    ) as journal:
+        callbacks = PilotCallbacks(journal, duration_ns=lambda: next(samples))
+        callbacks.on_open(socket)
+        callbacks.on_message(json.dumps(acknowledgement()))
+        callbacks.on_close()
+        metrics = callbacks.report()["latencies"]["subscriptions"]
+        assert metrics["callback_through_commit"]["p95_ms"] == 0.125
+        assert metrics["receipt_to_processing"]["p95_ms"] == 0

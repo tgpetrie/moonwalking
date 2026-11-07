@@ -43,7 +43,7 @@ def journal(path, clock, **bounds):
         35000,
         clock_ms=clock,
         monotonic_ns=clock.mono,
-        **bounds
+        **bounds,
     )
 
 
@@ -287,3 +287,30 @@ def test_foreign_writer_cannot_mutate_the_in_memory_or_committed_prefix(tmp_path
         assert len(stream.evidence.packets) == 1
         assert send(stream, connection, type="ticker").receipt_seq == 2
     assert read_segment(path)["packets"] == 2
+
+
+def test_explicit_warmup_capacity_reaches_the_monitor_without_changing_legacy_cap(
+    tmp_path, monkeypatch
+):
+    import instant_coverage
+
+    clock = Clock()
+    with (
+        journal(
+            tmp_path / "extended.sqlite",
+            clock,
+            max_packets=instant_coverage.WARMUP_PACKET_LIMIT,
+        ) as extended,
+        journal(tmp_path / "ordinary.sqlite", clock) as ordinary,
+    ):
+        direct = instant_coverage.CoverageMonitor([COIN])
+        monkeypatch.setattr(instant_coverage, "MAX_PACKETS", 1)
+        connection = extended.open_connection()
+        send(extended, connection, type="ticker")
+        assert extended.evidence.book.monitor.packet_count == 2
+        assert ordinary.evidence.book.monitor._packet_limit == 100000
+        assert direct._packet_limit is None
+    report = read_segment(tmp_path / "extended.sqlite")
+    assert report["manifest"]["max_packets"] == 250000
+    with pytest.raises(ValueError, match="bounds"):
+        journal(tmp_path / "oversize.sqlite", clock, max_packets=250001)

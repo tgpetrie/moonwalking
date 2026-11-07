@@ -9,12 +9,13 @@ from pathlib import Path
 import subprocess
 import time
 
+from instant_coverage import MAX_PACKETS, WARMUP_PACKET_LIMIT
 from instant_input_evidence import _file_sha
 from instant_stream_journal import StreamJournal, read_segment
 from instant_timed_features import _book_pressure, build_timed_features
 
 
-VERSION = "instant-source-pilot-v1"
+VERSION = "instant-source-pilot-v2-draft"
 URL = "wss://ws-feed.exchange.coinbase.com"
 PRODUCTS = ("BTC-USD", "SOL-USD", "ALCX-USD", "AURORA-USD")
 CHANNELS = ("level2_batch", "matches", "heartbeat", "ticker")
@@ -59,9 +60,9 @@ def _exchange_ms(value):
 class PilotCallbacks:
     """Socket callbacks run on the same thread as the journal writer."""
 
-    def __init__(self, journal, *, monotonic_ns=time.monotonic_ns):
+    def __init__(self, journal, *, duration_ns=time.perf_counter_ns):
         self.journal = journal
-        self.monotonic_ns = monotonic_ns
+        self.duration_ns = duration_ns
         self.connection = None
         self.ack = None
         self.frames = Counter()
@@ -76,9 +77,9 @@ class PilotCallbacks:
         )
 
     def on_message(self, raw):
-        started = self.monotonic_ns()
+        started = self.duration_ns()
         receipt = self.journal.receive(self.connection, raw)
-        elapsed = (self.monotonic_ns() - started) / 1000000
+        elapsed = (self.duration_ns() - started) / 1000000
         kind, product = receipt.message_type, receipt.product_id
         group = f"{kind}:{product}" if product in PRODUCTS else kind
         self.frames[group] += 1
@@ -147,7 +148,7 @@ def capture(
     connect,
     *,
     monotonic=time.monotonic,
-    monotonic_ns=time.monotonic_ns,
+    duration_ns=time.perf_counter_ns,
     timeout_errors=(TimeoutError,),
     transport_errors=(OSError,),
     duration_s=DURATION_S,
@@ -156,7 +157,7 @@ def capture(
     progress=print,
 ):
     """Run the callback path with injectable transport and clocks for dry runs."""
-    callbacks = PilotCallbacks(journal, monotonic_ns=monotonic_ns)
+    callbacks = PilotCallbacks(journal, duration_ns=duration_ns)
     first_ack = deadline = None
     last_progress = monotonic()
     stop = "transport_unavailable"
@@ -313,7 +314,7 @@ def _coverage(recorder, first_ack, stop_ts):
     warmup = dict(first_post_warmup_cutoff_ts_ms=warm_cutoff, readiness={})
     if warm_cutoff is not None:
         for product in PRODUCTS:
-            started = time.monotonic_ns()
+            started = time.perf_counter_ns()
             row = build_timed_features(
                 recorder, product, warm_cutoff, "up", asof=warm_cutoff + LATER_ASOF_MS
             )
@@ -327,7 +328,7 @@ def _coverage(recorder, first_ack, stop_ts):
                     for name in ("volatility", "pace")
                 },
                 post_capture_calculation_ms=round(
-                    (time.monotonic_ns() - started) / 1000000, 3
+                    (time.perf_counter_ns() - started) / 1000000, 3
                 ),
             )
     return dict(by_product=by_product, warmup=warmup)
@@ -338,7 +339,11 @@ def main():
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--warmup-capacity", action="store_true")
     args = parser.parse_args()
+    max_packets = WARMUP_PACKET_LIMIT if args.warmup_capacity else MAX_PACKETS
+    packet_stop = max_packets - (MAX_PACKETS - SOFT_PACKETS)
+    duration_clock = time.get_clock_info("perf_counter")
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     db_path = out / "capture.sqlite"
@@ -352,7 +357,12 @@ def main():
         channels=CHANNELS,
         endpoint=URL,
         seconds=DURATION_S,
-        packet_stop=SOFT_PACKETS,
+        packet_stop=packet_stop,
+        max_packets=max_packets,
+        callback_duration_clock=duration_clock.implementation,
+        callback_duration_clock_resolution_ns=duration_clock.resolution * 1e9,
+        exchange_stamp_to_callback_scope="signed_wall_clock_difference",
+        exchange_clock_offset_applied=False,
         logical_byte_stop=SOFT_RECORD_BYTES,
         max_connections=MAX_CONNECTIONS,
         websocket_client=websocket.__version__,
@@ -368,11 +378,12 @@ def main():
 
     monotonic_start = time.monotonic()
     with StreamJournal(
-        db_path, PRODUCTS, first_cutoff, first_cutoff + 4320000
+        db_path, PRODUCTS, first_cutoff, first_cutoff + 4320000, max_packets=max_packets
     ) as journal:
         result = capture(
             journal,
             connect,
+            packet_stop=packet_stop,
             timeout_errors=(websocket.WebSocketTimeoutException,),
             transport_errors=(OSError, websocket.WebSocketException),
         )

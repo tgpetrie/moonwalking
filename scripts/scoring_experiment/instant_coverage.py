@@ -23,6 +23,7 @@ CONTRACT = (
     / "docs/research/INSTANT_COVERAGE_CONTRACT_V1_DRAFT.json"
 )
 MAX_PACKETS = 100000
+WARMUP_PACKET_LIMIT = 250000
 MAX_ID_SPAN = 100000
 MAX_HEARTBEAT_GAP_MS = 5000
 # Amendment 1: adjacent failed proofs may be re-checked as one span. One race
@@ -70,7 +71,15 @@ class CoverageMonitor:
     monitor verifies trades, not quotes, queue durability or exchange latency.
     """
 
-    def __init__(self, products, *, quote_channel="ticker", clock_ms=None):
+    def __init__(
+        self, products, *, quote_channel="ticker", clock_ms=None, packet_limit=None
+    ):
+        if (
+            packet_limit is not None
+            and not 1 <= _integer(packet_limit) <= WARMUP_PACKET_LIMIT
+        ):
+            raise ValueError("coverage packet limit exceeds the supported range")
+        self._packet_limit = packet_limit
         if (
             not isinstance(products, (list, tuple))
             or not products
@@ -171,7 +180,8 @@ class CoverageMonitor:
 
     def _ingest(self, env):
         self.packet_count += 1
-        if self.packet_count > MAX_PACKETS:
+        limit = MAX_PACKETS if self._packet_limit is None else self._packet_limit
+        if self.packet_count > limit:
             raise ValueError("packet bound exceeded; prefix is not a complete capture")
         seq, receipt, mono = map(
             _integer,
