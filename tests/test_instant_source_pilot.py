@@ -157,3 +157,29 @@ def test_duration_does_not_restart_after_first_acknowledgment(tmp_path):
         "ticker",
         "connection_closed",
     ]
+
+
+def test_exchange_legacy_ack_name_activates_book_and_heartbeat(tmp_path):
+    ack = acknowledgement()
+    ack["channels"][0]["name"] = "level2_50"
+    result, packets, _ = run(
+        tmp_path,
+        [
+            [
+                ack,
+                dict(type="heartbeat", product_id="BTC-USD", last_trade_id=50),
+                dict(
+                    type="snapshot",
+                    product_id="BTC-USD",
+                    bids=[["99", "1"]],
+                    asks=[["101", "2"]],
+                ),
+                dict(type="heartbeat", product_id="BTC-USD", last_trade_id=50),
+            ]
+        ],
+        duration_s=3,
+    )
+    assert result["first_ack_ts_ms"] == 1000
+    assert result["stop"] == "duration"
+    assert packets[1]["envelope"]["message"]["channels"][0]["name"] == "level2_50"
+    assert result["frames"]["snapshot:BTC-USD"] == 1

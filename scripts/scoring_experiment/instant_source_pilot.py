@@ -101,11 +101,16 @@ class PilotCallbacks:
             if type(trade_id) is int and side in ("buy", "sell"):
                 self.sides[(product, trade_id)].setdefault(kind, side)
         if kind == "subscriptions":
-            actual = {
-                entry["name"]: set(entry["product_ids"])
+            ticker_products = {
+                product
                 for entry in json.loads(raw)["channels"]
+                if entry["name"] == "ticker"
+                for product in entry["product_ids"]
             }
-            if all(set(PRODUCTS) <= actual.get(channel, set()) for channel in CHANNELS):
+            if (
+                set(PRODUCTS)
+                <= ticker_products & self.journal.evidence.book.monitor.active
+            ):
                 self.ack = receipt.receipt_ts_ms
 
     def on_close(self, *, reason="socket_closed"):

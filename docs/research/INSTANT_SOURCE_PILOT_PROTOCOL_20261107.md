@@ -58,3 +58,13 @@ short warmup are part of the result.
 
 Source documentation is available in the [Exchange overview](https://docs.cdp.coinbase.com/exchange/websocket-feed/overview)
 and [channel reference](https://docs.cdp.coinbase.com/exchange/websocket-feed/channels).
+
+## Startup correction
+
+Attempt 01 preserved the exchange's `level2_50` acknowledgment and stopped
+at the startup timeout, before the diagnostic clock started. Coinbase
+documents `level2_50` as the legacy alias for `level2_batch`. Attempt 02
+accepts that acknowledgment in both the monitor and the pilot. The raw
+message retains the original spelling. The four products, subscriptions,
+limits, proof rules and diagnostic readout remain the same. Keep both
+attempts in the report.

@@ -230,7 +230,9 @@ class CoverageMonitor:
                     or any(not isinstance(p, str) for p in ids)
                 ):
                     raise ValueError("invalid subscription acknowledgement")
-                subscriptions.setdefault(name, set()).update(ids)
+                # Coinbase can acknowledge level2_batch under its legacy name.
+                channel = "level2_batch" if name == "level2_50" else name
+                subscriptions.setdefault(channel, set()).update(ids)
             active = {
                 p
                 for p in self.products
