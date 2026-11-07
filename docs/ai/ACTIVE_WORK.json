@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T07:45:48.630229+00:00",
-  "display_date_pacific": "2026-11-06",
+  "updated_utc": "2026-11-07T08:35:30.530456+00:00",
+  "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
+  "implementation_commit": "2838eb6d342493152e47dc54aa7b0170f4a00dc6",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -28,13 +28,14 @@
     "publication_timing": "offline_clock_diagnostics_implemented_publication_target_and_lag_policy_unfrozen",
     "association_exposure": "cloud_draft_accepted_with_duplicate_and_horizon_validation_fixes_joint_gradability_explicit_full_study_unfrozen",
     "directional_exposure": "independent_review_complete_accepted_implementation_unchanged_eligibility_producer_open",
-    "input_evidence_foundation": "stage_1_review_accepted_no_patch_positive_eligibility_unsupported"
+    "input_evidence_foundation": "stage_1_review_accepted_no_patch_positive_eligibility_unsupported",
+    "feature_builder": "offline_F1_F5_timing_and_missingness_synthetic_verified_real_readiness_open"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "timed_baseline_components_implemented_1252_targeted_tests_pass_F3_F4_boundaries_and_feature_evidence_next"
+      "status": "timed_F1_F5_implemented_1261_targeted_tests_pass_delayed_decision_and_grading_contracts_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -124,9 +125,8 @@
     }
   },
   "next_actions": [
-    "Declare F3 book-observation integration and F4 candle-source/alignment rules before feature wiring; preserve the fixed five candidate formulas and matched comparisons",
-    "Build timed F1–F5 feature evidence using the separate observation, evidence-knowledge and actual completion clocks; keep the existing Sample and eligibility clock semantics",
-    "Version delayed-decision and later-grading interfaces, actual connection identity, streaming/persistence and durable publication; no positive eligibility bridge yet",
+    "Version delayed-decision and later-grading interfaces with distinct observation, evidence, computation and publication clocks. Preserve existing Sample and eligibility cutoff semantics.",
+    "Specify actual connection identity, streaming/persistence and durable publication before connecting study eligibility.",
     "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -139,15 +139,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1252,
+    "implementation_targeted_tests_passed": 1261,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_2ac3b25",
+    "guardrails": "passed_at_2838eb6",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_2ac3b25",
+    "black_24_8": "passed_at_2838eb6",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -563,7 +563,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
+  "latest_verification_commit": "2838eb6d342493152e47dc54aa7b0170f4a00dc6",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -581,6 +581,18 @@
     "separate_volatility_and_pace_readiness": true,
     "pace_requires_single_epoch_proof_chain": true,
     "feature_evidence_implemented": false,
+    "positive_eligibility_supported": false,
+    "real_capture_exercised": false,
+    "fitting_allowed": false
+  },
+  "timed_features": {
+    "implementation_commit": "2838eb6d342493152e47dc54aa7b0170f4a00dc6",
+    "version": "instant-timed-features-v1-draft",
+    "report": "docs/research/INSTANT_TIMED_FEATURES_20261107.md",
+    "checks": "docs/research/results/instant_timed_features_20261107/CHECKS.json",
+    "status": "offline_features_synthetic_verified",
+    "F3": "receipt_order_sampled_BBO_30s_integral_requires_all_spans_fresh",
+    "F4": "15_receipt_trade_minutes_ending_at_closed_minute_before_expansion_minimum_10_traded",
     "positive_eligibility_supported": false,
     "real_capture_exercised": false,
     "fitting_allowed": false

@@ -1,0 +1,28 @@
+{
+  "verified_utc": "2026-11-07T08:35:30.530456+00:00",
+  "implementation_commit": "2838eb6d342493152e47dc54aa7b0170f4a00dc6",
+  "base_checkpoint": "db2c7f0a1fd69cc490dea592f50a118708c6375d",
+  "targeted_tests_passed": 1261,
+  "new_synthetic_cases": 9,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "scripts/scoring_experiment/instant_timed_features.py": "279f48b4352633a52c7bc16aed6e0b06e3040638900c42a655c42e529ad7955b",
+    "tests/test_instant_timed_features.py": "6c2e3a2d7951c2ff396d4ecd3914662d1503b6300fb2a39a2b11fb55fdb70f8b",
+    "docs/research/INSTANT_TIMED_FEATURES_20261107.md": "198db0490c6d6040ac9c3bd1d6bb4ab55be7e2957d4ecb90a4bd3aae77cf1b76"
+  },
+  "protected_sources_verified_against": "db2c7f0a1fd69cc490dea592f50a118708c6375d",
+  "scope": "offline_F1_F5_feature_evidence",
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "real_capture_exercised": false,
+  "positive_eligibility_supported": false,
+  "fitting_allowed": false,
+  "study_frozen": false,
+  "historical_validation_rerun": false,
+  "live_changes": false
+}

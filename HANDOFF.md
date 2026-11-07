@@ -1,5 +1,17 @@
 # Moonwalking / BHABIT Handoff
 
+## Timed F1–F5 features — 2026-11-07
+
+**`2838eb6`** implements the five draft features from the timed ledger.
+F3 uses the full 30s book window with original receipt ages. F4 uses verified
+receipt-time candles ending before the expansion window. The feature rows
+carry both evidence and actual calculation clocks. **1,261 targeted tests
+pass**, including nine new synthetic cases. Black, guardrails and 11
+historical hashes pass. [Feature draft](docs/research/INSTANT_TIMED_FEATURES_20261107.md) and [checks](docs/research/results/instant_timed_features_20261107/CHECKS.json).
+
+Next, version delayed decisions and later grading, then prepare the streaming
+and publication evidence required for a data-only coverage and latency pilot.
+
 ## Timed baseline components — 2026-11-06
 
 **`2ac3b25`** adds offline volatility, BTC beta and pace calculations from the

@@ -86,9 +86,11 @@ Status keys: Open, In progress, Done, Blocked.
 - Timed baseline components are implemented at `2ac3b25`, with separate
   volatility and pace readiness, recorded processing clocks and provenance.
   1,252 targeted checks pass. See `docs/research/INSTANT_TIMED_BASELINE_20261106.md`.
-- Next, declare F3 book integration and F4 candle alignment, build timed
-  F1–F5 feature evidence, then version publication-target/later-grading
-  rules and a recorder with per-row clocks, real connection IDs and tested
+- Timed F1–F5 feature evidence is implemented at `2838eb6` with declared
+  F3 receipt-state and F4 closed-candle boundaries. 1,261 targeted checks
+  pass. See `docs/research/INSTANT_TIMED_FEATURES_20261107.md`.
+- Next, version delayed-decision and later-grading rules and a recorder with
+  per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
