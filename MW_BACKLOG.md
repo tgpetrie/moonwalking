@@ -95,8 +95,13 @@ Status keys: Open, In progress, Done, Blocked.
 - Bounded journal `ce2dd03` records connection lifecycle, packet processing
   and local publication commits. 1,283 targeted checks pass, including
   a process exit during acknowledgment. See `docs/research/INSTANT_STREAM_JOURNAL_20261107.md`.
-- Next, wire and dry-run socket callbacks and predeclare the bounded
-  source/latency pilot. Preserve current
+- Socket callbacks and the four-product source pilot are complete at
+  `92ed71f`. The corrected capture stopped at 99,991 rows in 34m 28s,
+  before warmup. All 272 sampled trade windows were ready by +5s.
+  ALCX had 14/68 fresh book windows. 1,290 targeted checks pass.
+  See `docs/research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md`.
+- Next, address recorder capacity, thin-product quote coverage and timing
+  precision before a follow-up source diagnostic. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

@@ -6,20 +6,20 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-The socket dry run passed and the four-product source pilot is running on
-the Windows research host at **`92ed71f`**. The first attempt ended at startup
-after Coinbase used the legacy `level2_50` acknowledgment. The corrected
-attempt acknowledged all subscriptions under the same protocol and limits.
-**1,290 targeted checks pass**. See the
-[pilot protocol](../research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md) and
-[first attempt](../research/results/instant_source_pilot_20261107/ATTEMPT_01.json).
+The four-product source pilot is complete at **`92ed71f`**. The corrected
+attempt reached the packet budget in 34m 28s, short of 62 minutes of warmup.
+All 272 sampled trade windows were verified by cutoff +5s. Full fresh
+book windows were available at 68/68 BTC and SOL probes, 14/68 ALCX probes
+and 61/68 AURORA probes. **1,290 targeted checks pass**. Both attempts and
+raw journal digests are preserved. Read the
+[pilot results](../research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md)
+and [predeclared protocol](../research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md).
 
 The streaming journal is implemented at **`ce2dd03`**. It allocates a new
 identity per connection, commits original packet and trade processing evidence,
 and records local publication commit observations. After a process exit, the
 committed prefix can be read and a fresh segment can begin. **1,283 targeted
-tests pass**, including twelve new cases. Next is socket callback wiring and
-a predeclared data-only pilot protocol.
+tests passed** at that checkpoint.
 [Journal draft](../research/INSTANT_STREAM_JOURNAL_20261107.md)
 and [checks](../research/results/instant_stream_journal_20261107/CHECKS.json).
 
@@ -138,8 +138,8 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next, wire the journal to a testable socket callback path and predeclare
-the source and latency pilot. Preserve >=62 complete warmup minutes,
+Next, address the measured recorder capacity, thin-product book gaps
+and clock precision before a follow-up source diagnostic. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
 
 The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
@@ -198,9 +198,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,283 targeted tests pass, including twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,290 targeted tests pass, including seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -239,7 +239,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Stream journal `ce2dd03`; next are socket callbacks and pilot protocol |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Source pilot `92ed71f` complete; next are capacity, thin-book and timing checks |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -255,8 +255,9 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, wire and test socket callbacks on the bounded streaming journal.
-Predeclare the data-only source/latency pilot before capture. Keep the four-product
+Next, design and test bounded capacity for full warmup on one connection.
+Measure with a higher-resolution clock and check host clock offset before
+the next predeclared source diagnostic. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
@@ -340,7 +341,9 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> The stream journal is `ce2dd03` with 1,283 targeted tests passing.
+> The source pilot is `92ed71f` with 1,290 targeted tests passing. Read its
+> November 7 results. It stopped at the packet cap in 34m 28s.
+> The stream journal is `ce2dd03`.
 > Delayed decisions and later cutoff grading are `ad67a3a`.
 > Timed features are `2838eb6`. Read the November 7 decision and grading draft.
 > Timed baseline components are `2ac3b25`. Read the November 7 feature draft.
@@ -359,8 +362,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Wire and dry-run the socket callback path. Predeclare the data-only pilot
-> and keep local commit observations separate from external delivery.
+> Address recorder capacity, thin-product quote availability and clock
+> measurement before a follow-up. Keep both pilot attempts and their bounds.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and

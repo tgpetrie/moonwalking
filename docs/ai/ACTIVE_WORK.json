@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T18:50:09.644237+00:00",
+  "updated_utc": "2026-11-07T19:26:40.789990+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -31,13 +31,14 @@
     "input_evidence_foundation": "stage_1_review_accepted_no_patch_positive_eligibility_unsupported",
     "feature_builder": "offline_F1_F5_timing_and_missingness_synthetic_verified_real_readiness_open",
     "decision_and_grading": "offline_snapshot_publication_observation_and_later_cutoff_grading_verified_synthetically",
-    "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically"
+    "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically",
+    "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "socket_dry_run_passed_corrected_source_pilot_running"
+      "status": "source_pilot_complete_packet_capacity_thin_quote_and_clock_evidence_open"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -127,9 +128,9 @@
     }
   },
   "next_actions": [
-    "Monitor the bounded attempt-02 source pilot to stop, verify its journal digest, and report coverage, lag and warmup against the predeclared protocol.",
-    "Define a separate publication-time quote benchmark and later outcome evidence policy before connecting study eligibility.",
-    "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
+    "Design and test bounded recorder capacity for at least 62 complete warmup minutes on one continuous connection using the measured packet mix. Preserve both source pilot attempts.",
+    "Use a higher-resolution duration clock and validate clock offset before interpreting exchange-to-callback timing. Define thin-product quote availability and separate external publication evidence.",
+    "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -623,12 +624,12 @@
     "local_publication_commit_receipts": true,
     "resume_policy": "recover_committed_prefix_then_open_fresh_segment",
     "socket_adapter_exercised": true,
-    "real_capture_exercised": false,
+    "real_capture_exercised": true,
     "external_publication_delivery_verified": false,
     "fitting_allowed": false
   },
   "source_pilot": {
-    "status": "attempt_02_subscriptions_acknowledged_capture_running",
+    "status": "completed_at_predeclared_packet_budget",
     "implementation_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
     "protocol": "docs/research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md",
     "checks": "docs/research/results/instant_source_pilot_20261107/CHECKS.json",
@@ -637,6 +638,14 @@
     "required_warmup_minutes": 62,
     "planned_seconds_after_ack": 4020,
     "feed_gate_pass": false,
-    "fitting_allowed": false
+    "fitting_allowed": false,
+    "results": "docs/research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md",
+    "corrected_attempt": "docs/research/results/instant_source_pilot_20261107/ATTEMPT_02.json",
+    "journal_sha256": "d62612997d4e0f7cb4398fed587314527500c0f1762f9550a9f6929689a2136c",
+    "seconds_after_ack": 2068.392,
+    "packets": 99991,
+    "completed_warmup": false,
+    "real_capture_exercised": true,
+    "external_publication_measured": false
   }
 }

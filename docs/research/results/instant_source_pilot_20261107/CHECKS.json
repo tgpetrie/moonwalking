@@ -26,5 +26,30 @@
   "native_mac_verified": false,
   "historical_validation_rerun": false,
   "fitting_allowed": false,
-  "live_changes": false
+  "live_changes": false,
+  "pilot_verified_utc": "2026-11-07T19:26:40.789990+00:00",
+  "real_capture_exercised": true,
+  "real_capture_stop": "packet_budget",
+  "archives": {
+    "attempt_01": {
+      "aggregate_sha256_UTF8_LF": "82920031cb045b2f38cc0b76834f809569aace38d3157ce8845700dd26c6eebd",
+      "journal_sha256": "cbeb79e98291e59952bc266d68488920476f4b39c5a7e3b2f868124c910eeaa6",
+      "packet_rows": 1032,
+      "sqlite_quick_check": "ok",
+      "record_digests_and_sequence_verified": true
+    },
+    "attempt_02": {
+      "aggregate_sha256_UTF8_LF": "3cf4fe569e71aefc8f72b0e27bb6549b944bc5136f428e626ce3575de0f5cb55",
+      "journal_sha256": "d62612997d4e0f7cb4398fed587314527500c0f1762f9550a9f6929689a2136c",
+      "packet_rows": 99991,
+      "sqlite_quick_check": "ok",
+      "record_digests_and_sequence_verified": true
+    }
+  },
+  "windows_monotonic_clock": "GetTickCount64()",
+  "windows_monotonic_resolution_ms": 15.625,
+  "clock_offset_verified": false,
+  "warmup_reached": false,
+  "external_publication_measured": false,
+  "feed_gate_pass": false
 }

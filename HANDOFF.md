@@ -1,5 +1,19 @@
 # Moonwalking / BHABIT Handoff
 
+## Source and latency pilot complete — 2026-11-07
+
+**`92ed71f`** connects the journal to Coinbase Exchange and accepts the
+observed `level2_50` alias. The dry run and 1,290 targeted checks pass.
+Attempt 01 ended at startup. Attempt 02 collected 99,991 rows in 34m 28s
+before the packet budget stopped it. Every sampled trade window was
+verified by +5s. ALCX had 14/68 full fresh book windows and AURORA 61/68.
+Both raw journals and digest-verified aggregates are preserved.
+[Source pilot results](docs/research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md).
+
+Next, design recorder capacity for complete warmup on one connection,
+address thin-product quote availability and measure timing with a
+higher-resolution clock and a documented clock-offset check.
+
 ## Streaming input journal and local publication receipts — 2026-11-07
 
 **`ce2dd03`** adds a bounded SQLite journal for one writer and one active
