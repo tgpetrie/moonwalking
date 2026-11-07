@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T18:34:33.145090+00:00",
+  "updated_utc": "2026-11-07T18:50:09.644237+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
+  "implementation_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -37,7 +37,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "stream_journal_implemented_1283_targeted_tests_pass_pilot_socket_adapter_and_protocol_next"
+      "status": "socket_dry_run_passed_corrected_source_pilot_running"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -127,7 +127,7 @@
     }
   },
   "next_actions": [
-    "Wire and dry-run the journal on an owned socket callback path. Test loss and reconnect handling and measure callback and commit latency before the data-only pilot.",
+    "Monitor the bounded attempt-02 source pilot to stop, verify its journal digest, and report coverage, lag and warmup against the predeclared protocol.",
     "Define a separate publication-time quote benchmark and later outcome evidence policy before connecting study eligibility.",
     "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -141,15 +141,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1283,
+    "implementation_targeted_tests_passed": 1290,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_ce2dd03",
+    "guardrails": "passed_at_92ed71f",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_ce2dd03",
+    "black_24_8": "passed_at_92ed71f",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -565,7 +565,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "ce2dd036ebb15e6e140783adf1ddc4a65a666d1d",
+  "latest_verification_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -622,9 +622,21 @@
     "scope": "one_writer_one_active_connection_per_segment",
     "local_publication_commit_receipts": true,
     "resume_policy": "recover_committed_prefix_then_open_fresh_segment",
-    "socket_adapter_exercised": false,
+    "socket_adapter_exercised": true,
     "real_capture_exercised": false,
     "external_publication_delivery_verified": false,
+    "fitting_allowed": false
+  },
+  "source_pilot": {
+    "status": "attempt_02_subscriptions_acknowledged_capture_running",
+    "implementation_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
+    "protocol": "docs/research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md",
+    "checks": "docs/research/results/instant_source_pilot_20261107/CHECKS.json",
+    "initial_attempt": "docs/research/results/instant_source_pilot_20261107/ATTEMPT_01.json",
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_source_pilot_20261107",
+    "required_warmup_minutes": 62,
+    "planned_seconds_after_ack": 4020,
+    "feed_gate_pass": false,
     "fitting_allowed": false
   }
 }

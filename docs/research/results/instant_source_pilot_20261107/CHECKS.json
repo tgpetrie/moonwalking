@@ -1,0 +1,30 @@
+{
+  "verified_utc": "2026-11-07T18:50:09.644237+00:00",
+  "implementation_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
+  "base_checkpoint": "91904c2e48497aea6022e3f357d3588ac8debb1b",
+  "initial_implementation_commit": "a90eef9bde0186b4ecd2604cccab679ed619b327",
+  "targeted_tests_passed": 1290,
+  "new_socket_cases": 7,
+  "first_run_tests_passed": 1289,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "websocket_client": "1.9.0",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "scripts/scoring_experiment/instant_source_pilot.py": "ee5a9b086e455d4bc9d983ae9b507ac0b560cda7325df9d31947f8ad6f01c1c3",
+    "scripts/scoring_experiment/instant_stream_journal.py": "2315d849565991c3e54fa7fe8770809c63305ab8f6f54e5c8fb1c1fea2288b82",
+    "scripts/scoring_experiment/instant_coverage.py": "dd1249ecc99c52194ba4e39942f8dd9e6673e06e39bd890ba5630f1c33e575ca",
+    "tests/test_instant_source_pilot.py": "c50d822dc23530bab1f105c4d1fdb6662700201709e0f4cf4fc2e789de3de3a2",
+    "docs/research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md": "afb54953d58f90ff6a15fb3b929708aa31cd96a1319c3777ead14b8ecca817f4"
+  },
+  "initial_acknowledgment_compatibility_corrected": true,
+  "dry_run_opened_network": false,
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "historical_validation_rerun": false,
+  "fitting_allowed": false,
+  "live_changes": false
+}

@@ -6,6 +6,14 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The socket dry run passed and the four-product source pilot is running on
+the Windows research host at **`92ed71f`**. The first attempt ended at startup
+after Coinbase used the legacy `level2_50` acknowledgment. The corrected
+attempt acknowledged all subscriptions under the same protocol and limits.
+**1,290 targeted checks pass**. See the
+[pilot protocol](../research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md) and
+[first attempt](../research/results/instant_source_pilot_20261107/ATTEMPT_01.json).
+
 The streaming journal is implemented at **`ce2dd03`**. It allocates a new
 identity per connection, commits original packet and trade processing evidence,
 and records local publication commit observations. After a process exit, the
