@@ -50,6 +50,9 @@ class JournalReceipt:
     receipt_ts_ms: int
     processing_completed_ts_ms: int
     commit_observed_ts_ms: int
+    message_type: str
+    product_id: str | None
+    exchange_time: str | None
 
 
 @dataclass(frozen=True)
@@ -169,6 +172,18 @@ class StreamJournal:
             self._db.close()
             raise
 
+    @property
+    def packet_count(self):
+        return self._packet_count
+
+    @property
+    def record_bytes(self):
+        return self._bytes
+
+    @property
+    def connection_active(self):
+        return self._active is not None
+
     def __enter__(self):
         return self
 
@@ -246,7 +261,15 @@ class StreamJournal:
 
         self._bytes += size
         self._packet_count = seq
-        return JournalReceipt(seq, receipt, packet.processing_completed_ts_ms, observed)
+        return JournalReceipt(
+            seq,
+            receipt,
+            packet.processing_completed_ts_ms,
+            observed,
+            message["type"],
+            message.get("product_id"),
+            message.get("time"),
+        )
 
     def _check_connection(self, connection_id):
         self._writable()
