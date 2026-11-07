@@ -89,9 +89,11 @@ Status keys: Open, In progress, Done, Blocked.
 - Timed F1–F5 feature evidence is implemented at `2838eb6` with declared
   F3 receipt-state and F4 closed-candle boundaries. 1,261 targeted checks
   pass. See `docs/research/INSTANT_TIMED_FEATURES_20261107.md`.
-- Next, version delayed-decision and later-grading rules and a recorder with
-  per-row clocks, real connection IDs and tested
-  streaming limits before a bounded source/latency pilot. Preserve current
+- Delayed decisions and later cutoff grading are implemented at `ad67a3a`.
+  Decision snapshots stay immutable while later known evidence can veto a
+  grade. 1,271 targeted checks pass. See `docs/research/INSTANT_DELAYED_DECISION_20261107.md`.
+- Next, implement a recorder with per-row clocks, real connection IDs,
+  durable publication and tested streaming limits before a bounded source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

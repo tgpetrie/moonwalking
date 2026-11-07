@@ -1,5 +1,17 @@
 # Moonwalking / BHABIT Handoff
 
+## Delayed decisions and later cutoff grading — 2026-11-07
+
+**`ad67a3a`** freezes each diagnostic decision's feature row and clocks.
+Later grading keeps the 5m and 15m horizons anchored to the cutoff.
+A later conflict can make the grade unavailable while the original snapshot
+remains reproducible. **1,271 targeted tests pass** with ten new synthetic
+cases. Black, guardrails and 11 historical hashes pass.
+[Decision and grading draft](docs/research/INSTANT_DELAYED_DECISION_20261107.md) and [checks](docs/research/results/instant_delayed_decision_20261107/CHECKS.json).
+
+Next, implement bounded streaming with actual connection identities and
+durable publication evidence before a data-only coverage and latency pilot.
+
 ## Timed F1–F5 features — 2026-11-07
 
 **`2838eb6`** implements the five draft features from the timed ledger.
