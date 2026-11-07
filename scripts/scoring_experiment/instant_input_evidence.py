@@ -229,8 +229,7 @@ class InputEvidenceRecorder:
             self.failed = True
             raise
 
-    def _component(self, product, cutoff, asof):
-        start = cutoff - 30000
+    def _quote_at(self, product, cutoff, asof):
         view = self.book.view(product, cutoff, asof=asof)
         states = [
             r
@@ -248,8 +247,23 @@ class InputEvidenceRecorder:
         used = ([states[-1].receipt_seq] if states else []) + (
             [transport[-1]["receipt_seq"]] if transport else []
         )
-        quote_known = all(self._packet_by_seq[s].available_ts_ms <= asof for s in used)
+        available = max(
+            (self._packet_by_seq[s].available_ts_ms for s in used), default=None
+        )
+        quote_known = available is None or available <= asof
         quote_ready = view.book_state_available and quote_known
+        quote = dict(
+            available=quote_ready,
+            reason=view.reason if quote_known else "quote_row_processing_incomplete",
+            observation_ts_ms=view.observation_ts_ms,
+            observation_age_ms=view.observation_age_ms,
+            book_processing_available_ts_ms=view.available_ts_ms,
+            bid=view.bid if quote_ready else None,
+            ask=view.ask if quote_ready else None,
+        )
+        return quote, available if quote_ready else None
+
+    def _trade_window(self, product, start, cutoff, asof):
         proof = self.book.monitor.assess(product, start, cutoff, asof=asof)
         intervals = [
             p
@@ -265,10 +279,14 @@ class InputEvidenceRecorder:
             if t.product_id == product and start <= t.receipt_ts_ms < cutoff
         ]
         known = [t for t in rows if t.available_ts_ms <= asof]
-        proof_rows_known = all(
-            self._packet_by_seq[p["end_heartbeat_seq"]].available_ts_ms <= asof
-            for p in intervals
-        ) and len(known) == len(rows)
+        proof_completion = max(
+            (
+                self._packet_by_seq[p["end_heartbeat_seq"]].available_ts_ms
+                for p in intervals
+            ),
+            default=cutoff,
+        )
+        proof_rows_known = proof_completion <= asof and len(known) == len(rows)
         owners = {
             (p["connection_id"], p["continuity_epoch"])
             for p in intervals
@@ -286,6 +304,13 @@ class InputEvidenceRecorder:
                 reason = "trade_row_processing_incomplete"
             elif not continuity_ok:
                 reason = "trade_row_continuity_mismatch"
+        return proof, known, reason, proof_completion if reason is None else None
+
+    def _component(self, product, cutoff, asof):
+        quote, _ = self._quote_at(product, cutoff, asof)
+        proof, known, reason, _ = self._trade_window(
+            product, cutoff - 30000, cutoff, asof
+        )
         ids_ready = reason is None
         amounts = {
             side: sum(
@@ -302,17 +327,7 @@ class InputEvidenceRecorder:
             feature_cutoff_ts_ms=cutoff,
             knowledge_asof_ts_ms=asof,
             later_diagnostic=asof > cutoff,
-            quote=dict(
-                available=quote_ready,
-                reason=(
-                    view.reason if quote_known else "quote_row_processing_incomplete"
-                ),
-                observation_ts_ms=view.observation_ts_ms,
-                observation_age_ms=view.observation_age_ms,
-                book_processing_available_ts_ms=view.available_ts_ms,
-                bid=view.bid if quote_ready else None,
-                ask=view.ask if quote_ready else None,
-            ),
+            quote=quote,
             trades_30s=dict(
                 receipt_id_check_passed=ids_ready,
                 reason=reason,
