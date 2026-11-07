@@ -83,9 +83,11 @@ Status keys: Open, In progress, Done, Blocked.
   corrected or qualified, no numeric rule frozen. Six synthetic boundary
   checks bring the targeted suite to 1,247 passes. See
   `docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md`.
-- Next: implement timed baseline/component evidence with separate actual
-  completion and provenance, preserve existing cutoff APIs, then build F1-F5,
-  version publication-target/later-grading
+- Timed baseline components are implemented at `2ac3b25`, with separate
+  volatility and pace readiness, recorded processing clocks and provenance.
+  1,252 targeted checks pass. See `docs/research/INSTANT_TIMED_BASELINE_20261106.md`.
+- Next, declare F3 book integration and F4 candle alignment, build timed
+  F1–F5 feature evidence, then version publication-target/later-grading
   rules and a recorder with per-row clocks, real connection IDs and tested
   streaming limits before a bounded source/latency pilot. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining

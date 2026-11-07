@@ -1,6 +1,20 @@
 # Moonwalking / BHABIT Handoff
 
-## Current Gemini methodology review reconciled — 2026-11-06
+## Timed baseline components — 2026-11-06
+
+**`2ac3b25`** adds offline volatility, BTC beta and pace calculations from the
+timed evidence ledger. Volatility and pace have independent readiness and
+availability. Each result records its evidence as-of and computation
+completion. Pace uses a full-hour proof chain within a single epoch.
+**1,252 targeted tests pass**, including five new synthetic cases. Black,
+guardrails and 11 historical hashes pass.
+[Baseline draft](docs/research/INSTANT_TIMED_BASELINE_20261106.md) and [checks](docs/research/results/instant_timed_baseline_20261106/CHECKS.json).
+
+Next, specify F3 observation integration and F4 candle alignment, then
+build timed F1–F5 feature evidence. Real source readiness and publication
+evidence remain open.
+
+## Gemini methodology review reconciled — 2026-11-06
 
 The user supplied the new 29-file response. It is archived in full and
 reconciled at **`840ff97`**; read

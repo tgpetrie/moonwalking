@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-06T08:37:13.450684+00:00",
+  "updated_utc": "2026-11-07T07:45:48.630229+00:00",
   "display_date_pacific": "2026-11-06",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "8607a36e3d1d6a04c4f4176f89ca3dc3ea55eef8",
+  "implementation_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -21,7 +21,7 @@
     "study_frozen": false,
     "reporting": "review_accepted_independent_missing_causes_and_provenance_implemented",
     "recorder": "preserved_real_capture_counts_verified_no_live_integration",
-    "baseline_builder": "synthetic_math_verified_saved_capture_lacks_warmup_and_contemporaneous_coverage",
+    "baseline_builder": "timed_offline_volatility_beta_and_pace_components_synthetic_verified_real_readiness_open",
     "health_adapter": "bounded_reconciliation_amendment_and_continuity_barriers_independently_verified_accepted_no_full_feed_certification",
     "sample_adapter": "legacy_immutable_pairing_unchanged_per_row_processing_and_later_grading_evidence_open",
     "quote_source_candidate": "offline_Exchange_level2_batch_book_adapter_implemented_not_integrated_or_live_verified",
@@ -34,7 +34,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "new_Gemini_methodology_reconciled_1247_targeted_tests_pass_timed_baseline_component_evidence_next"
+      "status": "timed_baseline_components_implemented_1252_targeted_tests_pass_F3_F4_boundaries_and_feature_evidence_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -124,8 +124,8 @@
     }
   },
   "next_actions": [
-    "Implement timed baseline/component evidence with separate observation cutoff, evidence knowledge and actual completion; do not reinterpret existing Sample or eligibility availability",
-    "Declare F3 integration and F4 candle-source/alignment rules before feature wiring; preserve the fixed five candidate formulas and matched comparisons",
+    "Declare F3 book-observation integration and F4 candle-source/alignment rules before feature wiring; preserve the fixed five candidate formulas and matched comparisons",
+    "Build timed F1–F5 feature evidence using the separate observation, evidence-knowledge and actual completion clocks; keep the existing Sample and eligibility clock semantics",
     "Version delayed-decision and later-grading interfaces, actual connection identity, streaming/persistence and durable publication; no positive eligibility bridge yet",
     "Predeclare any data-only source/latency pilot and measure missingness/lag before selecting a study age budget; preserve original feed gate and >=62 complete warmup minutes",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -139,15 +139,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1247,
+    "implementation_targeted_tests_passed": 1252,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_840ff97",
+    "guardrails": "passed_at_2ac3b25",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_840ff97",
+    "black_24_8": "passed_at_2ac3b25",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -534,7 +534,9 @@
     "review_commit": "f1ab7d52a7ce9eb9512cf81a8111d71b299792ce",
     "review_integrated_as": "086eb20863855098c299892b00dff8cfceffe9e7",
     "review_acceptance": "docs/research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md",
-    "review_checks": "docs/research/results/instant_input_review_acceptance_20261106/CHECKS.json"
+    "review_checks": "docs/research/results/instant_input_review_acceptance_20261106/CHECKS.json",
+    "current_implementation_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
+    "current_implementation_scope": "same_stage_1_schema_shared_quote_and_trade_window_helpers_used_by_timed_baseline"
   },
   "gemini_current_methodology_packet": {
     "assignment": "docs/ai/GEMINI_METHOD_REVIEW_20261104.md",
@@ -561,7 +563,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
+  "latest_verification_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -569,5 +571,18 @@
     "checks": "docs/research/results/instant_method_review_20261106/CHECKS.json",
     "fitting_allowed": false,
     "study_frozen": false
+  },
+  "timed_baseline": {
+    "implementation_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
+    "version": "instant-timed-baseline-v1-draft",
+    "report": "docs/research/INSTANT_TIMED_BASELINE_20261106.md",
+    "checks": "docs/research/results/instant_timed_baseline_20261106/CHECKS.json",
+    "status": "offline_baseline_components_synthetic_verified",
+    "separate_volatility_and_pace_readiness": true,
+    "pace_requires_single_epoch_proof_chain": true,
+    "feature_evidence_implemented": false,
+    "positive_eligibility_supported": false,
+    "real_capture_exercised": false,
+    "fitting_allowed": false
   }
 }

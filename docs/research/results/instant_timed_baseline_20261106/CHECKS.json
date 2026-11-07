@@ -1,0 +1,30 @@
+{
+  "verified_utc": "2026-11-07T07:45:48.630229+00:00",
+  "implementation_commit": "2ac3b25e3059b5956ff8b487e48ed673d59dab9f",
+  "base_checkpoint": "da0a67315cf9e381b3e866d6dcade32c90bb595f",
+  "targeted_tests_passed": 1252,
+  "new_synthetic_cases": 5,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "scripts/scoring_experiment/instant_timed_baseline.py": "d30b05d416e44151bc3f92165baceafdb8d4564199a9073a756786156c90e659",
+    "scripts/scoring_experiment/instant_input_evidence.py": "f3762d776b754e442279447d7e829d351d2549245ae000e50e11c7ac534f31e0",
+    "tests/test_instant_timed_baseline.py": "bec7ae1bd1083c0480ec3fa7e03c04b692a40bce01c5dee8e0781b2c134b4607"
+  },
+  "stage_one_reviewed_commit": "8607a36e3d1d6a04c4f4176f89ca3dc3ea55eef8",
+  "stage_one_shared_helpers_extracted": true,
+  "protected_sources_verified_against": "da0a67315cf9e381b3e866d6dcade32c90bb595f",
+  "scope": "offline_volatility_beta_and_activity_baseline_components",
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "real_capture_exercised": false,
+  "positive_eligibility_supported": false,
+  "fitting_allowed": false,
+  "study_frozen": false,
+  "historical_validation_rerun": false,
+  "live_changes": false
+}

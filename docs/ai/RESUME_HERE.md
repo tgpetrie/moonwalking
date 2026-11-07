@@ -6,6 +6,13 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+Timed volatility, BTC beta and activity baseline components are implemented at
+**`2ac3b25`**. They use declared windows, measured evidence and computation
+times, and independent volatility and pace readiness. **1,252 targeted tests
+pass**. Next is to declare F3 book integration and F4 candle alignment, then
+build timed F1–F5 feature evidence. [Baseline draft](../research/INSTANT_TIMED_BASELINE_20261106.md)
+and [checks](../research/results/instant_timed_baseline_20261106/CHECKS.json).
+
 Claude's input-evidence review `f1ab7d5` is accepted as **`086eb20`** with
 46 independent probes, no defect and no code patch. Its **1,241 targeted tests passed**
 on Windows Python 3.12.10. Read [the acceptance](../research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
@@ -22,15 +29,16 @@ The candidate formulas remain, but late-proof availability cannot be relabelled
 as receipt-only; the 2,500ms budget and entry/model/readiness choices remain
 unfrozen. Both external assignments are complete; no duplicate review is queued.
 
-Runtime implementation **`8607a36`** (review accepted `086eb20`) adds input-evidence stage 1: complete
+The reviewed **`8607a36`** implementation (accepted at `086eb20`) added input-evidence stage 1: complete
 declared product/cutoff/direction accounting, measured new packet/trade
 processing completion, coin/BTC component checks and frozen cutoff cohorts.
 Read
 [the scope](../research/INSTANT_INPUT_EVIDENCE_20261104.md) and
 [initial checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
-[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is complete and accepted. This is the eligibility foundation; positive eligibility,
-timed baseline/features, full-health and publication evidence remain open.
-No real-data replay/capture, outcome analysis, fit or live change occurred.
+[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is accepted.
+The baseline commit `2ac3b25` shares the stage 1 quote and trade-window
+helpers and preserves its schema. Positive eligibility
+still requires timed features, full-health and publication evidence.
 
 Directional implementation **`9da4987`** adds an opt-in directional exposure
 report with own-direction gradability, explicit eligibility cutoffs, time
@@ -53,8 +61,8 @@ receipt attribution remain preserved. Read the
 [checks](../research/results/instant_reconciliation_acceptance_20261104/CHECKS.json).
 The unchanged hour's 33 ordering failures reconcile into 16 bounded proofs.
 This does not pass the feed gate or enable fitting. No new capture, outcome
-study, target or live change occurred. Next is timed baseline/feature evidence and versioned
-grading/row-availability, streaming and publication evidence.
+study, target or live change occurred. The baseline components above use
+the accepted reconciliation for timed trade proofs.
 
 Book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
 premature heartbeat knowledge and text-only BBO clock changes. **579 targeted
@@ -101,8 +109,8 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next: build timed baseline/feature evidence;
-version later grading/row-availability and streaming/publication evidence
+Next, specify F3/F4 boundaries and build timed feature evidence. Version
+later grading/row-availability and streaming/publication evidence
 before a predeclared source pilot. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
 
@@ -162,9 +170,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,247 targeted tests pass, including six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,252 targeted tests pass, including five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -203,7 +211,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Input-evidence `8607a36` accepted `086eb20`; methodology reconciled `840ff97`; timed baseline/features and full source/readiness gates remain open |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Timed baseline `2ac3b25`; methodology reconciled `840ff97`; F3/F4 boundary rules, timed feature evidence and source/readiness gates are next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -219,12 +227,12 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next: build timed baseline/feature
-evidence, and version/test later grading evidence and a streaming recorder with per-row
+Next, specify F3/F4 boundaries and build timed feature evidence. Version and
+test later grading evidence and a streaming recorder with per-row
 processing, actual connection identity and durable publication. Predeclare
 source/latency collection and lag limits before a pilot. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
-association/exposure review and overall study freeze remain required before
+association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
 merely to seek a favorable verdict.
 
@@ -306,9 +314,10 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> Input-evidence foundation is `8607a36`, review accepted `086eb20`;
-> 1,247 targeted tests pass; methodology reconciliation is `840ff97`. It accounts for every declared slot and new
-> processing time but does not emit positive eligibility. Directional reporting
+> Timed baseline components are `2ac3b25` with 1,252 targeted tests passing.
+> Stage 1 input-evidence review is accepted at `086eb20`; methodology
+> reconciliation is `840ff97`. Positive eligibility still requires timed
+> features, quote-health and publication evidence. Directional reporting
 > draft is `9da4987`, independent review accepted `4925ac5`.
 > Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
 > at `5ff6a8f`, association at `8631231`.
@@ -321,8 +330,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> The input-evidence review is complete. Build timed baseline/feature evidence; version
-> later grading, per-row clocks, streaming bounds and
+> Specify F3 book integration and F4 candle alignment, then build timed
+> F1–F5 feature evidence. Version later grading, per-row clocks, streaming bounds and
 > publication evidence before a predeclared source pilot and full study freeze.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
