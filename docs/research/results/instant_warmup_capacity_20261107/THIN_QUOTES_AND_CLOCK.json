@@ -1,0 +1,66 @@
+{
+  "scope": "preserved_pilot_receipt_time_quote_age_diagnostic",
+  "source_journal_sha256": "d62612997d4e0f7cb4398fed587314527500c0f1762f9550a9f6929689a2136c",
+  "probes_per_product": 68,
+  "quote_age_limit_ms": 10000,
+  "ticker_scope": "receipt_only_optimistic_no_processing_or_continuity_requirement",
+  "thin_products": {
+    "ALCX-USD": {
+      "pilot_verified_book_fresh_endpoints": 43,
+      "pilot_verified_book_fresh_windows": 14,
+      "ticker_receipt_only_fresh_endpoints": 3,
+      "ticker_receipt_only_fresh_windows": 0,
+      "book_receipts": 949,
+      "book_receipt_gap_ms": {
+        "p50": 633,
+        "p95": 6384,
+        "p99": 33792,
+        "max": 135069
+      },
+      "ticker_receipts": 27,
+      "ticker_receipt_gap_ms": {
+        "p50": 1137,
+        "p95": 115214,
+        "p99": 259344,
+        "max": 259344
+      }
+    },
+    "AURORA-USD": {
+      "pilot_verified_book_fresh_endpoints": 66,
+      "pilot_verified_book_fresh_windows": 61,
+      "ticker_receipt_only_fresh_endpoints": 1,
+      "ticker_receipt_only_fresh_windows": 0,
+      "book_receipts": 19147,
+      "book_receipt_gap_ms": {
+        "p50": 63,
+        "p95": 234,
+        "p99": 353,
+        "max": 20682
+      },
+      "ticker_receipts": 19,
+      "ticker_receipt_gap_ms": {
+        "p50": 15,
+        "p95": 317222,
+        "p99": 317222,
+        "max": 317222
+      }
+    }
+  },
+  "host_clock_check": {
+    "local_date": "2026-11-07",
+    "timezone": "America/Los_Angeles",
+    "started_local": "12:01:39",
+    "source": "time.windows.com",
+    "tool": "w32tm /stripchart",
+    "reported_offset_ms": [
+      398.619,
+      345.9479,
+      511.5226,
+      331.0688,
+      362.0035
+    ],
+    "windows_time_service_running": false,
+    "after_capture": true,
+    "retroactive_correction_applied": false
+  }
+}

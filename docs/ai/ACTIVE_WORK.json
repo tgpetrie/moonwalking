@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T19:26:40.789990+00:00",
+  "updated_utc": "2026-11-07T20:07:44.190125+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
+  "implementation_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -38,7 +38,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "source_pilot_complete_packet_capacity_thin_quote_and_clock_evidence_open"
+      "status": "warmup_profile_implemented_synthetic_capacity_running"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -128,7 +128,7 @@
     }
   },
   "next_actions": [
-    "Design and test bounded recorder capacity for at least 62 complete warmup minutes on one continuous connection using the measured packet mix. Preserve both source pilot attempts.",
+    "Monitor the synthetic 67-minute warmup capacity run to completion, verify its journal and review measured limits and readiness.",
     "Use a higher-resolution duration clock and validate clock offset before interpreting exchange-to-callback timing. Define thin-product quote availability and separate external publication evidence.",
     "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -142,15 +142,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1290,
+    "implementation_targeted_tests_passed": 1292,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_92ed71f",
+    "guardrails": "passed_at_a39d73e",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_92ed71f",
+    "black_24_8": "passed_at_a39d73e",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -566,7 +566,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "92ed71fe3a22f595ff8ed8d63e591eea35cdbcd0",
+  "latest_verification_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -647,5 +647,19 @@
     "completed_warmup": false,
     "real_capture_exercised": true,
     "external_publication_measured": false
+  },
+  "warmup_capacity": {
+    "status": "synthetic_acceptance_running",
+    "implementation_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
+    "protocol": "docs/research/INSTANT_WARMUP_CAPACITY_20261107.md",
+    "checks": "docs/research/results/instant_warmup_capacity_20261107/CHECKS.json",
+    "thin_quote_clock_diagnostic": "docs/research/results/instant_warmup_capacity_20261107/THIN_QUOTES_AND_CLOCK.json",
+    "packet_limit": 250000,
+    "logical_record_limit_mib": 256,
+    "required_warmup_minutes": 62,
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_warmup_capacity_20261107",
+    "real_capture_exercised": false,
+    "feed_gate_pass": false,
+    "fitting_allowed": false
   }
 }

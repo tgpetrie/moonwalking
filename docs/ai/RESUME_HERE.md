@@ -6,6 +6,13 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The opt-in warmup capacity profile is implemented at **`a39d73e`**.
+**1,292 targeted checks pass**. The one-connection synthetic capacity run
+is in progress on the Windows research host. The preserved live journal
+shows zero ticker-only fresh full windows for ALCX and AURORA. Read the
+[capacity draft](../research/INSTANT_WARMUP_CAPACITY_20261107.md) and
+[thin-quote and clock evidence](../research/results/instant_warmup_capacity_20261107/THIN_QUOTES_AND_CLOCK.json).
+
 The four-product source pilot is complete at **`92ed71f`**. The corrected
 attempt reached the packet budget in 34m 28s, short of 62 minutes of warmup.
 All 272 sampled trade windows were verified by cutoff +5s. Full fresh

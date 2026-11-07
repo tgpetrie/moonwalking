@@ -1,0 +1,32 @@
+{
+  "verified_utc": "2026-11-07T20:07:44.190125+00:00",
+  "implementation_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
+  "base_checkpoint": "a27365a64ee7db976e0963c3232eb49dbf9e4e8f",
+  "targeted_tests_passed": 1292,
+  "new_cases": 2,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "docs/research/INSTANT_WARMUP_CAPACITY_20261107.md": "94cf4100f7dc4a3ce516b3cc390ca8416260c120e8dbf62a197045144761febc",
+    "scripts/scoring_experiment/instant_book.py": "5fed1a12701d964d4bd0ccec46cd035a966f5f0c5f65421168fa1665f780fcc4",
+    "scripts/scoring_experiment/instant_coverage.py": "e3c690b6b7317a75db839afd365259be566f3b3a69eca7ba0f58bf51d72a6e81",
+    "scripts/scoring_experiment/instant_input_evidence.py": "b87e4d084086e511e679a3080e71e6418139023b0ba0542a9c617d5b62ce7c2c",
+    "scripts/scoring_experiment/instant_source_pilot.py": "55d6123eb058d4b2a5e70a2c9e23c611be702b8b63aba083a557d39523464abb",
+    "scripts/scoring_experiment/instant_stream_journal.py": "6e3edc5ad0bf1a307d8bbe111abb352f3c0a40a6122b83c59ecda90b9954ca7a",
+    "scripts/scoring_experiment/instant_warmup_capacity.py": "a0c4a75a32fce097488a6f53dd34295cc9acb10695424ff540309ee3922f03f1",
+    "tests/test_instant_source_pilot.py": "6591d5d3d89b3a81b5322fe5e7c75fe910d08d1a4a7ee98913ec667a72f31641",
+    "tests/test_instant_stream_journal.py": "417b3e6158a77a9754797ee2e5ec9cda8edd3a38285e4bfd4b7ca5563f719a9a"
+  },
+  "capacity_run_status": "running",
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "new_real_capture": false,
+  "historical_validation_rerun": false,
+  "fitting_allowed": false,
+  "live_changes": false
+}
