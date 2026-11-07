@@ -1,0 +1,331 @@
+{
+  "version": "instant-warmup-capacity-v1-draft",
+  "scope": "synthetic_frames_virtual_receipt_clock_real_sqlite_commits",
+  "code_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
+  "expected_virtual_seconds": 4020,
+  "observed_virtual_ms": 4020016,
+  "host_capture_seconds": 2256.354,
+  "stop": "duration",
+  "connections": [
+    {
+      "connection_id": "21cc4f41b96e47388089c13714cff707/1",
+      "ack_ts_ms": 0,
+      "stop": "duration"
+    }
+  ],
+  "frames": {
+    "subscriptions": 1,
+    "snapshot:BTC-USD": 1,
+    "snapshot:SOL-USD": 1,
+    "snapshot:ALCX-USD": 1,
+    "snapshot:AURORA-USD": 1,
+    "heartbeat:BTC-USD": 4021,
+    "heartbeat:SOL-USD": 4020,
+    "heartbeat:ALCX-USD": 4020,
+    "heartbeat:AURORA-USD": 4020,
+    "l2update:BTC-USD": 68340,
+    "l2update:SOL-USD": 48240,
+    "l2update:ALCX-USD": 4020,
+    "l2update:AURORA-USD": 48240,
+    "match:BTC-USD": 20100,
+    "ticker:BTC-USD": 20100,
+    "match:AURORA-USD": 37,
+    "ticker:AURORA-USD": 37,
+    "match:ALCX-USD": 57,
+    "ticker:ALCX-USD": 57,
+    "match:SOL-USD": 7946,
+    "ticker:SOL-USD": 7946
+  },
+  "callback_through_commit": {
+    "subscriptions": {
+      "n": 1,
+      "p50_ms": 9.852,
+      "p95_ms": 9.852,
+      "p99_ms": 9.852,
+      "max_ms": 9.852,
+      "negative_n": 0
+    },
+    "snapshot:BTC-USD": {
+      "n": 1,
+      "p50_ms": 220.998,
+      "p95_ms": 220.998,
+      "p99_ms": 220.998,
+      "max_ms": 220.998,
+      "negative_n": 0
+    },
+    "snapshot:SOL-USD": {
+      "n": 1,
+      "p50_ms": 64.705,
+      "p95_ms": 64.705,
+      "p99_ms": 64.705,
+      "max_ms": 64.705,
+      "negative_n": 0
+    },
+    "snapshot:ALCX-USD": {
+      "n": 1,
+      "p50_ms": 10.612,
+      "p95_ms": 10.612,
+      "p99_ms": 10.612,
+      "max_ms": 10.612,
+      "negative_n": 0
+    },
+    "snapshot:AURORA-USD": {
+      "n": 1,
+      "p50_ms": 10.285,
+      "p95_ms": 10.285,
+      "p99_ms": 10.285,
+      "max_ms": 10.285,
+      "negative_n": 0
+    },
+    "heartbeat:BTC-USD": {
+      "n": 4021,
+      "p50_ms": 7.554,
+      "p95_ms": 8.684,
+      "p99_ms": 10.318,
+      "max_ms": 400.854,
+      "negative_n": 0
+    },
+    "heartbeat:SOL-USD": {
+      "n": 4020,
+      "p50_ms": 7.118,
+      "p95_ms": 8.27,
+      "p99_ms": 9.987,
+      "max_ms": 281.859,
+      "negative_n": 0
+    },
+    "heartbeat:ALCX-USD": {
+      "n": 4020,
+      "p50_ms": 7.117,
+      "p95_ms": 8.525,
+      "p99_ms": 10.068,
+      "max_ms": 79.916,
+      "negative_n": 0
+    },
+    "heartbeat:AURORA-USD": {
+      "n": 4020,
+      "p50_ms": 7.122,
+      "p95_ms": 8.568,
+      "p99_ms": 9.992,
+      "max_ms": 265.054,
+      "negative_n": 0
+    },
+    "l2update:BTC-USD": {
+      "n": 68340,
+      "p50_ms": 12.344,
+      "p95_ms": 14.968,
+      "p99_ms": 17.057,
+      "max_ms": 374.513,
+      "negative_n": 0
+    },
+    "l2update:SOL-USD": {
+      "n": 48240,
+      "p50_ms": 8.972,
+      "p95_ms": 10.342,
+      "p99_ms": 12.009,
+      "max_ms": 739.939,
+      "negative_n": 0
+    },
+    "l2update:ALCX-USD": {
+      "n": 4020,
+      "p50_ms": 7.774,
+      "p95_ms": 8.929,
+      "p99_ms": 10.632,
+      "max_ms": 305.743,
+      "negative_n": 0
+    },
+    "l2update:AURORA-USD": {
+      "n": 48240,
+      "p50_ms": 7.726,
+      "p95_ms": 8.875,
+      "p99_ms": 10.466,
+      "max_ms": 370.625,
+      "negative_n": 0
+    },
+    "match:BTC-USD": {
+      "n": 20100,
+      "p50_ms": 7.205,
+      "p95_ms": 8.81,
+      "p99_ms": 10.2,
+      "max_ms": 283.017,
+      "negative_n": 0
+    },
+    "ticker:BTC-USD": {
+      "n": 20100,
+      "p50_ms": 7.142,
+      "p95_ms": 8.64,
+      "p99_ms": 10.117,
+      "max_ms": 385.234,
+      "negative_n": 0
+    },
+    "match:AURORA-USD": {
+      "n": 37,
+      "p50_ms": 7.051,
+      "p95_ms": 9.025,
+      "p99_ms": 9.981,
+      "max_ms": 9.981,
+      "negative_n": 0
+    },
+    "ticker:AURORA-USD": {
+      "n": 37,
+      "p50_ms": 7.182,
+      "p95_ms": 8.662,
+      "p99_ms": 8.879,
+      "max_ms": 8.879,
+      "negative_n": 0
+    },
+    "match:ALCX-USD": {
+      "n": 57,
+      "p50_ms": 7.127,
+      "p95_ms": 8.654,
+      "p99_ms": 9.196,
+      "max_ms": 9.196,
+      "negative_n": 0
+    },
+    "ticker:ALCX-USD": {
+      "n": 57,
+      "p50_ms": 7.062,
+      "p95_ms": 8.897,
+      "p99_ms": 11.334,
+      "max_ms": 11.334,
+      "negative_n": 0
+    },
+    "match:SOL-USD": {
+      "n": 7946,
+      "p50_ms": 7.176,
+      "p95_ms": 8.809,
+      "p99_ms": 10.579,
+      "max_ms": 225.967,
+      "negative_n": 0
+    },
+    "ticker:SOL-USD": {
+      "n": 7946,
+      "p50_ms": 7.119,
+      "p95_ms": 8.649,
+      "p99_ms": 10.038,
+      "max_ms": 113.084,
+      "negative_n": 0
+    }
+  },
+  "duration_clock": "QueryPerformanceCounter()",
+  "duration_resolution_ns": 100.0,
+  "snapshot_depths": {
+    "BTC-USD": [
+      17558,
+      22137
+    ],
+    "SOL-USD": [
+      2848,
+      10094
+    ],
+    "ALCX-USD": [
+      49,
+      564
+    ],
+    "AURORA-USD": [
+      104,
+      617
+    ]
+  },
+  "warmup_readiness": {
+    "BTC-USD": {
+      "baseline": {
+        "volatility": "ready",
+        "pace": "ready"
+      },
+      "features": {
+        "F1": "ready",
+        "F2": "ready",
+        "F3": "ready",
+        "F4": "ready",
+        "F5": "ready"
+      },
+      "calculation_ms": 4055.754
+    },
+    "SOL-USD": {
+      "baseline": {
+        "volatility": "ready",
+        "pace": "ready"
+      },
+      "features": {
+        "F1": "ready",
+        "F2": "ready",
+        "F3": "ready",
+        "F4": "ready",
+        "F5": "ready"
+      },
+      "calculation_ms": 6181.262
+    },
+    "ALCX-USD": {
+      "baseline": {
+        "volatility": "ready",
+        "pace": "ready"
+      },
+      "features": {
+        "F1": "ready",
+        "F2": "nonpositive_pace_median",
+        "F3": "ready",
+        "F4": "ready",
+        "F5": "ready"
+      },
+      "calculation_ms": 4722.708
+    },
+    "AURORA-USD": {
+      "baseline": {
+        "volatility": "ready",
+        "pace": "ready"
+      },
+      "features": {
+        "F1": "ready",
+        "F2": "nonpositive_pace_median",
+        "F3": "ready",
+        "F4": "too_few_traded_candles",
+        "F5": "ready"
+      },
+      "calculation_ms": 5641.796
+    }
+  },
+  "logical_record_bytes": 167305605,
+  "journal_bytes": 205647872,
+  "journal_sha256": "3e1450df55e629a75d8dfb06f16fba0061679aaea2f7d9dd78952f1d1fa83bab",
+  "segment": {
+    "manifest": {
+      "book_contract_sha256": "104aaa3ef742f55cfef38f41e0ca2745b2d30d7d15b198d587c6edbf482afc8b",
+      "book_implementation_sha256": "5fed1a12701d964d4bd0ccec46cd035a966f5f0c5f65421168fa1665f780fcc4",
+      "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+      "input_implementation_sha256": "b87e4d084086e511e679a3080e71e6418139023b0ba0542a9c617d5b62ce7c2c",
+      "inventory": {
+        "benchmark": "BTC-USD",
+        "directions": [
+          "up",
+          "down"
+        ],
+        "first_cutoff": 3720000,
+        "grid_ms": 5000,
+        "products": [
+          "ALCX-USD",
+          "AURORA-USD",
+          "BTC-USD",
+          "SOL-USD"
+        ],
+        "stop_cutoff": 3725000
+      },
+      "inventory_recorded_ts_ms": 0,
+      "inventory_sha256": "ffad4ed3380c39daae5d1f55f8a0ce100754412cdf1e270dd62d49045e5cd2b8",
+      "journal_implementation_sha256": "6e3edc5ad0bf1a307d8bbe111abb352f3c0a40a6122b83c59ecda90b9954ca7a",
+      "journal_mode": "delete",
+      "max_frame_bytes": 1048576,
+      "max_packets": 250000,
+      "max_record_bytes": 268435456,
+      "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+      "monitor_implementation_sha256": "e3c690b6b7317a75db839afd365259be566f3b3a69eca7ba0f58bf51d72a6e81",
+      "segment_id": "21cc4f41b96e47388089c13714cff707",
+      "synchronous": 3,
+      "version": "instant-stream-journal-v1-draft"
+    },
+    "status": "finished",
+    "packets": 241208,
+    "publications": 0
+  },
+  "feed_gate_pass": false,
+  "fitting_allowed": false
+}

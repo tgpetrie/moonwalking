@@ -100,8 +100,12 @@ Status keys: Open, In progress, Done, Blocked.
   before warmup. All 272 sampled trade windows were ready by +5s.
   ALCX had 14/68 fresh book windows. 1,290 targeted checks pass.
   See `docs/research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md`.
-- Next, address recorder capacity, thin-product quote coverage and timing
-  precision before a follow-up source diagnostic. Preserve current
+- Warmup capacity `a39d73e` passed 67 simulated minutes and 241,208
+  records on one connection. All four baselines were ready at minute 62.
+  1,292 targeted checks pass. See
+  `docs/research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md`.
+- Next, benchmark incremental feature computation under recorder load and
+  verify clock offset before a follow-up source diagnostic. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

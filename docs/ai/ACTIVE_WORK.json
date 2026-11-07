@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T20:07:44.190125+00:00",
+  "updated_utc": "2026-11-07T20:47:38.633059+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -32,13 +32,14 @@
     "feature_builder": "offline_F1_F5_timing_and_missingness_synthetic_verified_real_readiness_open",
     "decision_and_grading": "offline_snapshot_publication_observation_and_later_cutoff_grading_verified_synthetically",
     "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically",
-    "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached"
+    "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached",
+    "warmup_capacity": "synthetic_67_minutes_one_connection_passed_decision_computation_latency_open"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "warmup_profile_implemented_synthetic_capacity_running"
+      "status": "warmup_capacity_passed_1292_targeted_checks_incremental_feature_latency_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -128,8 +129,8 @@
     }
   },
   "next_actions": [
-    "Monitor the synthetic 67-minute warmup capacity run to completion, verify its journal and review measured limits and readiness.",
-    "Use a higher-resolution duration clock and validate clock offset before interpreting exchange-to-callback timing. Define thin-product quote availability and separate external publication evidence.",
+    "Build and verify incremental baseline and feature window computation. Benchmark causal decision latency under recorder load against the current batch implementation.",
+    "Keep stale thin-product quote windows unavailable and retain them in coverage denominators. Measure host clock offset contemporaneously and record external publication evidence separately.",
     "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -649,7 +650,7 @@
     "external_publication_measured": false
   },
   "warmup_capacity": {
-    "status": "synthetic_acceptance_running",
+    "status": "synthetic_acceptance_passed",
     "implementation_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
     "protocol": "docs/research/INSTANT_WARMUP_CAPACITY_20261107.md",
     "checks": "docs/research/results/instant_warmup_capacity_20261107/CHECKS.json",
@@ -660,6 +661,18 @@
     "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_warmup_capacity_20261107",
     "real_capture_exercised": false,
     "feed_gate_pass": false,
-    "fitting_allowed": false
+    "fitting_allowed": false,
+    "results": "docs/research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md",
+    "run": "docs/research/results/instant_warmup_capacity_20261107/RUN_01.json",
+    "packets": 241208,
+    "virtual_ms": 4020016,
+    "ready_baseline_products": 4,
+    "journal_sha256": "3e1450df55e629a75d8dfb06f16fba0061679aaea2f7d9dd78952f1d1fa83bab",
+    "per_product_post_capture_feature_ms": {
+      "BTC-USD": 4055.754,
+      "SOL-USD": 6181.262,
+      "ALCX-USD": 4722.708,
+      "AURORA-USD": 5641.796
+    }
   }
 }

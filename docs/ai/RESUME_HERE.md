@@ -6,12 +6,13 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-The opt-in warmup capacity profile is implemented at **`a39d73e`**.
-**1,292 targeted checks pass**. The one-connection synthetic capacity run
-is in progress on the Windows research host. The preserved live journal
-shows zero ticker-only fresh full windows for ALCX and AURORA. Read the
-[capacity draft](../research/INSTANT_WARMUP_CAPACITY_20261107.md) and
-[thin-quote and clock evidence](../research/results/instant_warmup_capacity_20261107/THIN_QUOTES_AND_CLOCK.json).
+The opt-in warmup profile at **`a39d73e`** passed the 67-minute synthetic
+run on one connection with 241,208 committed rows. All four products had
+ready volatility and activity baselines at minute 62. Feature calculation
+took 4.1–6.2 seconds per product after capture. The preserved live journal
+shows zero fresh full ticker windows for ALCX and AURORA. **1,292 targeted
+checks pass**. Next is incremental feature calculation under recorder load.
+[Capacity and thin-quote results](../research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md).
 
 The four-product source pilot is complete at **`92ed71f`**. The corrected
 attempt reached the packet budget in 34m 28s, short of 62 minutes of warmup.
@@ -145,8 +146,8 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next, address the measured recorder capacity, thin-product book gaps
-and clock precision before a follow-up source diagnostic. Preserve >=62 complete warmup minutes,
+Next, optimize baseline and feature windows and measure latency under
+recorder load before a follow-up source diagnostic. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
 
 The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
@@ -205,9 +206,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,290 targeted tests pass, including seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,292 targeted tests pass, including two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -246,7 +247,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Source pilot `92ed71f` complete; next are capacity, thin-book and timing checks |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Synthetic warmup capacity `a39d73e` passed; incremental computation and latency measurement are next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -262,9 +263,8 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, design and test bounded capacity for full warmup on one connection.
-Measure with a higher-resolution clock and check host clock offset before
-the next predeclared source diagnostic. Keep the four-product
+Next, verify incremental feature computation under recorder load.
+Check host clock offset near the next predeclared source diagnostic. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
@@ -348,7 +348,9 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> The source pilot is `92ed71f` with 1,290 targeted tests passing. Read its
+> Warmup capacity `a39d73e` passed 67 simulated minutes on one connection,
+> with 1,292 targeted tests passing. Read the November 7 capacity results.
+> The source pilot is `92ed71f`. Read its
 > November 7 results. It stopped at the packet cap in 34m 28s.
 > The stream journal is `ce2dd03`.
 > Delayed decisions and later cutoff grading are `ad67a3a`.
@@ -369,8 +371,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Address recorder capacity, thin-product quote availability and clock
-> measurement before a follow-up. Keep both pilot attempts and their bounds.
+> Benchmark incremental feature computation under recorder load before a
+> follow-up. Preserve stale thin-product missingness and check clock offset.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and

@@ -22,11 +22,22 @@
     "tests/test_instant_source_pilot.py": "6591d5d3d89b3a81b5322fe5e7c75fe910d08d1a4a7ee98913ec667a72f31641",
     "tests/test_instant_stream_journal.py": "417b3e6158a77a9754797ee2e5ec9cda8edd3a38285e4bfd4b7ca5563f719a9a"
   },
-  "capacity_run_status": "running",
+  "capacity_run_status": "passed_synthetic_acceptance",
   "full_suite_run": false,
   "native_mac_verified": false,
   "new_real_capture": false,
   "historical_validation_rerun": false,
   "fitting_allowed": false,
-  "live_changes": false
+  "live_changes": false,
+  "run_verified_utc": "2026-11-07T20:47:38.633059+00:00",
+  "run_manifest_sha256_UTF8_LF": "cdd6ac994f870b8754924d7e0891a2cff233c7b09d09ff3dad1668846281bad1",
+  "thin_quote_diagnostic_sha256_UTF8_LF": "804966ab7b1b1f39fa17b2f94670ca487dab9ee8cffe61923e9174ea43c7f5cb",
+  "journal_sha256": "3e1450df55e629a75d8dfb06f16fba0061679aaea2f7d9dd78952f1d1fa83bab",
+  "packet_rows": 241208,
+  "baseline_ready_products": 4,
+  "synthetic_single_connection_verified": true,
+  "synthetic_journal_quick_check": "ok",
+  "synthetic_packet_digests_and_sequence_verified": true,
+  "realtime_feature_latency_budget_met": false,
+  "contemporaneous_host_clock_offset_verified": false
 }

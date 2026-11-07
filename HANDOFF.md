@@ -1,5 +1,17 @@
 # Moonwalking / BHABIT Handoff
 
+## Synthetic warmup capacity passed — 2026-11-07
+
+**`a39d73e`** committed 241,208 rows across 67 simulated minutes on a
+single connection. All four products had ready volatility and pace
+baselines at minute 62. Post-capture feature calculations took 4.1–6.2s
+per product. The preserved real capture had zero fresh full ticker windows
+for ALCX and AURORA under the same age limit. **1,292 targeted checks pass**.
+[Capacity and thin-quote results](docs/research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md).
+
+Next, make feature calculation incremental and measure it under recorder
+load before predeclaring a follow-up capture.
+
 ## Source and latency pilot complete — 2026-11-07
 
 **`92ed71f`** connects the journal to Coinbase Exchange and accepts the
