@@ -84,7 +84,7 @@ def main():
         indexed=True,
     ) as journal:
 
-        def after_commit():
+        def after_commit(_first_ack_ts_ms):
             nonlocal next_cutoff
             if len(snapshots) == COHORTS or source.now < next_cutoff + LATER_ASOF_MS:
                 return

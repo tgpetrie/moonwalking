@@ -199,7 +199,7 @@ def capture(
     after_commit=None,
     max_connections=MAX_CONNECTIONS,
 ):
-    """Run the callback path with injectable transport and clocks for dry runs."""
+    """Run the callback path and give the post-commit hook the first ACK receipt."""
     callbacks = PilotCallbacks(journal, duration_ns=duration_ns)
     first_ack = deadline = None
     last_progress = monotonic()
@@ -270,7 +270,7 @@ def capture(
                     )
                     break
                 if after_commit is not None and first_ack is not None:
-                    after_commit()
+                    after_commit(first_ack)
                 if monotonic() - last_progress >= 60:
                     progress(
                         f"{journal.packet_count} packets committed, {journal.record_bytes} logical bytes.",

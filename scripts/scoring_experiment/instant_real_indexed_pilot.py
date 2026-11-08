@@ -21,6 +21,7 @@ from instant_source_pilot import (
     DURATION_S,
     LATER_ASOF_MS,
     PRODUCTS,
+    SOFT_RECORD_BYTES,
     URL,
     WARMUP_MS,
     QueueOverflowError,
@@ -31,9 +32,11 @@ from instant_source_pilot import (
     utc_ms,
 )
 from instant_stream_journal import (
+    MAX_BATCH_FRAMES,
     MAX_FRAME_BYTES,
     StreamJournal,
     _local_publication,
+    iter_pending_ingress,
     read_segment,
 )
 
@@ -41,6 +44,11 @@ from instant_stream_journal import (
 VERSION = "instant-real-indexed-pilot-v1"
 QUEUE_CAPACITY = 128
 MAX_QUEUE_CAPACITY = 256
+DEFAULT_PROFILE = "single-128"
+PROFILES = {
+    DEFAULT_PROFILE: (QUEUE_CAPACITY, 1),
+    "batched-256": (MAX_QUEUE_CAPACITY, MAX_BATCH_FRAMES),
+}
 COHORTS = 10
 POLL_S = 0.025
 
@@ -185,10 +193,10 @@ class DiagnosticCohorts:
         self.rows = []
         self.elapsed = []
 
-    def after_commit(self):
+    def after_commit(self, first_ack_ts_ms):
         if self.next_cutoff is None:
-            ack = self.journal.evidence.packets[-1].receipt_ts_ms
-            self.next_cutoff = ((ack + WARMUP_MS + GRID_MS - 1) // GRID_MS) * GRID_MS
+            ready_at = first_ack_ts_ms + WARMUP_MS
+            self.next_cutoff = ((ready_at + GRID_MS - 1) // GRID_MS) * GRID_MS
         if len(self.elapsed) == COHORTS:
             return
         now = utc_ms()
@@ -315,6 +323,7 @@ def main():
     paths = parser.add_mutually_exclusive_group(required=True)
     paths.add_argument("--out-dir", type=Path)
     paths.add_argument("--observe", type=Path)
+    parser.add_argument("--profile", choices=PROFILES, default=DEFAULT_PROFILE)
     args = parser.parse_args()
     if args.observe is not None:
         out = args.observe.resolve()
@@ -326,6 +335,7 @@ def main():
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     db = out / "capture.sqlite"
+    queue_frames, batch_frames = PROFILES[args.profile]
     first = (utc_ms() // GRID_MS + 1) * GRID_MS
     plan = dict(
         version=VERSION,
@@ -336,9 +346,15 @@ def main():
         endpoint=URL,
         products=PRODUCTS,
         channels=CHANNELS,
+        profile=args.profile,
         duration_s=DURATION_S,
+        max_connections=1,
         packet_stop=WARMUP_PACKET_LIMIT - 10,
-        max_reader_queue_frames=QUEUE_CAPACITY,
+        byte_stop=SOFT_RECORD_BYTES,
+        max_reader_queue_frames=queue_frames,
+        max_batch_frames=batch_frames,
+        warmup_ms=WARMUP_MS,
+        cohort_count=COHORTS,
         cohort_evidence_offset_ms=LATER_ASOF_MS,
         local_consumer_poll_ms=POLL_S * 1000,
     )
@@ -348,7 +364,9 @@ def main():
     def connect():
         ws = websocket.create_connection(URL, timeout=5, enable_multithread=True)
         ws.settimeout(1)
-        socket = QueuedSocket(ws, (websocket.WebSocketTimeoutException,))
+        socket = QueuedSocket(
+            ws, (websocket.WebSocketTimeoutException,), max_frames=queue_frames
+        )
         sockets.append(socket)
         return socket
 
@@ -359,6 +377,7 @@ def main():
         first + 4320000,
         max_packets=WARMUP_PACKET_LIMIT,
         indexed=True,
+        batch_frames=batch_frames,
         monotonic_ns=time.perf_counter_ns,
     ) as journal:
         cohorts = DiagnosticCohorts(journal, out)
@@ -368,9 +387,11 @@ def main():
                 connect,
                 timeout_errors=(TimeoutError,),
                 transport_errors=(OSError, websocket.WebSocketException),
-                packet_stop=WARMUP_PACKET_LIMIT - 10,
+                duration_s=plan["duration_s"],
+                packet_stop=plan["packet_stop"],
+                byte_stop=plan["byte_stop"],
                 after_commit=cohorts.after_commit,
-                max_connections=1,
+                max_connections=plan["max_connections"],
             )
         finally:
             observer_exit = cohorts.stop_observer()
@@ -388,12 +409,16 @@ def main():
                 )
     result.update(plan)
     result["segment"] = read_segment(db)
+    result["recovered_pending_ingress_frames"] = sum(
+        1 for _ in iter_pending_ingress(db)
+    )
     result["journal_sha256"] = _file_sha(db)
     result["journal_bytes"] = db.stat().st_size
     result["reader"] = [
         dict(
             received=socket.received,
             delivered=socket.delivered,
+            received_not_delivered=socket.received - socket.delivered,
             sampled_high_water=socket.high_water,
         )
         for socket in sockets

@@ -97,7 +97,7 @@ def experiment(path, capacity, stall_ms, *, batch_frames=1):
         monotonic_ns=time.perf_counter_ns,
     ) as journal:
 
-        def release_burst():
+        def release_burst(_first_ack_ts_ms):
             if journal.packet_count == len(boot) + 1:
                 source.release.set()
                 if stall_ms:
