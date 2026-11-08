@@ -184,7 +184,7 @@ export default function DesignSystemPage() {
               <FreshnessStamp previewAtMs={now} />
               <FreshnessStamp previewAtMs={now} warming lastSuccessMs={now} />
               <FreshnessStamp previewAtMs={now} lastSuccessMs={now} sourceMs={now - 3000} />
-              <FreshnessStamp previewAtMs={now} unreachable lastSuccessMs={now} sourceMs={now - 14000} />
+              <FreshnessStamp previewAtMs={now} lastSuccessMs={now} sourceMs={now - 43000} />
               <FreshnessStamp previewAtMs={now} lastSuccessMs={now} sourceMs={now - 74000} />
               <FreshnessStamp previewAtMs={now} lastSuccessMs={now - 62000} sourceMs={now - 62000} />
             </UiStack>

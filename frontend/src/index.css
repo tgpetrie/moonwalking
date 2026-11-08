@@ -5332,6 +5332,11 @@ html, body {
   white-space: nowrap;
 }
 
+.board-core [data-freshness] .bh-symbol {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
 .board-core [data-freshness] .bh-symbol-markers {
   flex: 0 1 auto;
 }
@@ -5407,7 +5412,23 @@ html, body {
 }
 
 
-@media (max-width: 340px) {
+.board-core [data-freshness] .bh-row.skeleton .bh-cell {
+  justify-self: stretch;
+  width: 100%;
+}
+
+.board-core [data-freshness] .bh-row.skeleton .skel-cell {
+  display: block;
+  width: 100%;
+}
+
+@media (max-width: 620px) {
+  .board-core [data-freshness] .bh-row.skeleton > .bh-cell-change {
+    min-width: var(--space-6) !important;
+  }
+}
+
+@media (max-width: 380px) {
   .board-core [data-freshness] .bh-symbol-line {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);

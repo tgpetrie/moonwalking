@@ -1,6 +1,7 @@
+// Allow for the backend refresh interval and the time before each board publishes.
 export const FRESHNESS_THRESHOLDS = {
-  "1m": { delayedAfterS: 10, staleAfterS: 20 },
-  "3m": { delayedAfterS: 24, staleAfterS: 32 },
+  "1m": { delayedAfterS: 42, staleAfterS: 45 },
+  "3m": { delayedAfterS: 52, staleAfterS: 60 },
 };
 
 export const OFFLINE_AFTER_S = 60;
