@@ -2,6 +2,7 @@
 
 import argparse
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
@@ -28,6 +29,17 @@ IDLE_TIMEOUT_S = 15
 MAX_CONNECTIONS = 2
 SOFT_PACKETS = 99990
 SOFT_RECORD_BYTES = 240 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class ReceivedFrame:
+    raw: str | bytes
+    receipt_ts_ms: int
+    receipt_ns: int
+
+
+class QueueOverflowError(RuntimeError):
+    pass
 
 
 def utc_ms():
@@ -65,6 +77,7 @@ class PilotCallbacks:
         self.duration_ns = duration_ns
         self.connection = None
         self.ack = None
+        self.last_reader_receipt_ts_ms = None
         self.frames = Counter()
         self.metrics = defaultdict(lambda: defaultdict(list))
         self.sides = defaultdict(dict)
@@ -78,13 +91,20 @@ class PilotCallbacks:
 
     def on_message(self, raw):
         started = self.duration_ns()
-        receipt = self.journal.receive(self.connection, raw)
+        received = None
+        if isinstance(raw, ReceivedFrame):
+            received = raw.receipt_ts_ms, raw.receipt_ns
+            raw = raw.raw
+        receipt = self.journal.receive(self.connection, raw, received=received)
         elapsed = (self.duration_ns() - started) / 1000000
         kind, product = receipt.message_type, receipt.product_id
         group = f"{kind}:{product}" if product in PRODUCTS else kind
         self.frames[group] += 1
         metrics = self.metrics[group]
         metrics["callback_through_commit"].append(elapsed)
+        if received is not None:
+            self.last_reader_receipt_ts_ms = receipt.receipt_ts_ms
+            metrics["reader_to_writer"].append((started - received[1]) / 1000000)
         metrics["receipt_to_processing"].append(
             receipt.processing_completed_ts_ms - receipt.receipt_ts_ms
         )
@@ -156,6 +176,7 @@ def capture(
     byte_stop=SOFT_RECORD_BYTES,
     progress=print,
     after_commit=None,
+    max_connections=MAX_CONNECTIONS,
 ):
     """Run the callback path with injectable transport and clocks for dry runs."""
     callbacks = PilotCallbacks(journal, duration_ns=duration_ns)
@@ -163,7 +184,7 @@ def capture(
     last_progress = monotonic()
     stop = "transport_unavailable"
     attempts = []
-    for _ in range(MAX_CONNECTIONS):
+    for _ in range(max_connections):
         if deadline is not None and monotonic() >= deadline:
             stop = "duration"
             break
@@ -220,7 +241,7 @@ def capture(
                         else "byte_budget"
                     )
                     break
-                if after_commit is not None:
+                if after_commit is not None and first_ack is not None:
                     after_commit()
                 if monotonic() - last_progress >= 60:
                     progress(
@@ -228,6 +249,10 @@ def capture(
                         flush=True,
                     )
                     last_progress = monotonic()
+        except QueueOverflowError as exc:
+            stop = "queue_overflow"
+            attempt["error"] = str(exc)
+            close_reason = "queue_overflow"
         except transport_errors as exc:
             stop = "transport_error"
             attempt["error"] = str(exc)
@@ -257,7 +282,11 @@ def capture(
         ):
             break
     return dict(
-        stop=stop, first_ack_ts_ms=first_ack, attempts=attempts, **callbacks.report()
+        stop=stop,
+        first_ack_ts_ms=first_ack,
+        attempts=attempts,
+        last_reader_receipt_ts_ms=callbacks.last_reader_receipt_ts_ms,
+        **callbacks.report(),
     )
 
 

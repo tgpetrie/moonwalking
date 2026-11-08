@@ -301,10 +301,14 @@ class StreamJournal:
         self._active = connection_id
         return connection_id
 
-    def receive(self, connection_id, raw):
-        """Stamp a frame at callback entry and commit its processing evidence."""
+    def receive(self, connection_id, raw, *, received=None):
+        """Commit a frame, preserving a measured reader stamp when supplied."""
         self._check_connection(connection_id)
-        receipt, mono = self.evidence._now(), self._monotonic()
+        receipt, mono = (
+            (self.evidence._now(), self._monotonic())
+            if received is None
+            else tuple(map(_integer, received))
+        )
         if not isinstance(raw, (str, bytes)):
             raise TypeError("expected a WebSocket text frame")
         if len(raw) > MAX_FRAME_BYTES:
