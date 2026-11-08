@@ -108,8 +108,13 @@ Status keys: Open, In progress, Done, Blocked.
   and a 682 ms maximum serial cohort under synthetic recorder load. All
   16 batch comparisons matched. 1,296 targeted checks pass. See
   `docs/research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md`.
-- Next, predeclare a real-data indexed diagnostic and measure clock
-  offset near the capture. Preserve current
+- Real indexed pilot `4aab7be` ended at the reader queue limit after
+  20m 35.553s and 45,828 committed records. The ALCX snapshot preceded
+  acknowledgment. Warmup and local delivery timing were unreached.
+  1,300 targeted checks pass. See
+  `docs/research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md`.
+- Next, verify pre-ack book handling and queue burst tolerance.
+  Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

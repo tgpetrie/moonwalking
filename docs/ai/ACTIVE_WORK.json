@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T06:35:26.306696+00:00",
+  "updated_utc": "2026-11-08T07:05:43.602190+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -34,13 +34,14 @@
     "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically",
     "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached",
     "warmup_capacity": "synthetic_67_minutes_one_connection_passed_decision_computation_latency_open",
-    "indexed_latency": "synthetic_writer_thread_benchmark_complete_batch_parity_verified"
+    "indexed_latency": "synthetic_writer_thread_benchmark_complete_batch_parity_verified",
+    "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "real_indexed_pilot_running_1300_targeted_tests_pass"
+      "status": "real_indexed_pilot_complete_1300_targeted_checks_snapshot_ordering_and_burst_tolerance_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -130,9 +131,9 @@
     }
   },
   "next_actions": [
-    "Monitor the predeclared real indexed pilot to its stopping boundary, collect the ending clock probe, and verify the saved journal and delivery observations.",
-    "Keep stale thin-product windows unavailable and retain them in coverage denominators. Measure clock offset near the next capture and distinguish local outbox receipt from observed external delivery.",
-    "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
+    "Implement and verify causally safe handling of snapshots received before the subscription acknowledgment. Preserve receipt and known-at order.",
+    "Reproduce queue burst tolerance with a predeclared synthetic workload before choosing writer and queue changes. Preserve the stopped live prefix.",
+    "Predeclare the follow-up source and latency diagnostic after both blockers are addressed. Preserve the original feed audit gate and thin-product missingness.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -699,7 +700,7 @@
     "decision_age_budget_selected": false
   },
   "real_indexed_pilot": {
-    "status": "subscriptions_acknowledged_running",
+    "status": "completed_at_reader_queue_cap",
     "implementation_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
     "protocol": "docs/research/INSTANT_REAL_INDEXED_PILOT_PROTOCOL_20261107.md",
     "checks": "docs/research/results/instant_real_indexed_pilot_20261107/CHECKS.json",
@@ -708,6 +709,15 @@
     "products_per_cohort": 4,
     "directions_per_product": 2,
     "external_delivery_scope": "separate_local_read_only_process",
-    "fitting_allowed": false
+    "fitting_allowed": false,
+    "results": "docs/research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md",
+    "run": "docs/research/results/instant_real_indexed_pilot_20261107/ATTEMPT_01.json",
+    "packets": 45828,
+    "received_but_undelivered": 129,
+    "seconds_ack_to_last_committed_reader_receipt": 1235.553,
+    "journal_sha256": "146607377abd4eb0264c228749ec83fe7af2dddf07901d550e1eaa4bb60a2bcc",
+    "observed_delivery_count": 0,
+    "warmup_reached": false,
+    "feed_gate_pass": false
   }
 }

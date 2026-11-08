@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## Real indexed pilot stopped at queue cap — 2026-11-07
+
+**`4aab7be`** captured 45,828 records in 20m 35.553s before the 128-frame
+reader queue filled. Warmup and local delivery cohorts were unreached.
+The ALCX book remained unavailable after its sole snapshot arrived before
+the subscription acknowledgment. All 160 sampled trade windows verified
+by cutoff +5s. The journal and both clock checks are preserved.
+**1,300 targeted checks pass**.
+[Real indexed pilot results](docs/research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md).
+
+Next, handle pre-ack snapshots causally and verify burst tolerance
+before a follow-up capture.
+
 ## Indexed decision latency benchmark complete — 2026-11-07
 
 **`dddd2e4`** indexed receipt and evidence queries and cached verified

@@ -19,11 +19,31 @@
     "scripts/scoring_experiment/instant_stream_journal.py": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
     "tests/test_instant_real_indexed_pilot.py": "a25b205becc3292c4f929252027fd0c16e7779b9554e8af8de73ae16d545967c"
   },
-  "pilot_status": "subscriptions_acknowledged_running",
+  "pilot_status": "completed_stopped_at_reader_queue_cap",
   "clock_before": "docs/research/results/instant_real_indexed_pilot_20261107/CLOCK_BEFORE.txt",
   "full_suite_run": false,
   "native_mac_verified": false,
   "historical_validation_rerun": false,
   "fitting_allowed": false,
-  "live_changes": false
+  "live_changes": false,
+  "run_verified_utc": "2026-11-08T07:05:43.602190+00:00",
+  "run_manifest_sha256_UTF8_LF": "58c58309b9635078f1a58f9f4b14a4566b54957b2ce7f562c7fadfd331c82366",
+  "journal_sha256": "146607377abd4eb0264c228749ec83fe7af2dddf07901d550e1eaa4bb60a2bcc",
+  "packet_rows": 45828,
+  "journal_quick_check": "ok",
+  "packet_digests_and_sequence_verified": true,
+  "single_connection_verified": true,
+  "overflow_marker_verified": true,
+  "clock_after": "docs/research/results/instant_real_indexed_pilot_20261107/CLOCK_AFTER.txt",
+  "clock_before_sha256_UTF8_LF": "1b06c3b276671af99076123ddf1ef27c8fbec6de18f962eac3922706252552b5",
+  "clock_after_sha256_UTF8_LF": "81174acab30ad0ae88834105406d8de1a90ebd51e1d6df5dd2c0bf6d4998f16f",
+  "observed_snapshot_before_ack": {
+    "product_id": "ALCX-USD",
+    "snapshot_receipt_seq": 2,
+    "acknowledgment_receipt_seq": 3,
+    "same_receipt_ms": true
+  },
+  "warmup_reached": false,
+  "observed_delivery_count": 0,
+  "decision_age_budget_selected": false
 }
