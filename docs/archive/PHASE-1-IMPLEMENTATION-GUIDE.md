@@ -139,14 +139,14 @@ In your main dashboard HTML, add:
 ```html
 <head>
     <!-- Existing head content -->
-    
+
     <!-- Add Hot Coins CSS -->
     <link rel="stylesheet" href="css/hot-coins-tracker.css">
 </head>
 
 <body>
     <!-- Your existing content -->
-    
+
     <!-- ADD THIS SECTION -->
     <section class="hot-coins-section">
         <div class="hot-coins-container" id="hotCoinsContainer">
@@ -156,7 +156,7 @@ In your main dashboard HTML, add:
             </div>
         </div>
     </section>
-    
+
     <!-- Before closing </body> -->
     <script src="js/hot-coins-tracker.js"></script>
 </body>
@@ -201,12 +201,12 @@ def fetch_coinbase_data():
     Fetch current coin data from Coinbase
     """
     # Replace mock data with your actual Coinbase integration
-    
+
     # Example using your existing Coinbase client:
     from services.coinbase_client import get_all_products
-    
+
     products = get_all_products()
-    
+
     coins = []
     for product in products:
         # Transform to expected format
@@ -222,7 +222,7 @@ def fetch_coinbase_data():
             'low_24h': float(product['low_24h']),
         }
         coins.append(coin)
-    
+
     return coins
 ```
 
@@ -239,12 +239,12 @@ class FreemiumGate {
     constructor() {
         this.FREE_COIN_LIMIT = 10;
     }
-    
+
     isFeatureLocked(feature) {
         const isPremium = this.checkPremiumStatus();
-        
+
         if (isPremium) return false;
-        
+
         // Check which features are locked
         const lockedFeatures = [
             'sentiment_full_sources',
@@ -252,26 +252,26 @@ class FreemiumGate {
             'custom_alerts',
             'export_data'
         ];
-        
+
         return lockedFeatures.includes(feature);
     }
-    
+
     checkPremiumStatus() {
         // Check localStorage or cookie
         const token = localStorage.getItem('premium_token');
-        
+
         if (!token) return false;
-        
+
         // Verify with backend
         // TODO: Add actual verification
         return true;
     }
-    
+
     showUpgradeModal(feature) {
         // Show modal prompting upgrade
         const modal = document.getElementById('upgradeModal');
         modal.classList.add('active');
-        
+
         // Track analytics
         gtag('event', 'paywall_shown', { feature });
     }
@@ -288,19 +288,19 @@ const freemiumGate = new FreemiumGate();
 processCoins(data) {
     // Check if user is premium
     const isPremium = freemiumGate.checkPremiumStatus();
-    
+
     // Limit to 10 coins for free users
     const limit = isPremium ? data.length : 10;
-    
+
     const scoredCoins = data.slice(0, limit).map(coin => {
         // ... existing scoring logic
     });
-    
+
     // Show upgrade prompt if free user
     if (!isPremium && data.length > 10) {
         this.showUpgradePrompt();
     }
-    
+
     // ... rest of logic
 }
 
@@ -316,7 +316,7 @@ showUpgradePrompt() {
             </button>
         </div>
     `;
-    
+
     document.getElementById('hotCoinsContainer').appendChild(prompt);
 }
 ```
@@ -346,7 +346,7 @@ def create_checkout_session():
             success_url='https://cbmoovers.com/success',
             cancel_url='https://cbmoovers.com/cancel',
         )
-        
+
         return jsonify({'id': checkout_session.id})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -464,7 +464,7 @@ These take <1 hour each and add lots of value:
 function shareHotCoin(symbol) {
     const url = `https://cbmoovers.com/coin/${symbol}`;
     const text = `Check out ${symbol} on CBMoovers - it's 🔥 right now!`;
-    
+
     if (navigator.share) {
         navigator.share({ title: text, url });
     } else {
@@ -483,11 +483,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 's' && !e.ctrlKey && !e.metaKey) {
         sentimentPopup.open();
     }
-    
+
     // Press 'H' to scroll to hot coins
     if (e.key === 'h') {
-        document.getElementById('hotCoinsContainer').scrollIntoView({ 
-            behavior: 'smooth' 
+        document.getElementById('hotCoinsContainer').scrollIntoView({
+            behavior: 'smooth'
         });
     }
 });
@@ -517,12 +517,12 @@ document.addEventListener('keydown', (e) => {
 
 Avoid these time sinks:
 
-❌ **Perfect design** - Ship good, iterate to great  
-❌ **Every feature** - Ship core, add based on feedback  
-❌ **Complex analytics** - Start simple, add as needed  
-❌ **Social login** - Email/password is fine for v1  
-❌ **Mobile app** - Web-first, app later  
-❌ **OpenBB integration** - Phase 2 only  
+❌ **Perfect design** - Ship good, iterate to great
+❌ **Every feature** - Ship core, add based on feedback
+❌ **Complex analytics** - Start simple, add as needed
+❌ **Social login** - Email/password is fine for v1
+❌ **Mobile app** - Web-first, app later
+❌ **OpenBB integration** - Phase 2 only
 
 ---
 
@@ -549,7 +549,7 @@ This plan gets you from zero to revenue in 2 weeks.
 
 **Key Principles:**
 - ✅ Ship fast, iterate based on feedback
-- ✅ Focus on features users can see/use immediately  
+- ✅ Focus on features users can see/use immediately
 - ✅ Keep it simple (no OpenBB complexity yet)
 - ✅ Get first paying customers ASAP
 - ✅ Build what users actually want (not what sounds cool)

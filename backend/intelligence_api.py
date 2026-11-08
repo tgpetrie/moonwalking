@@ -2,11 +2,13 @@
 Intelligence API Module
 Provides batch and single intelligence report endpoints with Redis SWR caching
 """
+
 import os
 import logging
 from typing import Dict, List
 
 from flask import Blueprint, jsonify, request
+
 try:
     import redis
 except Exception as _e:
@@ -14,6 +16,7 @@ except Exception as _e:
     logging.getLogger(__name__).warning(f"redis module not available: {_e}")
 
 from cache import CachePolicy, get_cached_report, building_stub, iso_now
+
 try:
     from sentiment_intelligence import load_engine
 except Exception as _e:
@@ -23,7 +26,10 @@ except Exception as _e:
     # service_unavailable when invoked).
     load_engine = None
     import logging
-    logging.getLogger(__name__).warning(f"sentiment_intelligence.load_engine not available: {_e}")
+
+    logging.getLogger(__name__).warning(
+        f"sentiment_intelligence.load_engine not available: {_e}"
+    )
 try:
     from refresh import Refresher
 except Exception as _e:
@@ -33,7 +39,7 @@ except Exception as _e:
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-intelligence_bp = Blueprint('intelligence', __name__)
+intelligence_bp = Blueprint("intelligence", __name__)
 
 # Initialize once at module load
 policy = CachePolicy(
@@ -59,12 +65,16 @@ else:
 # Load FinBERT engine once
 try:
     engine = load_engine()
-    refresher = Refresher(
-        rds=rds,
-        engine=engine,
-        policy=policy,
-        max_workers=int(os.getenv("INTEL_REFRESH_WORKERS", "4")),
-    ) if (rds and Refresher) else None
+    refresher = (
+        Refresher(
+            rds=rds,
+            engine=engine,
+            policy=policy,
+            max_workers=int(os.getenv("INTEL_REFRESH_WORKERS", "4")),
+        )
+        if (rds and Refresher)
+        else None
+    )
     logger.info(f"✅ Intelligence engine loaded on {engine.device}")
 except Exception as e:
     logger.error(f"❌ Failed to load intelligence engine: {e}")
@@ -82,7 +92,7 @@ def err(code: str, message: str, details=None, status: int = 400):
     payload = {
         "success": False,
         "version": policy.version,
-        "error": {"code": code, "message": message}
+        "error": {"code": code, "message": message},
     }
     if details is not None:
         payload["error"]["details"] = details
@@ -98,7 +108,7 @@ def parse_symbols_param() -> List[str]:
     return syms[:max_syms]
 
 
-@intelligence_bp.route('/api/health-intelligence')
+@intelligence_bp.route("/api/health-intelligence")
 def health_intelligence():
     """Health check for intelligence subsystem."""
     redis_ok = False
@@ -109,20 +119,26 @@ def health_intelligence():
         except Exception:
             pass
 
-    return ok({
-        "status": "ok",
-        "time": iso_now(),
-        "redis_ok": redis_ok,
-        "engine_loaded": engine is not None,
-        "model": {
-            "name": "ProsusAI/finbert",
-            "device": engine.device if engine else None,
-            "quantized": False,
-        } if engine else None,
-    })
+    return ok(
+        {
+            "status": "ok",
+            "time": iso_now(),
+            "redis_ok": redis_ok,
+            "engine_loaded": engine is not None,
+            "model": (
+                {
+                    "name": "ProsusAI/finbert",
+                    "device": engine.device if engine else None,
+                    "quantized": False,
+                }
+                if engine
+                else None
+            ),
+        }
+    )
 
 
-@intelligence_bp.route('/api/intelligence-reports')
+@intelligence_bp.route("/api/intelligence-reports")
 def intelligence_reports():
     """
     Batch intelligence reports endpoint.
@@ -142,14 +158,16 @@ def intelligence_reports():
         }
     """
     if not engine or not rds or not refresher:
-        return err("service_unavailable", "Intelligence service not available", status=503)
+        return err(
+            "service_unavailable", "Intelligence service not available", status=503
+        )
 
     symbols = parse_symbols_param()
     if not symbols:
         return err(
             "bad_request",
             "Query param 'symbols' is required, e.g. ?symbols=BTC,ETH",
-            status=400
+            status=400,
         )
 
     out: Dict[str, dict] = {}
@@ -174,7 +192,7 @@ def intelligence_reports():
     return ok(out)
 
 
-@intelligence_bp.route('/api/intelligence-report/<symbol>')
+@intelligence_bp.route("/api/intelligence-report/<symbol>")
 def intelligence_report(symbol: str):
     """
     Single intelligence report endpoint.
@@ -190,7 +208,9 @@ def intelligence_report(symbol: str):
         }
     """
     if not engine or not rds or not refresher:
-        return err("service_unavailable", "Intelligence service not available", status=503)
+        return err(
+            "service_unavailable", "Intelligence service not available", status=503
+        )
 
     sym = symbol.strip().upper()
     if not sym:

@@ -24,3 +24,5 @@ jobs:
         run: |
           cd frontend
           npm run lint:css:legacy
+      - name: Verify token exports, production build, and tests
+        run: npm --prefix frontend run verify

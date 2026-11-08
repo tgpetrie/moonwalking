@@ -62,4 +62,3 @@ export const toWindowLabel = (raw, options = {}) => {
   const key = normalizeWindowKey(raw, options);
   return WINDOW_LABELS[key] || "";
 };
-

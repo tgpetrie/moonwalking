@@ -2,6 +2,7 @@
 Background Refresh Module for Intelligence Reports
 Uses ThreadPoolExecutor for non-blocking FinBERT inference
 """
+
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable
@@ -11,7 +12,7 @@ from cache import (
     set_cached_report,
     acquire_refresh_lock,
     release_refresh_lock,
-    iso_now
+    iso_now,
 )
 from sentiment_intelligence import IntelligenceEngine, build_report
 
@@ -28,20 +29,17 @@ class Refresher:
     """
 
     def __init__(
-        self,
-        rds,
-        engine: IntelligenceEngine,
-        policy: CachePolicy,
-        max_workers: int = 4
+        self, rds, engine: IntelligenceEngine, policy: CachePolicy, max_workers: int = 4
     ):
         self.rds = rds
         self.engine = engine
         self.policy = policy
         self.pool = ThreadPoolExecutor(
-            max_workers=max_workers,
-            thread_name_prefix="intel_refresh"
+            max_workers=max_workers, thread_name_prefix="intel_refresh"
         )
-        logger.info(f"🔄 Refresher initialized with {max_workers} workers on {engine.device}")
+        logger.info(
+            f"🔄 Refresher initialized with {max_workers} workers on {engine.device}"
+        )
 
     def _compute_and_store(self, symbol: str) -> None:
         """
@@ -55,7 +53,9 @@ class Refresher:
         try:
             # This is the heavy lifting line (M3 or N100)
             logger.debug(f"🔨 Computing report for {symbol}")
-            report = build_report(self.engine, symbol, ttl_seconds=self.policy.ttl_seconds)
+            report = build_report(
+                self.engine, symbol, ttl_seconds=self.policy.ttl_seconds
+            )
 
             # Stamp it
             report["generated_at"] = iso_now()

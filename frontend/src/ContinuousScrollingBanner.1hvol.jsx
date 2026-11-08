@@ -11,8 +11,8 @@ const formatDecimal = (value, decimals = 2) => {
   return num.toFixed(decimals);
 };
 
-const formatCurrency = val => new Intl.NumberFormat('en-US', { 
-  style: 'currency', 
+const formatCurrency = val => new Intl.NumberFormat('en-US', {
+  style: 'currency',
   currency: 'USD',
   minimumFractionDigits: Math.abs(val) >= 1 ? 2 : 6
 }).format(val);
@@ -68,7 +68,7 @@ const ContinuousScrollingBanner = ({ items }) => {
             {/* First set of data */}
             {list.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
-                <a 
+                <a
                   href={(function buildCoinbaseUrl(sym){
                     if(!sym) return '#';
                     let pair = sym;
@@ -100,7 +100,7 @@ const ContinuousScrollingBanner = ({ items }) => {
             {/* Duplicate set for seamless scrolling */}
             {list.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
-                <a 
+                <a
                   href={(function buildCoinbaseUrl(sym){
                     if(!sym) return '#';
                     let pair = sym;

@@ -8,54 +8,74 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 CSS="frontend/src/index.css"
+COMPONENTS="frontend/src/components"
+CONTEXT="frontend/src/context/DataContext.jsx"
+FEED="frontend/src/hooks/useDataFeed.js"
 
 test -f "$CSS" || fail "missing $CSS"
 if [ -f "frontend/index.css" ]; then
   fail "frontend/index.css should not exist; use frontend/src/index.css"
 fi
 
-# Banners must use these classes
-grep -R --line-number "bh-banner-track" frontend/src >/dev/null || fail "banners must use .bh-banner-track"
-grep -R --line-number "bh-banner-chip" frontend/src >/dev/null || fail "banners must use .bh-banner-chip"
-
-# Banner marquee loop class must exist
-grep -R --line-number "bh-banner-track--loop" frontend/src >/dev/null || fail "banners must use .bh-banner-track--loop"
+# Both board banners drive the manual track with requestAnimationFrame.
+for banner in "$COMPONENTS/TopBannerScroll.jsx" "$COMPONENTS/VolumeBannerScroll.jsx"; do
+  grep -Fq 'className="bh-banner-track bh-banner-track--manual"' "$banner" || fail "$banner must use the manual banner track"
+  grep -Eq 'className=.*bh-banner-chip([[:space:]"`]|$)' "$banner" || fail "$banner must use .bh-banner-chip"
+  grep -Fq 'requestAnimationFrame(' "$banner" || fail "$banner must animate the banner track"
+done
+grep -Eq '^\.bh-banner-track--manual[[:space:]]*\{' "$CSS" || fail "missing manual banner track styles"
 
 # Typography hierarchy contract must exist
-grep -n "\.bh-pct" "$CSS" >/dev/null || fail "missing .bh-pct"
-grep -n "\.bh-price-current" "$CSS" >/dev/null || fail "missing .bh-price-current"
-grep -n "\.bh-price-prev" "$CSS" >/dev/null || fail "missing .bh-price-prev"
+for class in bh-change bh-price-current bh-price-previous; do
+  grep -Eq "\\.${class}([[:space:],{.:]|$)" "$CSS" || fail "missing .$class"
+  grep -Eq "className=.*${class}([[:space:]\"$]|$)" "$COMPONENTS/TokenRowUnified.jsx" || fail "board rows must render .$class"
+done
 
 # Global color tokens must exist
-grep -n "\-\-bh-white" "$CSS" >/dev/null || fail "missing --bh-white"
-grep -n "\-\-bh-mint" "$CSS" >/dev/null || fail "missing --bh-mint"
+grep -Eq '^[[:space:]]+--bh-fg:' "$CSS" || fail "missing --bh-fg"
+grep -Eq '^[[:space:]]+--bh-mint:' "$CSS" || fail "missing --bh-mint"
 
-# Permanent rail must be bottom-based
-grep -n "\.bh-row::after" "$CSS" >/dev/null || fail "missing .bh-row::after (permanent rail)"
-grep -n "bottom: 0" "$CSS" >/dev/null || fail "rail must be positioned at bottom: 0"
+# The board's permanent rail is the ::before pseudo-element on the row grid.
+awk '
+  /^\.board-core \.bh-row\.bh-row-grid::before[[:space:]]*\{/ { rail = 1 }
+  rail && /^[[:space:]]*bottom:[[:space:]]*0[[:space:]]*(!important)?;/ { bottom = 1 }
+  /^}/ { rail = 0 }
+  END { exit !bottom }
+' "$CSS" || fail "board row rail must be positioned at bottom: 0"
 
 # Canonical grid must exist
-grep -n "\-\-bh-cols" "$CSS" >/dev/null || fail "missing --bh-cols"
-grep -R --line-number "bh-row-grid" frontend/src >/dev/null || fail "rows must use .bh-row-grid"
+grep -Eq 'grid-template-columns:[[:space:]]*var\(--bh-row-cols' "$CSS" || fail "row grid must use --bh-row-cols"
+grep -Fq '"bh-row-grid"' "$COMPONENTS/TokenRowUnified.jsx" || fail "board rows must use .bh-row-grid"
 
-# Cadence defaults must exist (8s / 30s / 120s)
-grep -n "VITE_FETCH_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_FETCH_MS in DataContext"
-grep -n "8000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 8000 default fetch cadence"
-grep -n "VITE_PUBLISH_3M_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_PUBLISH_3M_MS in DataContext"
-grep -n "30000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 30000 default 3m cadence"
-grep -n "VITE_PUBLISH_BANNER_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_PUBLISH_BANNER_MS in DataContext"
-grep -n "120000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 120000 default banner cadence"
-grep -n "setInterval(fetchOnce, 8000)" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must poll every 8s"
-grep -n "last3mRef" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must cache 3m refresh"
-grep -n "lastBannersRef" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must cache banner refresh"
+# DataContext owns the live cadence. The compatibility hook reads its snapshot.
+node --input-type=module <<'JS'
+import assert from "node:assert/strict";
+import { deriveDashboardCadence } from "./frontend/src/config/cadence.js";
+
+const { FAST_1M_MS, PUBLISH_3M_MS, PUBLISH_BANNER_MS } = deriveDashboardCadence();
+assert.deepEqual(
+  [FAST_1M_MS, PUBLISH_3M_MS, PUBLISH_BANNER_MS],
+  [3800, 12000, 30000],
+  "Unexpected default board polling and publish cadence",
+);
+JS
+grep -Fq 'deriveDashboardCadence(import.meta.env)' "$CONTEXT" || fail "DataContext must use the shared cadence"
+grep -Fq 'BACKOFF_1M_MS : FAST_1M_MS' "$CONTEXT" || fail "DataContext must poll at the configured cadence"
+grep -Fq 'last3mPublishRef.current >= PUBLISH_3M_MS' "$CONTEXT" || fail "DataContext must throttle 3m publishing"
+for banner in Price Volume; do
+  grep -Fq "last${banner}BannerPublishRef.current >= PUBLISH_BANNER_MS" "$CONTEXT" || fail "DataContext must throttle $banner banner publishing"
+done
+grep -Fq 'const ctx = useData()' "$FEED" || fail "useDataFeed must use the shared DataContext"
 
 # Block old labels
-grep -R --line-number "3 Min Gainers/Losers" frontend/src && fail "remove '3 Min Gainers/Losers' text"
-grep -R --line-number "1 hour price %" frontend/src && fail "remove '1 hour price %' label"
+if grep -R -nE '3 Min Gainers/Losers|1 hour price %' frontend/src; then
+  fail "remove obsolete board labels"
+fi
 
-# AnomalyStream must reference canonical keys
-grep -R --line-number "gainers_1m" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference gainers_1m"
-grep -R --line-number "losers_3m" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference losers_3m"
-grep -R --line-number "volume_change_1h_pct" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference volume_change_1h_pct"
+# Validate the canonical snapshot keys at their producer, and volume at its consumer.
+for key in gainers_1m losers_3m; do
+  grep -Eq "^[[:space:]]+${key}:" "$CONTEXT" || fail "DataContext must publish $key"
+done
+grep -Fq 'volume_change_1h_pct' "$COMPONENTS/AnomalyStream.jsx" || fail "AnomalyStream must reference volume_change_1h_pct"
 
 ok "UI rules validated."

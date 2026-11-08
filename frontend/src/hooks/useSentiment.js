@@ -98,4 +98,3 @@ export function useSentiment(symbol, ttlSec = 30) {
     }
   );
 }
-

@@ -123,7 +123,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.88);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 /* ── Section ───────────────────────────────── */
@@ -247,7 +247,7 @@
   border: 1px solid;
   border-radius: 999px;
   font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 .sc-card__status-chip {
@@ -305,7 +305,7 @@
 .sc-win-bar__value {
   font-size: 0.875rem;
   font-weight: 700;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   min-width: 40px;
   text-align: right;
 }
@@ -327,7 +327,7 @@
 
 .sc-win-bar__recent span:last-child {
   font-size: 0.75rem;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   color: rgba(255, 255, 255, 0.55);
 }
 
@@ -356,7 +356,7 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.75);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 .sc-stat--positive {
@@ -399,13 +399,13 @@
 .sc-returns__time {
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.3);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 .sc-returns__val {
   font-size: 0.8rem;
   font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 /* ── CI badge ──────────────────────────────── */
@@ -425,7 +425,7 @@
 
 .sc-ci__range {
   font-size: 0.8rem;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   color: rgba(255, 255, 255, 0.5);
 }
 

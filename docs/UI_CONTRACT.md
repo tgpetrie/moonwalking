@@ -165,4 +165,3 @@ A change is accepted only if all are true:
 5. Hover bubble/glow uses `--emit-x/--emit-y` and `data-row-hover="1"`.
 6. Always-on breathe exists and is cheap (overlay-based).
 7. No `justify-content: space-between` used to fake rails.
-

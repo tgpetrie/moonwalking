@@ -9,6 +9,7 @@ import sys
 
 API_URL = "http://127.0.0.1:5003/data"
 
+
 def check_volume_fields():
     try:
         response = requests.get(API_URL, timeout=5)
@@ -26,7 +27,9 @@ def check_volume_fields():
         banner = data["banner_1h_volume"]
 
         if not isinstance(banner, list):
-            print(f"❌ INVALID: banner_1h_volume is {type(banner).__name__}, expected list")
+            print(
+                f"❌ INVALID: banner_1h_volume is {type(banner).__name__}, expected list"
+            )
             return False
 
         if len(banner) == 0:
@@ -72,8 +75,7 @@ def check_volume_fields():
 
         # Check if pct is computable when not provided
         can_compute = all(
-            item.get(f) is not None
-            for f in ["volume_1h_now", "volume_1h_prev"]
+            item.get(f) is not None for f in ["volume_1h_now", "volume_1h_prev"]
         )
 
         if item.get("volume_change_1h_pct") is None and can_compute:
@@ -91,6 +93,7 @@ def check_volume_fields():
     except Exception as e:
         print(f"❌ ERROR: {e}")
         return False
+
 
 if __name__ == "__main__":
     success = check_volume_fields()

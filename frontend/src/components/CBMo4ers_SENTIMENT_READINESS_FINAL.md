@@ -8,8 +8,8 @@ This doc captures the final state after restoring and hardening the Sentiment Ca
 
 ### 1) Flattened readiness rules (panels feel alive again)
 
-**Behavior rule:**  
-For tables: **if rows exist, status is `ready`**.  
+**Behavior rule:**
+For tables: **if rows exist, status is `ready`**.
 Warm‑up is only for banners when *truly empty*.
 
 **Tables updated:**
@@ -80,7 +80,7 @@ Result: no more “phantom empty panels” because a component accidentally read
 **File:**
 - `frontend/src/adapters/normalizeSentiment.js`
 
-**Fix:** API returns snake_case (`overall_sentiment`, `sentiment_history`, etc.).  
+**Fix:** API returns snake_case (`overall_sentiment`, `sentiment_history`, etc.).
 Adapter now accepts either snake_case or camelCase, clamps safely, and never throws.
 
 Adapter outputs:
@@ -184,7 +184,7 @@ logger.info("3m candidates=%s selected=%s", len(candidates), len(gainers_3m))
 logger.info("3m losers candidates=%s selected=%s", len(candidates), len(losers_3m))
 ```
 
-If selected is tiny vs candidates, loosen thresholds (enter pct / min volume).  
+If selected is tiny vs candidates, loosen thresholds (enter pct / min volume).
 For a live board, the top movers should show even if “weak.”
 
 ---

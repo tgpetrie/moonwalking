@@ -2,8 +2,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-LOG_DIR = os.environ.get('LOG_DIR', 'backend')
-LOG_FILE = os.path.join(LOG_DIR, 'server.log')
+LOG_DIR = os.environ.get("LOG_DIR", "backend")
+LOG_FILE = os.path.join(LOG_DIR, "server.log")
+
 
 def setup_logging():
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -11,7 +12,7 @@ def setup_logging():
     root.setLevel(logging.INFO)
     # Clear existing handlers to avoid duplicate logs in reloads
     root.handlers = []
-    fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     # Console handler
     ch = logging.StreamHandler()
     ch.setFormatter(fmt)
@@ -22,7 +23,10 @@ def setup_logging():
         fh.setFormatter(fmt)
         root.addHandler(fh)
     except Exception:
-        root.warning('Could not attach rotating file handler; continuing with console only')
+        root.warning(
+            "Could not attach rotating file handler; continuing with console only"
+        )
+
 
 def log_config(config):
     """Log current configuration"""

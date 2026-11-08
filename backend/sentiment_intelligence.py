@@ -23,7 +23,9 @@ class HybridIntelligence:
             self.gemini_configured = True
             logger.info("✅ Gemini 1.5 Flash connected for narrative analysis")
         else:
-            logger.warning("⚠️ GEMINI_API_KEY not found. Narrative analysis will be disabled.")
+            logger.warning(
+                "⚠️ GEMINI_API_KEY not found. Narrative analysis will be disabled."
+            )
 
         # Note: FinBERT/transformers model loading is expensive. Defer loading
         # until first use (lazy) to avoid blocking app startup.
@@ -82,13 +84,17 @@ class HybridIntelligence:
 
         return {
             "score": round(float(composite_score), 3),
-            "label": "Bullish" if composite_score > 0.15 else "Bearish"
-            if composite_score < -0.15
-            else "Neutral",
+            "label": (
+                "Bullish"
+                if composite_score > 0.15
+                else "Bearish" if composite_score < -0.15 else "Neutral"
+            ),
             "confidence": round(float(max(avg_probs)), 2),
         }
 
-    def generate_narrative(self, symbol: str, headlines: List[str], current_price: float) -> str:
+    def generate_narrative(
+        self, symbol: str, headlines: List[str], current_price: float
+    ) -> str:
         if not self.gemini_configured or not headlines:
             return "Narrative analysis unavailable (Missing API Key or Data)."
 
@@ -110,6 +116,7 @@ class HybridIntelligence:
 
 
 _AI_ENGINE = None
+
 
 def get_ai_engine() -> HybridIntelligence:
     """Return a singleton HybridIntelligence instance, creating it lazily."""

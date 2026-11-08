@@ -34,7 +34,7 @@
 }
 
 .mw-alerts-global__debug {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.62);
   border: 1px dashed rgba(255, 255, 255, 0.16);
@@ -81,7 +81,7 @@
 
 .mw-alerts-chip__count {
   font-size: 0.7rem;
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -147,14 +147,14 @@
 .mw-alert-pill.src.external { background: rgba(255, 107, 157, 0.10); border-color: rgba(255, 107, 157, 0.24); }
 
 .mw-alert-row__sym {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
   font-size: 0.72rem;
   color: rgba(69, 255, 179, 0.95);
 }
 
 .mw-alert-row__time {
   margin-left: auto;
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.45);
 }
@@ -204,5 +204,5 @@
   border: 1px solid rgba(84, 184, 255, 0.22);
   background: rgba(22, 77, 119, 0.18);
   color: rgba(204, 232, 255, 0.95);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
 }

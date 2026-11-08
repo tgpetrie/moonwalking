@@ -53,7 +53,7 @@ if [[ "$THRESHOLD_MB" -gt 0 ]]; then
   exit 0
 fi
 
-echo "Interactive prune — choose models to remove." 
+echo "Interactive prune — choose models to remove."
 echo "Run with --threshold <MB> to auto-select by size."
 while true; do
   echo

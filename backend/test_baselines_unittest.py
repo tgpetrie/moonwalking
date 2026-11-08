@@ -9,17 +9,17 @@ os.environ.setdefault("MW_DISABLE_SENTIMENT", "1")
 
 # Prevent circular imports by inserting lightweight stubs for sentiment modules
 import types as _types
+
 sys.path.insert(0, os.path.dirname(__file__))
-if 'sentiment_aggregator' not in sys.modules:
-    _mod = _types.ModuleType('sentiment_aggregator')
+if "sentiment_aggregator" not in sys.modules:
+    _mod = _types.ModuleType("sentiment_aggregator")
     _mod.get_sentiment_for_symbol = lambda *a, **k: None
-    sys.modules['sentiment_aggregator'] = _mod
+    sys.modules["sentiment_aggregator"] = _mod
 
-if 'sentiment_aggregator_enhanced' not in sys.modules:
-    _mod2 = _types.ModuleType('sentiment_aggregator_enhanced')
+if "sentiment_aggregator_enhanced" not in sys.modules:
+    _mod2 = _types.ModuleType("sentiment_aggregator_enhanced")
     _mod2.aggregator = None
-    sys.modules['sentiment_aggregator_enhanced'] = _mod2
-
+    sys.modules["sentiment_aggregator_enhanced"] = _mod2
 
 
 def _try_import_app():
@@ -110,7 +110,9 @@ class TestBaselines(unittest.TestCase):
             if env_path:
                 path = env_path
                 r = c.get(path)
-                self.assertIn(r.status_code, (200, 206), f"{path} returned HTTP {r.status_code}")
+                self.assertIn(
+                    r.status_code, (200, 206), f"{path} returned HTTP {r.status_code}"
+                )
                 data = r.get_json()
             else:
                 candidates = ["/api/data", "/data", "/"]
@@ -130,8 +132,14 @@ class TestBaselines(unittest.TestCase):
 
             row_count = sum(len(lst) for lst in candidate_lists)
             if row_count == 0:
-                self.skipTest("No baseline data available in this environment; skipping baseline gate")
-            self.assertGreater(row_count, 0, "No rows returned from /api/data; baseline gate not exercised.")
+                self.skipTest(
+                    "No baseline data available in this environment; skipping baseline gate"
+                )
+            self.assertGreater(
+                row_count,
+                0,
+                "No rows returned from /api/data; baseline gate not exercised.",
+            )
 
         bad = []
 
@@ -139,7 +147,12 @@ class TestBaselines(unittest.TestCase):
             if isinstance(x, dict):
                 for k, v in x.items():
                     p = f"{path}.{k}" if path else k
-                    if k in BASELINE_KEYS and v is not None and isinstance(v, (int, float)) and v <= 0:
+                    if (
+                        k in BASELINE_KEYS
+                        and v is not None
+                        and isinstance(v, (int, float))
+                        and v <= 0
+                    ):
                         bad.append((p, v))
                     walk(v, p)
             elif isinstance(x, list):

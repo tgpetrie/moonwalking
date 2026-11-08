@@ -14,4 +14,3 @@ const fs = require('fs');
   console.log('Saved screenshot to', out);
   await browser.close();
 })();
-

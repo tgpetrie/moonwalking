@@ -15,26 +15,26 @@ GET /sentiment/latest
   "fear_greed_index": 62,
   "total_sources": 5,
   "timestamp": "2024-12-06T10:30:00Z",
-  
+
   "source_breakdown": {
     "tier1": 2,
     "tier2": 3,
     "tier3": 0
   },
-  
+
   "social_metrics": {
     "volume_change": 12.5,
     "engagement_rate": 0.73,
     "mentions_24h": 42150
   },
-  
+
   "social_breakdown": {
     "reddit": 0.72,
     "twitter": 0.65,
     "telegram": 0.78,
     "news": 0.70
   },
-  
+
   "sentiment_history": [
     {
       "timestamp": "2024-12-06T10:00:00Z",
@@ -48,7 +48,7 @@ GET /sentiment/latest
     }
     // ... 24 hours of hourly data points
   ],
-  
+
   "sources": [
     {
       "name": "Fear & Greed Index",
@@ -75,7 +75,7 @@ GET /sentiment/latest
       "status": "active"
     }
   ],
-  
+
   "divergence_alerts": [
     {
       "type": "tier_divergence",
@@ -152,14 +152,14 @@ class SentimentAggregator:
         self.fear_greed_cache = None
         self.cache_timestamp = None
         self.CACHE_TTL = 3600  # 1 hour
-    
+
     async def fetch_fear_greed(self) -> int:
         """Fetch Fear & Greed Index from Alternative.me"""
         # Check cache
-        if (self.fear_greed_cache and self.cache_timestamp and 
+        if (self.fear_greed_cache and self.cache_timestamp and
             (datetime.utcnow() - self.cache_timestamp).seconds < self.CACHE_TTL):
             return self.fear_greed_cache
-        
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -168,16 +168,16 @@ class SentimentAggregator:
                 )
                 data = response.json()
                 value = int(data['data'][0]['value'])
-                
+
                 # Update cache
                 self.fear_greed_cache = value
                 self.cache_timestamp = datetime.utcnow()
-                
+
                 return value
         except Exception as e:
             print(f"Error fetching F&G: {e}")
             return self.fear_greed_cache or 50  # Fallback
-    
+
     async def fetch_coingecko_sentiment(self) -> float:
         """Fetch market sentiment from CoinGecko"""
         try:
@@ -187,10 +187,10 @@ class SentimentAggregator:
                     timeout=5.0
                 )
                 data = response.json()
-                
+
                 # Use market cap dominance as sentiment proxy
                 btc_dominance = data['data']['market_cap_percentage']['btc']
-                
+
                 # Convert to 0-100 sentiment score
                 # Higher BTC dominance = more conservative/fearful market
                 sentiment = 100 - btc_dominance
@@ -198,7 +198,7 @@ class SentimentAggregator:
         except Exception as e:
             print(f"Error fetching CoinGecko: {e}")
             return 65.0  # Fallback
-    
+
     async def fetch_reddit_sentiment(self, subreddit: str) -> float:
         """
         Fetch Reddit sentiment (placeholder - requires PRAW setup)
@@ -207,76 +207,76 @@ class SentimentAggregator:
         # TODO: Implement actual Reddit sentiment analysis
         # For now, return mock data
         return 72.0
-    
+
     def calculate_weighted_sentiment(self, sources: List[SourceData]) -> float:
         """Calculate weighted average sentiment based on tier weights"""
         tier_weights = {1: 0.85, 2: 0.70, 3: 0.50}
-        
+
         total_weight = 0
         weighted_sum = 0
-        
+
         for source in sources:
             weight = tier_weights.get(source.tier, 0.50)
             weighted_sum += source.score * weight
             total_weight += weight
-        
+
         if total_weight == 0:
             return 0.50
-        
+
         # Return as 0-1 scale
         return (weighted_sum / total_weight) / 100
-    
+
     def generate_history(self, current_score: float, hours: int = 24) -> List[SentimentHistoryPoint]:
         """Generate sentiment history (in production, fetch from database)"""
         history = []
         now = datetime.utcnow()
-        
+
         for i in range(hours, -1, -1):
             timestamp = now - timedelta(hours=i)
-            
+
             # Add some realistic variation
             import random
             variation = random.uniform(-5, 5)
             score = max(0, min(100, (current_score * 100) + variation))
             fg_score = max(0, min(100, score + random.uniform(-3, 3)))
-            
+
             history.append(SentimentHistoryPoint(
                 timestamp=timestamp,
                 score=score,
                 fear_greed=fg_score
             ))
-        
+
         return history
-    
+
     def detect_divergences(self, sources: List[SourceData]) -> List[DivergenceAlert]:
         """Detect divergences between tier sentiments"""
         alerts = []
-        
+
         # Group by tier
         tier_scores = {1: [], 2: [], 3: []}
         for source in sources:
             tier_scores[source.tier].append(source.score)
-        
+
         # Calculate averages
         tier_avgs = {}
         for tier, scores in tier_scores.items():
             if scores:
                 tier_avgs[tier] = sum(scores) / len(scores)
-        
+
         # Check for divergence between Tier 1 and Tier 3
         if 1 in tier_avgs and 3 in tier_avgs:
             diff = abs(tier_avgs[1] - tier_avgs[3])
             if diff > 20:
                 severity = "high" if diff > 30 else "medium"
                 direction = "bullish" if tier_avgs[1] > tier_avgs[3] else "bearish"
-                
+
                 alerts.append(DivergenceAlert(
                     type="tier_divergence",
                     severity=severity,
                     message=f"Tier 1 sources {direction} ({tier_avgs[1]:.0f}) while Tier 3 opposite ({tier_avgs[3]:.0f})",
                     timestamp=datetime.utcnow()
                 ))
-        
+
         return alerts
 
 aggregator = SentimentAggregator()
@@ -292,7 +292,7 @@ async def get_latest_sentiment():
         coingecko_sentiment = await aggregator.fetch_coingecko_sentiment()
         reddit_crypto = await aggregator.fetch_reddit_sentiment("cryptocurrency")
         reddit_bitcoin = await aggregator.fetch_reddit_sentiment("bitcoin")
-        
+
         # Build source data
         sources = [
             SourceData(
@@ -332,23 +332,23 @@ async def get_latest_sentiment():
                 reliability=0.80
             )
         ]
-        
+
         # Calculate overall sentiment
         overall_sentiment = aggregator.calculate_weighted_sentiment(sources)
-        
+
         # Count sources by tier
         source_breakdown = {
             "tier1": sum(1 for s in sources if s.tier == 1),
             "tier2": sum(1 for s in sources if s.tier == 2),
             "tier3": sum(1 for s in sources if s.tier == 3)
         }
-        
+
         # Generate history
         history = aggregator.generate_history(overall_sentiment)
-        
+
         # Detect divergences
         divergences = aggregator.detect_divergences(sources)
-        
+
         # Build response
         return SentimentResponse(
             overall_sentiment=overall_sentiment,
@@ -371,7 +371,7 @@ async def get_latest_sentiment():
             sources=sources,
             divergence_alerts=divergences
         )
-        
+
     except Exception as e:
         print(f"Error in get_latest_sentiment: {e}")
         raise HTTPException(status_code=500, detail=str(e))

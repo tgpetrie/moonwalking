@@ -70,10 +70,10 @@ Find your existing sentiment card and add an info icon:
 <div class="sentiment-card">
     <div class="card-header">
         <h3>Market Sentiment</h3>
-        
+
         <!-- ADD THIS INFO BUTTON -->
-        <button class="sentiment-info-btn" 
-                onclick="sentimentPopup.open()" 
+        <button class="sentiment-info-btn"
+                onclick="sentimentPopup.open()"
                 aria-label="View detailed sentiment analysis">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
@@ -81,7 +81,7 @@ Find your existing sentiment card and add an info icon:
             </svg>
         </button>
     </div>
-    
+
     <div class="sentiment-score">68</div>
     <!-- rest of your card -->
 </div>
@@ -122,17 +122,17 @@ Open `js/sentiment-popup-production.js` and update line 28:
 ```javascript
 detectEnvironment() {
     const hostname = window.location.hostname;
-    
+
     // Production
     if (hostname === 'cbmoovers.com' || hostname === 'www.cbmoovers.com') {
         return 'https://api.cbmoovers.com';  // ← Your production API
     }
-    
+
     // Staging
     if (hostname === 'staging.cbmoovers.com') {
         return 'https://staging-api.cbmoovers.com';
     }
-    
+
     // Local development
     return 'http://localhost:8001';  // ← Your local API
 }

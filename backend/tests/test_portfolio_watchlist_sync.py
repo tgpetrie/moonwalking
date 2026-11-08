@@ -15,6 +15,7 @@ _SHARED_DB_PATH = None
 def _fresh_db():
     """Reset watchlist module to use a shared file-based temp DB."""
     import tempfile
+
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     db_path = tmp.name
@@ -85,7 +86,9 @@ def test_sync_adds_new_symbols():
 
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
-        items = conn.execute("SELECT item_key FROM watchlist_items ORDER BY item_key").fetchall()
+        items = conn.execute(
+            "SELECT item_key FROM watchlist_items ORDER BY item_key"
+        ).fetchall()
         conn.close()
         assert [r["item_key"] for r in items] == ["BTC", "ETH", "SOL"]
     finally:

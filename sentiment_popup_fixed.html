@@ -464,7 +464,7 @@
     <div style="text-align: center;">
         <h2 style="margin-bottom: 1rem;">Moonwalking Sentiment Dashboard</h2>
         <p style="color: var(--sentiment-subtext); margin-bottom: 2rem;">Click the info icon to view detailed sentiment analysis</p>
-        
+
         <div class="info-icon" id="infoIcon">
             <svg viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
@@ -622,7 +622,7 @@
                     <div class="info-section">
                         <h3>Active Data Sources</h3>
                         <p style="margin-bottom: 1rem;">We monitor 50+ sources across multiple tiers for comprehensive market sentiment analysis.</p>
-                        
+
                         <div class="source-list">
                             <div class="source-item">
                                 <div>
@@ -722,10 +722,10 @@
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const tab = btn.dataset.tab;
-                
+
                 tabBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 tabPanels.forEach(p => p.classList.remove('active'));
                 document.getElementById(tab).classList.add('active');
             });

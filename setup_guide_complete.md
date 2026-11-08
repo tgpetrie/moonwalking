@@ -148,12 +148,12 @@ async function loadSentimentData() {
     try {
         const response = await fetch(`${API_URL}/sentiment/latest`);
         const data = await response.json();
-        
+
         console.log('Real sentiment data:', data);
-        
+
         // Update UI
         updateSentimentUI(data);
-        
+
     } catch (error) {
         console.error('Failed to load sentiment:', error);
     }
@@ -163,18 +163,18 @@ function updateSentimentUI(data) {
     // Overall sentiment score (0-1)
     const score = Math.round(data.overall_sentiment * 100);
     document.getElementById('overallScore').textContent = score;
-    
+
     // Fear & Greed Index
-    document.getElementById('fearGreed').textContent = 
+    document.getElementById('fearGreed').textContent =
         `${getFearGreedLabel(data.fear_greed_index)} (${data.fear_greed_index})`;
-    
+
     // Social breakdown
-    document.getElementById('redditScore').textContent = 
+    document.getElementById('redditScore').textContent =
         Math.round(data.social_breakdown.reddit * 100) + '%';
-    
+
     // Sentiment bar
     document.querySelector('.sentiment-fill').style.width = score + '%';
-    
+
     // Update charts
     updateCharts(data.sentiment_history, data.social_history);
 }
@@ -209,7 +209,7 @@ ws.onopen = () => {
 
 ws.onmessage = (event) => {
     const message = JSON.parse(event.data);
-    
+
     if (message.type === 'initial' || message.type === 'sentiment_update') {
         updateSentimentUI(message.data);
     }

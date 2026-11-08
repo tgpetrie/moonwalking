@@ -30,11 +30,11 @@ Authoritative frontend layout, styling, and behavior spec for the CBMo4ers / BHA
 
 `.dashboard-shell` is centered at `--bh-board-width` with inset padding. Vertical order inside `.dashboard-shell`:
 
-1) Top **1H PRICE** banner (scrolling).  
-2) **1-MIN GAINERS** hero.  
-3) Row: **TOP GAINERS (3M)** left, **TOP LOSERS (3M)** right.  
-4) **WATCHLIST** as its own full-width section under the 3M row.  
-5) Bottom **1H VOLUME** banner (scrolling).  
+1) Top **1H PRICE** banner (scrolling).
+2) **1-MIN GAINERS** hero.
+3) Row: **TOP GAINERS (3M)** left, **TOP LOSERS (3M)** right.
+4) **WATCHLIST** as its own full-width section under the 3M row.
+5) Bottom **1H VOLUME** banner (scrolling).
 6) Sentiment/Insights shows only as a popup card when the info icon is clicked.
 
 Watchlist never sits next to 1M; it always lives under the 3M row.
@@ -48,12 +48,12 @@ Watchlist never sits next to 1M; it always lives under the 3M row.
 - Data arrays are duplicated (`[...rows, ...rows]`) for seamless looping.
 - Chips are `<a>` links to the Coinbase spot trading page.
 
-**1H PRICE (top)**  
-- Header rail: gold/orange, left-aligned.  
+**1H PRICE (top)**
+- Header rail: gold/orange, left-aligned.
 - Chip content: symbol, current price (cyan), 1h price % change (gold/purple/muted).
 
-**1H VOLUME (bottom)**  
-- Header rail: purple, centered.  
+**1H VOLUME (bottom)**
+- Header rail: purple, centered.
 - Chip content: symbol, volume (or compact), 1h volume % change.
 
 ---
@@ -62,11 +62,11 @@ Watchlist never sits next to 1M; it always lives under the 3M row.
 
 All token-like rows use the same grid:
 
-1. Rank (circle/number).  
-2. Symbol.  
-3. Price stack: current price (cyan) + previous price (muted) below.  
-4. Optional extra / padding.  
-5. % change (gold for gains, purple for losses).  
+1. Rank (circle/number).
+2. Symbol.
+3. Price stack: current price (cyan) + previous price (muted) below.
+4. Optional extra / padding.
+5. % change (gold for gains, purple for losses).
 6. Actions (star + info icon, no circular pill backgrounds).
 
 Applies to: 1-MIN gainers, 3M gainers, 3M losers, and watchlist rows.

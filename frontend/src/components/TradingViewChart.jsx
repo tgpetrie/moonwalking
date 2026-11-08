@@ -71,16 +71,16 @@ const TradingViewChart = ({ symbol, theme = 'dark', height = 400 }) => {
 
   return (
     <div className="tradingview-widget-container w-full">
-      <div 
+      <div
         ref={containerRef}
         id={`tradingview_chart_${symbol}`}
         className="tradingview-widget w-full rounded-lg overflow-hidden"
         style={{ height: `${height}px` }}
       />
       <div className="tradingview-widget-copyright">
-        <a 
-          href={`https://www.tradingview.com/symbols/COINBASE-${symbol}USD/`} 
-          rel="noopener noreferrer" 
+        <a
+          href={`https://www.tradingview.com/symbols/COINBASE-${symbol}USD/`}
+          rel="noopener noreferrer"
           target="_blank"
           className="text-xs text-gray-500 hover:text-gray-400"
         >
@@ -143,7 +143,7 @@ export const TradingViewMiniChart = ({ symbol, theme = 'dark', height = 200 }) =
 
   return (
     <div className="tradingview-widget-container w-full">
-      <div 
+      <div
         ref={containerRef}
         id={`tradingview_mini_${symbol}`}
         className="tradingview-widget w-full rounded-lg overflow-hidden"

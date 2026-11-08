@@ -73,7 +73,7 @@
 
 .mw-alert-card__debug {
   margin: 0.3rem 0 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-numeric);
   font-size: 0.6rem;
   color: var(--sentiment-muted);
   opacity: 0.6;

@@ -70,4 +70,3 @@ export default function AssetDetailPanel({ symbol, sentimentData, marketData, on
     </div>
   );
 }
-

@@ -111,23 +111,23 @@ Derived logic highlights:
 ---
 
 ## Backlog Tickets
-1. **FEAT-001: Normalize sentiment payload**  
+1. **FEAT-001: Normalize sentiment payload**
    *Acceptance Criteria:* Adapter returns fully populated object (null defaults) for valid fixture payloads, converts 0–1 floats to 0–100, produces derived freshness/confidence/rhyme when inputs exist, and includes unit tests covering missing-field scenarios.
 
-2. **FEAT-002: Harden `useSentimentLatest` hook**  
+2. **FEAT-002: Harden `useSentimentLatest` hook**
    *Acceptance Criteria:* Hook reads `VITE_SENTIMENT_API_BASE`, caches and returns last-good snapshot when new fetch fails, exposes `{ data, raw, loading, validating, error, refresh }`, and triggers only one request per popup instance even when tabs switch rapidly.
 
-3. **FEAT-003: Implement Sentiment Card v2 UI**  
+3. **FEAT-003: Implement Sentiment Card v2 UI**
    *Acceptance Criteria:* Overview tab renders header, divergence badge, metric row, sentiment bar, confidence/rhyme indicators, and topics preview using normalized data; freshness text updates live; layout matches BHABIT styles; component never crashes with partial data.
 
-4. **FEAT-004: Rebuild Social tab with leaderboard + TradingView tech widget**  
+4. **FEAT-004: Rebuild Social tab with leaderboard + TradingView tech widget**
    *Acceptance Criteria:* Tab renders metrics grid, channel leaderboard (sorted, with delta arrows and micro bars), trending topics, divergence alerts, and TradingView Technical widget when symbol exists; handles loading/empty states gracefully; calculations guard against missing series.
 
-5. **FEAT-005: Replace Charts tab with TradingView embeds**  
+5. **FEAT-005: Replace Charts tab with TradingView embeds**
    *Acceptance Criteria:* Tab displays two TradingView iframes (15m and 1h) for the current symbol, falls back to empty state without symbol, and never blocks or crashes the popup even if TradingView fails to load.
 
-6. **FEAT-006: Source mix + topics tab polish**  
+6. **FEAT-006: Source mix + topics tab polish**
    *Acceptance Criteria:* Sources tab renders coverage mix bar/grid, topic list, and divergence alerts only when data present; empty state appears when all values null; styling aligns with panel-soft conventions.
 
-7. **FEAT-007: Apply BHABIT shell + rabbit background**  
+7. **FEAT-007: Apply BHABIT shell + rabbit background**
    *Acceptance Criteria:* Popup shell includes `/purple-rabbit-bg.png` overlay with specified opacity, all panels share the same transparent styling, and empty/error states use the calm copy from spec.

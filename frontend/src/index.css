@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+/* Shared primitives for the board and account shell, generated from
+   src/design-system/tokens.json. */
+@import './styles/design-tokens.css';
 @import './sentiment-v2.css';
 @import './styles/animations.css';
 
@@ -841,7 +843,7 @@ body {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 20px;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.45);
   cursor: default;
@@ -3217,7 +3219,7 @@ body {
   width: 100%;
   margin-top: 0.28rem;
   color: rgba(255, 255, 255, 0.48);
-  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-family: var(--font-numeric);
   font-size: 0.52rem;
   font-weight: 500;
   letter-spacing: 0.055em;
@@ -3829,7 +3831,7 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.035);
   color: rgba(255, 255, 255, 0.68);
-  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-family: var(--font-numeric);
   font-size: 0.52rem;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -4253,7 +4255,7 @@ html, body {
 
 .bh-live-leader__rank,
 .bh-live-leader__score {
-  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-family: var(--font-numeric);
 }
 
 .bh-live-leader__rank {

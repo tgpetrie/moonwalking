@@ -22,5 +22,5 @@ class TestSmartWatchlistInsights(unittest.TestCase):
         self.assertIn("large-cap tokens", result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

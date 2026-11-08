@@ -18,4 +18,3 @@ export default function useBanners() {
 
   return { banner1h, vol1h };
 }
-

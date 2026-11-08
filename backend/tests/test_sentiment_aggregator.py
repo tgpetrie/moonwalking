@@ -24,6 +24,7 @@ try:
         normalize_symbol,
         # Add other imports as needed
     )
+
     SENTIMENT_AGGREGATOR_AVAILABLE = True
 except ImportError:
     SENTIMENT_AGGREGATOR_AVAILABLE = False
@@ -33,6 +34,7 @@ except ImportError:
 # ============================================================================
 # Symbol Normalization Tests
 # ============================================================================
+
 
 class TestSymbolNormalization:
     """Tests for symbol normalization logic."""
@@ -48,13 +50,16 @@ class TestSymbolNormalization:
         assert normalize_symbol("eth") == "ETH"
 
     @pytest.mark.unit
-    @pytest.mark.parametrize("input_symbol,expected", [
-        ("BTC/USD", "BTC"),
-        ("BTC-USD", "BTC"),
-        ("  BTC  ", "BTC"),
-        ("btc", "BTC"),
-        ("Bitcoin", "BTC"),  # If name mapping exists
-    ])
+    @pytest.mark.parametrize(
+        "input_symbol,expected",
+        [
+            ("BTC/USD", "BTC"),
+            ("BTC-USD", "BTC"),
+            ("  BTC  ", "BTC"),
+            ("btc", "BTC"),
+            ("Bitcoin", "BTC"),  # If name mapping exists
+        ],
+    )
     def test_normalize_symbol_edge_cases(self, input_symbol, expected):
         """Test symbol normalization with edge cases."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -78,6 +83,7 @@ class TestSymbolNormalization:
 # ============================================================================
 # Cache Tests
 # ============================================================================
+
 
 class TestCaching:
     """Tests for caching mechanism."""
@@ -112,6 +118,7 @@ class TestCaching:
 
         # Act - wait for expiration
         import time
+
         time.sleep(0.1)
         result = mock_cache.get("test_key")
 
@@ -122,6 +129,7 @@ class TestCaching:
 # ============================================================================
 # VADER Sentiment Analysis Tests
 # ============================================================================
+
 
 class TestSentimentAnalysis:
     """Tests for VADER sentiment scoring."""
@@ -159,13 +167,14 @@ class TestSentimentAnalysis:
 # Multi-Source Aggregation Tests
 # ============================================================================
 
+
 class TestMultiSourceAggregation:
     """Tests for aggregating multiple data sources."""
 
     @pytest.mark.integration
-    @patch('sentiment_aggregator.fetch_fear_greed')
-    @patch('sentiment_aggregator.fetch_coingecko_coin_data')
-    @patch('sentiment_aggregator.fetch_reddit_mentions')
+    @patch("sentiment_aggregator.fetch_fear_greed")
+    @patch("sentiment_aggregator.fetch_coingecko_coin_data")
+    @patch("sentiment_aggregator.fetch_reddit_mentions")
     def test_aggregate_all_sources_success(
         self,
         mock_reddit,
@@ -173,7 +182,7 @@ class TestMultiSourceAggregation:
         mock_fear_greed,
         mock_fear_greed_response,
         mock_coingecko_btc_response,
-        mock_reddit_response
+        mock_reddit_response,
     ):
         """Test successful aggregation from all sources."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -194,14 +203,11 @@ class TestMultiSourceAggregation:
         assert len(result["sources"]) > 0
 
     @pytest.mark.integration
-    @patch('sentiment_aggregator.fetch_fear_greed')
-    @patch('sentiment_aggregator.fetch_coingecko_coin_data')
-    @patch('sentiment_aggregator.fetch_reddit_mentions')
+    @patch("sentiment_aggregator.fetch_fear_greed")
+    @patch("sentiment_aggregator.fetch_coingecko_coin_data")
+    @patch("sentiment_aggregator.fetch_reddit_mentions")
     def test_aggregate_partial_source_failure(
-        self,
-        mock_reddit,
-        mock_coingecko,
-        mock_fear_greed
+        self, mock_reddit, mock_coingecko, mock_fear_greed
     ):
         """Test aggregation when some sources fail."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -223,6 +229,7 @@ class TestMultiSourceAggregation:
 # ============================================================================
 # Weighted Scoring Tests
 # ============================================================================
+
 
 class TestWeightedScoring:
     """Tests for tier-based weighted scoring."""
@@ -256,6 +263,7 @@ class TestWeightedScoring:
 # Divergence Detection Tests
 # ============================================================================
 
+
 class TestDivergenceDetection:
     """Tests for tier divergence alerts."""
 
@@ -288,11 +296,12 @@ class TestDivergenceDetection:
 # Error Handling Tests
 # ============================================================================
 
+
 class TestErrorHandling:
     """Tests for error handling and graceful degradation."""
 
     @pytest.mark.unit
-    @patch('sentiment_aggregator.fetch_fear_greed')
+    @patch("sentiment_aggregator.fetch_fear_greed")
     def test_network_error_handling(self, mock_fetch, simulate_network_error):
         """Test handling of network errors."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -308,7 +317,7 @@ class TestErrorHandling:
         assert result is not None
 
     @pytest.mark.unit
-    @patch('sentiment_aggregator.fetch_coingecko_coin_data')
+    @patch("sentiment_aggregator.fetch_coingecko_coin_data")
     def test_rate_limit_handling(self, mock_fetch, simulate_rate_limit):
         """Test handling of API rate limits."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -324,7 +333,7 @@ class TestErrorHandling:
         assert result is not None
 
     @pytest.mark.unit
-    @patch('sentiment_aggregator.fetch_fear_greed')
+    @patch("sentiment_aggregator.fetch_fear_greed")
     def test_invalid_json_handling(self, mock_fetch, simulate_invalid_json):
         """Test handling of malformed JSON responses."""
         if not SENTIMENT_AGGREGATOR_AVAILABLE:
@@ -343,6 +352,7 @@ class TestErrorHandling:
 # ============================================================================
 # Configuration Tests
 # ============================================================================
+
 
 class TestConfiguration:
     """Tests for configuration loading and validation."""
@@ -374,6 +384,7 @@ class TestConfiguration:
 # Integration Tests
 # ============================================================================
 
+
 class TestEndToEnd:
     """End-to-end integration tests."""
 
@@ -403,11 +414,7 @@ class TestEndToEnd:
         result = get_sentiment_for_symbol("BTC")
 
         # Required fields
-        required_fields = [
-            "overall_sentiment",
-            "total_sources",
-            "sources"
-        ]
+        required_fields = ["overall_sentiment", "total_sources", "sources"]
 
         for field in required_fields:
             assert field in result, f"Missing required field: {field}"
@@ -429,6 +436,7 @@ class TestEndToEnd:
 # ============================================================================
 # Performance Tests
 # ============================================================================
+
 
 class TestPerformance:
     """Performance and caching tests."""
@@ -459,6 +467,7 @@ class TestPerformance:
 # ============================================================================
 # Regression Tests
 # ============================================================================
+
 
 class TestRegression:
     """Regression tests for known bugs and edge cases."""

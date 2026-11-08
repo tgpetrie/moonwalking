@@ -107,7 +107,7 @@ export const WebSocketProvider = ({ children }) => {
     poll();
     scheduleNext();
   };
-  
+
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
       // Clear any scheduled timeout
@@ -141,7 +141,7 @@ export const WebSocketProvider = ({ children }) => {
         });
         return prices;
       }
-      
+
       // Fallback: use cached prices data
       const prices = {};
       symbols.forEach(symbol => {
@@ -161,7 +161,7 @@ export const WebSocketProvider = ({ children }) => {
     const unsubscribeConnection = subscribeToWebSocket('connection', (data) => {
       setIsConnected(data.status === 'connected');
       setConnectionStatus(data.status);
-      
+
       if (data.status === 'connected') {
         if (MW_DEBUG) console.log('✅ WebSocket connected successfully');
         stopPolling(); // Stop polling if WebSocket connects
@@ -181,9 +181,9 @@ export const WebSocketProvider = ({ children }) => {
 
     const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
       if (MW_DEBUG) console.log('💰 Received price update via WebSocket:', data);
-      setLatestData(prev => ({ 
-        ...prev, 
-        prices: { ...prev.prices, ...data } 
+      setLatestData(prev => ({
+        ...prev,
+        prices: { ...prev.prices, ...data }
       }));
     });
 
