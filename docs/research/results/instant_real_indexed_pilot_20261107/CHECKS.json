@@ -1,0 +1,29 @@
+{
+  "verified_utc": "2026-11-08T06:35:26.306696+00:00",
+  "implementation_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
+  "base_checkpoint": "3dd7f4ffb27a389ec368c94f351e8472d143f04d",
+  "targeted_tests_passed": 1300,
+  "new_cases": 4,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "websocket_client": "1.9.0",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "docs/research/INSTANT_REAL_INDEXED_PILOT_PROTOCOL_20261107.md": "b430044c997cc6e39113accde1775a70a45f13eef86d144bb9e1a6d9326c717a",
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": "0ccffe5bcad254f6973ba085ef1e2f12dbcebf7fe02ee2e6a854b96a33c085d4",
+    "scripts/scoring_experiment/instant_source_pilot.py": "fffafe12b76313ed0c40f0abdf7236c77b5d14caa99f9a30f7c6657a8e872152",
+    "scripts/scoring_experiment/instant_stream_journal.py": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+    "tests/test_instant_real_indexed_pilot.py": "a25b205becc3292c4f929252027fd0c16e7779b9554e8af8de73ae16d545967c"
+  },
+  "pilot_status": "subscriptions_acknowledged_running",
+  "clock_before": "docs/research/results/instant_real_indexed_pilot_20261107/CLOCK_BEFORE.txt",
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "historical_validation_rerun": false,
+  "fitting_allowed": false,
+  "live_changes": false
+}

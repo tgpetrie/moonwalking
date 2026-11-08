@@ -6,6 +6,11 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The real indexed pilot at **`4aab7be`** is running on the Windows
+research host. All four subscriptions were acknowledged. **1,300
+targeted checks pass**. Read the
+[predeclared protocol](../research/INSTANT_REAL_INDEXED_PILOT_PROTOCOL_20261107.md).
+
 Indexed evidence at **`dddd2e4`** prepared 80 diagnostic decisions while
 the synthetic recorder committed 241,208 packets on one connection.
 Preparation p95 was 89 ms per decision. The full eight-decision cohort

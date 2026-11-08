@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T01:38:01.369500+00:00",
+  "updated_utc": "2026-11-08T06:35:26.306696+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
+  "implementation_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -40,7 +40,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "indexed_latency_benchmark_complete_1296_targeted_checks_follow_up_protocol_next"
+      "status": "real_indexed_pilot_running_1300_targeted_tests_pass"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -130,7 +130,7 @@
     }
   },
   "next_actions": [
-    "Predeclare the next real-data latency/readiness diagnostic with the indexed writer, capacity limit, sample times, and separately measured receipt, evidence wait, preparation and publication clocks.",
+    "Monitor the predeclared real indexed pilot to its stopping boundary, collect the ending clock probe, and verify the saved journal and delivery observations.",
     "Keep stale thin-product windows unavailable and retain them in coverage denominators. Measure clock offset near the next capture and distinguish local outbox receipt from observed external delivery.",
     "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -144,15 +144,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1296,
+    "implementation_targeted_tests_passed": 1300,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_dddd2e4",
+    "guardrails": "passed_at_4aab7be",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_dddd2e4",
+    "black_24_8": "passed_at_4aab7be",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -568,7 +568,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
+  "latest_verification_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -697,5 +697,17 @@
     "cohort_max_ms": 681.971,
     "real_backlog_measured": false,
     "decision_age_budget_selected": false
+  },
+  "real_indexed_pilot": {
+    "status": "subscriptions_acknowledged_running",
+    "implementation_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
+    "protocol": "docs/research/INSTANT_REAL_INDEXED_PILOT_PROTOCOL_20261107.md",
+    "checks": "docs/research/results/instant_real_indexed_pilot_20261107/CHECKS.json",
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_real_indexed_pilot_20261107",
+    "planned_cohorts": 10,
+    "products_per_cohort": 4,
+    "directions_per_product": 2,
+    "external_delivery_scope": "separate_local_read_only_process",
+    "fitting_allowed": false
   }
 }
