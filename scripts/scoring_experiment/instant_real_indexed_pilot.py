@@ -40,6 +40,7 @@ from instant_stream_journal import (
 
 VERSION = "instant-real-indexed-pilot-v1"
 QUEUE_CAPACITY = 128
+MAX_QUEUE_CAPACITY = 256
 COHORTS = 10
 POLL_S = 0.025
 
@@ -47,10 +48,12 @@ POLL_S = 0.025
 class QueuedSocket:
     """One socket reader timestamps frames; the owner thread alone writes."""
 
-    def __init__(self, socket, timeout_errors):
+    def __init__(self, socket, timeout_errors, *, max_frames=QUEUE_CAPACITY):
+        if type(max_frames) is not int or not 1 <= max_frames <= MAX_QUEUE_CAPACITY:
+            raise ValueError("reader queue size outside the supported range")
         self.socket = socket
         self.timeout_errors = timeout_errors
-        self.queue = Queue(maxsize=QUEUE_CAPACITY)
+        self.queue = Queue(maxsize=max_frames)
         self.stopping, self.done = Event(), Event()
         self.thread = Thread(
             target=self._read, name="coinbase-diagnostic-reader", daemon=True

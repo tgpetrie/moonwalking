@@ -10,7 +10,7 @@ from pathlib import Path
 from instant_coverage import CoverageMonitor, _integer
 
 
-VERSION = "instant-book-replay-v1-draft"
+VERSION = "instant-book-replay-v1-draft-amendment-1"
 CONTRACT = (
     Path(__file__).resolve().parents[2]
     / "docs/research/INSTANT_BOOK_CONTRACT_V1_DRAFT.json"
@@ -113,6 +113,7 @@ class BookReplay:
         ).hexdigest()
         self.connection = None
         self.books = {}
+        self._startup_books = None
         self.last_heartbeat = {}
         self.history = {p: [] for p in self.monitor.products}
         self.awaiting_ack = set(self.monitor.products)
@@ -206,23 +207,27 @@ class BookReplay:
         if env.get("source", "ws") != "ws":
             return
         receipt = env["receipt_ts_ms"]
+        message = env["message"]
+        kind, product = message.get("type"), message.get("product_id")
         if self.connection != env["connection_id"]:
             self.connection = env["connection_id"]
+            self._startup_books = {} if kind == "connection_opened" else None
             self.last_heartbeat.clear()
             self.awaiting_ack.update(self.history)
             for product in self.history:
                 self._invalidate(product, "subscription_unconfirmed")
-        message = env["message"]
-        kind, product = message.get("type"), message.get("product_id")
         if kind in ("connection_closed", "error", "queue_overflow") or (
             isinstance(kind, str) and kind.startswith("audit_")
         ):
+            self._startup_books = None
             self.last_heartbeat.clear()
             self.awaiting_ack.update(self.history)
             for pid in self.history:
                 self._invalidate(pid, kind)
             return
         if kind == "subscriptions":
+            staged = self._startup_books or {}
+            self._startup_books = None
             for pid in self.history:
                 if pid not in self.monitor.active:
                     self.last_heartbeat.pop(pid, None)
@@ -230,7 +235,12 @@ class BookReplay:
                     self._invalidate(pid, "subscription_unconfirmed")
                 else:
                     self.awaiting_ack.discard(pid)
-                    if pid not in self.books:
+                    if pid in staged:
+                        # Stamp activation with this acknowledgment. The staged
+                        # book keeps its original observation and change ages.
+                        self.books[pid] = staged[pid]
+                        self.pending.append((pid, None))
+                    elif pid not in self.books:
                         self._invalidate(pid, "awaiting_snapshot")
             return
         if product not in self.history:
@@ -242,12 +252,16 @@ class BookReplay:
             self.last_heartbeat[product] = receipt
         if kind not in ("snapshot", "l2update"):
             return
-        if product not in self.monitor.active or product in self.awaiting_ack:
+        unconfirmed = product not in self.monitor.active or product in self.awaiting_ack
+        staging = unconfirmed and self._startup_books is not None
+        if unconfirmed and not staging:
             self._invalidate(product, "subscription_unconfirmed")
             return
-        previous = self.books.get(product)
+        books = self._startup_books if staging else self.books
+        previous = books.get(product)
         if kind == "l2update" and previous is None:
-            self._invalidate(product, "awaiting_snapshot")
+            if not staging:
+                self._invalidate(product, "awaiting_snapshot")
             return
         try:
             candidate = (
@@ -261,6 +275,9 @@ class BookReplay:
                 candidate
             )  # Validate the final whole batch, never intermediate states.
         except (ValueError, TypeError, InvalidOperation):
+            if staging:
+                books.pop(product, None)
+                return
             self._invalidate(
                 product,
                 (
@@ -285,8 +302,9 @@ class BookReplay:
                 message.get("time") if isinstance(message.get("time"), str) else None
             ),
         )
-        self.books[product] = candidate
-        self.pending.append((product, None))
+        books[product] = candidate
+        if not staging:
+            self.pending.append((product, None))
 
     def _validate_view(self, product, cutoff, asof):
         if self.failed:
