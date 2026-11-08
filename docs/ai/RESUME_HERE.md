@@ -6,11 +6,12 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-The batched source follow-up at **`c9d79be`** acknowledged all four products.
-The opt-in profile uses a 256-frame queue and batches of up to 16.
-**1,316 targeted checks pass**. Attempt 01 is running on the Windows
-research host. The [declared protocol](../research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md)
-sets the capture bounds and post-warmup diagnostics.
+The batched source follow-up at **`c9d79be`** reached its 67-minute stop
+with 166,035 journal records and no reported queue overflow. All ten
+cohorts completed and the local consumer observed all 80 rows. BTC and
+SOL had all five features ready on every cohort row. ALCX and AURORA
+still had missing features. **1,316 targeted checks pass**.
+[Follow-up results](../research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md).
 
 The bounded journal writer at **`aa953b5`** passed crash and causal visibility
 probes. The comparison verified 24 journals across both writer modes. All 256-frame
@@ -180,9 +181,9 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-The batched source follow-up is running at the verified synthetic batch profile.
-Report >=62 complete warmup minutes separately from
-the original feed gate and remaining feature/study/readiness freeze.
+The batched source follow-up reached warmup on the tested profile.
+Predeclare feature and product eligibility from the measured readiness
+and retain the original feed gate and study freeze as separate requirements.
 
 The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
 recorder/baseline `ab95159`, and target evaluator/V1/V2 `92fb51d`.
@@ -281,7 +282,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Batched source follow-up `c9d79be` running. Verify its stop and coverage |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Batched source follow-up `c9d79be` verified. Eligibility and missingness rules are next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -297,7 +298,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, verify the batched follow-up's committed prefix and results once it stops.
+Next, predeclare feature and study eligibility with separate thin-product reporting.
 Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
@@ -383,7 +384,7 @@ own machines. The Windows collector is a separate running service on port
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
 > Batched source follow-up `c9d79be` has 1,316 targeted tests passing.
-> Check attempt 01 and the November 8 batched source protocol before acting.
+> Attempt 01 is complete. Read the November 8 batched source results.
 > Bounded writer verification is `aa953b5`.
 > Read the November 8 batched journal results and startup and burst results.
 > The real indexed pilot is `4aab7be`.
@@ -413,8 +414,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Verify the batched follow-up through its stop and preserve both clock checks.
-> Preserve thin-product missingness and the previous stopped live prefix.
+> Predeclare eligibility and missingness rules using the follow-up readiness evidence.
+> Preserve thin-product reporting and both stopped capture prefixes.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and

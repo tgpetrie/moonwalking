@@ -122,10 +122,12 @@ Status keys: Open, In progress, Done, Blocked.
   0.86s. 1,313 targeted checks pass. See
   `docs/research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md`.
 - Batched source follow-up `c9d79be` uses the opt-in 256-frame queue and up
-  to 16 frames per batch. 1,316 targeted checks pass and the attempt has
-  acknowledged all four products. See `docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md`.
-- Next, verify the follow-up journal and report coverage and latency.
-  Preserve the pilot products and gates. Freeze association/exposure and the remaining
+  to 16 frames per batch. It reached the 67-minute stop without queue
+  overflow and the separate process observed all 80 diagnostic rows.
+  1,316 targeted checks pass. See
+  `docs/research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md`.
+- Next, predeclare feature and study eligibility while preserving
+  thin-product coverage reporting and the separate feed gate. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.

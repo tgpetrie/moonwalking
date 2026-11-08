@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T11:14:18.233433+00:00",
+  "updated_utc": "2026-11-08T12:24:00.485131+00:00",
   "display_date_pacific": "2026-11-08",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -38,13 +38,13 @@
     "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed",
     "startup_and_burst": "pre_ack_startup_amended_12_burst_scenarios_verified",
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
-    "batched_source_pilot": "one_attempt_started_subscriptions_acknowledged"
+    "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "batched_source_profile_verified_1316_targeted_checks_monitoring_attempt_01"
+      "status": "batched_source_attempt_01_verified_1316_targeted_checks_eligibility_rules_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -134,8 +134,8 @@
     }
   },
   "next_actions": [
-    "Monitor the declared batched source follow-up attempt 01 on the Windows research host through its stop.",
-    "Verify the journal, preserve both clock checks and report real warmup, reader loss, per-product quote coverage and local delivery evidence.",
+    "Predeclare how then-known quote freshness, baseline readiness and trade activity determine feature and study eligibility. Keep the thin products in the coverage report.",
+    "Resolve the original feed audit and the decision-age policy separately. Use the verified live-readiness evidence to size the prospective design before fitting.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -766,7 +766,7 @@
     "fitting_allowed": false
   },
   "batched_source_pilot": {
-    "status": "subscriptions_acknowledged_results_pending",
+    "status": "completed_at_declared_duration",
     "attempt": 1,
     "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
     "protocol": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md",
@@ -778,6 +778,25 @@
     "max_duration_seconds": 4020,
     "planned_cohorts": 10,
     "feed_gate_pass": false,
-    "fitting_allowed": false
+    "fitting_allowed": false,
+    "results": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md",
+    "report": "docs/research/results/instant_batched_source_pilot_20261108/ATTEMPT_01.json",
+    "checks": "docs/research/results/instant_batched_source_pilot_20261108/CHECKS.json",
+    "seconds_ack_to_last_committed_reader_receipt": 4019.996,
+    "packets": 166035,
+    "journal_sha256": "489d3cc052b0e804cd1d16d4eaa70c73534b1b215d2539c740149a9f67ea0cd1",
+    "reader_returned": 166035,
+    "reader_committed": 166033,
+    "reader_returned_outside_committed_prefix": 2,
+    "sampled_queue_high_water": 97,
+    "pending_ingress_frames": 0,
+    "complete_cohorts": 10,
+    "local_observations": 80,
+    "warmup_reached": true,
+    "trade_windows_ready_by_5s": 532,
+    "full_feature_readiness_products": [
+      "BTC-USD",
+      "SOL-USD"
+    ]
   }
 }

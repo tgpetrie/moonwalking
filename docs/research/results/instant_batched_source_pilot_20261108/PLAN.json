@@ -1,0 +1,29 @@
+{
+  "version": "instant-real-indexed-pilot-v1",
+  "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+  "started_utc": "2026-11-08T11:13:16.120893+00:00",
+  "endpoint": "wss://ws-feed.exchange.coinbase.com",
+  "products": [
+    "BTC-USD",
+    "SOL-USD",
+    "ALCX-USD",
+    "AURORA-USD"
+  ],
+  "channels": [
+    "level2_batch",
+    "matches",
+    "heartbeat",
+    "ticker"
+  ],
+  "profile": "batched-256",
+  "duration_s": 4020,
+  "max_connections": 1,
+  "packet_stop": 249990,
+  "byte_stop": 251658240,
+  "max_reader_queue_frames": 256,
+  "max_batch_frames": 16,
+  "warmup_ms": 3720000,
+  "cohort_count": 10,
+  "cohort_evidence_offset_ms": 5000,
+  "local_consumer_poll_ms": 25.0
+}

@@ -1,0 +1,75 @@
+{
+  "verified_utc": "2026-11-08T12:22:01.286262+00:00",
+  "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+  "packet_digests_and_sequence_verified": 166035,
+  "batched_packet_clocks_verified": 166033,
+  "journal_quick_check": "ok",
+  "journal_sha256": "489d3cc052b0e804cd1d16d4eaa70c73534b1b215d2539c740149a9f67ea0cd1",
+  "first_full_ack_seq": 2,
+  "first_book_snapshots": {
+    "ALCX-USD": {
+      "seq": 3,
+      "receipt_ts_ms": 1794136397101
+    },
+    "BTC-USD": {
+      "seq": 6,
+      "receipt_ts_ms": 1794136397786
+    },
+    "AURORA-USD": {
+      "seq": 10,
+      "receipt_ts_ms": 1794136397832
+    },
+    "SOL-USD": {
+      "seq": 13,
+      "receipt_ts_ms": 1794136397991
+    }
+  },
+  "final_marker": "connection_closed",
+  "frame_types": {
+    "connection_opened": 1,
+    "subscriptions": 1,
+    "snapshot": 4,
+    "last_match": 4,
+    "ticker": 13542,
+    "l2update": 122864,
+    "match": 13538,
+    "heartbeat": 16080,
+    "connection_closed": 1
+  },
+  "pending_ingress_frames": 0,
+  "unique_trade_rows": 13538,
+  "outbox_digests_verified": 80,
+  "outbox_known_prefixes_verified": 80,
+  "outbox_asof_checkpoints": 10,
+  "observations_linked": 80,
+  "historical_hashes_verified": 11,
+  "targeted_tests_passed": 1316,
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "normalized_artifact_sha256": {
+    "PLAN.json": "935c8018425fd15dc2cb02601644d43ee4c78a5ad67876d0b4ca5416339b53ca",
+    "ATTEMPT_01.json": "97141e2d5f61173289503aab8f4c130e9a9320bb0a7b8809d914f5eaff2baa29",
+    "OBSERVED.jsonl": "a4e99ca2895f8f0d801fdc65e3adb764a30fd26839fa18ffc31e6ead6b242e25",
+    "CLOCK_BEFORE.txt": "1b010f4afa696dfcdaf52bf1043382fe8f7c54285c02b400036b144f406ebfe6",
+    "CLOCK_AFTER.txt": "4617e00ead992135066f6e0a6c6d0afb3813ff33fe7450fb82a352f2727fc6e5"
+  },
+  "normalized_source_sha256": {
+    "docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md": "28cdfc7015985445ded605e8ffe5199068967e49a9c5ebe8e691fac67a4e939e",
+    "scripts/scoring_experiment/instant_indexed_latency.py": "82279c1e934c2d6caf5bd6e4191d2236700e69bb2b983a1cd13ad3e5499a7d96",
+    "scripts/scoring_experiment/instant_queue_burst.py": "299d44e4e047ac5b7800aae2581bb8e5dbecc370294872dcc52f6304c3cba92a",
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": "40d1e294c9214d1911bb377a37a9186f5d1690e843336eda2048758b75a69af6",
+    "scripts/scoring_experiment/instant_source_pilot.py": "580b29e3dafd47d0fce75673f2fb93fe046d83fe9ea6beb88758859f3a621985",
+    "tests/test_instant_real_indexed_pilot.py": "da92a2a7cb7aa141eb36f1effa61cfafa9ac3e9d05eecc8a760037f3b56dadc5"
+  },
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "historical_validation_rerun": false,
+  "feed_gate_pass": false,
+  "fitting_allowed": false,
+  "decision_age_budget_selected": false,
+  "public_delivery_measured": false,
+  "live_changes": false
+}

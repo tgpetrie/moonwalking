@@ -3,11 +3,13 @@
 ## Batched source follow-up — 2026-11-08
 
 **`c9d79be`** enables the explicit `batched-256` research profile. The
-dry run verifies that the first warmup cutoff uses the subscription
-acknowledgment's original receipt even when later frames share the batch.
-**1,316 targeted checks pass**. Attempt 01 has acknowledged the four
-products and is running on the Windows research host.
-[Declared protocol](docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md).
+dry run verifies that the first warmup cutoff uses the original
+acknowledgment receipt even when later frames share the batch. Attempt 01
+reached its 67-minute stop with 166,035 journal records and no reported
+queue overflow. All 80 rows were observed locally. BTC and SOL had
+complete feature readiness. Thin-product feature gaps remain.
+**1,316 targeted checks pass**.
+[Follow-up results](docs/research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md).
 
 ## Bounded journal batching comparison — 2026-11-08
 
