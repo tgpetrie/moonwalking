@@ -38,4 +38,3 @@ export default function ThreeMinuteLosers({ title = "3 MIN LOSERS", rows = [], l
     </div>
   );
 }
-

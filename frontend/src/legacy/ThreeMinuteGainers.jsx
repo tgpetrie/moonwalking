@@ -38,4 +38,3 @@ export default function ThreeMinuteGainers({ title = "3 MIN GAINERS", rows = [],
     </div>
   );
 }
-

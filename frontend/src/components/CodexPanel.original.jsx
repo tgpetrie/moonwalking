@@ -53,7 +53,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
       return latestData.prices[selectedCoin];
     }
     if (latestData.crypto && Array.isArray(latestData.crypto)) {
-      return latestData.crypto.find(coin => 
+      return latestData.crypto.find(coin =>
         coin.symbol === selectedCoin || coin.symbol === `${selectedCoin}-USD`
       );
     }
@@ -83,12 +83,12 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
               <div className="bg-gray-800/50 rounded-lg p-4">
                 <div className="text-sm text-gray-400 mb-2">1h Change</div>
                 <div className={`text-2xl font-bold ${(coinData?.changePercent || coinData?.price_change_percentage_1h || 0) >= 0 ? 'text-blue' : 'text-pink'}`}>
-                  {coinData?.changePercent ? `${coinData.changePercent.toFixed(2)}%` : 
+                  {coinData?.changePercent ? `${coinData.changePercent.toFixed(2)}%` :
                    coinData?.price_change_percentage_1h ? `${coinData.price_change_percentage_1h.toFixed(2)}%` : 'N/A'}
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-gray-800/30 rounded-lg p-4">
               <div className="text-sm text-gray-400 mb-3">Technical Indicators</div>
               <div className="space-y-2">
@@ -108,7 +108,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             </div>
           </div>
         );
-      
+
       case 'news':
         return (
           <div className="space-y-4">
@@ -121,7 +121,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             </div>
           </div>
         );
-      
+
       case 'charts':
         return (
           <div className="space-y-4">
@@ -134,7 +134,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             </div>
           </div>
         );
-      
+
       case 'social':
         return (
           <div className="space-y-4">
@@ -147,7 +147,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             </div>
           </div>
         );
-      
+
       default:
         return <div>Content not found</div>;
     }
@@ -157,9 +157,9 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Background overlay */}
       <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" />
-      
+
       {/* Modal content */}
-      <div 
+      <div
         ref={modalRef}
         className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] mx-4 overflow-hidden"
       >

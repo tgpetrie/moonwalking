@@ -1,4 +1,5 @@
 """Utilities for loading catalogued sentiment sources from JSON files."""
+
 from __future__ import annotations
 
 import json
@@ -57,7 +58,9 @@ def _validate_entry(entry: Dict, tier_hint: str, *, path: Path, seen_names, seen
 
     tier = _normalize_tier(entry.get("tier") or tier_hint, context=path.name)
 
-    endpoint = _clean_url(entry.get("endpoint") or entry.get("url") or entry.get("href"))
+    endpoint = _clean_url(
+        entry.get("endpoint") or entry.get("url") or entry.get("href")
+    )
     if endpoint:
         if endpoint in seen_urls:
             raise SentimentSourceLoaderError(
@@ -143,7 +146,9 @@ class SourceCatalog:
         return [dict(entry) for entry in self.entries]
 
 
-def load_sources(base_path: str | Path | None = None, *, force_reload: bool = False) -> SourceCatalog:
+def load_sources(
+    base_path: str | Path | None = None, *, force_reload: bool = False
+) -> SourceCatalog:
     """Read and validate the source catalog, caching by path."""
 
     root = Path(base_path) if base_path else SOURCES_ROOT

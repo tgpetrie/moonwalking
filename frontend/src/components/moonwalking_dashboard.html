@@ -46,7 +46,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
+            background:
                 radial-gradient(circle at 20% 80%, rgba(0,255,136,0.1) 0%, transparent 50%),
                 radial-gradient(circle at 80% 20%, rgba(255,71,87,0.1) 0%, transparent 50%),
                 radial-gradient(circle at 40% 40%, rgba(58,66,250,0.05) 0%, transparent 50%);
@@ -605,7 +605,7 @@
             .main-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .sidebar {
                 order: -1;
             }
@@ -615,15 +615,15 @@
             .container {
                 padding: 10px;
             }
-            
+
             .header-content {
                 padding: 0 10px;
             }
-            
+
             .alerts-overview {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
+
             .floating-controls {
                 bottom: 20px;
                 right: 20px;
@@ -647,7 +647,7 @@
     </div>
 
     <div class="background-pattern"></div>
-    
+
     <header class="header">
         <div class="header-content">
             <div class="logo">
@@ -781,22 +781,22 @@
             try {
                 // Setup event listeners
                 setupEventListeners();
-                
+
                 // Start time updates
                 updateMarketTime();
                 setInterval(updateMarketTime, 1000);
-                
+
                 // Load initial data
                 await loadInitialData();
-                
+
                 // Hide loading screen
                 hideLoadingScreen();
-                
+
                 // Start auto-refresh
                 setInterval(refreshData, CONFIG.REFRESH_INTERVAL);
-                
+
                 console.log('✅ Dashboard initialized successfully');
-                
+
             } catch (error) {
                 console.error('❌ Dashboard initialization failed:', error);
                 showError('Failed to initialize dashboard. Please refresh the page.');
@@ -809,11 +809,11 @@
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    
+
                     // Update active state
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
-                    
+
                     // Update filter and render
                     appState.currentFilter = this.dataset.filter;
                     renderAlerts();
@@ -825,7 +825,7 @@
                 e.preventDefault();
                 refreshData();
             });
-            
+
             // Settings button
             document.getElementById('settingsBtn').addEventListener('click', function(e) {
                 e.preventDefault();
@@ -846,7 +846,7 @@
 
         async function loadInitialData() {
             updateConnectionStatus('loading');
-            
+
             try {
                 // Load all data in parallel
                 const results = await Promise.allSettled([
@@ -863,7 +863,7 @@
 
                 updateConnectionStatus('connected');
                 appState.lastUpdate = new Date();
-                
+
             } catch (error) {
                 console.error('Error loading initial data:', error);
                 updateConnectionStatus('error');
@@ -879,11 +879,11 @@
 
             appState.isLoading = true;
             updateConnectionStatus('loading');
-            
+
             try {
                 await loadInitialData();
                 appState.retryCount = 0; // Reset retry count on success
-                
+
             } catch (error) {
                 console.error('Refresh failed:', error);
                 handleRefreshError(error);
@@ -894,7 +894,7 @@
 
         function handleRefreshError(error) {
             appState.retryCount++;
-            
+
             if (appState.retryCount < CONFIG.MAX_RETRIES) {
                 console.log(`Retrying in ${CONFIG.RETRY_DELAY/1000} seconds... (${appState.retryCount}/${CONFIG.MAX_RETRIES})`);
                 setTimeout(refreshData, CONFIG.RETRY_DELAY);
@@ -908,24 +908,24 @@
         async function loadActiveAlerts() {
             try {
                 const response = await fetchWithTimeout(`${CONFIG.API_BASE}/alerts?limit=50`);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
+
                 const alerts = await response.json();
-                
+
                 // Validate alert data
                 appState.alerts = Array.isArray(alerts) ? alerts.filter(validateAlert) : [];
-                
+
                 updateAlertCounts();
                 renderAlerts();
-                
+
                 console.log(`✅ Loaded ${appState.alerts.length} alerts`);
-                
+
             } catch (error) {
                 console.error('Failed to load alerts:', error);
-                
+
                 // Show mock data if in development
                 if (window.location.hostname === 'localhost') {
                     appState.alerts = generateMockAlerts();
@@ -945,17 +945,17 @@
         async function loadMarketOverview() {
             try {
                 const response = await fetchWithTimeout(`${CONFIG.API_BASE}/market`);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
                 updateMarketDisplay(data);
-                
+
             } catch (error) {
                 console.error('Failed to load market data:', error);
-                
+
                 // Show mock data
                 updateMarketDisplay({
                     fear_greed_index: 67,
@@ -970,14 +970,14 @@
             try {
                 const symbols = appState.watchlistSymbols.join(',');
                 const response = await fetchWithTimeout(`${CONFIG.API_BASE}/symbols?symbols=${symbols}`);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
                 updateWatchlistDisplay(data);
-                
+
             } catch (error) {
                 console.error('Failed to load watchlist data:', error);
                 updateWatchlistDisplay(generateMockPrices());
@@ -1012,12 +1012,12 @@
 
         function renderAlerts() {
             const alertsList = document.getElementById('alertsList');
-            
+
             if (!alertsList) {
                 console.error('Alerts list element not found');
                 return;
             }
-            
+
             if (appState.alerts.length === 0) {
                 alertsList.innerHTML = `
                     <div class="empty-state">
@@ -1046,7 +1046,7 @@
             const alertsHtml = filteredAlerts.map(alert => {
                 const severityClass = getSeverityClass(alert.severity);
                 const actionClass = getActionClass(alert.action);
-                
+
                 return `
                     <div class="alert-item ${severityClass}" onclick="viewAlertDetails('${alert.id}')">
                         <div class="alert-header">
@@ -1054,7 +1054,7 @@
                             <div class="alert-time">${formatTime(alert.timestamp)}</div>
                         </div>
                         <div class="alert-message">${escapeHtml(alert.message)}</div>
-                        
+
                         <div class="alert-metrics">
                             <div class="metric">
                                 <div class="metric-value ${alert.price_change_1h >= 0 ? 'positive' : 'negative'}">
@@ -1081,7 +1081,7 @@
                                 <div class="metric-label">Confidence</div>
                             </div>
                         </div>
-                        
+
                         <div class="alert-actions">
                             <button class="action-btn ${actionClass}" onclick="event.stopPropagation(); executeAction('${alert.action}', '${alert.symbol}')">
                                 ${alert.action}
@@ -1106,13 +1106,13 @@
                 safeUpdateElement('btcDominance', data.btc_dominance ? `${data.btc_dominance.toFixed(1)}%` : '--%');
                 safeUpdateElement('overallSentiment', data.overall_sentiment ? `${(data.overall_sentiment * 100).toFixed(0)}%` : '--');
                 safeUpdateElement('activeSession', data.active_session || '--');
-                
+
                 // Update sentiment meter
                 const sentimentFill = document.getElementById('sentimentFill');
                 if (sentimentFill && data.overall_sentiment) {
                     sentimentFill.style.width = `${data.overall_sentiment * 100}%`;
                 }
-                
+
             } catch (error) {
                 console.error('Error updating market display:', error);
             }
@@ -1120,12 +1120,12 @@
 
         function updateWatchlistDisplay(data) {
             const symbolList = document.getElementById('symbolList');
-            
+
             if (!symbolList) {
                 console.error('Symbol list element not found');
                 return;
             }
-            
+
             if (!Array.isArray(data) || data.length === 0) {
                 symbolList.innerHTML = `
                     <div class="empty-state">
@@ -1138,7 +1138,7 @@
             const symbolsHtml = data.map(item => {
                 const change24h = item.change_24h || 0;
                 const changeClass = change24h >= 0 ? 'positive' : 'negative';
-                
+
                 return `
                     <div class="symbol-item" onclick="viewSymbolDetails('${item.symbol}')">
                         <div class="symbol-info">
@@ -1164,10 +1164,10 @@
         function updateConnectionStatus(status) {
             const statusDot = document.getElementById('statusDot');
             if (!statusDot) return;
-            
+
             // Remove all status classes
             statusDot.classList.remove('connected', 'loading', 'error');
-            
+
             // Add appropriate class
             switch (status) {
                 case 'connected':
@@ -1186,7 +1186,7 @@
                     statusDot.style.background = 'var(--text-muted)';
                     statusDot.title = 'Disconnected';
             }
-            
+
             appState.connectionStatus = status;
         }
 
@@ -1251,16 +1251,16 @@
         function showError(message) {
             const container = document.querySelector('.container');
             if (!container) return;
-            
+
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.innerHTML = `
                 <strong>Error:</strong> ${escapeHtml(message)}
                 <button onclick="this.parentElement.remove()" style="float: right; background: none; border: none; color: inherit; cursor: pointer;">×</button>
             `;
-            
+
             container.insertBefore(errorDiv, container.firstChild);
-            
+
             // Auto-remove after 10 seconds
             setTimeout(() => {
                 if (errorDiv.parentElement) {
@@ -1272,7 +1272,7 @@
         async function fetchWithTimeout(url, options = {}, timeout = 10000) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
-            
+
             try {
                 const response = await fetch(url, {
                     ...options,
@@ -1373,12 +1373,12 @@
         function connectWebSocket() {
             try {
                 const ws = new WebSocket(`ws://${window.location.host}/ws/alerts`);
-                
+
                 ws.onopen = function() {
                     console.log('🔗 WebSocket connected');
                     updateConnectionStatus('connected');
                 };
-                
+
                 ws.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
@@ -1387,20 +1387,20 @@
                         console.error('WebSocket message parse error:', error);
                     }
                 };
-                
+
                 ws.onclose = function() {
                     console.log('🔗 WebSocket disconnected');
                     updateConnectionStatus('disconnected');
-                    
+
                     // Reconnect after 5 seconds
                     setTimeout(connectWebSocket, 5000);
                 };
-                
+
                 ws.onerror = function(error) {
                     console.error('WebSocket error:', error);
                     updateConnectionStatus('error');
                 };
-                
+
             } catch (error) {
                 console.error('WebSocket connection failed:', error);
             }
@@ -1415,17 +1415,17 @@
                         appState.alerts.unshift(data.alert);
                         updateAlertCounts();
                         renderAlerts();
-                        
+
                         // Show notification
                         showNotification(data.alert);
                     }
                     break;
-                    
+
                 case 'alert_update':
                     console.log('📝 Alert updated:', data.alert_id);
                     // Update existing alert
                     break;
-                    
+
                 case 'ping':
                     // Respond to ping
                     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1443,7 +1443,7 @@
                     icon: '🌙'
                 });
             }
-            
+
             // Update refresh badge
             const badge = document.getElementById('refreshBadge');
             if (badge) {

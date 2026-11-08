@@ -145,21 +145,21 @@
             border-left: 4px solid;
         }
 
-        .alert-high { 
-            background: #fef2f2; 
-            border-color: #ef4444; 
+        .alert-high {
+            background: #fef2f2;
+            border-color: #ef4444;
             color: #991b1b;
         }
 
-        .alert-medium { 
-            background: #fffbeb; 
-            border-color: #f59e0b; 
+        .alert-medium {
+            background: #fffbeb;
+            border-color: #f59e0b;
             color: #92400e;
         }
 
-        .alert-low { 
-            background: #f0f9ff; 
-            border-color: #3b82f6; 
+        .alert-low {
+            background: #f0f9ff;
+            border-color: #3b82f6;
             color: #1e40af;
         }
 
@@ -223,11 +223,11 @@
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .metrics-grid {
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
-            
+
             .status-bar {
                 flex-direction: column;
                 gap: 15px;
@@ -326,7 +326,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeCharts();
             loadDashboardData();
-            
+
             // Auto-refresh every 5 minutes
             setInterval(loadDashboardData, 5 * 60 * 1000);
         });
@@ -335,7 +335,7 @@
             try {
                 // Show loading state
                 updateStatusBar('loading');
-                
+
                 // Fetch latest sentiment data
                 const [latestResponse, historyResponse, statsResponse] = await Promise.all([
                     axios.get(`${API_BASE}/sentiment/latest`),
@@ -349,21 +349,21 @@
 
                 // Update status bar
                 updateStatusBar('loaded', latest);
-                
+
                 // Update metrics
                 updateMetrics(latest);
-                
+
                 // Update charts
                 updateSentimentChart(history.history);
                 updateSourceChart(latest);
                 updateSymbolChart(latest);
                 updateTierChart(latest);
-                
+
                 // Update alerts
                 updateAlerts(latest.divergences || []);
 
                 console.log('Dashboard updated successfully');
-                
+
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 updateStatusBar('error');
@@ -390,10 +390,10 @@
 
             if (data && data.overall_metrics) {
                 const metrics = data.overall_metrics;
-                
+
                 elements.sentiment.textContent = (metrics.weighted_sentiment * 100).toFixed(1) + '%';
                 elements.sentiment.className = 'status-value ' + getSentimentClass(metrics.weighted_sentiment);
-                
+
                 elements.classification.textContent = metrics.fear_greed_classification || 'Unknown';
                 elements.sources.textContent = metrics.total_data_points || 0;
                 elements.updated.textContent = new Date().toLocaleTimeString();
@@ -402,25 +402,25 @@
 
         function updateMetrics(data) {
             const metrics = data.overall_metrics;
-            
-            document.getElementById('metric-confidence').textContent = 
+
+            document.getElementById('metric-confidence').textContent =
                 (metrics.confidence * 100).toFixed(1) + '%';
-            
-            document.getElementById('metric-momentum').textContent = 
+
+            document.getElementById('metric-momentum').textContent =
                 (metrics.momentum > 0 ? '+' : '') + (metrics.momentum * 100).toFixed(1) + '%';
-            document.getElementById('metric-momentum').className = 
+            document.getElementById('metric-momentum').className =
                 'metric-value ' + (metrics.momentum > 0 ? 'sentiment-positive' : 'sentiment-negative');
-            
-            document.getElementById('metric-data-quality').textContent = 
+
+            document.getElementById('metric-data-quality').textContent =
                 (metrics.data_quality_score * 100).toFixed(1) + '%';
-            
-            document.getElementById('metric-divergences').textContent = 
+
+            document.getElementById('metric-divergences').textContent =
                 (data.divergences || []).length;
         }
 
         function updateAlerts(divergences) {
             const container = document.getElementById('alerts-container');
-            
+
             if (!divergences || divergences.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #10b981; padding: 20px;">✅ No significant divergences detected</p>';
                 return;

@@ -18,15 +18,17 @@ def _require_sentiment_url():
         return None, (jsonify({"error": "SENTIMENT_PIPELINE_URL not set"}), 503)
     return SENTIMENT_API_URL.rstrip("/"), None
 
-@app.route('/api/health')
+
+@app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "service": "proxy"})
 
-@app.route('/api/sentiment/latest')
+
+@app.route("/api/sentiment/latest")
 def sentiment_latest():
     """Proxy to sentiment API"""
-    symbol = request.args.get('symbol', 'BTC')
-    fresh = request.args.get('fresh', '0')
+    symbol = request.args.get("symbol", "BTC")
+    fresh = request.args.get("fresh", "0")
 
     try:
         base, err = _require_sentiment_url()
@@ -34,9 +36,9 @@ def sentiment_latest():
             return err
         # Forward to sentiment API
         url = f"{base}/sentiment/latest"
-        params = {'symbol': symbol}
-        if fresh == '1':
-            params['fresh'] = '1'
+        params = {"symbol": symbol}
+        if fresh == "1":
+            params["fresh"] = "1"
 
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
@@ -44,22 +46,24 @@ def sentiment_latest():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/sentiment/tiered')
+
+@app.route("/api/sentiment/tiered")
 def sentiment_tiered():
     """Proxy tiered sentiment"""
-    symbol = request.args.get('symbol', 'BTC')
+    symbol = request.args.get("symbol", "BTC")
     try:
         base, err = _require_sentiment_url()
         if err:
             return err
         url = f"{base}/sentiment/tiered"
-        response = requests.get(url, params={'symbol': symbol}, timeout=10)
+        response = requests.get(url, params={"symbol": symbol}, timeout=10)
         response.raise_for_status()
         return jsonify(response.json())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/sentiment/sources')
+
+@app.route("/api/sentiment/sources")
 def sentiment_sources():
     """Proxy sentiment sources"""
     try:
@@ -73,7 +77,8 @@ def sentiment_sources():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/sentiment/health')
+
+@app.route("/api/sentiment/health")
 def sentiment_health():
     """Proxy sentiment health"""
     try:
@@ -87,6 +92,7 @@ def sentiment_health():
     except Exception as e:
         return jsonify({"error": str(e), "status": "unhealthy"}), 503
 
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5003))
-    app.run(host='127.0.0.1', port=port, debug=True)
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5003))
+    app.run(host="127.0.0.1", port=port, debug=True)

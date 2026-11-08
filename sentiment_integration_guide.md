@@ -94,7 +94,7 @@ async function loadSentimentData() {
     try {
         const response = await fetch(`${API_URL}/sentiment/latest`);
         const data = await response.json();
-        
+
         // Update UI with real data
         updateSentimentUI(data);
     } catch (error) {
@@ -104,21 +104,21 @@ async function loadSentimentData() {
 
 function updateSentimentUI(data) {
     // Overall score
-    document.getElementById('overallScore').textContent = 
+    document.getElementById('overallScore').textContent =
         Math.round(data.overall_sentiment * 100);
-    
+
     // Fear & Greed
-    document.getElementById('fearGreed').textContent = 
+    document.getElementById('fearGreed').textContent =
         `${getFearGreedLabel(data.fear_greed_index)} (${data.fear_greed_index})`;
-    
+
     // Social volume
-    document.getElementById('socialVolume').textContent = 
+    document.getElementById('socialVolume').textContent =
         `${data.social_metrics.volume_change > 0 ? '+' : ''}${data.social_metrics.volume_change}%`;
-    
+
     // Sentiment bar
-    document.querySelector('.sentiment-fill').style.width = 
+    document.querySelector('.sentiment-fill').style.width =
         `${data.overall_sentiment * 100}%`;
-    
+
     // Update charts with historical data
     updateCharts(data);
 }
@@ -150,7 +150,7 @@ const ws = new WebSocket('ws://localhost:8001/ws/sentiment');
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    
+
     if (data.type === 'sentiment_update') {
         updateSentimentUI(data.data);
     }
@@ -190,13 +190,13 @@ reddit = praw.Reddit(
 def get_reddit_sentiment(subreddit_name: str):
     subreddit = reddit.subreddit(subreddit_name)
     posts = subreddit.hot(limit=100)
-    
+
     sentiment_scores = []
     for post in posts:
         # Analyze post title and body
         score = analyze_text_sentiment(post.title + " " + post.selftext)
         sentiment_scores.append(score)
-    
+
     return sum(sentiment_scores) / len(sentiment_scores)
 ```
 
@@ -244,12 +244,12 @@ api = tweepy.API(auth)
 
 def get_twitter_sentiment(query: str):
     tweets = api.search_tweets(q=query, count=100)
-    
+
     sentiment_scores = []
     for tweet in tweets:
         score = analyze_text_sentiment(tweet.text)
         sentiment_scores.append(score)
-    
+
     return sum(sentiment_scores) / len(sentiment_scores)
 ```
 
@@ -263,23 +263,23 @@ In `sentiment_api.py`, replace the mock generators:
 @app.get("/sentiment/latest", response_model=SentimentResponse)
 async def get_latest_sentiment():
     """Get real sentiment data"""
-    
+
     # Real data from sources
     overall_sentiment = calculate_weighted_sentiment([
         (get_coindesk_sentiment(), 0.9),      # Tier 1
         (get_reddit_sentiment(), 0.7),         # Tier 2
         (get_telegram_sentiment(), 0.5),       # Tier 3
     ])
-    
+
     fear_greed = get_fear_greed_index()  # Real API
-    
+
     social_breakdown = SocialBreakdown(
         reddit=get_reddit_sentiment(),
         twitter=get_twitter_sentiment("#Bitcoin"),
         telegram=get_telegram_sentiment(),
         chan=get_4chan_sentiment()
     )
-    
+
     return SentimentResponse(
         overall_sentiment=overall_sentiment,
         fear_greed_index=fear_greed,
@@ -303,7 +303,7 @@ Base = declarative_base()
 
 class SentimentRecord(Base):
     __tablename__ = 'sentiment_history'
-    
+
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime, default=datetime.now)
     overall_sentiment = Column(Float)
@@ -320,14 +320,14 @@ Base.metadata.create_all(engine)
 def save_sentiment_snapshot(data: SentimentResponse):
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     record = SentimentRecord(
         overall_sentiment=data.overall_sentiment,
         fear_greed_index=data.fear_greed_index,
         reddit_sentiment=data.social_breakdown.reddit,
         twitter_sentiment=data.social_breakdown.twitter
     )
-    
+
     session.add(record)
     session.commit()
     session.close()

@@ -6,6 +6,7 @@ from datetime import datetime
 
 class Memory:
     """Simple log storage with optional file persistence (append-only)."""
+
     def __init__(self, logs=None, persist_path=None, max_entries=500):
         self.logs = logs or []
         self.persist_path = persist_path
@@ -17,12 +18,12 @@ class Memory:
     def _load(self):
         try:
             if os.path.exists(self.persist_path):
-                with open(self.persist_path, 'r') as f:
+                with open(self.persist_path, "r") as f:
                     for line in f:
                         line = line.strip()
                         if line:
                             self.logs.append(line)
-                self.logs = self.logs[-self.max_entries:]
+                self.logs = self.logs[-self.max_entries :]
         except Exception:
             pass
 
@@ -30,8 +31,8 @@ class Memory:
         if not self.persist_path:
             return
         try:
-            with open(self.persist_path, 'a') as f:
-                f.write(self.logs[-1] + '\n')
+            with open(self.persist_path, "a") as f:
+                f.write(self.logs[-1] + "\n")
         except Exception:
             pass
 
@@ -42,7 +43,7 @@ class Memory:
         with self._lock:
             self.logs.append(record)
             if len(self.logs) > self.max_entries:
-                self.logs = self.logs[-self.max_entries:]
+                self.logs = self.logs[-self.max_entries :]
             self._flush()
 
     def search(self, term: str):
@@ -58,6 +59,7 @@ class Memory:
 
 def _parse_added_entries(added_entries):
     import re
+
     tracked = {}
     pattern = re.compile(r"User added (\w+) to their watchlist at \$([\d.]+)")
     for entry in added_entries:
@@ -70,12 +72,17 @@ def _parse_added_entries(added_entries):
 
 def _apply_updates(tracked, update_entries):
     import re
+
     pattern = re.compile(r"(\w+) is now at \$([\d.]+) \(([+-]?\d+\.\d+)%\)")
     for entry in update_entries:
         match = pattern.search(entry)
         if not match:
             continue
-        symbol, price, delta = match.group(1), float(match.group(2)), float(match.group(3))
+        symbol, price, delta = (
+            match.group(1),
+            float(match.group(2)),
+            float(match.group(3)),
+        )
         if symbol in tracked:
             tracked[symbol]["updates"].append({"price": price, "delta": delta})
 
@@ -87,20 +94,27 @@ def _build_risk_alerts(tracked):
         if not updates:
             continue
         recent = updates[-1]
-        net_change = ((recent["price"] - data["addedAtPrice"]) / data["addedAtPrice"]) * 100
+        net_change = (
+            (recent["price"] - data["addedAtPrice"]) / data["addedAtPrice"]
+        ) * 100
         if net_change <= -5:
             alerts.append(f"⚠️ {symbol} has dropped {net_change:.2f}% since added.")
         elif net_change >= 10:
-            alerts.append(f"📈 {symbol} has surged {net_change:.2f}% — consider securing gains.")
+            alerts.append(
+                f"📈 {symbol} has surged {net_change:.2f}% — consider securing gains."
+            )
         # Flat / stagnation detection
         tail = updates[-3:]
         if tail and all(abs(u["delta"]) < 0.2 for u in tail):
-            alerts.append(f"😐 {symbol} has shown minimal change in recent updates — might be stagnating.")
+            alerts.append(
+                f"😐 {symbol} has shown minimal change in recent updates — might be stagnating."
+            )
     return alerts
 
 
 def _build_suggestions(tracked):
     import re
+
     suggestions = []
     high_cap = [s for s in tracked.keys() if re.match(r"^[A-Z]{2,4}$", s)]
     if len(high_cap) >= 3:

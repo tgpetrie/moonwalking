@@ -86,4 +86,3 @@ See `frontend/src/index.css` for:
    - Background rabbit is subtle
 
 If 1‑minute snapshot is slow or missing, panels remain stable since arrays default to `[]` and errors are separated.
-

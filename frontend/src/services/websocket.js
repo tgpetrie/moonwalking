@@ -45,7 +45,7 @@ class WebSocketManager {
         console.log('WebSocket disconnected:', reason);
         this.isConnected = false;
         this.emit('connection', { status: 'disconnected', reason });
-        
+
         if (reason === 'io server disconnect') {
           // Server disconnected, try to reconnect
           this.handleReconnect();
@@ -90,7 +90,7 @@ class WebSocketManager {
       this.reconnectAttempts++;
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
       console.log(`Attempting to reconnect in ${delay}ms... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
+
       setTimeout(() => {
         this.connect();
       }, delay);
@@ -105,7 +105,7 @@ class WebSocketManager {
       this.subscribers.set(event, new Set());
     }
     this.subscribers.get(event).add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       const callbacks = this.subscribers.get(event);

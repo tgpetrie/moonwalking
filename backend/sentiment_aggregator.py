@@ -17,6 +17,7 @@ except Exception:
     aiohttp = None
 
 import requests
+
 try:
     import feedparser  # type: ignore
 except Exception:
@@ -46,14 +47,19 @@ from sentiment_aggregator_enhanced import aggregator as _enhanced_aggregator
 # Custom Exceptions
 # ----------------------------
 
+
 class SentimentAggregatorError(Exception):
     """Base exception for sentiment aggregator errors."""
+
     pass
 
 
 class SourceFetchError(SentimentAggregatorError):
     """Raised when a data source fetch operation fails."""
-    def __init__(self, source_name: str, message: str, original_error: Optional[Exception] = None):
+
+    def __init__(
+        self, source_name: str, message: str, original_error: Optional[Exception] = None
+    ):
         self.source_name = source_name
         self.original_error = original_error
         super().__init__(f"{source_name}: {message}")
@@ -61,16 +67,19 @@ class SourceFetchError(SentimentAggregatorError):
 
 class CacheError(SentimentAggregatorError):
     """Raised when cache operations fail."""
+
     pass
 
 
 class ConfigError(SentimentAggregatorError):
     """Raised when configuration loading or validation fails."""
+
     pass
 
 
 class SymbolNormalizationError(SentimentAggregatorError):
     """Raised when symbol normalization fails."""
+
     pass
 
 
@@ -81,21 +90,22 @@ class SymbolNormalizationError(SentimentAggregatorError):
 # Configure structured logging for sentiment aggregator
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 logger = logging.getLogger(__name__)
 
 # Set logging level from environment variable if provided
-_log_level = os.getenv('SENTIMENT_LOG_LEVEL', 'INFO').upper()
-if _log_level in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+_log_level = os.getenv("SENTIMENT_LOG_LEVEL", "INFO").upper()
+if _log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
     logger.setLevel(getattr(logging, _log_level))
 
 
 # ----------------------------
 # Circuit Breaker for Source Reliability
 # ----------------------------
+
 
 class CircuitBreaker:
     """Circuit breaker to prevent repeated calls to failing sources."""
@@ -147,6 +157,7 @@ _CIRCUIT_BREAKER = CircuitBreaker()
 # Sentiment History Storage
 # ----------------------------
 
+
 class SentimentHistory:
     """Store sentiment history snapshots for trending analysis."""
 
@@ -155,7 +166,9 @@ class SentimentHistory:
         self._history: Dict[str, List[Dict[str, Any]]] = {}
         self._lock = threading.Lock()
 
-    def add_snapshot(self, symbol: str, score: float, fear_greed: Optional[int] = None) -> None:
+    def add_snapshot(
+        self, symbol: str, score: float, fear_greed: Optional[int] = None
+    ) -> None:
         """Add a sentiment snapshot for a symbol."""
         with self._lock:
             if symbol not in self._history:
@@ -164,14 +177,14 @@ class SentimentHistory:
             snapshot = {
                 "timestamp": int(time.time()),
                 "score": float(score),
-                "fear_greed": fear_greed
+                "fear_greed": fear_greed,
             }
 
             self._history[symbol].append(snapshot)
 
             # Keep only recent snapshots (circular buffer)
             if len(self._history[symbol]) > self.max_snapshots:
-                self._history[symbol] = self._history[symbol][-self.max_snapshots:]
+                self._history[symbol] = self._history[symbol][-self.max_snapshots :]
 
             logger.debug(f"Added sentiment snapshot for {symbol}: score={score:.3f}")
 
@@ -182,12 +195,11 @@ class SentimentHistory:
                 return []
 
             cutoff = time.time() - (hours * 3600)
-            recent = [
-                s for s in self._history[symbol]
-                if s["timestamp"] >= cutoff
-            ]
+            recent = [s for s in self._history[symbol] if s["timestamp"] >= cutoff]
 
-            logger.debug(f"Retrieved {len(recent)} history snapshots for {symbol} (last {hours}h)")
+            logger.debug(
+                f"Retrieved {len(recent)} history snapshots for {symbol} (last {hours}h)"
+            )
             return recent
 
 
@@ -230,23 +242,31 @@ class MetricsTracker:
 
             # Prune old requests (older than 1 hour)
             cutoff = time.time() - 3600
-            self._requests_last_hour = [t for t in self._requests_last_hour if t >= cutoff]
+            self._requests_last_hour = [
+                t for t in self._requests_last_hour if t >= cutoff
+            ]
 
     def record_source_failure(self, source_name: str):
         """Record a source fetch failure."""
         with self._lock:
-            self._source_failures[source_name] = self._source_failures.get(source_name, 0) + 1
+            self._source_failures[source_name] = (
+                self._source_failures.get(source_name, 0) + 1
+            )
 
     def record_source_success(self, source_name: str):
         """Record a source fetch success."""
         with self._lock:
-            self._source_successes[source_name] = self._source_successes.get(source_name, 0) + 1
+            self._source_successes[source_name] = (
+                self._source_successes.get(source_name, 0) + 1
+            )
 
     def get_metrics(self) -> Dict[str, Any]:
         """Get current metrics snapshot."""
         with self._lock:
             total_cache_ops = self._cache_hits + self._cache_misses
-            cache_hit_rate = (self._cache_hits / total_cache_ops) if total_cache_ops > 0 else 0.0
+            cache_hit_rate = (
+                (self._cache_hits / total_cache_ops) if total_cache_ops > 0 else 0.0
+            )
 
             avg_response_time = (
                 sum(self._response_times) / len(self._response_times)
@@ -256,12 +276,16 @@ class MetricsTracker:
 
             # Calculate source availability (successes / total attempts)
             source_availability = {}
-            all_sources = set(self._source_failures.keys()) | set(self._source_successes.keys())
+            all_sources = set(self._source_failures.keys()) | set(
+                self._source_successes.keys()
+            )
             for source in all_sources:
                 failures = self._source_failures.get(source, 0)
                 successes = self._source_successes.get(source, 0)
                 total_attempts = failures + successes
-                availability = (successes / total_attempts) if total_attempts > 0 else 0.0
+                availability = (
+                    (successes / total_attempts) if total_attempts > 0 else 0.0
+                )
                 source_availability[source] = round(availability, 3)
 
             return {
@@ -283,6 +307,7 @@ _METRICS = MetricsTracker()
 # ----------------------------
 # TTL cache (in-process)
 # ----------------------------
+
 
 @dataclass
 class CacheEntry:
@@ -317,7 +342,9 @@ class TTLCache:
 class RedisCache:
     """Redis-backed cache with automatic fallback to in-memory TTL cache."""
 
-    def __init__(self, redis_url: str, key_prefix: str = "", fallback_to_memory: bool = True):
+    def __init__(
+        self, redis_url: str, key_prefix: str = "", fallback_to_memory: bool = True
+    ):
         self.key_prefix = key_prefix
         self.fallback_to_memory = fallback_to_memory
         self._memory_cache = TTLCache() if fallback_to_memory else None
@@ -362,7 +389,7 @@ class RedisCache:
                     logger.debug(f"Redis cache miss: {key}")
                     return None
                 # Deserialize from JSON
-                value = json.loads(data.decode('utf-8'))
+                value = json.loads(data.decode("utf-8"))
                 logger.debug(f"Redis cache hit: {key}")
                 return value
             except Exception as e:
@@ -384,7 +411,7 @@ class RedisCache:
         if self._redis_available and self._redis_client:
             try:
                 # Serialize to JSON
-                data = json.dumps(value).encode('utf-8')
+                data = json.dumps(value).encode("utf-8")
                 self._redis_client.setex(prefixed_key, ttl, data)
                 logger.debug(f"Redis cache set: {key} (TTL={ttl}s)")
                 return
@@ -404,7 +431,9 @@ class RedisCache:
                 pattern = f"{self.key_prefix}*"
                 cursor = 0
                 while True:
-                    cursor, keys = self._redis_client.scan(cursor, match=pattern, count=100)
+                    cursor, keys = self._redis_client.scan(
+                        cursor, match=pattern, count=100
+                    )
                     if keys:
                         self._redis_client.delete(*keys)
                     if cursor == 0:
@@ -468,7 +497,12 @@ def load_config() -> Dict[str, Any]:
             "cache_ttl_seconds": 300,
             "max_rss_items": 25,
             "max_reddit_posts": 40,
-            "tier_weights": {"tier1": 0.85, "tier2": 0.70, "tier3": 0.50, "fringe": 0.30},
+            "tier_weights": {
+                "tier1": 0.85,
+                "tier2": 0.70,
+                "tier3": 0.50,
+                "fringe": 0.30,
+            },
             "divergence_threshold": 0.12,
             "source_ttl_seconds": {
                 "fear_greed": 3600,
@@ -481,8 +515,18 @@ def load_config() -> Dict[str, Any]:
             "fear_greed": {"enabled": True, "tier": "tier1", "weight": 0.90},
             "coingecko": {"enabled": True, "tier": "tier1", "weight": 0.85},
             "rss": {"enabled": False, "tier": "tier2", "weight": 0.75, "feeds": []},
-            "reddit_global": {"enabled": False, "tier": "tier2", "weight": 0.75, "subreddits": []},
-            "reddit_symbol": {"enabled": False, "tier": "tier3", "weight": 0.60, "subreddits": []},
+            "reddit_global": {
+                "enabled": False,
+                "tier": "tier2",
+                "weight": 0.75,
+                "subreddits": [],
+            },
+            "reddit_symbol": {
+                "enabled": False,
+                "tier": "tier3",
+                "weight": 0.60,
+                "subreddits": [],
+            },
         },
         "lexicon": {},
     }
@@ -521,7 +565,9 @@ def _get_http_session() -> Optional[Any]:
                 timeout=timeout,
                 raise_for_status=False,  # We'll handle status manually
             )
-            logger.info("Created persistent HTTP session with connection pooling (limit=100, per_host=30)")
+            logger.info(
+                "Created persistent HTTP session with connection pooling (limit=100, per_host=30)"
+            )
 
         return _HTTP_SESSION
 
@@ -571,7 +617,9 @@ def _ttl_value(name: str, default: int) -> int:
     return int(default)
 
 
-RESULT_TTL = _ttl_value("cache", int(_SENTIMENT_CFG.get("cache_ttl_seconds", 300) or 300))
+RESULT_TTL = _ttl_value(
+    "cache", int(_SENTIMENT_CFG.get("cache_ttl_seconds", 300) or 300)
+)
 FG_TTL = _ttl_value("fear_greed", 3600)
 CG_TTL = _ttl_value("coingecko", 300)
 RSS_TTL = _ttl_value("rss", 900)
@@ -604,7 +652,9 @@ if isinstance(_LEX, dict) and _LEX:
             continue
     if lex_update:
         _ANALYZER.lexicon.update(lex_update)
-        logger.info(f"Updated VADER lexicon with {len(lex_update)} crypto-specific terms")
+        logger.info(
+            f"Updated VADER lexicon with {len(lex_update)} crypto-specific terms"
+        )
 
 
 def vader_score_0_1(text: str) -> float:
@@ -620,24 +670,89 @@ def vader_score_0_1(text: str) -> float:
 # Trending Topics Extraction
 # ----------------------------
 
-def extract_trending_topics(rss_data: Dict[str, Any], reddit_data: Dict[str, Any], max_topics: int = 10) -> List[Dict[str, Any]]:
+
+def extract_trending_topics(
+    rss_data: Dict[str, Any], reddit_data: Dict[str, Any], max_topics: int = 10
+) -> List[Dict[str, Any]]:
     """Extract trending crypto topics from RSS and Reddit content."""
     from collections import Counter
     import re
 
     # Crypto-related keywords to look for
     crypto_keywords = {
-        "bitcoin", "btc", "ethereum", "eth", "crypto", "blockchain",
-        "defi", "nft", "web3", "metaverse", "dao", "mining",
-        "staking", "yield", "token", "coin", "altcoin", "memecoin",
-        "binance", "bnb", "solana", "sol", "cardano", "ada",
-        "ripple", "xrp", "dogecoin", "doge", "shiba", "polygon",
-        "matic", "avalanche", "avax", "polkadot", "dot",
-        "etf", "sec", "regulation", "halving", "bullish", "bearish",
-        "pump", "dump", "moon", "hodl", "fud", "fomo"
+        "bitcoin",
+        "btc",
+        "ethereum",
+        "eth",
+        "crypto",
+        "blockchain",
+        "defi",
+        "nft",
+        "web3",
+        "metaverse",
+        "dao",
+        "mining",
+        "staking",
+        "yield",
+        "token",
+        "coin",
+        "altcoin",
+        "memecoin",
+        "binance",
+        "bnb",
+        "solana",
+        "sol",
+        "cardano",
+        "ada",
+        "ripple",
+        "xrp",
+        "dogecoin",
+        "doge",
+        "shiba",
+        "polygon",
+        "matic",
+        "avalanche",
+        "avax",
+        "polkadot",
+        "dot",
+        "etf",
+        "sec",
+        "regulation",
+        "halving",
+        "bullish",
+        "bearish",
+        "pump",
+        "dump",
+        "moon",
+        "hodl",
+        "fud",
+        "fomo",
     }
 
-    stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "is", "was", "are", "be", "been", "being"}
+    stopwords = {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "as",
+        "is",
+        "was",
+        "are",
+        "be",
+        "been",
+        "being",
+    }
 
     topic_counter = Counter()
     topic_sentiment: Dict[str, List[float]] = {}
@@ -647,7 +762,7 @@ def extract_trending_topics(rss_data: Dict[str, Any], reddit_data: Dict[str, Any
         for feed in rss_data.get("feeds", []):
             for item in feed.get("entries", []):
                 title = str(item.get("title", "")).lower()
-                words = re.findall(r'\b\w+\b', title)
+                words = re.findall(r"\b\w+\b", title)
                 for word in words:
                     if word in crypto_keywords and word not in stopwords:
                         topic_counter[word] += 1
@@ -661,7 +776,7 @@ def extract_trending_topics(rss_data: Dict[str, Any], reddit_data: Dict[str, Any
         for subreddit in reddit_data.get("subreddits", []):
             for post in subreddit.get("posts", []):
                 title = str(post.get("title", "")).lower()
-                words = re.findall(r'\b\w+\b', title)
+                words = re.findall(r"\b\w+\b", title)
                 for word in words:
                     if word in crypto_keywords and word not in stopwords:
                         topic_counter[word] += 1
@@ -672,14 +787,22 @@ def extract_trending_topics(rss_data: Dict[str, Any], reddit_data: Dict[str, Any
     # Build trending topics list
     trending = []
     for topic, mentions in topic_counter.most_common(max_topics):
-        avg_sentiment = sum(topic_sentiment[topic]) / len(topic_sentiment[topic]) if topic_sentiment.get(topic) else 0.5
-        trending.append({
-            "topic": topic.capitalize(),
-            "mentions": mentions,
-            "sentiment": round(avg_sentiment, 3)
-        })
+        avg_sentiment = (
+            sum(topic_sentiment[topic]) / len(topic_sentiment[topic])
+            if topic_sentiment.get(topic)
+            else 0.5
+        )
+        trending.append(
+            {
+                "topic": topic.capitalize(),
+                "mentions": mentions,
+                "sentiment": round(avg_sentiment, 3),
+            }
+        )
 
-    logger.debug(f"Extracted {len(trending)} trending topics (from {len(topic_counter)} unique keywords)")
+    logger.debug(
+        f"Extracted {len(trending)} trending topics (from {len(topic_counter)} unique keywords)"
+    )
     return trending
 
 
@@ -913,7 +1036,9 @@ async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
             },
         }
         _SOURCE_CACHE.set(cache_key, result, CG_TTL)
-        logger.info(f"CoinGecko {sym}: score={score:.3f}, price_24h={ch24:.2f}% [fetched in {elapsed:.0f}ms]")
+        logger.info(
+            f"CoinGecko {sym}: score={score:.3f}, price_24h={ch24:.2f}% [fetched in {elapsed:.0f}ms]"
+        )
         return result
     except Exception as e:
         logger.error(f"Failed to fetch CoinGecko metrics for {sym} (id={cid}): {e}")
@@ -957,7 +1082,15 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
 
             if local_scores:
                 avg = sum(local_scores) / len(local_scores)
-                results.append({"name": name, "url": url, "items": len(local_scores), "avg_score_0_1": float(avg), "weight": weight})
+                results.append(
+                    {
+                        "name": name,
+                        "url": url,
+                        "items": len(local_scores),
+                        "avg_score_0_1": float(avg),
+                        "weight": weight,
+                    }
+                )
                 rep = max(1, int(round(weight * 2)))
                 weighted_samples.extend([avg] * rep)
                 total_items += len(local_scores)
@@ -966,10 +1099,17 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
                 logger.debug(f"RSS feed {name} returned no items")
         except Exception as e:
             logger.error(f"Failed to fetch RSS feed {name} ({url}): {e}")
-            results.append({"name": name, "url": url, "error": str(e), "weight": weight})
+            results.append(
+                {"name": name, "url": url, "error": str(e), "weight": weight}
+            )
 
     if not weighted_samples:
-        result = {"enabled": True, "score_0_1": None, "feeds": results, "items": total_items}
+        result = {
+            "enabled": True,
+            "score_0_1": None,
+            "feeds": results,
+            "items": total_items,
+        }
         _SOURCE_CACHE.set(cache_key, result, RSS_TTL)
         return result
 
@@ -981,7 +1121,9 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
         "items": total_items,
     }
     _SOURCE_CACHE.set(cache_key, result, RSS_TTL)
-    logger.info(f"RSS sentiment: score={avg_score:.3f}, feeds={len(results)}, items={total_items}")
+    logger.info(
+        f"RSS sentiment: score={avg_score:.3f}, feeds={len(results)}, items={total_items}"
+    )
     return result
 
 
@@ -994,12 +1136,16 @@ def _praw_client() -> Optional[Any]:
     if not cid or not csec:
         return None
     try:
-        return praw.Reddit(client_id=cid, client_secret=csec, user_agent=ua, check_for_async=False)
+        return praw.Reddit(
+            client_id=cid, client_secret=csec, user_agent=ua, check_for_async=False
+        )
     except Exception:
         return None
 
 
-def fetch_reddit_sentiment(subreddits: List[str], query: Optional[str], max_posts: int) -> Dict[str, Any]:
+def fetch_reddit_sentiment(
+    subreddits: List[str], query: Optional[str], max_posts: int
+) -> Dict[str, Any]:
     cache_key = _hash_key("reddit", ",".join(subreddits or []), query or "")
     cached = _SOURCE_CACHE.get(cache_key)
     if cached is not None:
@@ -1041,17 +1187,32 @@ def fetch_reddit_sentiment(subreddits: List[str], query: Optional[str], max_post
 
             if local_scores:
                 avg = sum(local_scores) / len(local_scores)
-                per_sub.append({"subreddit": sr, "items": len(local_scores), "mentions": mentions if q else None, "avg_score_0_1": float(avg)})
+                per_sub.append(
+                    {
+                        "subreddit": sr,
+                        "items": len(local_scores),
+                        "mentions": mentions if q else None,
+                        "avg_score_0_1": float(avg),
+                    }
+                )
                 scores.append(avg)
                 scored += len(local_scores)
                 total_mentions += mentions
             else:
-                per_sub.append({"subreddit": sr, "items": 0, "mentions": mentions if q else None})
+                per_sub.append(
+                    {"subreddit": sr, "items": 0, "mentions": mentions if q else None}
+                )
         except Exception as e:
             per_sub.append({"subreddit": sr, "error": str(e)})
 
     if not scores:
-        result = {"enabled": True, "score_0_1": None, "items": scored, "mentions": total_mentions if q else None, "subreddits": per_sub}
+        result = {
+            "enabled": True,
+            "score_0_1": None,
+            "items": scored,
+            "mentions": total_mentions if q else None,
+            "subreddits": per_sub,
+        }
         _SOURCE_CACHE.set(cache_key, result, REDDIT_TTL)
         return result
 
@@ -1073,7 +1234,9 @@ def fetch_reddit_sentiment(subreddits: List[str], query: Optional[str], max_post
 # ------------------------------------------------------------------
 
 
-def fetch_reddit_mentions(subreddits: List[str], symbol: Optional[str], max_posts: int) -> Dict[str, Any]:
+def fetch_reddit_mentions(
+    subreddits: List[str], symbol: Optional[str], max_posts: int
+) -> Dict[str, Any]:
     """Compatibility shim for older `fetch_reddit_mentions` name.
 
     Delegates to `fetch_reddit_sentiment`. Accepts `symbol` which maps
@@ -1086,7 +1249,9 @@ def fetch_reddit_mentions(subreddits: List[str], symbol: Optional[str], max_post
         raise
 
 
-def fetch_reddit_public_mentions(subreddits: List[str], symbol: Optional[str], max_posts: int) -> Dict[str, Any]:
+def fetch_reddit_public_mentions(
+    subreddits: List[str], symbol: Optional[str], max_posts: int
+) -> Dict[str, Any]:
     """Alias for public-facing reddit mention collector used in older code/tests."""
     return fetch_reddit_mentions(subreddits, symbol, max_posts)
 
@@ -1104,7 +1269,9 @@ def _tweepy_client() -> Optional[Any]:
         return None
 
 
-async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Dict[str, Any]:
+async def fetch_twitter_sentiment_async(
+    symbol: str, max_tweets: int = 50
+) -> Dict[str, Any]:
     """Fetch Twitter sentiment for a symbol using Twitter API v2."""
     cache_key = _hash_key("twitter", symbol)
     cached = _SOURCE_CACHE.get(cache_key)
@@ -1116,7 +1283,6 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
         result = {"enabled": False, "reason": "twitter_not_configured"}
         _SOURCE_CACHE.set(cache_key, result, 600)  # Cache disabled status for 10 min
         return result
-
 
     async def fetch_coingecko_coin_data(sym: str) -> Dict[str, Any]:
         """Compatibility shim for older `fetch_coingecko_coin_data` name.
@@ -1134,7 +1300,9 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
     query = " OR ".join(search_terms) + " -is:retweet lang:en"
 
     try:
-        logger.debug(f"Fetching Twitter sentiment for {symbol} (max_tweets={max_tweets})")
+        logger.debug(
+            f"Fetching Twitter sentiment for {symbol} (max_tweets={max_tweets})"
+        )
         start_time = time.time()
 
         # Search recent tweets (last 7 days)
@@ -1146,7 +1314,7 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
                 query=query,
                 max_results=min(max_tweets, 100),  # API limit is 100
                 tweet_fields=["public_metrics", "created_at"],
-            )
+            ),
         )
 
         elapsed = (time.time() - start_time) * 1000
@@ -1178,7 +1346,11 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
                 weighted_scores.append(sentiment)
 
         avg_score = sum(scores) / len(scores) if scores else 0.5
-        weighted_avg = sum(weighted_scores) / len(weighted_scores) if weighted_scores else avg_score
+        weighted_avg = (
+            sum(weighted_scores) / len(weighted_scores)
+            if weighted_scores
+            else avg_score
+        )
 
         result = {
             "enabled": True,
@@ -1189,7 +1361,9 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
             "weighted_avg": float(weighted_avg),
         }
         _SOURCE_CACHE.set(cache_key, result, 600)
-        logger.info(f"Twitter {symbol}: score={weighted_avg:.3f}, tweets={len(tweets)} [fetched in {elapsed:.0f}ms]")
+        logger.info(
+            f"Twitter {symbol}: score={weighted_avg:.3f}, tweets={len(tweets)} [fetched in {elapsed:.0f}ms]"
+        )
         return result
 
     except Exception as e:
@@ -1213,7 +1387,12 @@ def _tier_bucket() -> Dict[str, Dict[str, float]]:
     }
 
 
-def _add(bucket: Dict[str, Dict[str, float]], tier: str, score_0_1: Optional[float], weight: float) -> None:
+def _add(
+    bucket: Dict[str, Dict[str, float]],
+    tier: str,
+    score_0_1: Optional[float],
+    weight: float,
+) -> None:
     if score_0_1 is None or not _isfinite(score_0_1):
         return
     w = float(weight) if _isfinite(weight) else 0.0
@@ -1224,14 +1403,18 @@ def _add(bucket: Dict[str, Dict[str, float]], tier: str, score_0_1: Optional[flo
     bucket[t]["w"] += w
 
 
-def _finalize_tier_scores(bucket: Dict[str, Dict[str, float]]) -> Dict[str, Optional[float]]:
+def _finalize_tier_scores(
+    bucket: Dict[str, Dict[str, float]]
+) -> Dict[str, Optional[float]]:
     out: Dict[str, Optional[float]] = {}
     for t, v in bucket.items():
         out[t] = None if v["w"] <= 0 else float(v["sum"] / v["w"])
     return out
 
 
-def _weighted_overall(tier_scores: Dict[str, Optional[float]], tier_weights: Dict[str, float]) -> Optional[float]:
+def _weighted_overall(
+    tier_scores: Dict[str, Optional[float]], tier_weights: Dict[str, float]
+) -> Optional[float]:
     s = 0.0
     w = 0.0
     for t, sc in tier_scores.items():
@@ -1245,7 +1428,9 @@ def _weighted_overall(tier_scores: Dict[str, Optional[float]], tier_weights: Dic
     return None if w <= 0 else float(s / w)
 
 
-def _divergence_alerts(tier_scores: Dict[str, Optional[float]], threshold: float) -> List[Dict[str, Any]]:
+def _divergence_alerts(
+    tier_scores: Dict[str, Optional[float]], threshold: float
+) -> List[Dict[str, Any]]:
     t1 = tier_scores.get("tier1")
     t3 = tier_scores.get("tier3")
     if t1 is None or t3 is None:
@@ -1261,17 +1446,26 @@ def _divergence_alerts(tier_scores: Dict[str, Optional[float]], threshold: float
         f"diff={abs(diff):.3f} ({direction}, severity={sev})"
     )
 
-    return [{
-        "type": "tier_divergence",
-        "severity": sev,
-        "direction": direction,
-        "difference": abs(diff),
-        "message": f"Tier 1 vs Tier 3 divergence ({t1:.2f} vs {t3:.2f})",
-        "timestamp": int(time.time()),
-    }]
+    return [
+        {
+            "type": "tier_divergence",
+            "severity": sev,
+            "direction": direction,
+            "difference": abs(diff),
+            "message": f"Tier 1 vs Tier 3 divergence ({t1:.2f} vs {t3:.2f})",
+            "timestamp": int(time.time()),
+        }
+    ]
 
 
-def _source_record(name: str, tier: str, weight: float, score_0_1: Optional[float], meta: Dict[str, Any], url: Optional[str] = None) -> Dict[str, Any]:
+def _source_record(
+    name: str,
+    tier: str,
+    weight: float,
+    score_0_1: Optional[float],
+    meta: Dict[str, Any],
+    url: Optional[str] = None,
+) -> Dict[str, Any]:
     score_pct = None
     if score_0_1 is not None and _isfinite(score_0_1):
         score_pct = float(max(0.0, min(1.0, float(score_0_1))) * 100.0)
@@ -1300,7 +1494,12 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     ttl = RESULT_TTL
     max_rss = int(_cfg("sentiment.max_rss_items", 25) or 25)
     max_reddit = int(_cfg("sentiment.max_reddit_posts", 40) or 40)
-    tier_weights = _cfg("sentiment.tier_weights", {}) or {"tier1": 0.85, "tier2": 0.70, "tier3": 0.50, "fringe": 0.30}
+    tier_weights = _cfg("sentiment.tier_weights", {}) or {
+        "tier1": 0.85,
+        "tier2": 0.70,
+        "tier3": 0.50,
+        "fringe": 0.30,
+    }
     divergence_threshold = float(_cfg("sentiment.divergence_threshold", 0.12) or 0.12)
 
     cfg_hash = _hash_key(json.dumps(_CONFIG, sort_keys=True))
@@ -1319,8 +1518,16 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     sources: List[Dict[str, Any]] = []
     t0 = time.time()
 
-    fg_task = asyncio.create_task(fetch_fear_greed()) if sources_cfg.get("fear_greed", {}).get("enabled", False) else None
-    cg_task = asyncio.create_task(fetch_coingecko_metrics(sym)) if sources_cfg.get("coingecko", {}).get("enabled", False) else None
+    fg_task = (
+        asyncio.create_task(fetch_fear_greed())
+        if sources_cfg.get("fear_greed", {}).get("enabled", False)
+        else None
+    )
+    cg_task = (
+        asyncio.create_task(fetch_coingecko_metrics(sym))
+        if sources_cfg.get("coingecko", {}).get("enabled", False)
+        else None
+    )
 
     # Fear & Greed
     idx = label = None
@@ -1329,15 +1536,22 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         idx, label, fg_meta = await fg_task
         fg_score = (float(idx) / 100.0) if idx is not None else None
         fg_cfg = sources_cfg.get("fear_greed", {})
-        sources.append(_source_record(
-            name="Fear & Greed Index",
-            tier=str(fg_cfg.get("tier", "tier1")),
-            weight=float(fg_cfg.get("weight", 0.90)),
-            score_0_1=fg_score,
-            meta={"index": idx, "label": label, **fg_meta},
-            url="https://alternative.me/crypto/fear-and-greed-index/",
-        ))
-        _add(bucket, str(fg_cfg.get("tier", "tier1")), fg_score, float(fg_cfg.get("weight", 0.90)))
+        sources.append(
+            _source_record(
+                name="Fear & Greed Index",
+                tier=str(fg_cfg.get("tier", "tier1")),
+                weight=float(fg_cfg.get("weight", 0.90)),
+                score_0_1=fg_score,
+                meta={"index": idx, "label": label, **fg_meta},
+                url="https://alternative.me/crypto/fear-and-greed-index/",
+            )
+        )
+        _add(
+            bucket,
+            str(fg_cfg.get("tier", "tier1")),
+            fg_score,
+            float(fg_cfg.get("weight", 0.90)),
+        )
 
     # CoinGecko
     cg_metrics: Dict[str, Any] = {}
@@ -1346,65 +1560,110 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         cg_score = cg.get("score_0_1") if cg.get("enabled") else None
         cg_metrics = cg.get("metrics") or {}
         cg_cfg = sources_cfg.get("coingecko", {})
-        sources.append(_source_record(
-            name=f"CoinGecko ({sym})",
-            tier=str(cg_cfg.get("tier", "tier1")),
-            weight=float(cg_cfg.get("weight", 0.85)),
-            score_0_1=cg_score if _isfinite(cg_score) else None,
-            meta={"coingecko": cg},
-            url=f"https://www.coingecko.com/en/coins/{cg.get('coingecko_id')}" if cg.get("coingecko_id") else "https://www.coingecko.com/",
-        ))
-        _add(bucket, str(cg_cfg.get("tier", "tier1")), cg_score if _isfinite(cg_score) else None, float(cg_cfg.get("weight", 0.85)))
+        sources.append(
+            _source_record(
+                name=f"CoinGecko ({sym})",
+                tier=str(cg_cfg.get("tier", "tier1")),
+                weight=float(cg_cfg.get("weight", 0.85)),
+                score_0_1=cg_score if _isfinite(cg_score) else None,
+                meta={"coingecko": cg},
+                url=(
+                    f"https://www.coingecko.com/en/coins/{cg.get('coingecko_id')}"
+                    if cg.get("coingecko_id")
+                    else "https://www.coingecko.com/"
+                ),
+            )
+        )
+        _add(
+            bucket,
+            str(cg_cfg.get("tier", "tier1")),
+            cg_score if _isfinite(cg_score) else None,
+            float(cg_cfg.get("weight", 0.85)),
+        )
 
     # RSS (sync -> offload to thread)
     rss_cfg = sources_cfg.get("rss", {})
     if rss_cfg.get("enabled", False):
-        rss = await asyncio.to_thread(fetch_rss_sentiment, rss_cfg.get("feeds", []) or [], max_rss)
+        rss = await asyncio.to_thread(
+            fetch_rss_sentiment, rss_cfg.get("feeds", []) or [], max_rss
+        )
         rss_score = rss.get("score_0_1")
-        sources.append(_source_record(
-            name="RSS News (Market)",
-            tier=str(rss_cfg.get("tier", "tier2")),
-            weight=float(rss_cfg.get("weight", 0.75)),
-            score_0_1=rss_score if _isfinite(rss_score) else None,
-            meta={"rss": rss},
-            url=None,
-        ))
-        _add(bucket, str(rss_cfg.get("tier", "tier2")), rss_score if _isfinite(rss_score) else None, float(rss_cfg.get("weight", 0.75)))
+        sources.append(
+            _source_record(
+                name="RSS News (Market)",
+                tier=str(rss_cfg.get("tier", "tier2")),
+                weight=float(rss_cfg.get("weight", 0.75)),
+                score_0_1=rss_score if _isfinite(rss_score) else None,
+                meta={"rss": rss},
+                url=None,
+            )
+        )
+        _add(
+            bucket,
+            str(rss_cfg.get("tier", "tier2")),
+            rss_score if _isfinite(rss_score) else None,
+            float(rss_cfg.get("weight", 0.75)),
+        )
 
     # Reddit market-wide (PRAW, sync)
     rg_cfg = sources_cfg.get("reddit_global", {})
     if rg_cfg.get("enabled", False):
-        rg = await asyncio.to_thread(fetch_reddit_sentiment, rg_cfg.get("subreddits", []) or [], None, max_reddit)
+        rg = await asyncio.to_thread(
+            fetch_reddit_sentiment, rg_cfg.get("subreddits", []) or [], None, max_reddit
+        )
         rg_score = rg.get("score_0_1")
-        sources.append(_source_record(
-            name="Reddit (Market)",
-            tier=str(rg_cfg.get("tier", "tier2")),
-            weight=float(rg_cfg.get("weight", 0.75)),
-            score_0_1=rg_score if _isfinite(rg_score) else None,
-            meta={"reddit_global": rg},
-            url="https://www.reddit.com/",
-        ))
-        _add(bucket, str(rg_cfg.get("tier", "tier2")), rg_score if _isfinite(rg_score) else None, float(rg_cfg.get("weight", 0.75)))
+        sources.append(
+            _source_record(
+                name="Reddit (Market)",
+                tier=str(rg_cfg.get("tier", "tier2")),
+                weight=float(rg_cfg.get("weight", 0.75)),
+                score_0_1=rg_score if _isfinite(rg_score) else None,
+                meta={"reddit_global": rg},
+                url="https://www.reddit.com/",
+            )
+        )
+        _add(
+            bucket,
+            str(rg_cfg.get("tier", "tier2")),
+            rg_score if _isfinite(rg_score) else None,
+            float(rg_cfg.get("weight", 0.75)),
+        )
 
     # Reddit symbol mentions (PRAW, sync)
     rs_cfg = sources_cfg.get("reddit_symbol", {})
     reddit_mentions = None
     if rs_cfg.get("enabled", False):
-        rs = await asyncio.to_thread(fetch_reddit_sentiment, rs_cfg.get("subreddits", []) or [], sym.lower(), max_reddit)
+        rs = await asyncio.to_thread(
+            fetch_reddit_sentiment,
+            rs_cfg.get("subreddits", []) or [],
+            sym.lower(),
+            max_reddit,
+        )
         rs_score = rs.get("score_0_1")
         try:
-            reddit_mentions = sum(int(x.get("mentions") or 0) for x in (rs.get("subreddits") or []) if isinstance(x, dict))
+            reddit_mentions = sum(
+                int(x.get("mentions") or 0)
+                for x in (rs.get("subreddits") or [])
+                if isinstance(x, dict)
+            )
         except Exception:
             reddit_mentions = None
-        sources.append(_source_record(
-            name=f"Reddit Mentions ({sym})",
-            tier=str(rs_cfg.get("tier", "tier3")),
-            weight=float(rs_cfg.get("weight", 0.60)),
-            score_0_1=rs_score if _isfinite(rs_score) else None,
-            meta={"reddit_symbol": rs, "mentions": reddit_mentions},
-            url="https://www.reddit.com/",
-        ))
-        _add(bucket, str(rs_cfg.get("tier", "tier3")), rs_score if _isfinite(rs_score) else None, float(rs_cfg.get("weight", 0.60)))
+        sources.append(
+            _source_record(
+                name=f"Reddit Mentions ({sym})",
+                tier=str(rs_cfg.get("tier", "tier3")),
+                weight=float(rs_cfg.get("weight", 0.60)),
+                score_0_1=rs_score if _isfinite(rs_score) else None,
+                meta={"reddit_symbol": rs, "mentions": reddit_mentions},
+                url="https://www.reddit.com/",
+            )
+        )
+        _add(
+            bucket,
+            str(rs_cfg.get("tier", "tier3")),
+            rs_score if _isfinite(rs_score) else None,
+            float(rs_cfg.get("weight", 0.60)),
+        )
 
     # Twitter sentiment (async)
     tw_cfg = sources_cfg.get("twitter", {})
@@ -1415,15 +1674,22 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         tw = await fetch_twitter_sentiment_async(sym, max_tweets=max_tweets)
         twitter_score = tw.get("score_0_1")
         twitter_mentions = tw.get("mentions")
-        sources.append(_source_record(
-            name=f"Twitter ({sym})",
-            tier=str(tw_cfg.get("tier", "tier2")),
-            weight=float(tw_cfg.get("weight", 0.70)),
-            score_0_1=twitter_score if _isfinite(twitter_score) else None,
-            meta={"twitter": tw, "mentions": twitter_mentions},
-            url="https://twitter.com/",
-        ))
-        _add(bucket, str(tw_cfg.get("tier", "tier2")), twitter_score if _isfinite(twitter_score) else None, float(tw_cfg.get("weight", 0.70)))
+        sources.append(
+            _source_record(
+                name=f"Twitter ({sym})",
+                tier=str(tw_cfg.get("tier", "tier2")),
+                weight=float(tw_cfg.get("weight", 0.70)),
+                score_0_1=twitter_score if _isfinite(twitter_score) else None,
+                meta={"twitter": tw, "mentions": twitter_mentions},
+                url="https://twitter.com/",
+            )
+        )
+        _add(
+            bucket,
+            str(tw_cfg.get("tier", "tier2")),
+            twitter_score if _isfinite(twitter_score) else None,
+            float(tw_cfg.get("weight", 0.70)),
+        )
 
     tier_scores = _finalize_tier_scores(bucket)
     overall = _weighted_overall(tier_scores, tier_weights)
@@ -1432,15 +1698,25 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     # Extract trending topics from RSS and Reddit
     trending_topics = extract_trending_topics(
         rss if rss_cfg.get("enabled", False) else {},
-        rg if rg_cfg.get("enabled", False) else {}
+        rg if rg_cfg.get("enabled", False) else {},
     )
 
     # Populate social_breakdown with actual values
     social_breakdown = {
-        "reddit": rg_score if rg_cfg.get("enabled", False) and _isfinite(rg_score) else None,
-        "twitter": twitter_score if tw_cfg.get("enabled", False) and _isfinite(twitter_score) else None,
+        "reddit": (
+            rg_score if rg_cfg.get("enabled", False) and _isfinite(rg_score) else None
+        ),
+        "twitter": (
+            twitter_score
+            if tw_cfg.get("enabled", False) and _isfinite(twitter_score)
+            else None
+        ),
         "telegram": None,  # Future: Telegram integration
-        "news": rss_score if rss_cfg.get("enabled", False) and _isfinite(rss_score) else None,
+        "news": (
+            rss_score
+            if rss_cfg.get("enabled", False) and _isfinite(rss_score)
+            else None
+        ),
     }
 
     # Get sentiment history for this symbol
@@ -1479,7 +1755,9 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
             "cache_hit": False,
             "processing_time_ms": int((time.time() - t0) * 1000),
             "sources_queried": len(sources),
-            "sources_successful": sum(1 for s in sources if s.get("score_0_1") is not None),
+            "sources_successful": sum(
+                1 for s in sources if s.get("score_0_1") is not None
+            ),
             "using_aiohttp": aiohttp is not None,
         },
     }
@@ -1559,6 +1837,7 @@ def get_metrics() -> Dict[str, Any]:
 # Phase 4: Enhanced Aggregator with AI Intelligence Bundle
 # ----------------------------
 
+
 class EnhancedAggregator:
     """
     Enhanced sentiment aggregator that creates AI-ready intelligence bundles.
@@ -1587,6 +1866,7 @@ class EnhancedAggregator:
         if enable_ai:
             try:
                 from ai_sentiment_engine import get_ai_engine
+
                 self.ai_engine = get_ai_engine(gemini_api_key=gemini_api_key)
                 logger.info("AI engine enabled for enhanced aggregation")
             except Exception as e:
@@ -1681,7 +1961,7 @@ class EnhancedAggregator:
             "finbert_label": "neutral",
             "finbert_confidence": 0.0,
             "social_volume": 0,
-            "social_sentiment": 0.5
+            "social_sentiment": 0.5,
         }
 
         if self.enable_ai and self.ai_engine and raw_headlines:
@@ -1701,10 +1981,9 @@ class EnhancedAggregator:
 
         # 4. Calculate social metrics from traditional data
         social_metrics = traditional_data.get("social_metrics", {})
-        ai_metrics["social_volume"] = (
-            social_metrics.get("reddit_mentions", 0) +
-            social_metrics.get("twitter_mentions", 0)
-        )
+        ai_metrics["social_volume"] = social_metrics.get(
+            "reddit_mentions", 0
+        ) + social_metrics.get("twitter_mentions", 0)
 
         # Social sentiment is the tier3 score (Reddit-heavy)
         tier_scores = traditional_data.get("tier_scores", {})
@@ -1719,13 +1998,13 @@ class EnhancedAggregator:
                 "finbert_label": ai_metrics["finbert_label"],
                 "confidence": ai_metrics["finbert_confidence"],
                 "social_volume": ai_metrics["social_volume"],
-                "fear_greed_index": traditional_data.get("fear_greed_index", 50)
+                "fear_greed_index": traditional_data.get("fear_greed_index", 50),
             },
             "raw_context": {
                 "top_headlines": raw_headlines,
                 "reddit_sample": reddit_sample,
-                "twitter_sample": twitter_sample
-            }
+                "twitter_sample": twitter_sample,
+            },
         }
 
         # 6. Run Gemini divergence analysis (cloud API)
@@ -1735,12 +2014,14 @@ class EnhancedAggregator:
             "divergence_type": "unknown",
             "explanation": "Divergence analysis unavailable",
             "confidence": 0.0,
-            "recommendation": "Enable AI features for divergence detection"
+            "recommendation": "Enable AI features for divergence detection",
         }
 
         if self.enable_ai and self.ai_engine:
             try:
-                divergence_analysis = self.ai_engine.analyze_divergence_with_gemini(bundle)
+                divergence_analysis = self.ai_engine.analyze_divergence_with_gemini(
+                    bundle
+                )
                 logger.info(
                     f"Gemini divergence analysis for {symbol}: "
                     f"type={divergence_analysis['divergence_type']}"
@@ -1762,27 +2043,33 @@ class EnhancedAggregator:
                 "fear_greed_label": traditional_data.get("fear_greed_label", "Neutral"),
                 "tier1_score": tier_scores.get("tier1", 0.5),
                 "tier2_score": tier_scores.get("tier2", 0.5),
-                "tier3_score": tier_scores.get("tier3", 0.5)
+                "tier3_score": tier_scores.get("tier3", 0.5),
             },
             "ai_metrics": ai_metrics,
             "divergence_analysis": divergence_analysis,
             "raw_context": {
                 "top_headlines": raw_headlines,
                 "reddit_sample": reddit_sample,
-                "twitter_sample": twitter_sample
+                "twitter_sample": twitter_sample,
             },
             "trending_topics": traditional_data.get("trending_topics", []),
             "sentiment_history": traditional_data.get("sentiment_history", []),
             "metadata": {
                 "ai_enabled": self.enable_ai,
-                "finbert_available": self.ai_engine.finbert_available if self.ai_engine else False,
-                "gemini_available": self.ai_engine.gemini_available if self.ai_engine else False,
+                "finbert_available": (
+                    self.ai_engine.finbert_available if self.ai_engine else False
+                ),
+                "gemini_available": (
+                    self.ai_engine.gemini_available if self.ai_engine else False
+                ),
                 "finbert_inference_time_ms": finbert_elapsed_ms,
                 "gemini_analysis_time_ms": gemini_elapsed_ms,
                 "total_processing_time_ms": total_elapsed_ms,
                 "headline_count": len(raw_headlines),
-                "cache_hit": traditional_data.get("metadata", {}).get("cache_hit", False)
-            }
+                "cache_hit": traditional_data.get("metadata", {}).get(
+                    "cache_hit", False
+                ),
+            },
         }
 
         logger.info(
@@ -1800,8 +2087,7 @@ _ENHANCED_AGGREGATOR: Optional[EnhancedAggregator] = None
 
 
 def get_enhanced_aggregator(
-    enable_ai: bool = True,
-    gemini_api_key: Optional[str] = None
+    enable_ai: bool = True, gemini_api_key: Optional[str] = None
 ) -> EnhancedAggregator:
     """
     Get or create the global EnhancedAggregator singleton.
@@ -1817,8 +2103,7 @@ def get_enhanced_aggregator(
 
     if _ENHANCED_AGGREGATOR is None:
         _ENHANCED_AGGREGATOR = EnhancedAggregator(
-            enable_ai=enable_ai,
-            gemini_api_key=gemini_api_key
+            enable_ai=enable_ai, gemini_api_key=gemini_api_key
         )
 
     return _ENHANCED_AGGREGATOR
@@ -1843,13 +2128,13 @@ def get_intelligence_bundle(symbol: str) -> Dict[str, Any]:
 
     aggregator = get_enhanced_aggregator()
     fut = asyncio.run_coroutine_threadsafe(
-        aggregator.aggregate_intelligence_bundle(symbol),
-        _BG_LOOP
+        aggregator.aggregate_intelligence_bundle(symbol), _BG_LOOP
     )
     return fut.result()
 
 
 # --- BACKWARD COMPATIBILITY SHIMS (For Legacy Tests) -----------------------
+
 
 async def fetch_reddit_mentions(symbol: str) -> Dict[str, Any]:
     """Shim that exposes reddit sentiment for legacy consumers."""

@@ -2,6 +2,7 @@
 Cache Module for Intelligence Reports
 Implements Stale-While-Revalidate (SWR) semantics with Redis
 """
+
 import json
 import time
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ class CachePolicy:
     - stale_seconds: How long we serve stale while refreshing
     - building_lock_seconds: Lock duration to prevent refresh stampedes
     """
+
     version: str = "v1"
     ttl_seconds: int = 300  # 5 minutes fresh
     stale_seconds: int = 900  # serve stale for up to 15 minutes while refreshing
@@ -65,9 +67,7 @@ def lock_key(symbol: str, policy: CachePolicy) -> str:
 
 
 def get_cached_report(
-    rds,
-    symbol: str,
-    policy: CachePolicy
+    rds, symbol: str, policy: CachePolicy
 ) -> Tuple[Optional[Dict[str, Any]], str]:
     """
     Retrieves cached report and determines freshness.
@@ -99,10 +99,7 @@ def get_cached_report(
 
 
 def set_cached_report(
-    rds,
-    symbol: str,
-    payload: Dict[str, Any],
-    policy: CachePolicy
+    rds, symbol: str, payload: Dict[str, Any], policy: CachePolicy
 ) -> None:
     """
     Stores intelligence report in Redis.

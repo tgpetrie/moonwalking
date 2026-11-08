@@ -287,7 +287,7 @@ The banners weren't scrolling due to **three separate issues**:
 
 **Solution:** Added `width: max-content` to both `.bh-banner-track` rules.
 
-**Why this matters:** 
+**Why this matters:**
 - Without `max-content`, the flex container only takes up the viewport width
 - The animation tries to move to `-50%`, but there's no extra content to reveal
 - Result: looks frozen even though animation is running

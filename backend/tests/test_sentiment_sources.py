@@ -20,6 +20,7 @@ try:
         fetch_coingecko_coin_data,
         # Add other source functions as available
     )
+
     SOURCES_AVAILABLE = True
 except ImportError:
     SOURCES_AVAILABLE = False
@@ -29,6 +30,7 @@ except ImportError:
 # ============================================================================
 # Fear & Greed Index Tests
 # ============================================================================
+
 
 class TestFearGreedSource:
     """Tests for Fear & Greed Index data fetching."""
@@ -46,8 +48,10 @@ class TestFearGreedSource:
         assert "value" in result or isinstance(result, (int, float))
 
     @pytest.mark.unit
-    @patch('aiohttp.ClientSession.get')
-    async def test_fear_greed_response_parsing(self, mock_get, mock_fear_greed_response):
+    @patch("aiohttp.ClientSession.get")
+    async def test_fear_greed_response_parsing(
+        self, mock_get, mock_fear_greed_response
+    ):
         """Test parsing of Fear & Greed API response."""
         # Arrange
         mock_response = AsyncMock()
@@ -84,6 +88,7 @@ class TestFearGreedSource:
 # CoinGecko API Tests
 # ============================================================================
 
+
 class TestCoinGeckoSource:
     """Tests for CoinGecko API integration."""
 
@@ -108,7 +113,7 @@ class TestCoinGeckoSource:
             "BTC": "bitcoin",
             "ETH": "ethereum",
             "USDT": "tether",
-            "BNB": "binancecoin"
+            "BNB": "binancecoin",
         }
 
         pytest.skip("Requires ID mapping function")
@@ -120,7 +125,7 @@ class TestCoinGeckoSource:
         pytest.skip("Requires implementation")
 
     @pytest.mark.unit
-    @patch('aiohttp.ClientSession.get')
+    @patch("aiohttp.ClientSession.get")
     async def test_coingecko_rate_limit_handling(self, mock_get):
         """Test handling of CoinGecko rate limits (429)."""
         # Arrange
@@ -142,11 +147,12 @@ class TestCoinGeckoSource:
 # RSS Feed Tests
 # ============================================================================
 
+
 class TestRSSFeedSource:
     """Tests for RSS feed parsing and sentiment analysis."""
 
     @pytest.mark.unit
-    @patch('feedparser.parse')
+    @patch("feedparser.parse")
     def test_parse_rss_feed_success(self, mock_parse, mock_rss_feed_response):
         """Test successful RSS feed parsing."""
         # Arrange
@@ -187,6 +193,7 @@ class TestRSSFeedSource:
 # Reddit API Tests
 # ============================================================================
 
+
 class TestRedditSource:
     """Tests for Reddit API integration."""
 
@@ -197,7 +204,7 @@ class TestRedditSource:
         pytest.skip("Requires Reddit API integration")
 
     @pytest.mark.unit
-    @patch('praw.Reddit')
+    @patch("praw.Reddit")
     def test_reddit_api_authentication(self, mock_reddit):
         """Test Reddit API authentication setup."""
         # Should handle missing credentials gracefully
@@ -243,6 +250,7 @@ class TestRedditSource:
 # Source Reliability Tests
 # ============================================================================
 
+
 class TestSourceReliability:
     """Tests for source reliability scoring."""
 
@@ -270,6 +278,7 @@ class TestSourceReliability:
 # Source Integration Tests
 # ============================================================================
 
+
 class TestSourceIntegration:
     """Integration tests for multiple sources working together."""
 
@@ -295,6 +304,7 @@ class TestSourceIntegration:
 # ============================================================================
 # Mock Data Generation Tests
 # ============================================================================
+
 
 class TestMockDataGeneration:
     """Tests for deterministic fallback/mock data generation."""

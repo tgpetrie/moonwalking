@@ -12,4 +12,3 @@ export default function Panel({ title, children, className = "" }) {
     </section>
   );
 }
-

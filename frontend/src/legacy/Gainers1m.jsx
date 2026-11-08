@@ -30,13 +30,13 @@ export default function Gainers1m({
 }) {
   const INITIAL_LIMIT = 8; // 4+4 columns before "Show more"
   const EXPANDED_LIMIT = 16; // Max after expansion
-  
+
   const [expanded, setExpanded] = useState(false);
-  
+
   const limit = expanded ? EXPANDED_LIMIT : INITIAL_LIMIT;
   const visible = rows.slice(0, limit);
   const hasMore = rows.length > limit;
-  
+
   // Split into left (ranks 1-4) and right (ranks 5-8, or 5-16 when expanded)
   const left = visible.slice(0, Math.min(4, visible.length));
   const right = visible.slice(4, limit);
@@ -58,13 +58,13 @@ export default function Gainers1m({
                 ))
               ) : (
                 left.map((row, idx) => (
-                  <TokenRow 
-                    key={row.symbol || idx} 
-                    row={row} 
-                    index={idx} 
-                    isGainer 
-                    changeKey="price_change_percentage_1min" 
-                    onInfo={onInfo} 
+                  <TokenRow
+                    key={row.symbol || idx}
+                    row={row}
+                    index={idx}
+                    isGainer
+                    changeKey="price_change_percentage_1min"
+                    onInfo={onInfo}
                   />
                 ))
               )}
@@ -77,13 +77,13 @@ export default function Gainers1m({
             <table className="w-full border-collapse text-[12px] font-mono leading-5">
               <tbody>
                 {right.map((row, idx) => (
-                  <TokenRow 
-                    key={row.symbol || idx} 
-                    row={row} 
-                    index={idx + left.length} 
-                    isGainer 
-                    changeKey="price_change_percentage_1min" 
-                    onInfo={onInfo} 
+                  <TokenRow
+                    key={row.symbol || idx}
+                    row={row}
+                    index={idx + left.length}
+                    isGainer
+                    changeKey="price_change_percentage_1min"
+                    onInfo={onInfo}
                   />
                 ))}
               </tbody>
@@ -106,4 +106,3 @@ export default function Gainers1m({
     </section>
   );
 }
-

@@ -172,7 +172,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         console.log('⏩ Skipping API fetch - using WebSocket data');
         return;
       }
-      
+
       try {
         console.log('🌐 Fetching 1-min gainers data via API');
         const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
@@ -203,7 +203,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         }
       }
     };
-    
+
     // Only start interval if not connected to WebSocket and not already polling
     if (!isConnected && !isPolling) {
       fetchGainersData();
@@ -213,7 +213,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       // Initial fetch if needed
       if (data.length === 0) fetchGainersData();
     }
-    
+
     return () => { isMounted = false; };
   }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
 
@@ -234,20 +234,20 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
   const handleToggleWatchlist = async (symbol) => {
     // Check if symbol exists in watchlist (handle both string and object formats)
-    const existsInWatchlist = watchlist.some(item => 
+    const existsInWatchlist = watchlist.some(item =>
       typeof item === 'string' ? item === symbol : item.symbol === symbol
     );
-    
+
     if (!existsInWatchlist) {
       setPopStar(symbol);
       setAddedBadge(symbol);
       setTimeout(() => setPopStar(null), 350);
       setTimeout(() => setAddedBadge(null), 1200);
-      
+
       // Find current price for this symbol from data
       const coinData = data.find(coin => coin.symbol === symbol);
       const currentPrice = coinData ? coinData.price : null;
-      
+
       console.log('Adding to watchlist:', symbol, 'at price:', currentPrice);
       const updated = await addToWatchlist(symbol, currentPrice);
       console.log('Added to watchlist, new list:', updated);
@@ -307,7 +307,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
   {visibleData.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         // Check if symbol is in watchlist (handle both string and object formats)
-        const isInWatchlist = watchlist.some(watchlistItem => 
+        const isInWatchlist = watchlist.some(watchlistItem =>
           typeof watchlistItem === 'string' ? watchlistItem === item.symbol : watchlistItem.symbol === item.symbol
         );
         const isPopping = popStar === item.symbol;
@@ -356,7 +356,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                       </span>
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'gain-text' : 'loss-text'}`}> 
+                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'gain-text' : 'loss-text'}`}>
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                         {/* Trend arrow */}
                         {item.trendDirection && item.trendDirection !== 'flat' && (() => {

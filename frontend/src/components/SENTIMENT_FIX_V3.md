@@ -146,7 +146,7 @@ export function normalizeSentiment(raw = {}) {
 export default normalizeSentiment;
 ```
 
-**Expected result after restart:**  
+**Expected result after restart:**
 Overview tab shows real scores immediately. Charts/Social no longer default to empty unless the API truly returns empty arrays.
 
 ---
@@ -268,7 +268,7 @@ const status =
   "empty";
 ```
 
-**Outcome:**  
+**Outcome:**
 No more “loading lane” when data is already there. Skeletons vanish the moment the first real row arrives.
 
 ---

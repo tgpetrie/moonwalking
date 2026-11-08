@@ -4,7 +4,7 @@
 
 ```
 ✅ sentiment-popup-production.html    (25KB) - Complete HTML structure
-✅ sentiment-popup-production.css     (19KB) - All styling  
+✅ sentiment-popup-production.css     (19KB) - All styling
 ✅ sentiment-popup-production.js      (49KB) - Full JavaScript with API integration
 ✅ API-INTEGRATION-GUIDE.md           (14KB) - Backend implementation guide
 ✅ README-QUICK-START.md              (10KB) - 5-minute setup guide
@@ -40,7 +40,7 @@ Open your main dashboard HTML file (probably `index.html`) and make these change
 <div class="sentiment-card">
     <div class="card-header">
         <h3>Market Sentiment</h3>
-        
+
         <!-- ADD THIS BUTTON -->
         <button class="sentiment-info-btn" onclick="sentimentPopup.open()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -49,7 +49,7 @@ Open your main dashboard HTML file (probably `index.html`) and make these change
             </svg>
         </button>
     </div>
-    
+
     <div class="sentiment-score">68</div>
 </div>
 ```
@@ -85,7 +85,7 @@ Open your main dashboard HTML file (probably `index.html`) and make these change
 
 1. Copy the ENTIRE popup HTML from `sentiment-popup-production.html`
    (Everything from `<div class="sentiment-overlay">` to its closing `</div>`)
-   
+
 2. OR use the `INTEGRATION-TEMPLATE.html` file as reference
 
 3. Then add the script tag:
@@ -100,16 +100,16 @@ Open `js/sentiment-popup-production.js` and find line 28:
 ```javascript
 detectEnvironment() {
     const hostname = window.location.hostname;
-    
+
     // CHANGE THESE TO YOUR DOMAINS
     if (hostname === 'cbmoovers.com' || hostname === 'www.cbmoovers.com') {
         return 'https://api.cbmoovers.com';  // ← YOUR PRODUCTION API
     }
-    
+
     if (hostname === 'staging.cbmoovers.com') {
         return 'https://staging-api.cbmoovers.com';  // ← YOUR STAGING API
     }
-    
+
     // Local development
     return 'http://localhost:8001';  // ← YOUR LOCAL API
 }
@@ -175,7 +175,7 @@ With this format:
 ## 🚨 Common Issues & Solutions
 
 ### "Popup doesn't open when I click"
-**Solution**: 
+**Solution**:
 - Check browser console for errors
 - Verify `sentiment-popup-production.js` is loaded
 - Check that you have `onclick="sentimentPopup.open()"` on button

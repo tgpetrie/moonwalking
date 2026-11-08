@@ -8,7 +8,7 @@
  * @param {boolean} [opts.fillMissing=true] - Use previous entry to fill missing peakCount or price when symbol repeats.
  * @returns {{combined:Array,nextPrev:Array}}
  */
- 
+
 import formatSymbol from '../lib/format.js';
 
 export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {

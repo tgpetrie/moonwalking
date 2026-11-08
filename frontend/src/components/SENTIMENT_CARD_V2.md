@@ -1,6 +1,6 @@
 
 # SENTIMENT_CARD_V2.md
-Author: ChatGPT  
+Author: ChatGPT
 Last updated: 2025-11-21
 
 A developer-grade spec for the BHABIT / CBMo4ers Sentiment popup: stable fetching, normalized data, and crashproof tabs with TradingView charts.
