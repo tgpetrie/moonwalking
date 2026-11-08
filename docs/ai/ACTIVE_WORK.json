@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T07:05:43.602190+00:00",
-  "display_date_pacific": "2026-11-07",
+  "updated_utc": "2026-11-08T10:39:29.362760+00:00",
+  "display_date_pacific": "2026-11-08",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
+  "implementation_commit": "3e5e168dabe8085b420c962be4df3724efa53dd8",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -35,13 +35,14 @@
     "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached",
     "warmup_capacity": "synthetic_67_minutes_one_connection_passed_decision_computation_latency_open",
     "indexed_latency": "synthetic_writer_thread_benchmark_complete_batch_parity_verified",
-    "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed"
+    "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed",
+    "startup_and_burst": "pre_ack_startup_amended_12_burst_scenarios_verified_writer_latency_next"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "real_indexed_pilot_complete_1300_targeted_checks_snapshot_ordering_and_burst_tolerance_next"
+      "status": "startup_amendment_and_burst_test_complete_1306_targeted_checks_bounded_writer_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -131,8 +132,8 @@
     }
   },
   "next_actions": [
-    "Implement and verify causally safe handling of snapshots received before the subscription acknowledgment. Preserve receipt and known-at order.",
-    "Reproduce queue burst tolerance with a predeclared synthetic workload before choosing writer and queue changes. Preserve the stopped live prefix.",
+    "Design and test bounded journal transaction batching or another faster writer against the same burst and pause cases. Verify commit visibility, crash recovery and causal decision evidence.",
+    "Use the burst and durability results to select a bounded writer and queue configuration for a predeclared follow-up. Retain thin-product quote missingness.",
     "Predeclare the follow-up source and latency diagnostic after both blockers are addressed. Preserve the original feed audit gate and thin-product missingness.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -145,15 +146,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1300,
+    "implementation_targeted_tests_passed": 1306,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_4aab7be",
+    "guardrails": "passed_at_3e5e168",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_4aab7be",
+    "black_24_8": "passed_at_3e5e168",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -569,7 +570,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "4aab7bee5005be3b930570e325471de7c64fa620",
+  "latest_verification_commit": "3e5e168dabe8085b420c962be4df3724efa53dd8",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -719,5 +720,22 @@
     "observed_delivery_count": 0,
     "warmup_reached": false,
     "feed_gate_pass": false
+  },
+  "startup_and_burst": {
+    "status": "startup_fix_and_synthetic_stress_verified",
+    "implementation_commit": "3e5e168dabe8085b420c962be4df3724efa53dd8",
+    "startup_amendment_commit": "90ac99329a2210ce81d55402ffdb2a7cca56a241",
+    "protocol": "docs/research/INSTANT_STARTUP_AND_BURST_PROTOCOL_20261108.md",
+    "results": "docs/research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md",
+    "run": "docs/research/results/instant_startup_and_burst_20261108/RUN_02.json",
+    "checks": "docs/research/results/instant_startup_and_burst_20261108/CHECKS.json",
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_queue_burst_20261108",
+    "quote_activation": "first_confirmed_acknowledgment_known_at_while_retaining_observation_age",
+    "queue_128_overflows": 6,
+    "queue_256_complete_trials": 6,
+    "largest_queue_256_wait_ms": 1920.177,
+    "live_queue_profile": 128,
+    "real_capture_exercised": false,
+    "fitting_allowed": false
   }
 }

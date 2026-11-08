@@ -113,8 +113,12 @@ Status keys: Open, In progress, Done, Blocked.
   acknowledgment. Warmup and local delivery timing were unreached.
   1,300 targeted checks pass. See
   `docs/research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md`.
-- Next, verify pre-ack book handling and queue burst tolerance.
-  Preserve current
+- Startup book amendment `90ac993` and burst verification `3e5e168` are
+  complete. The 256-frame synthetic trials drained, with up to 1.9s of
+  queue wait. 1,306 targeted checks pass. See
+  `docs/research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md`.
+- Next, verify a faster bounded writer under the same burst and crash
+  conditions. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

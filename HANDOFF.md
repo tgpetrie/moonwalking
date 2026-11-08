@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## Startup book recovery and burst verification — 2026-11-08
+
+**`90ac993`** stages books on explicitly opened connections and activates
+them only at acknowledgment, retaining original quote ages. The preserved
+startup prefix reproduces usable ALCX quotes under a simulated clock.
+**`3e5e168`** verified 12 synthetic stress trials. The 128-frame queue
+overflowed six times. All six 256-frame trials completed with up to
+1.9s in queue. **1,306 targeted checks pass**.
+[Startup and burst results](docs/research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md).
+
+Next, measure a faster bounded writer with crash and visibility checks
+before selecting a live profile.
+
 ## Real indexed pilot stopped at queue cap — 2026-11-07
 
 **`4aab7be`** captured 45,828 records in 20m 35.553s before the 128-frame
