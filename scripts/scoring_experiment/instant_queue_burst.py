@@ -110,7 +110,8 @@ def experiment(path, capacity, stall_ms):
 
     rows = [row["envelope"] for row in iter_packets(path)]
     committed = [row["message"] for row in rows[1:-1]]
-    sent = boot + [message for _, message in suffix]
+    # Match the socket's JSON representation, including lists on the wire.
+    sent = json.loads(json.dumps(boot + [message for _, message in suffix]))
     if committed != sent[: len(committed)]:
         raise ValueError("journal differs from the source's ordered prefix")
     if len({row["connection_id"] for row in rows}) != 1:
