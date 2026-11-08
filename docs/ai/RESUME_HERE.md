@@ -6,12 +6,18 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The bounded journal writer at **`aa953b5`** passed crash and causal visibility
+probes. The comparison verified 24 journals across both writer modes. All 256-frame
+trials completed. Worst reader-to-commit time fell from 1.99s to 0.86s.
+**1,313 targeted checks pass**. Predeclare a four-product follow-up at
+256 queued frames and a maximum batch of 16.
+[Batching results](../research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md).
+
 The pre-acknowledgment book amendment is implemented at **`90ac993`**.
 The preserved startup prefix verifies activation on acknowledgment under
 a simulated clock. The burst harness at **`3e5e168`** overflowed in all six
 128-frame trials. All six 256-frame trials completed, with up to 1.9s of
-queue wait. **1,306 targeted checks pass**. Next is a faster bounded
-writer with crash and visibility checks.
+queue wait. **1,306 targeted checks passed** at that checkpoint.
 [Startup and burst results](../research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md).
 
 The real indexed pilot at **`4aab7be`** ended at the 128-frame reader
@@ -169,8 +175,8 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next, test a faster bounded writer against the declared bursts and
-verify durability before a new source diagnostic. Preserve >=62 complete warmup minutes,
+Predeclare the new source diagnostic at the verified synthetic batch profile.
+Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
 
 The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
@@ -229,9 +235,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Startup and burst verification `3e5e168`; real indexed pilot `4aab7be`; indexed decision evidence `dddd2e4`; warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Bounded writer `aa953b5`; startup and burst verification `3e5e168`; real indexed pilot `4aab7be`; indexed decision evidence `dddd2e4`; warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,306 targeted tests pass, including six startup cases, four real-pilot boundary cases and four index parity cases, two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,313 targeted tests pass, including seven batch writer cases and six startup cases, four real-pilot boundary cases and four index parity cases, two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -270,7 +276,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Startup and burst `3e5e168` verified; bounded writer throughput and durability are next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Bounded writer `aa953b5` verified. Follow-up diagnostic protocol is next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -286,8 +292,8 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, benchmark bounded writer changes against the same bursts and
-verify commit visibility and recovery before predeclaring the follow-up. Keep the four-product
+Next, predeclare the follow-up with a 256-frame queue and batches of at most 16.
+Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
@@ -371,8 +377,8 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
-> Startup and burst verification is `3e5e168` with 1,306 targeted tests
-> passing. Read the November 8 startup and burst results.
+> Bounded writer verification is `aa953b5` with 1,313 targeted tests passing.
+> Read the November 8 batched journal results and startup and burst results.
 > The real indexed pilot is `4aab7be`.
 > Read the November 7 real indexed results. The capture stopped at the
 > reader queue limit before warmup. Indexed decision evidence is `dddd2e4`.
@@ -400,9 +406,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Test a faster bounded writer and verify crash recovery before choosing
-> the next diagnostic profile. Preserve thin-product missingness and the
-> stopped live prefix.
+> Predeclare a separate follow-up using the 256-frame queue and at most 16
+> frames per batch. Preserve thin-product missingness and the stopped live prefix.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and

@@ -117,9 +117,12 @@ Status keys: Open, In progress, Done, Blocked.
   complete. The 256-frame synthetic trials drained, with up to 1.9s of
   queue wait. 1,306 targeted checks pass. See
   `docs/research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md`.
-- Next, verify a faster bounded writer under the same burst and crash
-  conditions. Preserve current
-  pilot products and gates. Freeze association/exposure and the remaining
+- Bounded journal batches `aa953b5` pass crash and visibility checks.
+  All 256-frame trials completed. Worst reader-to-commit latency fell to
+  0.86s. 1,313 targeted checks pass. See
+  `docs/research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md`.
+- Next, predeclare the follow-up at 256 queued frames and up to 16 per
+  batch. Preserve the pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.

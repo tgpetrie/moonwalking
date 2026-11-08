@@ -1,5 +1,14 @@
 # Moonwalking / BHABIT Handoff
 
+## Bounded journal batching comparison — 2026-11-08
+
+**`aa953b5`** verifies commit visibility and recovery at three hard-exit
+boundaries. Across 24 synthetic trials, the 256-frame queue always drained
+the whole source. Worst receipt-to-commit latency at that queue size fell
+from 1.99s to 0.86s with batches of up to 16. **1,313 targeted checks pass**.
+The next diagnostic can use that explicit candidate profile.
+[Batching results](docs/research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md).
+
 ## Startup book recovery and burst verification — 2026-11-08
 
 **`90ac993`** stages books on explicitly opened connections and activates
@@ -9,9 +18,6 @@ startup prefix reproduces usable ALCX quotes under a simulated clock.
 overflowed six times. All six 256-frame trials completed with up to
 1.9s in queue. **1,306 targeted checks pass**.
 [Startup and burst results](docs/research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md).
-
-Next, measure a faster bounded writer with crash and visibility checks
-before selecting a live profile.
 
 ## Real indexed pilot stopped at queue cap — 2026-11-07
 
