@@ -118,7 +118,7 @@ export function AlignmentPlayground() {
       {/* 1m many – two-column */}
       <section className="bh-board-row-halves">
         <div className="bh-board-panel">
-          <h2 className="bh-section-header">1-min Gainers (>4, left)</h2>
+          <h2 className="bh-section-header">1-min Gainers (&gt;4, left)</h2>
           <div className="bh-table">
             {mock1mMany.slice(0, 3).map((t, i) => (
               <TokenRow

@@ -4,7 +4,7 @@
 //
 // Keep this file here for historical reference. Do not re-import into AppRoot.jsx.
 import React from "react";
-import TokenRow from "./TokenRow.jsx";
+import TokenRow from "../components/TokenRow.jsx";
 
 export default function OneMinuteGainers({ rows = [] }) {
   return (
@@ -17,28 +17,3 @@ export default function OneMinuteGainers({ rows = [] }) {
     </div>
   );
 }
-import React from "react";
-import TokenRow from "./TokenRow.jsx";
-
-export default function OneMinuteGainers({ title, items = [], loading }) {
-  return (
-    <div>
-      <p className="bh-section-heading">{title}</p>
-      {loading && !items.length ? (
-        <div style={{ padding: "0.75rem" }}>Loading…</div>
-      ) : !items.length ? (
-        <div style={{ padding: "0.75rem" }}>No data.</div>
-        ) : (
-          items.map((item, idx) => (
-          <TokenRow
-            key={item.symbol || idx}
-            index={idx}
-            item={item}
-            changeKey="price_change_percentage_1min"
-          />
-        ))
-      )}
-    </div>
-  );
-}
-
