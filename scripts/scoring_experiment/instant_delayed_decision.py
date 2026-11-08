@@ -1,7 +1,6 @@
 """Offline decision snapshots and later cutoff-anchored grading."""
 
 from dataclasses import asdict, dataclass
-import hashlib
 import json
 import math
 from pathlib import Path
@@ -68,17 +67,6 @@ def prepare_decision(recorder, product, cutoff, direction, *, asof):
     )
 
 
-def _prefix_at(recorder, asof):
-    prefix = hashlib.sha256()
-    count = 0
-    for packet in recorder.packets:
-        if packet.available_ts_ms > asof:
-            return count, prefix.hexdigest(), packet
-        prefix.update((_json(asdict(packet)) + "\n").encode("utf-8"))
-        count += 1
-    return count, prefix.hexdigest(), None
-
-
 def _check_prefix(recorder, decision, row):
     baseline = row["baseline"]
     if recorder.inventory_sha256 != baseline["inventory_sha256"] or (
@@ -96,7 +84,7 @@ def _check_prefix(recorder, decision, row):
         for name, source in sources
     ):
         raise ValueError("decision and recorder source provenance differ")
-    count, digest, _ = _prefix_at(recorder, decision.knowledge_asof_ts_ms)
+    count, digest, _ = recorder._prefix_at(decision.knowledge_asof_ts_ms)
     if (count, digest) != (
         baseline["known_packet_count"],
         baseline["known_packet_prefix_sha256"],
@@ -275,7 +263,7 @@ def grade_publication(recorder, publication, horizon_seconds, *, asof):
     row = json.loads(decision.feature_json)
     _check_prefix(recorder, decision, row)
     end = decision.feature_cutoff_ts_ms + horizon_seconds * 1000
-    count, prefix, pending_packet = _prefix_at(recorder, asof)
+    count, prefix, pending_packet = recorder._prefix_at(asof)
     result = dict(
         version=GRADE_VERSION,
         grading_packet_count=count,

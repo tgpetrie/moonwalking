@@ -288,29 +288,45 @@ class BookReplay:
         self.books[product] = candidate
         self.pending.append((product, None))
 
-    def view(self, product, cutoff, *, asof=None):
+    def _validate_view(self, product, cutoff, asof):
         if self.failed:
             raise ValueError("failed book replay cannot be queried")
         _integer(cutoff)
-        asof = cutoff if asof is None else _integer(asof)
+        _integer(asof)
         if product not in self.history or cutoff % 5000 or asof < cutoff:
             raise ValueError("known product, grid cutoff and causal asof required")
-        records = [
-            r
-            for r in self.history[product]
-            if r.receipt_ts_ms < cutoff and r.available_ts_ms <= asof
-        ]
-        state = records[-1] if records else None
+
+    def _records_at(self, product, cutoff, asof):
+        state = next(
+            (
+                r
+                for r in reversed(self.history[product])
+                if r.receipt_ts_ms < cutoff and r.available_ts_ms <= asof
+            ),
+            None,
+        )
+        latest = next(
+            (
+                r
+                for r in reversed(self.monitor.transport)
+                if r["product_id"] == product
+                and r["receipt_ts_ms"] < cutoff
+                and r["available_ts_ms"] <= asof
+                and self.completed[r["receipt_seq"]] <= asof
+            ),
+            None,
+        )
+        return state, latest
+
+    def view(self, product, cutoff, *, asof=None):
+        asof = cutoff if asof is None else asof
+        self._validate_view(product, cutoff, asof)
+        return self._view_from_records(
+            product, cutoff, asof, *self._records_at(product, cutoff, asof)
+        )
+
+    def _view_from_records(self, product, cutoff, asof, state, latest):
         reason = state.reason if state else "no_known_book"
-        transport = [
-            r
-            for r in self.monitor.transport
-            if r["product_id"] == product
-            and r["receipt_ts_ms"] < cutoff
-            and r["available_ts_ms"] <= asof
-            and self.completed[r["receipt_seq"]] <= asof
-        ]
-        latest = transport[-1] if transport else None
         age = (
             cutoff - state.observation_ts_ms
             if state and state.observation_ts_ms is not None

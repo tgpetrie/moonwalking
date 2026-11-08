@@ -1,14 +1,12 @@
 """Compute offline baseline components from the timed input ledger."""
 
-from dataclasses import asdict
 from decimal import Decimal, DecimalException
-import hashlib
 import math
 from pathlib import Path
 import statistics
 
 from instant_coverage import _integer
-from instant_input_evidence import BENCHMARK, GRID_MS, _json, _sha
+from instant_input_evidence import BENCHMARK, GRID_MS, _sha
 
 
 VERSION = "instant-timed-baseline-v1-draft"
@@ -84,10 +82,13 @@ def _pace(recorder, product, start, end, asof):
         return dict(status="unavailable", reason=reason, product_id=product)
     counts, amounts = [0] * PACE_COUNT, [Decimal(0)] * PACE_COUNT
     try:
-        for trade in trades:
-            index = (trade.receipt_ts_ms - start) // PACE_MS
-            counts[index] += 1
-            amounts[index] += Decimal(trade.price) * Decimal(trade.size)
+        if recorder._index is None:
+            for trade in trades:
+                index = (trade.receipt_ts_ms - start) // PACE_MS
+                counts[index] += 1
+                amounts[index] += Decimal(trade.price) * Decimal(trade.size)
+        else:
+            counts, amounts = recorder._index.pace_bins(product, start, end, PACE_MS)
         median = statistics.median(amounts)
     except DecimalException:
         return dict(status="unavailable", reason="invalid_quote_amount")
@@ -125,13 +126,7 @@ def build_timed_baseline(recorder, product, cutoff, *, asof):
     pace_start = pace_end - PACE_COUNT * PACE_MS
     volatility = _volatility(recorder, product, sigma_start, sigma_end, asof)
     pace = _pace(recorder, product, pace_start, pace_end, asof)
-    prefix = hashlib.sha256()
-    known_packets = 0
-    for packet in recorder.packets:
-        if packet.available_ts_ms > asof:
-            break
-        prefix.update((_json(asdict(packet)) + "\n").encode("utf-8"))
-        known_packets += 1
+    known_packets, prefix, _ = recorder._prefix_at(asof)
 
     result = dict(
         version=VERSION,
@@ -148,7 +143,7 @@ def build_timed_baseline(recorder, product, cutoff, *, asof):
         inventory_sha256=recorder.inventory_sha256,
         inventory_recorded_ts_ms=recorder.inventory_recorded_ts_ms,
         known_packet_count=known_packets,
-        known_packet_prefix_sha256=prefix.hexdigest(),
+        known_packet_prefix_sha256=prefix,
         input_implementation_sha256=recorder.source_sha256,
         input_contract_sha256=recorder.contract_sha256,
         book_implementation_sha256=recorder.book.source_sha256,

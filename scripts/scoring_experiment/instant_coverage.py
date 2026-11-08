@@ -426,7 +426,7 @@ class CoverageMonitor:
             )
             return
 
-    def assess(self, product, start, end, *, asof):
+    def _validate_assessment(self, product, start, end, asof):
         if self.failed:
             raise ValueError("failed monitor cannot produce assessments")
         for value in (start, end, asof):
@@ -435,12 +435,35 @@ class CoverageMonitor:
             raise ValueError(
                 "known product, completed interval and asof >= end required"
             )
-        states = [
-            s
-            for s in self.transport
-            if s["product_id"] == product and s["available_ts_ms"] <= asof
+
+    def assess(self, product, start, end, *, asof):
+        self._validate_assessment(product, start, end, asof)
+        state = next(
+            (
+                s
+                for s in reversed(self.transport)
+                if s["product_id"] == product and s["available_ts_ms"] <= asof
+            ),
+            None,
+        )
+        spans = [
+            p
+            for p in self.proofs
+            if p["product_id"] == product
+            and p["start_ts_ms"] < end
+            and p["end_ts_ms"] > start
+            and p["available_ts_ms"] <= asof
         ]
-        state = states[-1] if states else None
+        conflict = any(
+            c["product_id"] == product
+            and c["start_ts_ms"] < end
+            and c["end_ts_ms"] > start
+            and c["available_ts_ms"] <= asof
+            for c in self.conflicts
+        )
+        return self._assess_filtered(product, start, end, asof, state, spans, conflict)
+
+    def _assess_filtered(self, product, start, end, asof, state, spans, conflict):
         transport_reason = (
             state["reason"] if state else "no_known_subscription_or_heartbeat"
         )
@@ -450,14 +473,6 @@ class CoverageMonitor:
                 if asof - state["receipt_ts_ms"] <= MAX_HEARTBEAT_GAP_MS
                 else "stale_heartbeat"
             )
-        spans = [
-            p
-            for p in self.proofs
-            if p["product_id"] == product
-            and p["start_ts_ms"] < end
-            and p["end_ts_ms"] > start
-            and p["available_ts_ms"] <= asof
-        ]
         # A failed proof is superseded only once a merged proof covering it is
         # known. The failed record itself is never rewritten.
         superseded = {
@@ -471,13 +486,6 @@ class CoverageMonitor:
             for p in spans
             if p["scope"] == MERGED_SCOPE or p["end_heartbeat_seq"] not in superseded
         ]
-        conflict = any(
-            c["product_id"] == product
-            and c["start_ts_ms"] < end
-            and c["end_ts_ms"] > start
-            and c["available_ts_ms"] <= asof
-            for c in self.conflicts
-        )
         reason = (
             "conflicting_trade_id"
             if conflict

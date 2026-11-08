@@ -115,6 +115,7 @@ class StreamJournal:
         max_record_bytes=MAX_RECORD_BYTES,
         clock_ms=None,
         monotonic_ns=None,
+        indexed=False,
     ):
         if not 1 <= _integer(max_packets) <= WARMUP_PACKET_LIMIT or not (
             1 <= _integer(max_record_bytes) <= MAX_RECORD_BYTES
@@ -126,6 +127,7 @@ class StreamJournal:
             stop_cutoff,
             clock_ms=clock_ms,
             packet_limit=max_packets,
+            indexed=indexed,
         )
         self._monotonic = monotonic_ns or time.monotonic_ns
         self._max_packets = max_packets
@@ -161,6 +163,9 @@ class StreamJournal:
                 monitor_contract_sha256=self.evidence.book.monitor.contract_sha256,
                 journal_implementation_sha256=_sha(
                     Path(__file__).read_text(encoding="utf-8").encode("utf-8")
+                ),
+                index_implementation_sha256=(
+                    self.evidence._index.source_sha256 if indexed else None
                 ),
                 max_packets=max_packets,
                 max_record_bytes=max_record_bytes,

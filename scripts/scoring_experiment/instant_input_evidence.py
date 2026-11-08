@@ -36,6 +36,10 @@ def _sha(value):
     return hashlib.sha256(value).hexdigest()
 
 
+def _packet_line(packet):
+    return (_json(asdict(packet)) + "\n").encode("utf-8")
+
+
 def _file_sha(path):
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -95,7 +99,14 @@ class InputEvidenceRecorder:
     """
 
     def __init__(
-        self, products, first_cutoff, stop_cutoff, *, clock_ms=None, packet_limit=None
+        self,
+        products,
+        first_cutoff,
+        stop_cutoff,
+        *,
+        clock_ms=None,
+        packet_limit=None,
+        indexed=False,
     ):
         for value in (first_cutoff, stop_cutoff):
             _integer(value)
@@ -168,6 +179,11 @@ class InputEvidenceRecorder:
         self._cohorts = {}
         self.failed = False
         self.sealed = False
+        self._index = None
+        if indexed:
+            from instant_evidence_index import EvidenceIndex
+
+            self._index = EvidenceIndex(self)
 
     def _now(self):
         try:
@@ -229,27 +245,21 @@ class InputEvidenceRecorder:
                 self.trades.append(
                     TradeEvidence(**trade, available_ts_ms=packet.available_ts_ms)
                 )
+            if self._index is not None:
+                self._index.ingested(packet, self.trades[-1] if trade else None)
         except Exception:
             self.failed = True
             raise
 
     def _quote_at(self, product, cutoff, asof):
-        view = self.book.view(product, cutoff, asof=asof)
-        states = [
-            r
-            for r in self.book.history[product]
-            if r.receipt_ts_ms < cutoff and r.available_ts_ms <= asof
-        ]
-        transport = [
-            r
-            for r in self.book.monitor.transport
-            if r["product_id"] == product
-            and r["receipt_ts_ms"] < cutoff
-            and r["available_ts_ms"] <= asof
-            and self.book.completed[r["receipt_seq"]] <= asof
-        ]
-        used = ([states[-1].receipt_seq] if states else []) + (
-            [transport[-1]["receipt_seq"]] if transport else []
+        self.book._validate_view(product, cutoff, asof)
+        if self._index is None:
+            state, transport = self.book._records_at(product, cutoff, asof)
+        else:
+            state, transport = self._index.quote_records(product, cutoff, asof)
+        view = self.book._view_from_records(product, cutoff, asof, state, transport)
+        used = ([state.receipt_seq] if state else []) + (
+            [transport["receipt_seq"]] if transport else []
         )
         available = max(
             (self._packet_by_seq[s].available_ts_ms for s in used), default=None
@@ -267,21 +277,54 @@ class InputEvidenceRecorder:
         )
         return quote, available if quote_ready else None
 
+    def _prefix_at(self, asof):
+        if self._index is not None:
+            return self._index.prefix_at(asof)
+        prefix = hashlib.sha256()
+        for i, packet in enumerate(self.packets):
+            if packet.available_ts_ms > asof:
+                return i, prefix.hexdigest(), packet
+            prefix.update(_packet_line(packet))
+        return len(self.packets), prefix.hexdigest(), None
+
+    def _book_window(self, product, start, end, asof):
+        if self._index is not None:
+            return self._index.book_window(product, start, end, asof)
+        states = [
+            state
+            for state in self.book.history[product]
+            if state.receipt_ts_ms < end
+            and self._packet_by_seq[state.receipt_seq].available_ts_ms <= asof
+        ]
+        transport = [
+            row
+            for row in self.book.monitor.transport
+            if row["product_id"] == product
+            and row["receipt_ts_ms"] < end
+            and self._packet_by_seq[row["receipt_seq"]].available_ts_ms <= asof
+        ]
+        return states, transport
+
     def _trade_window(self, product, start, cutoff, asof):
-        proof = self.book.monitor.assess(product, start, cutoff, asof=asof)
-        intervals = [
-            p
-            for p in self.book.monitor.proofs
-            if p["product_id"] == product
-            and p["start_ts_ms"] < cutoff
-            and p["end_ts_ms"] > start
-            and p["available_ts_ms"] <= asof
-        ]
-        rows = [
-            t
-            for t in self.trades
-            if t.product_id == product and start <= t.receipt_ts_ms < cutoff
-        ]
+        if self._index is None:
+            proof = self.book.monitor.assess(product, start, cutoff, asof=asof)
+            intervals = [
+                p
+                for p in self.book.monitor.proofs
+                if p["product_id"] == product
+                and p["start_ts_ms"] < cutoff
+                and p["end_ts_ms"] > start
+                and p["available_ts_ms"] <= asof
+            ]
+            rows = [
+                t
+                for t in self.trades
+                if t.product_id == product and start <= t.receipt_ts_ms < cutoff
+            ]
+        else:
+            proof, intervals, rows = self._index.trade_window(
+                product, start, cutoff, asof
+            )
         known = [t for t in rows if t.available_ts_ms <= asof]
         proof_completion = max(
             (

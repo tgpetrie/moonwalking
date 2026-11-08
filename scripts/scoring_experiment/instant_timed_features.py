@@ -105,19 +105,9 @@ def _book_pressure(recorder, product, start, end, asof, sign):
         return _missing("insufficient_history")
     # Each stream is already receipt ordered. Overwriting the start key keeps
     # the last carried state; overwriting a same-ms key keeps the last event.
-    states = {
-        max(start, state.receipt_ts_ms): state
-        for state in recorder.book.history[product]
-        if state.receipt_ts_ms < end
-        and recorder._packet_by_seq[state.receipt_seq].available_ts_ms <= asof
-    }
-    transport = {
-        max(start, row["receipt_ts_ms"]): row
-        for row in recorder.book.monitor.transport
-        if row["product_id"] == product
-        and row["receipt_ts_ms"] < end
-        and recorder._packet_by_seq[row["receipt_seq"]].available_ts_ms <= asof
-    }
+    book_rows, transport_rows = recorder._book_window(product, start, end, asof)
+    states = {max(start, state.receipt_ts_ms): state for state in book_rows}
+    transport = {max(start, row["receipt_ts_ms"]): row for row in transport_rows}
     boundaries = sorted({start, end, *states, *transport})
     state = heartbeat = None
     known = end

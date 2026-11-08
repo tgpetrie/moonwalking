@@ -14,8 +14,8 @@ SLOW = CUTOFF - 180000
 CANDLE_START = FAST - 900000
 
 
-def feature_tape(*, traded_candles=15, unknown_side=False):
-    tape = Tape(first=CUTOFF, stop=CUTOFF + 5000)
+def feature_tape(*, traded_candles=15, unknown_side=False, tape_type=Tape):
+    tape = tape_type(first=CUTOFF, stop=CUTOFF + 5000)
     tape.ack()
     watermark = 10
     for ts in range(100000, CUTOFF + 1, 5000):

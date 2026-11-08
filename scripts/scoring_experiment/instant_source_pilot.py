@@ -155,6 +155,7 @@ def capture(
     packet_stop=SOFT_PACKETS,
     byte_stop=SOFT_RECORD_BYTES,
     progress=print,
+    after_commit=None,
 ):
     """Run the callback path with injectable transport and clocks for dry runs."""
     callbacks = PilotCallbacks(journal, duration_ns=duration_ns)
@@ -219,6 +220,8 @@ def capture(
                         else "byte_budget"
                     )
                     break
+                if after_commit is not None:
+                    after_commit()
                 if monotonic() - last_progress >= 60:
                     progress(
                         f"{journal.packet_count} packets committed, {journal.record_bytes} logical bytes.",
