@@ -1,5 +1,14 @@
 # Moonwalking / BHABIT Handoff
 
+## Batched source follow-up — 2026-11-08
+
+**`c9d79be`** enables the explicit `batched-256` research profile. The
+dry run verifies that the first warmup cutoff uses the subscription
+acknowledgment's original receipt even when later frames share the batch.
+**1,316 targeted checks pass**. Attempt 01 has acknowledged the four
+products and is running on the Windows research host.
+[Declared protocol](docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md).
+
 ## Bounded journal batching comparison — 2026-11-08
 
 **`aa953b5`** verifies commit visibility and recovery at three hard-exit

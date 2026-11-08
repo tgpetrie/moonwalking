@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T10:55:27.274697+00:00",
+  "updated_utc": "2026-11-08T11:14:18.233433+00:00",
   "display_date_pacific": "2026-11-08",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "aa953b59a98c71a0cde2338e0f3d6eba228fbdb9",
+  "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -37,13 +37,14 @@
     "indexed_latency": "synthetic_writer_thread_benchmark_complete_batch_parity_verified",
     "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed",
     "startup_and_burst": "pre_ack_startup_amended_12_burst_scenarios_verified",
-    "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate"
+    "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
+    "batched_source_pilot": "one_attempt_started_subscriptions_acknowledged"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "bounded_batch_writer_verified_1313_targeted_checks_follow_up_protocol_next"
+      "status": "batched_source_profile_verified_1316_targeted_checks_monitoring_attempt_01"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -133,8 +134,8 @@
     }
   },
   "next_actions": [
-    "Predeclare the next four-product source and latency diagnostic using the candidate 256-frame reader queue and at most 16 frames per batch. Expose the profile explicitly while retaining the default.",
-    "Measure complete warmup, reader loss and commit age, actual local delivery and per-product quote coverage. Preserve the original feed audit gate and thin-product missingness.",
+    "Monitor the declared batched source follow-up attempt 01 on the Windows research host through its stop.",
+    "Verify the journal, preserve both clock checks and report real warmup, reader loss, per-product quote coverage and local delivery evidence.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -146,15 +147,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1313,
+    "implementation_targeted_tests_passed": 1316,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_aa953b5",
+    "guardrails": "passed_at_c9d79be",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_aa953b5",
+    "black_24_8": "passed_at_c9d79be",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -570,7 +571,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "aa953b59a98c71a0cde2338e0f3d6eba228fbdb9",
+  "latest_verification_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -762,6 +763,21 @@
       "max_batch_frames": 1
     },
     "real_capture_exercised": false,
+    "fitting_allowed": false
+  },
+  "batched_source_pilot": {
+    "status": "subscriptions_acknowledged_results_pending",
+    "attempt": 1,
+    "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+    "protocol": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md",
+    "started_utc": "2026-11-08T11:13:16.120893+00:00",
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_batched_source_pilot_20261108",
+    "profile": "batched-256",
+    "queue_frames": 256,
+    "max_batch_frames": 16,
+    "max_duration_seconds": 4020,
+    "planned_cohorts": 10,
+    "feed_gate_pass": false,
     "fitting_allowed": false
   }
 }

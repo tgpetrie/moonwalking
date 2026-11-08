@@ -121,8 +121,11 @@ Status keys: Open, In progress, Done, Blocked.
   All 256-frame trials completed. Worst reader-to-commit latency fell to
   0.86s. 1,313 targeted checks pass. See
   `docs/research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md`.
-- Next, predeclare the follow-up at 256 queued frames and up to 16 per
-  batch. Preserve the pilot products and gates. Freeze association/exposure and the remaining
+- Batched source follow-up `c9d79be` uses the opt-in 256-frame queue and up
+  to 16 frames per batch. 1,316 targeted checks pass and the attempt has
+  acknowledged all four products. See `docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md`.
+- Next, verify the follow-up journal and report coverage and latency.
+  Preserve the pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and
   fitting. Historical validation remains locked. Live scoring is unchanged.
