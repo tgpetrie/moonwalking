@@ -1,5 +1,18 @@
 # Moonwalking / BHABIT Handoff
 
+## Indexed decision latency benchmark complete — 2026-11-07
+
+**`dddd2e4`** indexed receipt and evidence queries and cached verified
+activity-bin totals. During the synthetic 67-minute capture, it prepared
+80 decisions at 89 ms p95 per decision. The largest eight-decision cohort
+with local outbox receipts was 682 ms. All 16 checked snapshots matched
+the batch path. **1,296 targeted checks pass**.
+[Indexed latency results](docs/research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md).
+
+Next, predeclare a real-data indexed latency and readiness diagnostic.
+Keep synthetic timing and local database receipts separate from live
+socket backlog and observed publication.
+
 ## Synthetic warmup capacity passed — 2026-11-07
 
 **`a39d73e`** committed 241,208 rows across 67 simulated minutes on a

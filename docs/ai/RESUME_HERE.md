@@ -6,10 +6,13 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-Indexed evidence lookups and cached activity bins are implemented at
-**`dddd2e4`**. The synthetic writer-thread latency run is active.
-**1,296 targeted checks pass**. See the
-[indexed latency draft](../research/INSTANT_INDEXED_LATENCY_20261107.md).
+Indexed evidence at **`dddd2e4`** prepared 80 diagnostic decisions while
+the synthetic recorder committed 241,208 packets on one connection.
+Preparation p95 was 89 ms per decision. The full eight-decision cohort
+with local outbox receipts took up to 682 ms. All 16 batch comparisons
+matched and **1,296 targeted checks pass**. Next is the predeclared
+real-data latency and readiness diagnostic.
+[Indexed latency results](../research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md).
 
 The opt-in warmup profile at **`a39d73e`** passed the 67-minute synthetic
 run on one connection with 241,208 committed rows. All four products had
@@ -151,8 +154,8 @@ Book replay preserves atomic batches, original quote/change ages and measured
 processing completion. It does not enter legacy target samples or certify
 continuous F3/full-feed readiness. Publication clocks are explicit; a
 publication-anchored target and numerical lag limit remain separate drafts.
-Next, optimize baseline and feature windows and measure latency under
-recorder load before a follow-up source diagnostic. Preserve >=62 complete warmup minutes,
+Next, predeclare a real-data diagnostic using the indexed recorder,
+with distinct receipt, evidence wait, processing and publication clocks. Preserve >=62 complete warmup minutes,
 the original feed gate and remaining feature/study/readiness freeze.
 
 The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
@@ -211,9 +214,9 @@ for that lane; its readiness does not enable instant-radar fitting.
 |---|---|
 | Repository | `tgpetrie/moonwalking` |
 | Resume branch | `codex/instant-radar-20261028` |
-| Current implementation | Warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Current implementation | Indexed decision evidence `dddd2e4`; warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
 | Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
-| Checks | 1,292 targeted tests pass, including two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Checks | 1,296 targeted tests pass, including four index parity cases, two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
 | Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
 | Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
 | Live behavior | No ranking, weights, recorder integration or production deployment change |
@@ -252,7 +255,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Synthetic warmup capacity `a39d73e` passed; incremental computation and latency measurement are next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Indexed latency `dddd2e4` benchmark complete; real-data protocol is next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
@@ -268,8 +271,8 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, verify incremental feature computation under recorder load.
-Check host clock offset near the next predeclared source diagnostic. Keep the four-product
+Next, predeclare and wire the indexed real-data diagnostic.
+Check host clock offset near the capture. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
@@ -353,6 +356,8 @@ own machines. The Windows collector is a separate running service on port
 > `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
+> Indexed decision evidence is `dddd2e4` with 1,296 targeted tests passing.
+> Read the November 7 indexed latency results before the real-data protocol.
 > Warmup capacity `a39d73e` passed 67 simulated minutes on one connection,
 > with 1,292 targeted tests passing. Read the November 7 capacity results.
 > The source pilot is `92ed71f`. Read its
@@ -376,8 +381,8 @@ own machines. The Windows collector is a separate running service on port
 > thin quotes and baseline warmup remain blockers. Read the November 4
 > reconciliation, book and association acceptance reports. Those draft
 > earlier implementations and directional review are complete; do not repeat them.
-> Benchmark incremental feature computation under recorder load before a
-> follow-up. Preserve stale thin-product missingness and check clock offset.
+> Predeclare the real-data indexed diagnostic. Preserve stale thin-product
+> missingness, check clock offset and distinguish local from external timing.
 > Fitting remains off; no physical onset is inferred yet.
 > Restore the documented GitHub evidence if needed. Historical validation
 > is locked; the feed gate is still inconclusive. Keep live scoring and

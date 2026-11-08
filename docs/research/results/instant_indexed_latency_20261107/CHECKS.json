@@ -26,11 +26,23 @@
     "tests/test_instant_evidence_index.py": "26dcdc75d1e959b5169a7c5886c68f2f16a7a930103ed6d48e066b7d112e90a9",
     "tests/test_instant_timed_features.py": "a714f39b0f2239984c310b4099b0d5648a5fc7e96dc7dbc11b49415e86b3301c"
   },
-  "indexed_latency_run_status": "running",
+  "indexed_latency_run_status": "completed_with_batch_parity",
   "full_suite_run": false,
   "native_mac_verified": false,
   "new_real_capture": false,
   "historical_validation_rerun": false,
   "fitting_allowed": false,
-  "live_changes": false
+  "live_changes": false,
+  "run_verified_utc": "2026-11-08T01:38:01.369500+00:00",
+  "run_manifest_sha256_UTF8_LF": "f8abd875c9059088032d7df4f67039303a3eb6daadef4ffb76c43e3ace987455",
+  "journal_sha256": "23ab1c403f3a7c37ca5a6b8e2172a14dfd263a0fb072d71888b7a1a13be93537",
+  "packet_rows": 241208,
+  "local_publication_receipts_verified": 80,
+  "batch_parity_cases": 16,
+  "synthetic_single_connection_verified": true,
+  "synthetic_journal_quick_check": "ok",
+  "synthetic_packet_digests_and_sequence_verified": true,
+  "real_socket_backlog_measured": false,
+  "external_publication_measured": false,
+  "decision_age_budget_selected": false
 }

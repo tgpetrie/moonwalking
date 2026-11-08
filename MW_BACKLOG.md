@@ -104,8 +104,12 @@ Status keys: Open, In progress, Done, Blocked.
   records on one connection. All four baselines were ready at minute 62.
   1,292 targeted checks pass. See
   `docs/research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md`.
-- Next, benchmark incremental feature computation under recorder load and
-  verify clock offset before a follow-up source diagnostic. Preserve current
+- Indexed decision evidence `dddd2e4` measured 89 ms p95 per preparation
+  and a 682 ms maximum serial cohort under synthetic recorder load. All
+  16 batch comparisons matched. 1,296 targeted checks pass. See
+  `docs/research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md`.
+- Next, predeclare a real-data indexed diagnostic and measure clock
+  offset near the capture. Preserve current
   pilot products and gates. Freeze association/exposure and the remaining
   study rules, resolve remaining audit evidence,
   then freeze recorder/features/readiness before prospective collection and

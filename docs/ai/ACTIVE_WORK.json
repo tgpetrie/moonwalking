@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T00:56:37.462209+00:00",
+  "updated_utc": "2026-11-08T01:38:01.369500+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -33,13 +33,14 @@
     "decision_and_grading": "offline_snapshot_publication_observation_and_later_cutoff_grading_verified_synthetically",
     "stream_journal": "bounded_local_storage_connection_lifecycle_and_commit_receipts_verified_synthetically",
     "source_pilot": "completed_at_packet_limit_after_34m28s_warmup_not_reached",
-    "warmup_capacity": "synthetic_67_minutes_one_connection_passed_decision_computation_latency_open"
+    "warmup_capacity": "synthetic_67_minutes_one_connection_passed_decision_computation_latency_open",
+    "indexed_latency": "synthetic_writer_thread_benchmark_complete_batch_parity_verified"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "indexed_evidence_implemented_1296_targeted_tests_pass_latency_run_active"
+      "status": "indexed_latency_benchmark_complete_1296_targeted_checks_follow_up_protocol_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -129,8 +130,8 @@
     }
   },
   "next_actions": [
-    "Monitor the indexed synthetic latency run to completion, verify both batch comparison cohorts, and report serial decision and outbox durations.",
-    "Keep stale thin-product quote windows unavailable and retain them in coverage denominators. Measure host clock offset contemporaneously and record external publication evidence separately.",
+    "Predeclare the next real-data latency/readiness diagnostic with the indexed writer, capacity limit, sample times, and separately measured receipt, evidence wait, preparation and publication clocks.",
+    "Keep stale thin-product windows unavailable and retain them in coverage denominators. Measure clock offset near the next capture and distinguish local outbox receipt from observed external delivery.",
     "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -676,7 +677,7 @@
     }
   },
   "indexed_latency": {
-    "status": "synthetic_benchmark_running",
+    "status": "synthetic_benchmark_complete",
     "implementation_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
     "protocol": "docs/research/INSTANT_INDEXED_LATENCY_20261107.md",
     "checks": "docs/research/results/instant_indexed_latency_20261107/CHECKS.json",
@@ -685,6 +686,16 @@
     "products_per_cohort": 4,
     "directions_per_product": 2,
     "real_capture_exercised": false,
-    "fitting_allowed": false
+    "fitting_allowed": false,
+    "results": "docs/research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md",
+    "run": "docs/research/results/instant_indexed_latency_20261107/RUN_01.json",
+    "packets": 241208,
+    "local_outbox_receipts": 80,
+    "exact_batch_comparisons": 16,
+    "journal_sha256": "23ab1c403f3a7c37ca5a6b8e2172a14dfd263a0fb072d71888b7a1a13be93537",
+    "decision_p95_ms": 89.16,
+    "cohort_max_ms": 681.971,
+    "real_backlog_measured": false,
+    "decision_age_budget_selected": false
   }
 }
