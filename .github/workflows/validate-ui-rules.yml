@@ -5,6 +5,8 @@ on:
     paths:
       - 'frontend/**'
       - '.continue/**'
+      - 'scripts/validate_ui_rules.sh'
+      - '.github/workflows/validate-ui-rules.yml'
 
 jobs:
   ui-rules:
@@ -13,6 +15,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Run UI rules validator
         run: bash ./scripts/validate_ui_rules.sh
