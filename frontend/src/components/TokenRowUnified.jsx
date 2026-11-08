@@ -164,27 +164,8 @@ export function TokenRowUnified({
       : pctInfo.state === "positive"
         ? "gain"
         : "flat";
-  const rankMoveTone = !rowCue?.rankShiftLabel
-    ? "flat"
-    : dataSide === "loser"
-      ? "neutral"
-      : rowCue.rankShiftTone;
   const rankMoveMagnitude = Math.abs(Number(rankDelta) || 0);
-  const rankMoveLabel = !rowCue?.rankShiftLabel
-    ? ""
-    : dataSide === "loser"
-      ? `${rankMoveMagnitude}${rankDelta > 0 ? "↑" : "↓"}`
-      : rowCue.rankShiftLabel;
-  const rankMoveTitle = !rowCue?.rankShiftLabel
-    ? ""
-    : dataSide === "loser"
-      ? `Moved ${rankDelta > 0 ? "up" : "down"} ${rankMoveMagnitude} position${rankMoveMagnitude === 1 ? "" : "s"} on losers board`
-      : "Board position shift";
-  const rankMoveAria = !rowCue?.rankShiftLabel
-    ? ""
-    : dataSide === "loser"
-      ? `Moved ${rankDelta > 0 ? "up" : "down"} ${rankMoveMagnitude} position${rankMoveMagnitude === 1 ? "" : "s"} on losers board`
-      : `Board position shift ${rankMoveLabel}`;
+  const rankMoveDirection = rankDelta > 0 ? "up" : "down";
   const liveRank = Number(token?.live_rank);
   const liveScore = Number(token?.live_score);
   const liveUniverse = Number(token?.universe_size);
@@ -209,6 +190,15 @@ export function TokenRowUnified({
       <CellTag className="bh-cell bh-cell-rank mw-cell mw-cell--rank" style={{ "--mw-j": 0 }}>
         <div className="bh-rank-stack">
           <div className="bh-rank">{rank}</div>
+          {rankMoveMagnitude > 0 && (
+            <span
+              className="bh-rank-delta"
+              role="img"
+              aria-label={`Moved ${rankMoveDirection} ${rankMoveMagnitude} on this board`}
+            >
+              {rankDelta > 0 ? "▲" : "▼"}{rankMoveMagnitude}
+            </span>
+          )}
         </div>
       </CellTag>
 
@@ -253,15 +243,6 @@ export function TokenRowUnified({
                       {persistenceCue.compactCount}
                     </span>
                   ) : null}
-                </span>
-              ) : null}
-              {rankMoveLabel ? (
-                <span
-                  className={`bh-symbol-move bh-symbol-move--${rankMoveTone}`}
-                  title={rankMoveTitle}
-                  aria-label={rankMoveAria}
-                >
-                  {rankMoveLabel}
                 </span>
               ) : null}
             </div>

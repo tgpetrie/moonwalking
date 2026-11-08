@@ -17,6 +17,7 @@ import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
+import FreshnessStamp from "./ui/FreshnessStamp.jsx";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -26,16 +27,10 @@ const BOARD_MOVEMENT_LEGEND = [
     detail: "Tape confirmed means current upside tape strength scores high; Tape confirmed down means current downside tape strength scores high. Recent momentum, volume, and activity are all reading well in that direction. It does not guarantee every timeframe agrees; open the coin for the full multi-factor read. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
   },
   {
-    symbol: "+2 / -2",
+    symbol: "▲2 / ▼1",
     tone: "neutral",
     label: "Board rank shift",
     detail: "Position changed on the board. This is not price direction.",
-  },
-  {
-    symbol: "2↑ / 2↓",
-    tone: "neutral",
-    label: "Losers board shift",
-    detail: "Moved up or down the losers list. Still a rank change, not price direction.",
   },
 ];
 
@@ -243,7 +238,7 @@ function BoardEvidenceLine({ summary }) {
     return (
       <div className="board-section-evidence">
         Learning clean episodes · n={sampleSize}/{minimumSamples} · {spanDays.toFixed(1)}/{minimumDays} days
-        {matched ? ` · ${matched} matched controls` : ""} · instant signals stay live
+        {matched ? ` · ${matched} matched controls` : ""}
       </div>
     );
   }
@@ -264,7 +259,7 @@ function BoardEvidenceLine({ summary }) {
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, lastFetchTs, boardSourceTimes, feedSourceMs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
   const boardStats = boardOutcomes?.boards || {};
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
@@ -273,6 +268,9 @@ export default function DashboardShell({ onInfo }) {
   const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [ignitionStatus, setIgnitionStatus] = useState("connecting");
+  const [gainersStatus, setGainersStatus] = useState("connecting");
+  const [losersStatus, setLosersStatus] = useState("connecting");
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
 
@@ -387,32 +385,26 @@ export default function DashboardShell({ onInfo }) {
     return () => window.removeEventListener("openInfo", handler);
   }, []);
 
-  // Derive `status` from live/partial/fatal indicators. Do not store as derived state
-  const formatTempTime = (value) => {
-    if (!value) return "—";
-    const date = value instanceof Date ? value : new Date(value);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const sourceTime = (key) => {
+    const boardTime = boardSourceTimes?.[key];
+    if (!Number.isFinite(boardTime)) return null;
+    return Number.isFinite(feedSourceMs) ? Math.min(boardTime, feedSourceMs) : boardTime;
   };
-
-  const STALE_THRESHOLD = 20; // seconds
-
-  const status = useMemo(() => {
-    const coreReady = (gainers1m?.length || 0) > 0 || (gainers3m?.length || 0) > 0 || (losers3m?.length || 0) > 0;
-    const isStale = staleSeconds !== null && staleSeconds > STALE_THRESHOLD;
-
-    if (fatal) return "DEGRADED";
-    if (error && !coreReady) return "OFFLINE";
-    if (warming) return "WARMING";
-    if (isStale) return "STALE";
-    if (!coreReady && partialStreak >= 2) return "DEGRADED";
-
-    return "LIVE";
-  }, [fatal, error, warming, staleSeconds, partialStreak, gainers1m, gainers3m, losers3m]);
-
-  const lastUpdatedLabel = useMemo(
-    () => formatTempTime(lastUpdated || lastGoodTs),
-    [lastUpdated, lastGoodTs]
-  );
+  const boardStatuses = [ignitionStatus, gainersStatus, losersStatus];
+  const worstStatus = ["offline", "stale", "delayed", "connecting", "warming", "live"]
+    .find((state) => boardStatuses.includes(state));
+  const hasMovers = gainers1m.length || gainers3m.length || losers3m.length;
+  const status = fatal || (!hasMovers && worstStatus === "live" && partialStreak >= 2)
+    ? "DEGRADED"
+    : worstStatus.toUpperCase();
+  const moverTimes = ["gainers_1m", "gainers_3m", "losers_3m"]
+    .map(sourceTime)
+    .filter(Number.isFinite);
+  const lastUpdatedLabel = moverTimes.length
+    ? new Date(Math.min(...moverTimes)).toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+      })
+    : "—";
 
   const pressurePill = useMemo(() => {
     const mp = getMarketPressure({ market_pressure: alertsMeta?.market_pressure });
@@ -430,7 +422,7 @@ export default function DashboardShell({ onInfo }) {
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
-            <span className="live-updated">
+            <span className="live-updated" title="Oldest board data time">
               <span className="live-updated-time">{lastUpdatedLabel}</span>
             </span>
             {alertsMeta.market_pressure ? (
@@ -484,15 +476,24 @@ export default function DashboardShell({ onInfo }) {
                     <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
 
                     <section className="bh-board-row-full">
-                      <div className="bh-panel bh-panel--rail" data-hover-origin="center">
+                      <div className="bh-panel bh-panel--rail" data-hover-origin="center" data-freshness={ignitionStatus}>
                         <div className="board-section">
                           <div className="board-section-header board-section-header--center board-section-header--gain">
                             <div className="board-section-title board-section-title--center">IGNITION (1M)</div>
+                            <FreshnessStamp
+                              cadence="1m"
+                              hasData={gainers1m.length > 0}
+                              warming={warming}
+                              unreachable={Boolean(error)}
+                              lastSuccessMs={lastFetchTs}
+                              sourceMs={sourceTime("gainers_1m")}
+                              onStatusChange={setIgnitionStatus}
+                            />
                             <BoardEvidenceLine summary={boardStats.ignition_1m} />
                           </div>
                           <GainersTable1Min
                             tokens={gainers1m}
-                            loading={uiLoading}
+                            loading={loading}
                             onInfo={onInfoProp}
                             onToggleWatchlist={handleToggleWatchlist}
                             watchlist={watchlistSymbols}
@@ -503,15 +504,24 @@ export default function DashboardShell({ onInfo }) {
 
                     <div className="board-section">
                       <section className="bh-3m-grid">
-                        <div className="bh-panel bh-panel-half" data-hover-origin="right">
+                        <div className="bh-panel bh-panel-half" data-hover-origin="right" data-freshness={gainersStatus}>
                           <div className="board-section">
                             <div className="board-section-header board-section-header--center board-section-header--gain">
                               <div className="board-section-title board-section-title--center">CONFIRMATION · GAINERS (3M)</div>
+                              <FreshnessStamp
+                                cadence="3m"
+                                hasData={gainers3m.length > 0}
+                                warming={warming3m}
+                                unreachable={Boolean(error)}
+                                lastSuccessMs={lastFetchTs}
+                                sourceMs={sourceTime("gainers_3m")}
+                                onStatusChange={setGainersStatus}
+                              />
                               <BoardEvidenceLine summary={boardStats.confirmation_3m_up} />
                             </div>
                             <GainersTable3Min
                               tokens={gainers3m}
-                              loading={uiLoading}
+                              loading={loading}
                               warming3m={warming3m}
                               onInfo={onInfoProp}
                               onToggleWatchlist={handleToggleWatchlist}
@@ -519,15 +529,24 @@ export default function DashboardShell({ onInfo }) {
                             />
                           </div>
                         </div>
-                        <div className="bh-panel bh-panel-half" data-hover-origin="left">
+                        <div className="bh-panel bh-panel-half" data-hover-origin="left" data-freshness={losersStatus}>
                           <div className="board-section">
                             <div className="board-section-header board-section-header--center board-section-header--loss">
                               <div className="board-section-title board-section-title--center">CONFIRMATION · LOSERS (3M)</div>
+                              <FreshnessStamp
+                                cadence="3m"
+                                hasData={losers3m.length > 0}
+                                warming={warming3m}
+                                unreachable={Boolean(error)}
+                                lastSuccessMs={lastFetchTs}
+                                sourceMs={sourceTime("losers_3m")}
+                                onStatusChange={setLosersStatus}
+                              />
                               <BoardEvidenceLine summary={boardStats.confirmation_3m_down} />
                             </div>
                             <LosersTable3Min
                               tokens={losers3m}
-                              loading={uiLoading}
+                              loading={loading}
                               warming3m={warming3m}
                               onInfo={onInfoProp}
                               onToggleWatchlist={handleToggleWatchlist}

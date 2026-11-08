@@ -81,3 +81,13 @@ describe("TokenRowUnified live-rank badge", () => {
     expect(badge.getAttribute("title")).toMatch(/^Tape confirmed move · live strength #1/);
   });
 });
+
+it.each(["gainer", "loser"])("shows rank movement in the rank cell for %s rows", (side) => {
+  const { container } = render(
+    <TokenRowUnified token={confirmedToken} side={side} rank={1} rankDelta={2} />
+  );
+  const delta = screen.getByRole("img", { name: "Moved up 2 on this board" });
+  expect(delta).toHaveTextContent("▲2");
+  expect(container.querySelector(".bh-rank-stack")).toContainElement(delta);
+  expect(container.querySelector(".bh-symbol-markers")).not.toContainElement(delta);
+});

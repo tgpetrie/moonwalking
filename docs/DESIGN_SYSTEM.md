@@ -291,6 +291,7 @@ The v1 component layer lives in
 | `UiField` | input or textarea; hint, error, disabled, focus |
 | `UiCheckbox` | checked, unchecked, disabled, focus |
 | `UiChip` | neutral, accent, positive, negative, danger; active |
+| `FreshnessStamp` | connecting, warming, live, delayed, stale, offline |
 | `UiStack` / `UiCluster` | spacing steps 1 through 8 |
 
 Use these components for new `/app` and public-shell work. Existing `mw-*`

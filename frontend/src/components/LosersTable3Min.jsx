@@ -121,6 +121,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     if (tokensProp) {
       // Use prop tokens - they should already be normalized
       return tokensProp.map((row) => ({
+        ...row,
         symbol: row.symbol,
         current_price: row.price ?? row.current_price,
         previous_price: baselineOrNull(row.initial_price_3min ?? row.previous_price ?? null),
@@ -135,6 +136,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     return raw.map((row) => {
       const nr = normalizeTableRow(row);
       return {
+        ...row,
         symbol: nr.symbol ?? row.symbol,
         current_price: nr.currentPrice ?? row.current_price,
         previous_price: baselineOrNull(row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null),
@@ -197,7 +199,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
             delete next[id];
             return next;
           });
-        }, 2600);
+        }, 24000);
         rankMoveTimersRef.current.set(id, timer);
       }
     });
@@ -272,7 +274,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         <div className="bh-panel bh-panel-half">
           <div className="bh-table">
             {/* Render div-based skeleton rows to match TokenRowUnified */}
-            <TableSkeletonRows columns={5} rows={6} renderAs="div" />
+            <TableSkeletonRows columns={5} rows={8} renderAs="div" />
           </div>
         </div>
       </div>

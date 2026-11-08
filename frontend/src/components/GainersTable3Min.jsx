@@ -182,7 +182,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
             delete next[id];
             return next;
           });
-        }, 2600);
+        }, 24000);
         rankMoveTimersRef.current.set(id, timer);
       }
     });
@@ -220,7 +220,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
       <div className="gainers-table">
         <div className="bh-panel bh-panel-full">
           <div className="bh-table">
-            <TableSkeletonRows columns={5} rows={6} />
+            <TableSkeletonRows columns={5} rows={8} />
           </div>
         </div>
       </div>

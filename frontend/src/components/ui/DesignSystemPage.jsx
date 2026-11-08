@@ -1,3 +1,4 @@
+import FreshnessStamp from "./FreshnessStamp.jsx";
 import {
   UiButton,
   UiCard,
@@ -21,6 +22,7 @@ const colorTokens = [
 const spacingTokens = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function DesignSystemPage() {
+  const now = Date.now();
   return (
     <div className="ui-gallery">
       <header className="ui-gallery__intro">
@@ -168,6 +170,25 @@ export default function DesignSystemPage() {
               </UiStack>
             </UiCard>
           </div>
+        </section>
+        <section className="ui-gallery__section" aria-labelledby="ds-freshness">
+          <div className="ui-gallery__section-heading">
+            <span>05</span>
+            <div>
+              <h2 id="ds-freshness">Board freshness</h2>
+              <p>Examples of connection status and market data age.</p>
+            </div>
+          </div>
+          <UiCard>
+            <UiStack space="3">
+              <FreshnessStamp previewAtMs={now} />
+              <FreshnessStamp previewAtMs={now} warming lastSuccessMs={now} />
+              <FreshnessStamp previewAtMs={now} lastSuccessMs={now} sourceMs={now - 3000} />
+              <FreshnessStamp previewAtMs={now} unreachable lastSuccessMs={now} sourceMs={now - 14000} />
+              <FreshnessStamp previewAtMs={now} lastSuccessMs={now} sourceMs={now - 74000} />
+              <FreshnessStamp previewAtMs={now} lastSuccessMs={now - 62000} sourceMs={now - 62000} />
+            </UiStack>
+          </UiCard>
         </section>
       </UiStack>
     </div>

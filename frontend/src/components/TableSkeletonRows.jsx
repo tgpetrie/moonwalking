@@ -2,6 +2,7 @@
 export function TableSkeletonRows({ columns = 4, rows = 6, renderAs = "div" }) {
   const rowArr = Array.from({ length: rows });
   const colArr = Array.from({ length: columns });
+  const gridCells = ["rank", "symbol", "price", "change", "actions"];
 
   // Two rendering modes:
   // - renderAs === 'tr' -> output a sequence of <tr> elements (for use
@@ -26,10 +27,10 @@ export function TableSkeletonRows({ columns = 4, rows = 6, renderAs = "div" }) {
   return (
     <>
       {rowArr.map((_, rIndex) => (
-        <div key={rIndex} className="bh-row skeleton" aria-hidden="true">
+        <div key={rIndex} className="bh-row bh-row-grid skeleton" aria-hidden="true">
           <div className="bh-row-hover-glow" />
           {colArr.map((_, cIndex) => (
-            <div key={cIndex} className="bh-cell">
+            <div key={cIndex} className={"bh-cell bh-cell-" + gridCells[cIndex]}>
               <span className="skel-cell" />
             </div>
           ))}

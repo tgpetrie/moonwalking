@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, useCo
 import { normalizeAlert as normalizeAlertShape } from "../utils/alerts_normalize";
 import { upsertCoinEvents } from "../utils/coinHistoryCache";
 import { deriveDashboardCadence } from "../config/cadence";
+import { boardSourceTime, FRESHNESS_THRESHOLDS } from "../utils/boardFreshness.js";
 import {
   getBackendCandidates,
   normalizeBase,
@@ -92,7 +93,7 @@ function normalizeApiData(payload) {
   const market_pressure = root.market_pressure ?? payload?.market_pressure ?? null;
 
   const latest_by_symbol = root.latest_by_symbol ?? {};
-  const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
+  const updated_at       = root.updated_at ?? payload?.updated_at ?? null;
 
   const toMs = (v) => {
     if (v == null) return null;
@@ -304,15 +305,33 @@ export function DataProvider({ children }) {
         return null;
       }
     }
-    return normalizeApiData(cached);
+    return { ...normalizeApiData(cached), boardSourceTimes: cached.boardSourceTimes };
   }, [cachedLastGoodAt]);
 
   // "Published" slices that drive the UI at different cadences
-  const [oneMinRows, setOneMinRows] = useState(() => cachedNormalized?.gainers_1m ?? []);
-  const [threeMin, setThreeMin] = useState(() => ({
-    gainers: cachedNormalized?.gainers_3m ?? [],
-    losers: cachedNormalized?.losers_3m ?? [],
-  }));
+  const [movers, setMovers] = useState(() => {
+    const fallbackTime = boardSourceTime(cachedNormalized, cachedLastGoodAt);
+    return Object.fromEntries(["gainers_1m", "gainers_3m", "losers_3m"].map((key) => {
+      const rows = cachedNormalized?.[key] ?? [];
+      const savedTime = cachedNormalized?.boardSourceTimes?.[key];
+      return [key, {
+        rows,
+        hasSeenRows: rows.length > 0,
+        sourceMs: Number.isFinite(savedTime) ? savedTime : fallbackTime,
+      }];
+    }));
+  });
+  const publishedMoversRef = useRef(movers);
+  const oneMinRows = movers.gainers_1m.rows;
+  const threeMin = useMemo(() => ({
+    gainers: movers.gainers_3m.rows,
+    losers: movers.losers_3m.rows,
+  }), [movers.gainers_3m, movers.losers_3m]);
+  const boardSourceTimes = useMemo(() => ({
+    gainers_1m: movers.gainers_1m.sourceMs,
+    gainers_3m: movers.gainers_3m.sourceMs,
+    losers_3m: movers.losers_3m.sourceMs,
+  }), [movers]);
   const [banners, setBanners] = useState(() => ({
     price: cachedNormalized?.banner_1h_price ?? [],
     volume: cachedNormalized?.banner_1h_volume ?? [],
@@ -338,6 +357,7 @@ export function DataProvider({ children }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
   const [lastFetchTs, setLastFetchTs] = useState(null);
+  const [feedSourceMs, setFeedSourceMs] = useState(null);
   const [heartbeatPulse, setHeartbeatPulse] = useState(false);
   const [warming, setWarming] = useState(() => !cachedNormalized);
   const [warming3m, setWarming3m] = useState(false);
@@ -391,8 +411,7 @@ export function DataProvider({ children }) {
     price: cachedNormalized?.banner_1h_price ?? [],
     volume: cachedNormalized?.banner_1h_volume ?? [],
   });
-  const pendingNormalizedRef = useRef(null);
-  const pendingBaseRef = useRef(null);
+  const pendingSnapshotRef = useRef(null);
   const abortRef = useRef(null);
   const pollTimerRef = useRef(null);
   const backoffUntilRef = useRef(0);
@@ -417,14 +436,6 @@ export function DataProvider({ children }) {
       asof_ts: new Date().toISOString(),
     }));
     return true;
-  }, []);
-
-  // Commit 1m rows as a whole snapshot.
-  // Row liveliness is handled in the table layer (value-only pulses + staggering),
-  // and avoiding index-based partial commits prevents "jerky" mismatched row updates.
-  const commit1m = useCallback((nextRows) => {
-    staggerTokenRef.current = null;
-    setOneMinRows(Array.isArray(nextRows) ? nextRows : []);
   }, []);
 
   const commitBanners = useCallback((nextPrice, nextVolume) => {
@@ -456,6 +467,7 @@ export function DataProvider({ children }) {
         updated_at: norm.updated_at,
         meta: norm.meta,
         coverage: norm.coverage,
+        boardSourceTimes: norm.boardSourceTimes,
         sentiment: norm.sentiment,
         sentiment_meta: norm.sentiment_meta,
         market_pressure: norm.market_pressure,
@@ -467,7 +479,7 @@ export function DataProvider({ children }) {
     } catch {}
   }, []);
 
-  const applySnapshot = useCallback((norm, now = Date.now(), baseUrl = null) => {
+  const applySnapshot = useCallback((norm, now, baseUrl, receivedAt) => {
     // DEV-only one-time payload shape log for diagnostics
     if (
       import.meta?.env?.DEV &&
@@ -529,6 +541,8 @@ export function DataProvider({ children }) {
     setWarming(effectiveWarming);
     setWarming3m(effectiveWarming3m);
     setStaleSeconds(backendStaleSeconds);
+    const sourceMs = boardSourceTime(norm, receivedAt);
+    setFeedSourceMs(sourceMs);
     setPartial(backendPartial);
     setLastGoodTs(backendLastGoodTs ?? lastGoodAtRef.current ?? null);
 
@@ -590,7 +604,6 @@ export function DataProvider({ children }) {
       };
 
       latestNormalizedRef.current = mergedNorm;
-      persistLastGood(mergedNorm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
       setLiveRankings(norm.live_rankings || []);
@@ -607,17 +620,42 @@ export function DataProvider({ children }) {
       if (norm.sentiment_meta != null) setSentimentMeta(norm.sentiment_meta);
       setMarketPressure(norm.market_pressure ?? null);
 
-      // 1m: every fetch (table layer handles "live feel" without partial commits)
-      commit1m(mergedNorm.gainers_1m);
+      const published = { ...publishedMoversRef.current };
+      const publishMover = (key, cadence, held) => {
+        const prior = published[key];
+        const staleAfterS = FRESHNESS_THRESHOLDS[cadence].staleAfterS;
+        const stale = sourceMs === null || now - sourceMs > staleAfterS * 1000;
+        if (prior.rows.length && (stale || held)) return;
+        const rows = mergedNorm[key];
+        published[key] = {
+          rows,
+          // The dashboard can retain the last visible rows when a slice is empty.
+          sourceMs: rows.length || !prior.hasSeenRows ? sourceMs : prior.sourceMs,
+          hasSeenRows: prior.hasSeenRows || rows.length > 0,
+        };
+      };
 
-      // 3m: publish every PUBLISH_3M_MS (default 12s)
-      if (cached3mEmpty && next3mHasAny) {
+      staggerTokenRef.current = null;
+      publishMover("gainers_1m", "1m", useCached1m);
+
+      if ((cached3mEmpty && next3mHasAny) || now - last3mPublishRef.current >= PUBLISH_3M_MS) {
         last3mPublishRef.current = now;
-        setThreeMin({ gainers: mergedNorm.gainers_3m, losers: mergedNorm.losers_3m });
-      } else if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
-        last3mPublishRef.current = now;
-        setThreeMin({ gainers: mergedNorm.gainers_3m, losers: mergedNorm.losers_3m });
+        publishMover("gainers_3m", "3m", useCached3m);
+        publishMover("losers_3m", "3m", useCached3m);
       }
+      publishedMoversRef.current = published;
+      setMovers(published);
+      persistLastGood({
+        ...mergedNorm,
+        gainers_1m: published.gainers_1m.rows,
+        gainers_3m: published.gainers_3m.rows,
+        losers_3m: published.losers_3m.rows,
+        boardSourceTimes: {
+          gainers_1m: published.gainers_1m.sourceMs,
+          gainers_3m: published.gainers_3m.sourceMs,
+          losers_3m: published.losers_3m.sourceMs,
+        },
+      }, baseUrl);
 
       // Banners publish independently so one empty rail does not wipe or starve the other.
       const publishedPriceLen = listLen(publishedBannersRef.current?.price);
@@ -652,7 +690,7 @@ export function DataProvider({ children }) {
       }
     }
 
-    setLastFetchTs(now);
+    setLastFetchTs(receivedAt);
     setHeartbeatPulse(true);
     if (heartbeatTimerRef.current) {
       clearTimeout(heartbeatTimerRef.current);
@@ -660,25 +698,24 @@ export function DataProvider({ children }) {
     heartbeatTimerRef.current = setTimeout(() => {
       setHeartbeatPulse(false);
     }, 420);
-  }, [commit1m, commitBanners, hydrateAlertsFromDataRows, persistLastGood]);
+  }, [commitBanners, hydrateAlertsFromDataRows, persistLastGood]);
 
   const publishFetchedSnapshot = useCallback((norm, baseUrl, now = Date.now()) => {
     if (PUBLISH_UI_MS > 0) {
-      pendingNormalizedRef.current = norm;
-      pendingBaseRef.current = baseUrl;
+      pendingSnapshotRef.current = { norm, baseUrl, receivedAt: now };
       return;
     }
 
     // In dev we sometimes set VITE_PUBLISH_UI_MS=0 to disable throttling.
     // Treat that as "publish immediately", not "drop all /data updates".
-    pendingNormalizedRef.current = null;
-    pendingBaseRef.current = null;
-    applySnapshot(norm, now, baseUrl);
+    pendingSnapshotRef.current = null;
+    applySnapshot(norm, now, baseUrl, now);
   }, [applySnapshot]);
 
   const fetchData = useCallback(async () => {
     if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    const request = {};
+    inFlightRef.current = request;
 
     // Get candidates from centralized config.
     // Contract: explicit env base only, otherwise same-origin via Vite proxy.
@@ -713,6 +750,7 @@ export function DataProvider({ children }) {
     for (const base of candidates) {
       try {
         const { json, base: okBase } = await tryOnce(base);
+        if (inFlightRef.current !== request) return false;
         const norm = normalizeApiData(json);
         const resolvedBase = normalizeBase(okBase);
         setBackendBase(resolvedBase);
@@ -727,6 +765,7 @@ export function DataProvider({ children }) {
         succeeded = true;
         break;
       } catch (err) {
+        if (inFlightRef.current !== request) return false;
         lastError = err;
         failCountRef.current += 1;
         continue;
@@ -760,11 +799,10 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (!PUBLISH_UI_MS || PUBLISH_UI_MS <= 0) return undefined;
     const id = setInterval(() => {
-      const pending = pendingNormalizedRef.current;
+      const pending = pendingSnapshotRef.current;
       if (!pending) return;
-      pendingNormalizedRef.current = null;
-      const baseUrl = pendingBaseRef.current;
-      applySnapshot(pending, Date.now(), baseUrl);
+      pendingSnapshotRef.current = null;
+      applySnapshot(pending.norm, Date.now(), pending.baseUrl, pending.receivedAt);
     }, PUBLISH_UI_MS);
     return () => clearInterval(id);
   }, [applySnapshot]);
@@ -1089,6 +1127,8 @@ export function DataProvider({ children }) {
     refetch: fetchData,
     heartbeatPulse,
     lastFetchTs,
+    boardSourceTimes,
+    feedSourceMs,
     warming,
     warming3m,
     staleSeconds,
@@ -1112,7 +1152,7 @@ export function DataProvider({ children }) {
     signalEvents,
     notifyEvents,
     alertsMeta,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, alertsRecentBySymbol, getActiveAlert, getRecentAlerts, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, liveRankings, rankingMeta, boardOutcomes, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, pulseAlerts, signalEvents, notifyEvents, alertsMeta]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, alertsRecentBySymbol, getActiveAlert, getRecentAlerts, error, loading, fetchData, heartbeatPulse, lastFetchTs, boardSourceTimes, feedSourceMs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, liveRankings, rankingMeta, boardOutcomes, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, pulseAlerts, signalEvents, notifyEvents, alertsMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

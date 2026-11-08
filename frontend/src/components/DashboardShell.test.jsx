@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const mockSourceTime = vi.hoisted(() => ({ ms: null }));
 vi.mock("../hooks/useDashboardData", () => ({
   useDashboardData: () => ({
     gainers1m: [],
@@ -12,6 +13,8 @@ vi.mock("../hooks/useDashboardData", () => ({
     loading: false,
     error: null,
     lastUpdated: "2026-08-12T12:00:00.000Z",
+    lastFetchTs: mockSourceTime.ms ??= Date.now(),
+    boardSourceTimes: { gainers_1m: mockSourceTime.ms, gainers_3m: mockSourceTime.ms, losers_3m: mockSourceTime.ms },
     fatal: false,
     coverage: {},
     warming: false,
@@ -37,7 +40,8 @@ vi.mock("./AnomalyStream.jsx", () => ({ default: () => null }));
 vi.mock("./AlertsDock.jsx", () => ({ default: () => null }));
 vi.mock("./AskBhabitPanel.jsx", () => ({ default: () => null }));
 vi.mock("./BoardWrapper.jsx", () => ({ default: ({ children }) => children }));
-vi.mock("./GainersTable1Min.jsx", () => ({ default: () => null }));
+const renderIgnition = vi.hoisted(() => vi.fn(() => null));
+vi.mock("./GainersTable1Min.jsx", () => ({ default: renderIgnition }));
 vi.mock("./GainersTable3Min.jsx", () => ({ default: () => null }));
 vi.mock("./LosersTable3Min.jsx", () => ({ default: () => null }));
 vi.mock("./WatchlistPanel.jsx", () => ({ default: () => null }));
@@ -55,4 +59,18 @@ describe("DashboardShell market status", () => {
     expect(screen.getByTitle("Market Pressure: 72")).toHaveTextContent("HOT 72");
     expect(screen.queryByText("Unsupported market verdict")).not.toBeInTheDocument();
   });
+});
+
+it("updates the stamp age without rerendering mover rows on every tick", () => {
+  vi.useFakeTimers();
+  try {
+    mockSourceTime.ms = Date.now();
+    render(<DashboardShell />);
+    const initialRenders = renderIgnition.mock.calls.length;
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getAllByText("5s ago")).toHaveLength(3);
+    expect(renderIgnition).toHaveBeenCalledTimes(initialRenders);
+  } finally {
+    vi.useRealTimers();
+  }
 });

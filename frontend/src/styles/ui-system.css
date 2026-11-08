@@ -333,3 +333,48 @@ textarea.ui-field__control { min-height: 128px; resize: vertical; }
     grid-template-columns: 1fr;
   }
 }
+
+.ui-freshness {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  gap: 0 var(--space-1);
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font: var(--text-2xs)/var(--leading-tight) var(--font-numeric);
+  font-variant-numeric: lining-nums;
+}
+
+.ui-freshness__dot {
+  flex: 0 0 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: currentColor;
+}
+
+.ui-freshness__label {
+  font-weight: var(--weight-semibold);
+}
+
+.ui-freshness--delayed .ui-freshness__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.ui-freshness--stale,
+.ui-freshness--offline {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-freshness:is(.ui-freshness--connecting, .ui-freshness--warming) .ui-freshness__dot {
+    animation: ui-freshness-pulse 1.2s var(--ease-standard) infinite alternate;
+  }
+}
+
+@keyframes ui-freshness-pulse {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}

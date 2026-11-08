@@ -90,7 +90,7 @@ function mergeAlertLists(lists, limit = 80) {
 }
 
 export function useDashboardData() {
-  const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, activeAlerts, alertsRecent, alertsMeta, liveRankings, rankingMeta, boardOutcomes } = useData();
+  const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, boardSourceTimes, feedSourceMs, warming, warming3m, staleSeconds, partial, lastGoodTs, activeAlerts, alertsRecent, alertsMeta, liveRankings, rankingMeta, boardOutcomes } = useData();
 
   useEffect(() => {
     try {
@@ -211,6 +211,8 @@ export function useDashboardData() {
     lastUpdated,
     heartbeatPulse,
     lastFetchTs,
+    boardSourceTimes,
+    feedSourceMs,
     warming,
     warming3m,
     staleSeconds,

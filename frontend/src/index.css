@@ -5308,3 +5308,127 @@ html, body {
 .board-core .bh-row.bh-row-grid:hover::before {
   opacity: 0.35 !important;
 }
+
+/* Signal lanes on the homepage mover boards. */
+.bh-status-pill--live,
+.bh-status-pill--delayed,
+.bh-status-pill--connecting {
+  color: var(--text-muted);
+  background: transparent;
+  border-color: var(--border-default);
+}
+
+.bh-status-pill--stale,
+.bh-status-pill--offline {
+  color: var(--danger);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--danger) 42%, transparent);
+}
+
+.bh-rank-delta {
+  color: var(--text-muted);
+  font: var(--text-2xs)/1 var(--font-numeric);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+
+.board-core [data-freshness] .bh-symbol-markers {
+  flex: 0 1 auto;
+}
+
+.board-core [data-freshness] .bh-live-rank {
+  flex: 0 1 auto;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 !important;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-2xs) !important;
+  font-weight: var(--weight-semibold);
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.board-core [data-freshness] .bh-live-rank::before {
+  content: "";
+  flex: 0 0 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-full);
+  box-sizing: border-box;
+}
+
+.board-core [data-freshness] :is(.bh-live-rank--confirmed, .bh-live-rank--extended) {
+  color: var(--text-primary);
+}
+
+.board-core [data-freshness] .bh-live-rank--confirmed::before {
+  background: currentColor;
+}
+
+.board-core [data-freshness] .bh-live-rank--extended::before {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.board-core [data-freshness] .bh-live-rank--thin::before {
+  border-style: dotted;
+}
+
+.board-core [data-freshness] .board-section-evidence {
+  font-size: var(--text-2xs);
+}
+
+.board-core [data-freshness] :is(.bh-price-current, .bh-price-previous, .bh-change) {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.mw-board [data-freshness] .mw-row :is(.mw-cell--price, .mw-cell--pct) {
+  animation: none;
+}
+
+.board-core :is([data-freshness="stale"], [data-freshness="offline"]) :is(
+  .bh-price-current, .bh-price-previous, .bh-change
+) {
+  color: var(--text-muted) !important;
+  animation: none !important;
+}
+
+.board-core :is([data-freshness="stale"], [data-freshness="offline"]) .mw-cell {
+  animation: none !important;
+}
+
+.board-core :is([data-freshness="stale"], [data-freshness="offline"]) .bh-row.bh-row-grid .bh-row-breathe {
+  display: none !important;
+}
+
+.board-core :is([data-freshness="stale"], [data-freshness="offline"]) .bh-rank-delta {
+  visibility: hidden;
+}
+
+
+@media (max-width: 340px) {
+  .board-core [data-freshness] .bh-symbol-line {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-1);
+    line-height: 1;
+  }
+
+  .board-core [data-freshness] .bh-symbol-markers {
+    display: contents;
+  }
+
+  .board-core [data-freshness] .bh-symbol {
+    grid-area: 1 / 1;
+  }
+
+  .board-core [data-freshness] .bh-symbol-cue {
+    grid-area: 1 / 2;
+    justify-self: start;
+  }
+
+  .board-core [data-freshness] .bh-live-rank {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}

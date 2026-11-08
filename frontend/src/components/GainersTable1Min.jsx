@@ -412,7 +412,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
             delete next[id];
             return next;
           });
-        }, 2600);
+        }, 8000);
         rankMoveTimersRef.current.set(id, timer);
       }
     });
