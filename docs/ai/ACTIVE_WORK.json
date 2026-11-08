@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-07T20:47:38.633059+00:00",
+  "updated_utc": "2026-11-08T00:56:37.462209+00:00",
   "display_date_pacific": "2026-11-07",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
+  "implementation_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -39,7 +39,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "warmup_capacity_passed_1292_targeted_checks_incremental_feature_latency_next"
+      "status": "indexed_evidence_implemented_1296_targeted_tests_pass_latency_run_active"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -129,7 +129,7 @@
     }
   },
   "next_actions": [
-    "Build and verify incremental baseline and feature window computation. Benchmark causal decision latency under recorder load against the current batch implementation.",
+    "Monitor the indexed synthetic latency run to completion, verify both batch comparison cohorts, and report serial decision and outbox durations.",
     "Keep stale thin-product quote windows unavailable and retain them in coverage denominators. Measure host clock offset contemporaneously and record external publication evidence separately.",
     "Predeclare any follow-up source diagnostic with its capacity and source checks fixed in advance. Preserve the original feed audit gate.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
@@ -143,15 +143,15 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1292,
+    "implementation_targeted_tests_passed": 1296,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_a39d73e",
+    "guardrails": "passed_at_dddd2e4",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_a39d73e",
+    "black_24_8": "passed_at_dddd2e4",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -567,7 +567,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "a39d73ecdd93040e6c11ccd8933ecd2bf6688697",
+  "latest_verification_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -674,5 +674,17 @@
       "ALCX-USD": 4722.708,
       "AURORA-USD": 5641.796
     }
+  },
+  "indexed_latency": {
+    "status": "synthetic_benchmark_running",
+    "implementation_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
+    "protocol": "docs/research/INSTANT_INDEXED_LATENCY_20261107.md",
+    "checks": "docs/research/results/instant_indexed_latency_20261107/CHECKS.json",
+    "local_artifacts": "C:\\Users\\tgpet\\.moonwalking\\analysis\\instant_indexed_latency_20261107",
+    "planned_cohorts": 10,
+    "products_per_cohort": 4,
+    "directions_per_product": 2,
+    "real_capture_exercised": false,
+    "fitting_allowed": false
   }
 }

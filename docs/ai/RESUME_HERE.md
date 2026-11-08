@@ -6,6 +6,11 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+Indexed evidence lookups and cached activity bins are implemented at
+**`dddd2e4`**. The synthetic writer-thread latency run is active.
+**1,296 targeted checks pass**. See the
+[indexed latency draft](../research/INSTANT_INDEXED_LATENCY_20261107.md).
+
 The opt-in warmup profile at **`a39d73e`** passed the 67-minute synthetic
 run on one connection with 241,208 committed rows. All four products had
 ready volatility and activity baselines at minute 62. Feature calculation
