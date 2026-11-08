@@ -111,6 +111,19 @@ class QueuedSocket:
         self.delivered += 1
         return frame
 
+    def recv_ready(self, limit):
+        """Drain only already queued frames, stopping at a reported overflow."""
+        frames = []
+        for _ in range(limit):
+            if isinstance(self.failure, QueueOverflowError):
+                break
+            try:
+                frames.append(self.queue.get_nowait())
+            except Empty:
+                break
+        self.delivered += len(frames)
+        return frames
+
     def close(self, timeout):
         self.stopping.set()
         if self.thread.ident is not None:

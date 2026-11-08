@@ -97,6 +97,19 @@ class PilotCallbacks:
             raw = raw.raw
         receipt = self.journal.receive(self.connection, raw, received=received)
         elapsed = (self.duration_ns() - started) / 1000000
+        self._account(receipt, raw, received, started, elapsed)
+
+    def on_batch(self, frames):
+        started = self.duration_ns()
+        stamped = [
+            (frame.raw, (frame.receipt_ts_ms, frame.receipt_ns)) for frame in frames
+        ]
+        receipts = self.journal.receive_batch(self.connection, stamped)
+        elapsed = (self.duration_ns() - started) / 1000000
+        for receipt, (raw, received) in zip(receipts, stamped):
+            self._account(receipt, raw, received, started, elapsed)
+
+    def _account(self, receipt, raw, received, started, elapsed):
         kind, product = receipt.message_type, receipt.product_id
         group = f"{kind}:{product}" if product in PRODUCTS else kind
         self.frames[group] += 1
@@ -104,7 +117,9 @@ class PilotCallbacks:
         metrics["callback_through_commit"].append(elapsed)
         if received is not None:
             self.last_reader_receipt_ts_ms = receipt.receipt_ts_ms
-            metrics["reader_to_writer"].append((started - received[1]) / 1000000)
+            queue_ms = (started - received[1]) / 1000000
+            metrics["reader_to_writer"].append(queue_ms)
+            metrics["reader_through_commit"].append(queue_ms + elapsed)
         metrics["receipt_to_processing"].append(
             receipt.processing_completed_ts_ms - receipt.receipt_ts_ms
         )
@@ -128,10 +143,16 @@ class PilotCallbacks:
                 if entry["name"] == "ticker"
                 for product in entry["product_ids"]
             }
-            if (
-                set(PRODUCTS)
-                <= ticker_products & self.journal.evidence.book.monitor.active
-            ):
+            confirmed = set()
+            for state in reversed(self.journal.evidence.book.monitor.transport):
+                if state["receipt_seq"] < receipt.receipt_seq:
+                    break
+                if (
+                    state["receipt_seq"] == receipt.receipt_seq
+                    and state["reason"] == "awaiting_heartbeat"
+                ):
+                    confirmed.add(state["product_id"])
+            if set(PRODUCTS) <= ticker_products & confirmed and self.ack is None:
                 self.ack = receipt.receipt_ts_ms
 
     def on_close(self, *, reason="socket_closed"):
@@ -218,7 +239,14 @@ def capture(
                     stop = "remote_close"
                     break
                 last_frame = monotonic()
-                callbacks.on_message(raw)
+                if journal.batch_frames > 1:
+                    extra = (
+                        min(journal.batch_frames, packet_stop - journal.packet_count)
+                        - 1
+                    )
+                    callbacks.on_batch((raw, *socket.recv_ready(max(0, extra))))
+                else:
+                    callbacks.on_message(raw)
                 if not journal.connection_active:
                     stop = "exchange_or_source_error"
                     break

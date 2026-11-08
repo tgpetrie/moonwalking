@@ -17,6 +17,7 @@ from instant_input_evidence import InputEvidenceRecorder, _json, _sha
 VERSION = "instant-stream-journal-v1-draft"
 MAX_RECORD_BYTES = 256 * 1024 * 1024
 MAX_FRAME_BYTES = 1024 * 1024
+MAX_BATCH_FRAMES = 16
 END_EVENTS = {
     "socket_closed": "connection_closed",
     "transport_error": "audit_transport_error",
@@ -30,6 +31,11 @@ CREATE TABLE segment (
     status TEXT NOT NULL
 );
 CREATE TABLE packets (
+    receipt_seq INTEGER PRIMARY KEY,
+    body TEXT NOT NULL,
+    digest TEXT NOT NULL
+);
+CREATE TABLE pending_ingress (
     receipt_seq INTEGER PRIMARY KEY,
     body TEXT NOT NULL,
     digest TEXT NOT NULL
@@ -116,11 +122,15 @@ class StreamJournal:
         clock_ms=None,
         monotonic_ns=None,
         indexed=False,
+        batch_frames=1,
     ):
         if not 1 <= _integer(max_packets) <= WARMUP_PACKET_LIMIT or not (
             1 <= _integer(max_record_bytes) <= MAX_RECORD_BYTES
         ):
             raise ValueError("journal bounds exceed the supported range")
+        if not 1 <= _integer(batch_frames) <= MAX_BATCH_FRAMES:
+            raise ValueError("journal batch size outside the supported range")
+        self.batch_frames = batch_frames
         self.evidence = InputEvidenceRecorder(
             products,
             first_cutoff,
@@ -170,6 +180,7 @@ class StreamJournal:
                 max_packets=max_packets,
                 max_record_bytes=max_record_bytes,
                 max_frame_bytes=MAX_FRAME_BYTES,
+                batch_frames=batch_frames,
                 journal_mode=mode,
                 synchronous=sync,
             )
@@ -223,13 +234,8 @@ class StreamJournal:
             self._fail("record_byte_limit")
             raise ValueError("journal record byte limit exceeded")
 
-    def _record(self, connection_id, message, receipt, mono):
-        self._writable()
-        if self._packet_count >= self._max_packets:
-            self._fail("packet_limit")
-            raise ValueError("journal packet limit exceeded")
-        seq = self._packet_count + 1
-        envelope = dict(
+    def _envelope(self, seq, connection_id, message, receipt, mono):
+        return dict(
             connection_id=connection_id,
             receipt_seq=seq,
             receipt_ts_ms=receipt,
@@ -237,6 +243,8 @@ class StreamJournal:
             source="ws",
             message=message,
         )
+
+    def _process(self, envelope, ingress_observed=None):
         previous_trade_count = len(self.evidence.trades)
         try:
             self.evidence.ingest(envelope)
@@ -246,39 +254,59 @@ class StreamJournal:
                 if len(self.evidence.trades) > previous_trade_count
                 else None
             )
-            body, digest = _encoded(
-                dict(envelope=envelope, processing=asdict(packet), trade=trade)
-            )
+            record = dict(envelope=envelope, processing=asdict(packet), trade=trade)
+            if ingress_observed is not None:
+                record["ingress_commit_observed_ts_ms"] = ingress_observed
+            body, digest = _encoded(record)
         except Exception:
             self._fail("packet_processing_failed")
             raise
+        return packet.receipt_seq, body, digest
 
-        size = len(body.encode("utf-8"))
+    def _persist(self, rows, *, pending=False):
+        size = sum(len(body.encode("utf-8")) for _, body, _ in rows)
         self._check_bytes(size)
         try:
             with self._db:
-                self._db.execute(
-                    "INSERT INTO packets VALUES (?, ?, ?)", (seq, body, digest)
-                )
+                self._db.executemany("INSERT INTO packets VALUES (?, ?, ?)", rows)
+                if pending:
+                    self._db.execute("DELETE FROM pending_ingress")
             observed = self.evidence._now()
         except Exception:
             # A commit error may be ambiguous. Only a reopened journal can
-            # determine whether the row committed. Stop accepting new input.
+            # determine which transaction committed.
             self.evidence.failed = True
             self._status = "write_failed"
             raise
-
         self._bytes += size
-        self._packet_count = seq
+        self._packet_count = rows[-1][0]
+        return observed
+
+    def _receipt(self, envelope, packet, observed):
+        message = envelope["message"]
         return JournalReceipt(
-            seq,
-            receipt,
+            packet.receipt_seq,
+            packet.receipt_ts_ms,
             packet.processing_completed_ts_ms,
             observed,
             message["type"],
             message.get("product_id"),
             message.get("time"),
         )
+
+    def _check_packet_budget(self, additional):
+        if self._packet_count + additional > self._max_packets:
+            self._fail("packet_limit")
+            raise ValueError("journal packet limit exceeded")
+
+    def _record(self, connection_id, message, receipt, mono):
+        self._writable()
+        self._check_packet_budget(1)
+        envelope = self._envelope(
+            self._packet_count + 1, connection_id, message, receipt, mono
+        )
+        observed = self._persist([self._process(envelope)])
+        return self._receipt(envelope, self.evidence.packets[-1], observed)
 
     def _check_connection(self, connection_id):
         self._writable()
@@ -301,14 +329,7 @@ class StreamJournal:
         self._active = connection_id
         return connection_id
 
-    def receive(self, connection_id, raw, *, received=None):
-        """Commit a frame, preserving a measured reader stamp when supplied."""
-        self._check_connection(connection_id)
-        receipt, mono = (
-            (self.evidence._now(), self._monotonic())
-            if received is None
-            else tuple(map(_integer, received))
-        )
+    def _decode_frame(self, raw):
         if not isinstance(raw, (str, bytes)):
             raise TypeError("expected a WebSocket text frame")
         if len(raw) > MAX_FRAME_BYTES:
@@ -328,24 +349,87 @@ class StreamJournal:
                 raise ValueError("expected an object with a message type")
             _json(message)
         except (ValueError, RecursionError):
-            self._record(
-                connection_id,
+            return (
                 dict(
                     type="audit_parse_error",
                     frame_bytes=len(encoded),
                     frame_sha256=_sha(encoded),
                 ),
-                receipt,
-                mono,
+                True,
             )
-            self._active = None
-            raise ValueError("invalid WebSocket frame; reopen the connection") from None
+        return message, False
+
+    @staticmethod
+    def _ends_connection(message):
+        kind = message["type"]
+        return kind in (
+            "error",
+            "queue_overflow",
+            "connection_closed",
+        ) or kind.startswith("audit_")
+
+    def receive(self, connection_id, raw, *, received=None):
+        """Commit a frame, preserving a measured reader stamp when supplied."""
+        self._check_connection(connection_id)
+        receipt, mono = (
+            (self.evidence._now(), self._monotonic())
+            if received is None
+            else tuple(map(_integer, received))
+        )
+        message, invalid = self._decode_frame(raw)
         result = self._record(connection_id, message, receipt, mono)
-        if message["type"] in ("error", "queue_overflow", "connection_closed") or (
-            message["type"].startswith("audit_")
-        ):
+        if self._ends_connection(message):
             self._active = None
+        if invalid:
+            raise ValueError("invalid WebSocket frame; reopen the connection")
         return result
+
+    def receive_batch(self, connection_id, frames):
+        """Commit bounded FIFO ingress before processing it into decision evidence."""
+        self._check_connection(connection_id)
+        if self.batch_frames == 1 or not 1 <= len(frames) <= self.batch_frames:
+            raise ValueError("batch requires an enabled journal and bounded frames")
+        envelopes = []
+        for raw, received in frames:
+            receipt, mono = map(_integer, received)
+            message, invalid = self._decode_frame(raw)
+            envelopes.append(
+                self._envelope(
+                    self._packet_count + len(envelopes) + 1,
+                    connection_id,
+                    message,
+                    receipt,
+                    mono,
+                )
+            )
+            if self._ends_connection(message):
+                break
+        self._check_packet_budget(len(envelopes))
+        ingress = [
+            (envelope["receipt_seq"], *_encoded(envelope)) for envelope in envelopes
+        ]
+        self._check_bytes(sum(len(body.encode("utf-8")) for _, body, _ in ingress))
+        try:
+            with self._db:
+                self._db.executemany(
+                    "INSERT INTO pending_ingress VALUES (?, ?, ?)", ingress
+                )
+            ingress_observed = self.evidence._now()
+        except Exception:
+            self.evidence.failed = True
+            self._status = "write_failed"
+            raise
+        rows = [self._process(envelope, ingress_observed) for envelope in envelopes]
+        observed = self._persist(rows, pending=True)
+        packets = self.evidence.packets[-len(envelopes) :]
+        if self._ends_connection(envelopes[-1]["message"]):
+            self._active = None
+        if invalid:
+            raise ValueError("invalid WebSocket frame; reopen the connection")
+        return tuple(
+            self._receipt(envelope, packet, observed)
+            for envelope, packet in zip(envelopes, packets, strict=True)
+        )
 
     def end_connection(self, connection_id, *, reason="socket_closed"):
         self._check_connection(connection_id)
@@ -453,6 +537,28 @@ def iter_packets(path):
             ):
                 raise ValueError("journal packet sequence mismatch")
             yield row
+
+
+def iter_pending_ingress(path):
+    """Recover durable input after the processed prefix without inventing evidence."""
+    with closing(_read_connection(path)) as db:
+        manifest = json.loads(db.execute("SELECT manifest FROM segment").fetchone()[0])
+        if manifest.get("batch_frames", 1) == 1:
+            return
+        db.execute("BEGIN")
+        last_seq = db.execute(
+            "SELECT coalesce(max(receipt_seq), 0) FROM packets"
+        ).fetchone()[0]
+        for expected, (seq, body, digest) in enumerate(
+            db.execute(
+                "SELECT receipt_seq, body, digest FROM pending_ingress ORDER BY receipt_seq"
+            ),
+            last_seq + 1,
+        ):
+            envelope = _decoded(body, digest)
+            if expected != seq or seq != envelope["receipt_seq"]:
+                raise ValueError("pending journal ingress sequence mismatch")
+            yield envelope
 
 
 def read_local_publication(path, publication_id):

@@ -12,7 +12,13 @@ import time
 from instant_input_evidence import GRID_MS, _file_sha
 from instant_real_indexed_pilot import MAX_QUEUE_CAPACITY, QUEUE_CAPACITY, QueuedSocket
 from instant_source_pilot import PRODUCTS, capture, utc_ms
-from instant_stream_journal import StreamJournal, iter_packets, read_segment
+from instant_stream_journal import (
+    MAX_BATCH_FRAMES,
+    StreamJournal,
+    iter_packets,
+    iter_pending_ingress,
+    read_segment,
+)
 from instant_warmup_capacity import frames
 
 
@@ -76,7 +82,7 @@ class BurstSocket:
         pass
 
 
-def experiment(path, capacity, stall_ms):
+def experiment(path, capacity, stall_ms, *, batch_frames=1):
     boot, suffix = workload()
     source = BurstSocket(boot, suffix)
     queue = QueuedSocket(source, (TimeoutError,), max_frames=capacity)
@@ -87,6 +93,7 @@ def experiment(path, capacity, stall_ms):
         first,
         first + GRID_MS,
         indexed=True,
+        batch_frames=batch_frames,
         monotonic_ns=time.perf_counter_ns,
     ) as journal:
 
@@ -108,7 +115,22 @@ def experiment(path, capacity, stall_ms):
         if not journal.evidence.failed:
             journal.finish()
 
-    rows = [row["envelope"] for row in iter_packets(path)]
+    records = list(iter_packets(path))
+    rows = [row["envelope"] for row in records]
+    if any(iter_pending_ingress(path)):
+        raise ValueError("completed trial left a pending batch")
+    batched = [row for row in records if "ingress_commit_observed_ts_ms" in row]
+    for row in batched:
+        packet = row["processing"]
+        if not (
+            row["ingress_commit_observed_ts_ms"]
+            <= packet["processing_started_ts_ms"]
+            <= packet["processing_completed_ts_ms"]
+            <= packet["available_ts_ms"]
+        ):
+            raise ValueError("invalid batch processing chronology")
+    if batch_frames > 1 and len(batched) != len(rows) - 2:
+        raise ValueError("missing batch commit observations")
     committed = [row["message"] for row in rows[1:-1]]
     # Match the socket's JSON representation, including lists on the wire.
     sent = json.loads(json.dumps(boot + [message for _, message in suffix]))
@@ -124,8 +146,14 @@ def experiment(path, capacity, stall_ms):
         for kind, group in result["latencies"].items()
         if "reader_to_writer" in group
     }
+    through_commit = {
+        kind: group["callback_through_commit"]
+        for kind, group in result["latencies"].items()
+    }
     return dict(
         capacity=capacity,
+        batch_frames=batch_frames,
+        batched_input_frames=len(batched),
         requested_stall_ms=stall_ms,
         stop=result["stop"],
         final_marker=rows[-1]["message"]["type"],
@@ -142,6 +170,14 @@ def experiment(path, capacity, stall_ms):
         observed_queue_high_water=queue.high_water,
         worst_measured_queue_ms=max(row["max_ms"] for row in latency.values()),
         reader_to_writer_by_kind=latency,
+        worst_callback_through_commit_ms=max(
+            row["max_ms"] for row in through_commit.values()
+        ),
+        worst_reader_through_commit_ms=max(
+            group["reader_through_commit"]["max_ms"]
+            for group in result["latencies"].values()
+            if "reader_through_commit" in group
+        ),
         digest=_file_sha(path),
         segment=read_segment(path),
     )
@@ -150,6 +186,9 @@ def experiment(path, capacity, stall_ms):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument(
+        "--batch-frames", type=int, choices=range(1, MAX_BATCH_FRAMES + 1), default=1
+    )
     args = parser.parse_args()
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -159,7 +198,12 @@ def main():
         for stall in STALL_MS:
             for capacity in (QUEUE_CAPACITY, MAX_QUEUE_CAPACITY):
                 name = f"r{repeat}-stall{stall}-queue{capacity}"
-                report = experiment(out / f"{name}.sqlite", capacity, stall)
+                report = experiment(
+                    out / f"{name}.sqlite",
+                    capacity,
+                    stall,
+                    batch_frames=args.batch_frames,
+                )
                 reports.append(dict(name=name, **report))
                 print(
                     f"{name}: {report['stop']}, {report['journal_committed_data']} committed data frames",
@@ -174,6 +218,7 @@ def main():
         tail_frames=TAIL_COUNT,
         tail_target_ms=TAIL_S * 1000,
         repetitions=REPETITIONS,
+        journal_batch_frames=args.batch_frames,
         reports=reports,
         live_queue_profile=QUEUE_CAPACITY,
         fitting_allowed=False,

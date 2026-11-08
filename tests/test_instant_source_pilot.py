@@ -5,7 +5,14 @@ import json
 import pytest
 
 from test_instant_stream_journal import Clock
-from instant_source_pilot import CHANNELS, PRODUCTS, PilotCallbacks, capture, _coverage
+from instant_source_pilot import (
+    CHANNELS,
+    PRODUCTS,
+    PilotCallbacks,
+    ReceivedFrame,
+    capture,
+    _coverage,
+)
 from instant_stream_journal import StreamJournal, iter_packets
 
 
@@ -204,3 +211,40 @@ def test_callback_duration_is_independent_of_receipt_wall_clock(tmp_path):
         metrics = callbacks.report()["latencies"]["subscriptions"]
         assert metrics["callback_through_commit"]["p95_ms"] == 0.125
         assert metrics["receipt_to_processing"]["p95_ms"] == 0
+
+
+def test_batch_ack_uses_membership_at_the_original_receipt(tmp_path):
+    class Socket:
+        def send(self, raw):
+            pass
+
+    early = acknowledgement()
+    next(channel for channel in early["channels"] if channel["name"] == "matches")[
+        "product_ids"
+    ] = [PRODUCTS[0]]
+    now = 0
+    with StreamJournal(
+        tmp_path / "batch-ack.sqlite",
+        PRODUCTS,
+        30000,
+        35000,
+        batch_frames=4,
+        clock_ms=lambda: now,
+        monotonic_ns=lambda: 0,
+    ) as journal:
+        callbacks = PilotCallbacks(journal, duration_ns=lambda: 4000000000)
+        callbacks.on_open(Socket())
+        now = 4000
+        callbacks.on_batch(
+            [
+                ReceivedFrame(json.dumps(ack), stamp, stamp * 1000000)
+                for stamp, ack in [
+                    (1000, early),
+                    (2000, acknowledgement()),
+                    (3000, acknowledgement()),
+                ]
+            ]
+        )
+        assert callbacks.ack == 2000
+        assert callbacks.last_reader_receipt_ts_ms == 3000
+        assert callbacks.frames["subscriptions"] == 3
