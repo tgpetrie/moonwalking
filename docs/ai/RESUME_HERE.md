@@ -6,6 +6,12 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The delayed eligibility draft at **`4b19a7a`** replayed all 166,035
+saved packets at four fixed waits. The +1.5s view preserved the same complete decision-input slots as +5s.
+It matched the original +5s feature results for all 80 rows. Local delivery
+at the shorter waits remains unmeasured. **109 focused tests passed.**
+[Replay results](../research/INSTANT_DELAYED_ELIGIBILITY_REPLAY_20261109.md).
+
 The batched source follow-up at **`c9d79be`** reached its 67-minute stop
 with 166,035 journal records and no reported queue overflow. All ten
 cohorts completed and the local consumer observed all 80 rows. BTC and
@@ -17,9 +23,9 @@ Gemini's [15-source eligibility response](../research/reviews/GEMINI_ELIGIBILITY
 is received and [reconciled](../research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md).
 Keep complete-vector readiness separate from delivery and outcome gradability.
 BTC cancels against itself under the current V2 residual, leaving SOL as the
-only fully ready non-benchmark product in the pilot. Next, build the versioned
-delayed eligibility adapter and compare evidence offsets on the preserved
-journal. The +1.5s wait and +2.5s age bound are candidates for measurement.
+only fully ready non-benchmark product in the pilot. The adapter and saved
+journal comparison are complete. The +1.5s wait and +2.5s delivery age bound
+remain candidates for a measured source check.
 The earlier methodology assignment is complete.
 
 The bounded journal writer at **`aa953b5`** passed crash and causal visibility
@@ -291,7 +297,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Gemini eligibility review reconciled. Delayed eligibility adapter and saved-journal timing comparison are next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Delayed eligibility and saved-journal replay complete. Predeclare bounded source checks and a wider research roster next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
@@ -307,7 +313,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, build the delayed eligibility draft and measure candidate evidence offsets on the preserved journal.
+Next, predeclare bounded source checks and a wider non-benchmark research roster.
 Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before

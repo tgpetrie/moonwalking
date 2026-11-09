@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-09T11:47:54.946518+00:00",
+  "updated_utc": "2026-11-09T12:07:12.940416+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+  "implementation_commit": "4b19a7a171c4f1923b85e46f4e33450a263bd51a",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -38,13 +38,14 @@
     "real_indexed_pilot": "completed_queue_overflow_before_warmup_pre_ack_book_snapshot_ordering_observed",
     "startup_and_burst": "pre_ack_startup_amended_12_burst_scenarios_verified",
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
-    "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete"
+    "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete",
+    "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "batched_source_attempt_01_verified_1316_targeted_checks_eligibility_rules_next"
+      "status": "delayed_eligibility_and_preserved_replay_verified_bounded_source_design_next"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -144,13 +145,39 @@
     "manifest": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac_MANIFEST.json",
     "packet_sha256": "ca6e28d5f0f006b04bf0cf1512eef1775ed4b94fdb9dd8ceccf36995617ac714",
     "complete_source_sections": 15,
+    "followup_rendering_sha256": "4bcde71ae941179a15bdb09114543fd5f57a0d99c11349df3f3c7af8aa3909cd",
     "response": "docs/research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109.md",
     "response_manifest": "docs/research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109_MANIFEST.json",
     "triage": "docs/research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md"
   },
+  "delayed_eligibility_replay": {
+    "status": "completed",
+    "implementation_commit": "4b19a7a171c4f1923b85e46f4e33450a263bd51a",
+    "source_pilot_implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+    "report": "docs/research/results/instant_delayed_eligibility_20261109/REPLAY.json",
+    "results": "docs/research/INSTANT_DELAYED_ELIGIBILITY_REPLAY_20261109.md",
+    "report_sha256": "0efe2d3028281dd6856812d7b5f7d5fbb891dd091799be7104d095351233d750",
+    "replay_offsets_ms": [
+      0,
+      1500,
+      2500,
+      5000
+    ],
+    "packets_verified": 166035,
+    "planned_directional_rows_per_offset": 80,
+    "original_plus_5s_feature_parity_rows": 80,
+    "same_complete_inputs_plus_1500_and_plus_5000": true,
+    "max_original_local_consumer_age_ms": 5678,
+    "actual_shorter_offset_delivery_measured": false,
+    "targeted_tests_passed": 109,
+    "guardrails_passed": true,
+    "feed_gate_pass": false,
+    "study_frozen": false,
+    "fitting_allowed": false
+  },
   "next_actions": [
-    "Implement the versioned delayed eligibility adapter and compare evidence offsets on the preserved journal. Keep BTC as a benchmark in the proposed roster and retain every planned slot in readiness reporting.",
-    "After replay, predeclare a bounded outcome-blind check across activity periods and a wider non-benchmark research roster. Resolve the original feed audit and decision-age policy separately.",
+    "Predeclare bounded outcome-blind source checks across activity periods. Measure actual local delivery at a shorter evidence wait against the +5s reference and retain all planned slots.",
+    "Declare a wider non-benchmark research roster before outcome inspection. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -162,7 +189,8 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1316,
+    "implementation_targeted_tests_passed": 109,
+    "batched_pilot_targeted_tests_passed": 1316,
     "frozen_historical_artifact_hashes_verified": 11,
     "guardrails": "passed_at_c9d79be",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
