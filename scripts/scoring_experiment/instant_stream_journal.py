@@ -9,13 +9,19 @@ from threading import get_ident
 import time
 from uuid import uuid4
 
-from instant_coverage import MAX_PACKETS, WARMUP_PACKET_LIMIT, _integer
+from instant_coverage import (
+    MAX_PACKETS,
+    TIMING_PACKET_LIMIT,
+    WARMUP_PACKET_LIMIT,
+    _integer,
+)
 from instant_delayed_decision import _check_prefix
 from instant_input_evidence import InputEvidenceRecorder, _json, _sha
 
 
 VERSION = "instant-stream-journal-v1-draft"
 MAX_RECORD_BYTES = 256 * 1024 * 1024
+TIMING_RECORD_LIMIT_BYTES = 512 * 1024 * 1024
 MAX_FRAME_BYTES = 1024 * 1024
 MAX_BATCH_FRAMES = 16
 END_EVENTS = {
@@ -123,9 +129,16 @@ class StreamJournal:
         monotonic_ns=None,
         indexed=False,
         batch_frames=1,
+        extended_capacity=False,
     ):
-        if not 1 <= _integer(max_packets) <= WARMUP_PACKET_LIMIT or not (
-            1 <= _integer(max_record_bytes) <= MAX_RECORD_BYTES
+        packet_ceiling = (
+            TIMING_PACKET_LIMIT if extended_capacity else WARMUP_PACKET_LIMIT
+        )
+        byte_ceiling = (
+            TIMING_RECORD_LIMIT_BYTES if extended_capacity else MAX_RECORD_BYTES
+        )
+        if not 1 <= _integer(max_packets) <= packet_ceiling or not (
+            1 <= _integer(max_record_bytes) <= byte_ceiling
         ):
             raise ValueError("journal bounds exceed the supported range")
         if not 1 <= _integer(batch_frames) <= MAX_BATCH_FRAMES:
@@ -138,6 +151,7 @@ class StreamJournal:
             clock_ms=clock_ms,
             packet_limit=max_packets,
             indexed=indexed,
+            extended_capacity=extended_capacity,
         )
         self._monotonic = monotonic_ns or time.monotonic_ns
         self._max_packets = max_packets
@@ -184,6 +198,8 @@ class StreamJournal:
                 journal_mode=mode,
                 synchronous=sync,
             )
+            if extended_capacity:
+                manifest["extended_capacity"] = True
             with self._db:
                 self._db.execute(
                     "INSERT INTO segment VALUES (1, ?, 'recording')", (_json(manifest),)

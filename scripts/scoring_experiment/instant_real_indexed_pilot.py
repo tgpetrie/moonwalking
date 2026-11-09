@@ -13,7 +13,7 @@ import sys
 from threading import Event, Thread
 import time
 
-from instant_coverage import WARMUP_PACKET_LIMIT
+from instant_coverage import TIMING_PACKET_LIMIT, WARMUP_PACKET_LIMIT
 from instant_delayed_decision import prepare_decision
 from instant_delayed_eligibility import LocalDelivery, assess_cohort
 from instant_input_evidence import DIRECTIONS, GRID_MS, _file_sha
@@ -35,6 +35,8 @@ from instant_source_pilot import (
 from instant_stream_journal import (
     MAX_BATCH_FRAMES,
     MAX_FRAME_BYTES,
+    MAX_RECORD_BYTES,
+    TIMING_RECORD_LIMIT_BYTES,
     StreamJournal,
     _local_publication,
     iter_pending_ingress,
@@ -50,6 +52,7 @@ TIMING_PROFILE = "eligibility-timing-256"
 TIMING_VERSION = "instant-eligibility-timing-pilot-v1"
 TIMING_PRODUCTS = PRODUCTS + ("LINK-USD", "AVAX-USD")
 TIMING_STEP_MS = 10000
+TIMING_SOFT_RECORD_BYTES = 480 * 1024 * 1024
 TIMING_DEADLINES_MS = {1500: 2500, LATER_ASOF_MS: 6000}
 UTC_WINDOWS = {"asia": (0, 6), "europe": (7, 13), "us": (14, 20)}
 PROFILES = {
@@ -474,6 +477,9 @@ def main():
     now = datetime.now(timezone.utc)
     products, offsets, step_ms, duration_s = _timing_options(parser, args, now)
     timing = args.profile == TIMING_PROFILE
+    extended = timing and not args.startup_smoke
+    packet_limit = TIMING_PACKET_LIMIT if extended else WARMUP_PACKET_LIMIT
+    record_limit = TIMING_RECORD_LIMIT_BYTES if extended else MAX_RECORD_BYTES
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     db = out / "capture.sqlite"
@@ -491,8 +497,8 @@ def main():
         profile=args.profile,
         duration_s=duration_s,
         max_connections=1,
-        packet_stop=WARMUP_PACKET_LIMIT - 10,
-        byte_stop=SOFT_RECORD_BYTES,
+        packet_stop=packet_limit - 10,
+        byte_stop=TIMING_SOFT_RECORD_BYTES if extended else SOFT_RECORD_BYTES,
         max_reader_queue_frames=queue_frames,
         max_batch_frames=batch_frames,
         warmup_ms=WARMUP_MS,
@@ -504,6 +510,7 @@ def main():
         plan.update(
             window_utc=args.window,
             startup_smoke=args.startup_smoke,
+            extended_capacity=extended,
             cohort_step_ms=step_ms,
             cohort_evidence_offsets_ms=offsets,
             diagnostic_deadlines_ms=TIMING_DEADLINES_MS,
@@ -526,8 +533,10 @@ def main():
         products,
         first,
         first + (69 * 60000 if timing else 4320000),
-        max_packets=WARMUP_PACKET_LIMIT,
+        max_packets=packet_limit,
+        max_record_bytes=record_limit,
         indexed=True,
+        extended_capacity=extended,
         batch_frames=batch_frames,
         monotonic_ns=time.perf_counter_ns,
     ) as journal:

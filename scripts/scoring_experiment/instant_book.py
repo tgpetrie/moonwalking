@@ -92,7 +92,9 @@ class BookReplay:
     An injectable processing clock is a trusted test input, not historical proof.
     """
 
-    def __init__(self, products, *, clock_ms=None, packet_limit=None):
+    def __init__(
+        self, products, *, clock_ms=None, packet_limit=None, extended_capacity=False
+    ):
         raw = CONTRACT.read_text(encoding="utf-8").encode("utf-8")
         cfg = json.loads(raw)
         if (cfg["version"], cfg["max_levels_per_product"], cfg["max_quote_age_ms"]) != (
@@ -106,6 +108,7 @@ class BookReplay:
             quote_channel="level2_batch",
             clock_ms=clock_ms,
             packet_limit=packet_limit,
+            extended_capacity=extended_capacity,
         )
         self.contract_sha256 = hashlib.sha256(raw).hexdigest()
         self.source_sha256 = hashlib.sha256(

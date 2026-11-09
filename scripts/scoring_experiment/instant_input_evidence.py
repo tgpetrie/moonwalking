@@ -107,6 +107,7 @@ class InputEvidenceRecorder:
         clock_ms=None,
         packet_limit=None,
         indexed=False,
+        extended_capacity=False,
     ):
         for value in (first_cutoff, stop_cutoff):
             _integer(value)
@@ -171,7 +172,10 @@ class InputEvidenceRecorder:
         self.last_clock = None
         self.inventory_recorded_ts_ms = self._now()
         self.book = BookReplay(
-            self.products, clock_ms=self._now, packet_limit=packet_limit
+            self.products,
+            clock_ms=self._now,
+            packet_limit=packet_limit,
+            extended_capacity=extended_capacity,
         )
         self.packets = []
         self.trades = []

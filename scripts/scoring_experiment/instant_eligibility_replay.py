@@ -66,6 +66,7 @@ def _reconstruct(db, segment):
         plan["stop_cutoff"],
         clock_ms=clock,
         packet_limit=manifest["max_packets"],
+        extended_capacity=manifest.get("extended_capacity", False),
         indexed=True,
     )
     for prefix, provider in (

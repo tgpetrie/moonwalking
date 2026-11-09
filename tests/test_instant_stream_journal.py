@@ -465,3 +465,34 @@ def test_batched_processing_failure_retains_raw_suffix_and_blocks_new_writes(tmp
     assert read_segment(path)["status"] == "packet_processing_failed"
     assert len(list(iter_packets(path))) == 1
     assert [row["receipt_seq"] for row in iter_pending_ingress(path)] == [2, 3]
+
+
+def test_timing_capacity_is_explicit_and_bounded_at_both_layers(tmp_path):
+    from instant_coverage import CoverageMonitor, TIMING_PACKET_LIMIT
+    from instant_stream_journal import TIMING_RECORD_LIMIT_BYTES
+
+    clock = Clock()
+    bounds = dict(
+        max_packets=TIMING_PACKET_LIMIT,
+        max_record_bytes=TIMING_RECORD_LIMIT_BYTES,
+    )
+    with pytest.raises(ValueError, match="journal bounds"):
+        journal(tmp_path / "legacy.sqlite", clock, **bounds)
+    with pytest.raises(ValueError, match="coverage packet limit"):
+        CoverageMonitor([COIN], packet_limit=TIMING_PACKET_LIMIT)
+    with pytest.raises(ValueError, match="journal bounds"):
+        journal(
+            tmp_path / "above-limit.sqlite",
+            clock,
+            extended_capacity=True,
+            max_packets=TIMING_PACKET_LIMIT,
+            max_record_bytes=TIMING_RECORD_LIMIT_BYTES + 1,
+        )
+
+    path = tmp_path / "timing.sqlite"
+    with journal(path, clock, extended_capacity=True, **bounds) as stream:
+        assert stream.evidence.book.monitor._packet_limit == TIMING_PACKET_LIMIT
+        manifest = read_segment(path)["manifest"]
+        assert manifest["extended_capacity"] is True
+        assert manifest["max_packets"] == TIMING_PACKET_LIMIT
+        assert manifest["max_record_bytes"] == TIMING_RECORD_LIMIT_BYTES

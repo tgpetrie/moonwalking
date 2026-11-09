@@ -24,8 +24,10 @@ are local shorthand for UTC windows.
 
 Each attempt uses the `eligibility-timing-256` profile, one connection, a
 67-minute duration after full subscription acknowledgment, 256 queued
-frames and up to 16 frames per journal batch. Keep the existing 249,990
-packet and 240 MiB logical byte stops. Retain the captured prefix and
+frames and up to 16 frames per journal batch. The full timing profile stops at 499,990 packets or 480 MiB of logical
+records. The journal enforces hard limits of 500,000 packets and 512 MiB.
+The original research profiles and the startup smoke keep their existing
+limits. Retain the captured prefix and
 stop reason if an attempt ends early. Keep enough time inside the window
 for subscription and the full capture. Record the implementation commit
 and plan before opening the socket. On Windows, take five read-only
@@ -55,4 +57,13 @@ Run `scripts/scoring_experiment/instant_real_indexed_pilot.py` with
 `--profile eligibility-timing-256 --window us --out-dir <new attempt directory>`
 or substitute the appropriate UTC window. The separate
 `--startup-smoke` mode uses the same six products and a 60-second
-capture to check subscription and journal operation before warmup.
+capture to check subscription and journal operation before warmup. The
+[initial smoke](results/instant_live_timing_20261109/STARTUP_01.json)
+confirmed all six subscriptions and committed 5,743 records. Its rate would exhaust
+the earlier budget before warmup if sustained, so the full timing profile
+uses the higher explicit bounds above. A one-minute rate does not establish
+capacity or liquidity across the whole attempt.
+
+Use the implementation pinned with each earlier archive for replay. The
+journal verifies monitor, book and input code digests, including capacity
+changes in this pilot.
