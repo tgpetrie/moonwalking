@@ -13,14 +13,14 @@ SOL had all five features ready on every cohort row. ALCX and AURORA
 still had missing features. **1,316 targeted checks pass**.
 [Follow-up results](../research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md).
 
-The new Gemini eligibility follow-up is prepared against **`17b87ac`**.
-It asks how to predeclare feature, product and cutoff eligibility after the
-pilot, with thin products retained in coverage reporting. Upload the
-[self-contained source packet](../research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac.txt)
-and use the [assignment prompt](GEMINI_ELIGIBILITY_REVIEW_20261109.md).
-The [manifest](../research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac_MANIFEST.json)
-pins all 15 source sections. Dispatch and review are pending. The earlier
-methodology review is complete.
+Gemini's [15-source eligibility response](../research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109.md)
+is received and [reconciled](../research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md).
+Keep complete-vector readiness separate from delivery and outcome gradability.
+BTC cancels against itself under the current V2 residual, leaving SOL as the
+only fully ready non-benchmark product in the pilot. Next, build the versioned
+delayed eligibility adapter and compare evidence offsets on the preserved
+journal. The +1.5s wait and +2.5s age bound are candidates for measurement.
+The earlier methodology assignment is complete.
 
 The bounded journal writer at **`aa953b5`** passed crash and causal visibility
 probes. The comparison verified 24 journals across both writer modes. All 256-frame
@@ -291,10 +291,10 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Batched source follow-up `c9d79be` verified. Eligibility and missingness rules are next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Gemini eligibility review reconciled. Delayed eligibility adapter and saved-journal timing comparison are next |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
-| Gemini | Current targets/F1-F5 methodology and ordered freeze decisions | New 29-file response received/reconciled; no empirical study, no numerical rule frozen |
+| Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
 | Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 
@@ -307,7 +307,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, predeclare feature and study eligibility with separate thin-product reporting.
+Next, build the delayed eligibility draft and measure candidate evidence offsets on the preserved journal.
 Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before

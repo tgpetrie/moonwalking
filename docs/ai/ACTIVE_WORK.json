@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-09T10:46:55.207898+00:00",
+  "updated_utc": "2026-11-09T11:47:54.946518+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -78,15 +78,16 @@
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "methodology_response_reconciled_eligibility_followup_prepared_dispatch_unverified",
+      "status": "eligibility_response_received_reconciled_policy_open",
       "review_history": {
         "pre_source_conceptual_responses": 1,
-        "source_based_static_responses": 4,
+        "source_based_static_responses": 5,
         "independent_empirical_studies": 0,
         "v2_review": "received_reconciled_recommendations_qualified_study_not_frozen",
         "v1_source_based_static_responses": 2,
         "v2_design_responses": 1,
-        "current_methodology_responses": 1
+        "current_methodology_responses": 1,
+        "eligibility_followup_responses": 1
       },
       "v2_response": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
       "v2_response_manifest": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030_MANIFEST.json",
@@ -134,7 +135,7 @@
     }
   },
   "gemini_eligibility_followup": {
-    "status": "prepared_dispatch_unverified",
+    "status": "complete_response_received_reconciled",
     "scope": "static_outcome_blind_review_of_feature_product_and_study_eligibility",
     "source_commit": "17b87ac261cae7011b168ca58228905f055748ff",
     "pilot_implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
@@ -142,11 +143,14 @@
     "packet": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac.txt",
     "manifest": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac_MANIFEST.json",
     "packet_sha256": "ca6e28d5f0f006b04bf0cf1512eef1775ed4b94fdb9dd8ceccf36995617ac714",
-    "complete_source_sections": 15
+    "complete_source_sections": 15,
+    "response": "docs/research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109.md",
+    "response_manifest": "docs/research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109_MANIFEST.json",
+    "triage": "docs/research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md"
   },
   "next_actions": [
-    "Use the prepared Gemini eligibility review to inform predeclared rules for then-known quote freshness, baseline readiness and trade activity. Keep the thin products in the coverage report.",
-    "Resolve the original feed audit and the decision-age policy separately. Use the verified live-readiness evidence to size the prospective design before fitting.",
+    "Implement the versioned delayed eligibility adapter and compare evidence offsets on the preserved journal. Keep BTC as a benchmark in the proposed roster and retain every planned slot in readiness reporting.",
+    "After replay, predeclare a bounded outcome-blind check across activity periods and a wider non-benchmark research roster. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
