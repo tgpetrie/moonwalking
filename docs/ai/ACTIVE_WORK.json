@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-09T12:07:12.940416+00:00",
+  "updated_utc": "2026-11-09T15:18:50.698227+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
   "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "4b19a7a171c4f1923b85e46f4e33450a263bd51a",
+  "implementation_commit": "91165cc10a276f2880323591912845f42cbd345e",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -39,13 +39,14 @@
     "startup_and_burst": "pre_ack_startup_amended_12_burst_scenarios_verified",
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
     "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete",
-    "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only"
+    "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only",
+    "live_timing_pilot": "six_product_startup_passed_us_attempt_running"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "delayed_eligibility_and_preserved_replay_verified_bounded_source_design_next"
+      "status": "live_timing_pilot_predeclared_us_attempt_acknowledged"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -175,9 +176,45 @@
     "study_frozen": false,
     "fitting_allowed": false
   },
+  "live_timing_pilot": {
+    "status": "us_attempt_acknowledged_results_pending",
+    "protocol": "docs/research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md",
+    "startup_probe": "docs/research/results/instant_live_timing_20261109/STARTUP_01.json",
+    "implementation_commit": "91165cc10a276f2880323591912845f42cbd345e",
+    "profile": "eligibility-timing-256",
+    "products": [
+      "BTC-USD",
+      "SOL-USD",
+      "ALCX-USD",
+      "AURORA-USD",
+      "LINK-USD",
+      "AVAX-USD"
+    ],
+    "schedule_ms": [
+      1500,
+      5000
+    ],
+    "consumer_age_bounds_ms": {
+      "1500": 2500,
+      "5000": 6000
+    },
+    "packet_stop": 499990,
+    "logical_byte_stop": 503316480,
+    "targeted_tests_passed": 1231,
+    "current_attempt": {
+      "window_utc": "us",
+      "full_subscription_ack_utc": "2026-11-09T15:18:07.078000+00:00",
+      "plan_started_utc": "2026-11-09T15:18:06.164522+00:00",
+      "plan_sha256": "0befca7d531fcb86b2d1cbe80099a44585ee9b444162ab0e7034283d19deb2e8",
+      "local_attempt": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01",
+      "local_stdout": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01-stdout.txt",
+      "local_process_start": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01-process-start.json",
+      "results": "pending"
+    }
+  },
   "next_actions": [
-    "Predeclare bounded outcome-blind source checks across activity periods. Measure actual local delivery at a shorter evidence wait against the +5s reference and retain all planned slots.",
-    "Declare a wider non-benchmark research roster before outcome inspection. Resolve the original feed audit and decision-age policy separately.",
+    "Read the US timing attempt after it stops, including any missed cohorts, local delivery ages and simultaneous non-benchmark readiness.",
+    "Use the declared Asia and Europe activity windows for follow-ups. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
   "constraints": [
@@ -189,7 +226,7 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 109,
+    "implementation_targeted_tests_passed": 1231,
     "batched_pilot_targeted_tests_passed": 1316,
     "frozen_historical_artifact_hashes_verified": 11,
     "guardrails": "passed_at_c9d79be",

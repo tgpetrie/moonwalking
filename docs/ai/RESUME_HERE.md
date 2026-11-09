@@ -6,6 +6,14 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
+The first [bounded live timing attempt](../research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)
+is running at `91165cc`. The US window acknowledged six products at
+15:18:07 UTC. It alternates +1.5s and +5s after warmup,
+with LINK and AVAX added to the monitored roster. The earlier
+[startup check](../research/results/instant_live_timing_20261109/STARTUP_01.json)
+confirmed all subscriptions and journal integrity. **1,231 Instant Radar
+tests passed.** See the active-work record for the local attempt paths.
+
 The delayed eligibility draft at **`4b19a7a`** replayed all 166,035
 saved packets at four fixed waits. The +1.5s view preserved the same complete decision-input slots as +5s.
 It matched the original +5s feature results for all 80 rows. Local delivery
@@ -297,7 +305,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Delayed eligibility and saved-journal replay complete. Predeclare bounded source checks and a wider research roster next |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | First bounded US timing attempt acknowledged. Capture results pending |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
@@ -313,7 +321,7 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, predeclare bounded source checks and a wider non-benchmark research roster.
+Next, verify the US timing report and compare planned, ready and on-time rows.
 Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
