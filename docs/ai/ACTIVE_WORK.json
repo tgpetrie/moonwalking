@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-09T15:18:50.698227+00:00",
+  "updated_utc": "2026-11-09T15:41:54.368545+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -201,6 +201,8 @@
     "packet_stop": 499990,
     "logical_byte_stop": 503316480,
     "targeted_tests_passed": 1231,
+    "verifier": "scripts/scoring_experiment/verify_instant_timing_attempt.py",
+    "verifier_validation": {"targeted_tests_passed": 10, "archived_packet_records_verified": 166035, "archived_local_observations_verified": 80, "startup_packet_records_verified": 5743},
     "current_attempt": {
       "window_utc": "us",
       "full_subscription_ack_utc": "2026-11-09T15:18:07.078000+00:00",
@@ -213,7 +215,7 @@
     }
   },
   "next_actions": [
-    "Read the US timing attempt after it stops, including any missed cohorts, local delivery ages and simultaneous non-benchmark readiness.",
+    "Verify the finished US attempt with the pinned plan hash. Compare missed cohorts, local delivery ages and simultaneous non-benchmark readiness.",
     "Use the declared Asia and Europe activity windows for follow-ups. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],

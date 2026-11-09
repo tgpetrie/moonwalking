@@ -13,6 +13,9 @@ with LINK and AVAX added to the monitored roster. The earlier
 [startup check](../research/results/instant_live_timing_20261109/STARTUP_01.json)
 confirmed all subscriptions and journal integrity. **1,231 Instant Radar
 tests passed.** See the active-work record for the local attempt paths.
+The completed-run verifier is ready. It matched 80 independent reader
+receipts from the previous capture and verified the current startup
+journal. Its results for this US run are pending.
 
 The delayed eligibility draft at **`4b19a7a`** replayed all 166,035
 saved packets at four fixed waits. The +1.5s view preserved the same complete decision-input slots as +5s.

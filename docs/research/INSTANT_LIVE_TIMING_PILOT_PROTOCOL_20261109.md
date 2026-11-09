@@ -67,3 +67,13 @@ capacity or liquidity across the whole attempt.
 Use the implementation pinned with each earlier archive for replay. The
 journal verifies monitor, book and input code digests, including capacity
 changes in this pilot.
+
+After the final report is present, run
+`scripts/scoring_experiment/verify_instant_timing_attempt.py <attempt directory>`
+with `--plan-sha256` and the digest from the active-work record.
+It verifies the journal and frozen decision prefixes against stored data,
+matches observed timestamps to the outbox receipts, and recalculates readiness
+and delivery by schedule. It includes every planned slot, plus the number
+of cutoffs with two or more ready and on-time non-benchmark products in each
+direction. The verifier matched the 166,035-packet archive with 80 published
+decisions and the 5,743-packet startup check.
