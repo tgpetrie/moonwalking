@@ -72,8 +72,11 @@ def _exchange_ms(value):
 class PilotCallbacks:
     """Socket callbacks run on the same thread as the journal writer."""
 
-    def __init__(self, journal, *, duration_ns=time.perf_counter_ns):
+    def __init__(self, journal, *, duration_ns=time.perf_counter_ns, products=PRODUCTS):
         self.journal = journal
+        self.products = tuple(products)
+        if set(self.products) != set(journal.evidence.products):
+            raise ValueError("subscription roster must match journal inventory")
         self.duration_ns = duration_ns
         self.connection = None
         self.ack = None
@@ -86,7 +89,9 @@ class PilotCallbacks:
         self.ack = None
         self.connection = self.journal.open_connection()
         socket.send(
-            json.dumps(dict(type="subscribe", product_ids=PRODUCTS, channels=CHANNELS))
+            json.dumps(
+                dict(type="subscribe", product_ids=self.products, channels=CHANNELS)
+            )
         )
 
     def on_message(self, raw):
@@ -111,7 +116,7 @@ class PilotCallbacks:
 
     def _account(self, receipt, raw, received, started, elapsed):
         kind, product = receipt.message_type, receipt.product_id
-        group = f"{kind}:{product}" if product in PRODUCTS else kind
+        group = f"{kind}:{product}" if product in self.products else kind
         self.frames[group] += 1
         metrics = self.metrics[group]
         metrics["callback_through_commit"].append(elapsed)
@@ -131,7 +136,7 @@ class PilotCallbacks:
             metrics["exchange_stamp_to_callback"].append(
                 receipt.receipt_ts_ms - exchange
             )
-        if kind in ("match", "ticker") and product in PRODUCTS:
+        if kind in ("match", "ticker") and product in self.products:
             message = json.loads(raw)
             trade_id, side = message.get("trade_id"), message.get("side")
             if type(trade_id) is int and side in ("buy", "sell"):
@@ -152,7 +157,7 @@ class PilotCallbacks:
                     and state["reason"] == "awaiting_heartbeat"
                 ):
                     confirmed.add(state["product_id"])
-            if set(PRODUCTS) <= ticker_products & confirmed and self.ack is None:
+            if set(self.products) <= ticker_products & confirmed and self.ack is None:
                 self.ack = receipt.receipt_ts_ms
 
     def on_close(self, *, reason="socket_closed"):
@@ -161,7 +166,7 @@ class PilotCallbacks:
         self.connection = None
 
     def report(self):
-        side_pairs = {pid: Counter() for pid in PRODUCTS}
+        side_pairs = {pid: Counter() for pid in self.products}
         for (pid, _), sides in self.sides.items():
             if {"match", "ticker"} <= sides.keys():
                 side_pairs[pid]["paired"] += 1
@@ -180,7 +185,7 @@ class PilotCallbacks:
                 }
                 for group, by_metric in self.metrics.items()
             },
-            ticker_match_sides={pid: dict(side_pairs[pid]) for pid in PRODUCTS},
+            ticker_match_sides={pid: dict(side_pairs[pid]) for pid in self.products},
         )
 
 
@@ -198,9 +203,10 @@ def capture(
     progress=print,
     after_commit=None,
     max_connections=MAX_CONNECTIONS,
+    products=PRODUCTS,
 ):
     """Run the callback path and give the post-commit hook the first ACK receipt."""
-    callbacks = PilotCallbacks(journal, duration_ns=duration_ns)
+    callbacks = PilotCallbacks(journal, duration_ns=duration_ns, products=products)
     first_ack = deadline = None
     last_progress = monotonic()
     stop = "transport_unavailable"
@@ -256,7 +262,7 @@ def capture(
                         first_ack = callbacks.ack
                         deadline = monotonic() + duration_s
                         progress(
-                            f"Subscriptions acknowledged for {len(PRODUCTS)} products.",
+                            f"Subscriptions acknowledged for {len(callbacks.products)} products.",
                             flush=True,
                         )
                 if (
@@ -318,7 +324,7 @@ def capture(
     )
 
 
-def _coverage(recorder, first_ack, stop_ts):
+def _coverage(recorder, first_ack, stop_ts, *, products=PRODUCTS):
     probes = list(
         range(
             ((first_ack + PROBE_MS - 1) // PROBE_MS + 1) * PROBE_MS,
@@ -327,7 +333,7 @@ def _coverage(recorder, first_ack, stop_ts):
         )
     )
     by_product = {}
-    for product in PRODUCTS:
+    for product in products:
         raw = [p for p in recorder.book.monitor.proofs if p["product_id"] == product]
         proofs = Counter(
             (
@@ -373,7 +379,7 @@ def _coverage(recorder, first_ack, stop_ts):
     warm_cutoff = next((t for t in probes if t >= first_ack + WARMUP_MS), None)
     warmup = dict(first_post_warmup_cutoff_ts_ms=warm_cutoff, readiness={})
     if warm_cutoff is not None:
-        for product in PRODUCTS:
+        for product in products:
             started = time.perf_counter_ns()
             row = build_timed_features(
                 recorder, product, warm_cutoff, "up", asof=warm_cutoff + LATER_ASOF_MS

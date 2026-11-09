@@ -229,3 +229,119 @@ def test_first_cohort_uses_the_ack_stamp_even_when_batch_ends_on_next_grid(
         assert result["first_ack_ts_ms"] == 4999
         assert result["last_reader_receipt_ts_ms"] == 5001
         assert cohorts.next_cutoff == 5000 + WARMUP_MS
+
+
+def test_wider_roster_is_declared_before_subscribing_and_missing_slots_are_counted(
+    tmp_path, monkeypatch
+):
+    from datetime import datetime, timezone
+    from instant_real_indexed_pilot import TIMING_PRODUCTS
+
+    class EuropeClock(datetime):
+        @classmethod
+        def now(cls, tz):
+            return datetime(2026, 11, 9, 8, tzinfo=timezone.utc)
+
+    path = tmp_path / "pilot"
+    ack = acknowledgement()
+    for channel in ack["channels"]:
+        channel["product_ids"] = TIMING_PRODUCTS
+    socket = FakeSocket(Clock(), [ack])
+    socket.settimeout = lambda _timeout: None
+
+    def open_socket(*args, **kwargs):
+        plan = json.loads((path / "PLAN.json").read_text(encoding="utf-8"))
+        assert plan["products"] == list(TIMING_PRODUCTS)
+        assert plan["cohort_evidence_offsets_ms"] == [5000, 1500] * 10
+        assert plan["diagnostic_deadlines_ms"] == {"1500": 2500, "5000": 6000}
+        return socket
+
+    monkeypatch.setattr("instant_real_indexed_pilot.datetime", EuropeClock)
+    monkeypatch.setitem(
+        sys.modules,
+        "websocket",
+        SimpleNamespace(
+            create_connection=open_socket,
+            WebSocketTimeoutException=TimeoutError,
+            WebSocketException=OSError,
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pilot",
+            "--out-dir",
+            str(path),
+            "--profile",
+            "eligibility-timing-256",
+            "--window",
+            "europe",
+        ],
+    )
+    main()
+
+    assert socket.sent[0]["product_ids"] == list(TIMING_PRODUCTS)
+    result = json.loads((path / "REPORT.json").read_text(encoding="utf-8"))
+    assert result["first_ack_ts_ms"] is not None
+    assert result["diagnostic_cohorts"] == {"planned": 20, "complete": 0}
+    for arm in result["timing_readiness"].values():
+        assert set(arm["products"]) == set(TIMING_PRODUCTS)
+        assert all(
+            row["planned_rows"] == 20 and row["observed_rows"] == 0
+            for row in arm["products"].values()
+        )
+
+
+def test_staggered_cohorts_use_their_own_asof_and_actual_observer_clock(
+    tmp_path, monkeypatch
+):
+    from instant_real_indexed_pilot import TIMING_PRODUCTS, _timing_readiness
+
+    clock = Clock()
+    first = 5000 + WARMUP_MS
+    calls = []
+    monkeypatch.setattr("instant_real_indexed_pilot.utc_ms", clock)
+    monkeypatch.setattr(
+        "instant_real_indexed_pilot.subprocess.Popen",
+        lambda args, **kwargs: calls.append(args) or object(),
+    )
+    with StreamJournal(
+        tmp_path / "capture.sqlite",
+        TIMING_PRODUCTS,
+        first,
+        first + 200000,
+        clock_ms=clock,
+        monotonic_ns=clock.mono,
+        indexed=True,
+    ) as journal:
+        cohorts = DiagnosticCohorts(
+            journal,
+            tmp_path,
+            products=TIMING_PRODUCTS,
+            offsets=(1500, 5000) * 10,
+            step_ms=10000,
+        )
+        clock.now = first + 1499
+        cohorts.after_commit(4999)
+        assert len(cohorts.rows) == 0
+        assert calls[0][-2:] == ["--observer-limit-s", "240"]
+        clock.now = first + 1500
+        cohorts.after_commit(4999)
+        clock.now = first + 15000
+        cohorts.after_commit(4999)
+        assert [r["knowledge_asof_ts_ms"] for r in cohorts.rows] == (
+            [first + 1500] * 12 + [first + 15000] * 12
+        )
+        cohorts.rows[0]["consumer_seen_ts_ms"] = first + 2501
+        cohorts.rows[12]["consumer_seen_ts_ms"] = first + 16000
+        report = _timing_readiness(cohorts)
+    for offset, bound in (("1500", 0), ("5000", 1)):
+        btc = report[offset]["products"]["BTC-USD"]
+        assert (btc["planned_rows"], btc["committed_rows"], btc["observed_rows"]) == (
+            20,
+            2,
+            1,
+        )
+        assert btc["observed_by_bound_rows"] == bound
+        assert btc["complete_inputs_rows"] == 0

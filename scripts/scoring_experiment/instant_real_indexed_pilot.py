@@ -15,6 +15,7 @@ import time
 
 from instant_coverage import WARMUP_PACKET_LIMIT
 from instant_delayed_decision import prepare_decision
+from instant_delayed_eligibility import LocalDelivery, assess_cohort
 from instant_input_evidence import DIRECTIONS, GRID_MS, _file_sha
 from instant_source_pilot import (
     CHANNELS,
@@ -45,12 +46,20 @@ VERSION = "instant-real-indexed-pilot-v1"
 QUEUE_CAPACITY = 128
 MAX_QUEUE_CAPACITY = 256
 DEFAULT_PROFILE = "single-128"
+TIMING_PROFILE = "eligibility-timing-256"
+TIMING_VERSION = "instant-eligibility-timing-pilot-v1"
+TIMING_PRODUCTS = PRODUCTS + ("LINK-USD", "AVAX-USD")
+TIMING_STEP_MS = 10000
+TIMING_DEADLINES_MS = {1500: 2500, LATER_ASOF_MS: 6000}
+UTC_WINDOWS = {"asia": (0, 6), "europe": (7, 13), "us": (14, 20)}
 PROFILES = {
     DEFAULT_PROFILE: (QUEUE_CAPACITY, 1),
     "batched-256": (MAX_QUEUE_CAPACITY, MAX_BATCH_FRAMES),
+    TIMING_PROFILE: (MAX_QUEUE_CAPACITY, MAX_BATCH_FRAMES),
 }
 COHORTS = 10
 POLL_S = 0.025
+MAX_OBSERVER_S = 240
 
 
 class QueuedSocket:
@@ -145,10 +154,10 @@ class QueuedSocket:
         self.socket.close(timeout=timeout)
 
 
-def _observe(path, destination, stop_file):
+def _observe(path, destination, stop_file, *, limit_s=100):
     """A separate process observes only acknowledged, digest-checked rows."""
     seen = set()
-    until = time.monotonic() + 100
+    until = time.monotonic() + limit_s
     with (
         closing(
             sqlite3.connect(
@@ -185,10 +194,16 @@ def _observe(path, destination, stop_file):
 
 
 class DiagnosticCohorts:
-    def __init__(self, journal, out):
+    def __init__(
+        self, journal, out, *, products=PRODUCTS, offsets=None, step_ms=GRID_MS
+    ):
         self.journal = journal
         self.out = out
-        self.next_cutoff = None
+        self.products = products
+        self.offsets = (LATER_ASOF_MS,) * COHORTS if offsets is None else offsets
+        self.step_ms = step_ms
+        self.first_cutoff = self.next_cutoff = None
+        self.snapshots = {}
         self.observer = None
         self.rows = []
         self.elapsed = []
@@ -196,27 +211,32 @@ class DiagnosticCohorts:
     def after_commit(self, first_ack_ts_ms):
         if self.next_cutoff is None:
             ready_at = first_ack_ts_ms + WARMUP_MS
-            self.next_cutoff = ((ready_at + GRID_MS - 1) // GRID_MS) * GRID_MS
-        if len(self.elapsed) == COHORTS:
+            self.first_cutoff = self.next_cutoff = (
+                (ready_at + GRID_MS - 1) // GRID_MS
+            ) * GRID_MS
+        if len(self.elapsed) == len(self.offsets):
             return
         now = utc_ms()
         if self.observer is None and now >= self.next_cutoff - GRID_MS:
+            args = [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--observe",
+                str(self.out),
+            ]
+            if len(self.offsets) > COHORTS:
+                args += ["--observer-limit-s", str(MAX_OBSERVER_S)]
             self.observer = subprocess.Popen(
-                [
-                    sys.executable,
-                    str(Path(__file__).resolve()),
-                    "--observe",
-                    str(self.out),
-                ],
+                args,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
-        asof = self.next_cutoff + LATER_ASOF_MS
+        asof = self.next_cutoff + self.offsets[len(self.elapsed)]
         if now < asof:
             return
         # A clock passing the planned as-of can coexist with queued packets.
         # Use the declared knowledge time and leave unavailable features null.
         started = time.perf_counter_ns()
-        for product in PRODUCTS:
+        for product in self.products:
             for direction in DIRECTIONS:
                 begin = time.perf_counter_ns()
                 snapshot = prepare_decision(
@@ -230,6 +250,7 @@ class DiagnosticCohorts:
                 pub = f"diagnostic-{self.next_cutoff}-{product}-{direction}"
                 receipt = self.journal.append_publication(pub, snapshot)
                 committed_ns = time.perf_counter_ns()
+                self.snapshots[pub] = snapshot
                 features = json.loads(snapshot.feature_json)
                 self.rows.append(
                     dict(
@@ -259,9 +280,9 @@ class DiagnosticCohorts:
                     )
                 )
         self.elapsed.append((time.perf_counter_ns() - started) / 1000000)
-        self.next_cutoff += GRID_MS
+        self.next_cutoff += self.step_ms
         print(
-            f"Committed live-source diagnostic cohort {len(self.elapsed)} of {COHORTS}.",
+            f"Committed live-source diagnostic cohort {len(self.elapsed)} of {len(self.offsets)}.",
             flush=True,
         )
 
@@ -318,46 +339,176 @@ def _observation_report(path, rows):
     )
 
 
+def _timing_readiness(cohorts):
+    """Summarize both schedules against their full declared slot denominators."""
+    recorder = cohorts.journal.evidence
+    rows_by_cutoff = {}
+    for row in cohorts.rows:
+        rows_by_cutoff.setdefault(row["cutoff_ts_ms"], []).append(row)
+    report = {}
+    ages_by_offset = {offset: [] for offset in TIMING_DEADLINES_MS}
+    for offset, deadline in TIMING_DEADLINES_MS.items():
+        planned_cohorts = cohorts.offsets.count(offset)
+        report[str(offset)] = dict(
+            deadline_age_ms=deadline,
+            planned_cohorts=planned_cohorts,
+            products={
+                product: dict(
+                    planned_rows=planned_cohorts * len(DIRECTIONS),
+                    committed_rows=0,
+                    observed_rows=0,
+                    observed_by_bound_rows=0,
+                    complete_inputs_rows=0 if not recorder.failed else None,
+                    complete_non_benchmark_observed_by_bound_rows=(
+                        0 if not recorder.failed else None
+                    ),
+                )
+                for product in cohorts.products
+            },
+            cutoff_comparisons=[],
+        )
+    for index, offset in enumerate(cohorts.offsets):
+        result = report[str(offset)]
+        cutoff = (
+            None
+            if cohorts.first_cutoff is None
+            else cohorts.first_cutoff + index * cohorts.step_ms
+        )
+        rows = rows_by_cutoff.get(cutoff, ())
+        for row in rows:
+            product = result["products"][row["product_id"]]
+            product["committed_rows"] += 1
+            observed = row.get("consumer_seen_ts_ms")
+            if observed is not None:
+                age = observed - cutoff
+                ages_by_offset[offset].append(age)
+                product["observed_rows"] += 1
+                product["observed_by_bound_rows"] += age <= TIMING_DEADLINES_MS[offset]
+        on_time = dict.fromkeys(DIRECTIONS, None if recorder.failed else 0)
+        summary = dict(
+            cutoff_ts_ms=cutoff,
+            committed_rows=len(rows),
+            on_time_complete_non_benchmark_products_by_direction=on_time,
+        )
+        if rows and not recorder.failed:
+            decisions, deliveries = [], {}
+            for row in rows:
+                snapshot = cohorts.snapshots[row["publication_id"]]
+                decisions.append(snapshot)
+                deliveries[(snapshot.product_id, snapshot.direction)] = LocalDelivery(
+                    row["decision_sha256"],
+                    row["commit_observed_ts_ms"],
+                    row.get("consumer_seen_ts_ms"),
+                )
+            assessment = assess_cohort(
+                recorder,
+                cutoff,
+                asof=cutoff + offset,
+                decisions=decisions,
+                local_deliveries=deliveries,
+                deadline_age_ms=TIMING_DEADLINES_MS[offset],
+            )
+            summary["eligibility"] = assessment
+            for row in assessment["rows"]:
+                product = result["products"][row["product_id"]]
+                product["complete_inputs_rows"] += row["input_status"] == "ready"
+                on_time_candidate = (
+                    row["complete_vector_candidate"]
+                    and row["delivery"]["status"] == "within_bound"
+                )
+                product[
+                    "complete_non_benchmark_observed_by_bound_rows"
+                ] += on_time_candidate
+                on_time[row["direction"]] += on_time_candidate
+        result["cutoff_comparisons"].append(summary)
+    for offset, ages in ages_by_offset.items():
+        report[str(offset)]["cutoff_to_consumer"] = _summary(ages)
+    return report
+
+
+def _timing_options(parser, args, now):
+    timing = args.profile == TIMING_PROFILE
+    if not timing and (args.window is not None or args.startup_smoke):
+        parser.error("window and startup smoke require the eligibility timing profile")
+    if not timing:
+        return PRODUCTS, (LATER_ASOF_MS,) * COHORTS, GRID_MS, DURATION_S
+    if args.startup_smoke:
+        if args.window is not None:
+            parser.error("startup smoke is separate from the declared windows")
+        return TIMING_PRODUCTS, (), TIMING_STEP_MS, 60
+    if args.window is None:
+        parser.error("the eligibility timing profile requires a declared UTC window")
+    start, end = UTC_WINDOWS[args.window]
+    seconds = now.hour * 3600 + now.minute * 60 + now.second
+    # Leave a minute for the socket and subscription before the timed session.
+    if not start * 3600 <= seconds <= end * 3600 - DURATION_S - 60:
+        parser.error("start early enough to finish the attempt inside its UTC window")
+    pair = (LATER_ASOF_MS, 1500) if args.window == "europe" else (1500, LATER_ASOF_MS)
+    return TIMING_PRODUCTS, pair * COHORTS, TIMING_STEP_MS, DURATION_S
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     paths = parser.add_mutually_exclusive_group(required=True)
     paths.add_argument("--out-dir", type=Path)
     paths.add_argument("--observe", type=Path)
     parser.add_argument("--profile", choices=PROFILES, default=DEFAULT_PROFILE)
+    parser.add_argument("--window", choices=UTC_WINDOWS)
+    parser.add_argument("--startup-smoke", action="store_true")
+    parser.add_argument("--observer-limit-s", type=int, choices=(100, MAX_OBSERVER_S))
     args = parser.parse_args()
     if args.observe is not None:
         out = args.observe.resolve()
-        _observe(out / "capture.sqlite", out / "observed.jsonl", out / "observer.stop")
+        _observe(
+            out / "capture.sqlite",
+            out / "observed.jsonl",
+            out / "observer.stop",
+            limit_s=args.observer_limit_s or 100,
+        )
         return
+    if args.observer_limit_s is not None:
+        parser.error("observer lifetime is only for the read process")
 
     import websocket
 
+    now = datetime.now(timezone.utc)
+    products, offsets, step_ms, duration_s = _timing_options(parser, args, now)
+    timing = args.profile == TIMING_PROFILE
     out = args.out_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     db = out / "capture.sqlite"
     queue_frames, batch_frames = PROFILES[args.profile]
     first = (utc_ms() // GRID_MS + 1) * GRID_MS
     plan = dict(
-        version=VERSION,
+        version=TIMING_VERSION if timing else VERSION,
         implementation_commit=subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip(),
         started_utc=datetime.now(timezone.utc).isoformat(),
         endpoint=URL,
-        products=PRODUCTS,
+        products=products,
         channels=CHANNELS,
         profile=args.profile,
-        duration_s=DURATION_S,
+        duration_s=duration_s,
         max_connections=1,
         packet_stop=WARMUP_PACKET_LIMIT - 10,
         byte_stop=SOFT_RECORD_BYTES,
         max_reader_queue_frames=queue_frames,
         max_batch_frames=batch_frames,
         warmup_ms=WARMUP_MS,
-        cohort_count=COHORTS,
-        cohort_evidence_offset_ms=LATER_ASOF_MS,
+        cohort_count=len(offsets),
+        cohort_evidence_offset_ms=None if timing else LATER_ASOF_MS,
         local_consumer_poll_ms=POLL_S * 1000,
     )
+    if timing:
+        plan.update(
+            window_utc=args.window,
+            startup_smoke=args.startup_smoke,
+            cohort_step_ms=step_ms,
+            cohort_evidence_offsets_ms=offsets,
+            diagnostic_deadlines_ms=TIMING_DEADLINES_MS,
+            observer_limit_s=MAX_OBSERVER_S if offsets else None,
+        )
     (out / "PLAN.json").write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
     sockets = []
 
@@ -372,15 +523,17 @@ def main():
 
     with StreamJournal(
         db,
-        PRODUCTS,
+        products,
         first,
-        first + 4320000,
+        first + (69 * 60000 if timing else 4320000),
         max_packets=WARMUP_PACKET_LIMIT,
         indexed=True,
         batch_frames=batch_frames,
         monotonic_ns=time.perf_counter_ns,
     ) as journal:
-        cohorts = DiagnosticCohorts(journal, out)
+        cohorts = DiagnosticCohorts(
+            journal, out, products=products, offsets=offsets, step_ms=step_ms
+        )
         try:
             result = capture(
                 journal,
@@ -392,6 +545,7 @@ def main():
                 byte_stop=plan["byte_stop"],
                 after_commit=cohorts.after_commit,
                 max_connections=plan["max_connections"],
+                products=products,
             )
         finally:
             observer_exit = cohorts.stop_observer()
@@ -406,6 +560,7 @@ def main():
                     journal.evidence,
                     result["first_ack_ts_ms"],
                     result["last_reader_receipt_ts_ms"],
+                    products=products,
                 )
     result.update(plan)
     result["segment"] = read_segment(db)
@@ -423,7 +578,9 @@ def main():
         )
         for socket in sockets
     ]
-    result["diagnostic_cohorts"] = dict(planned=COHORTS, complete=len(cohorts.elapsed))
+    result["diagnostic_cohorts"] = dict(
+        planned=len(offsets), complete=len(cohorts.elapsed)
+    )
     result["cohort_serial"] = _summary(cohorts.elapsed)
     result["decision_preparation"] = _summary(
         [row["prepare_ms"] for row in cohorts.rows]
@@ -432,6 +589,8 @@ def main():
     result["local_reader"] = _observation_report(out, cohorts.rows)
     result["local_reader"]["process_exit_code"] = observer_exit
     result["diagnostic_rows"] = cohorts.rows
+    if timing and not args.startup_smoke:
+        result["timing_readiness"] = _timing_readiness(cohorts)
     result["feed_gate_pass"] = False
     result["fitting_allowed"] = False
     result["public_delivery_measured"] = False
