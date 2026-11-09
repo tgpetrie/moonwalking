@@ -1,6 +1,6 @@
 # Resume Moonwalking from anywhere
 
-Updated November 8, 2026 (Pacific). This page is the current portable
+Updated November 9, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
@@ -12,6 +12,15 @@ cohorts completed and the local consumer observed all 80 rows. BTC and
 SOL had all five features ready on every cohort row. ALCX and AURORA
 still had missing features. **1,316 targeted checks pass**.
 [Follow-up results](../research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md).
+
+The new Gemini eligibility follow-up is prepared against **`17b87ac`**.
+It asks how to predeclare feature, product and cutoff eligibility after the
+pilot, with thin products retained in coverage reporting. Upload the
+[self-contained source packet](../research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac.txt)
+and use the [assignment prompt](GEMINI_ELIGIBILITY_REVIEW_20261109.md).
+The [manifest](../research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac_MANIFEST.json)
+pins all 15 source sections. Dispatch and review are pending. The earlier
+methodology review is complete.
 
 The bounded journal writer at **`aa953b5`** passed crash and causal visibility
 probes. The comparison verified 24 journals across both writer modes. All 256-frame

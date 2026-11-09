@@ -1,0 +1,117 @@
+{
+  "source_branch": "codex/instant-radar-20261028",
+  "source_commit": "17b87ac261cae7011b168ca58228905f055748ff",
+  "pilot_implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+  "prompt": "docs/ai/GEMINI_ELIGIBILITY_REVIEW_20261109.md",
+  "prompt_sha256": "11e9c55e8ba39d62d5b9efcbd48497df6d0258d70c67bd5bef7df0479da5d2d8",
+  "packet": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac.txt",
+  "packet_sha256": "ca6e28d5f0f006b04bf0cf1512eef1775ed4b94fdb9dd8ceccf36995617ac714",
+  "packet_bytes": 205544,
+  "sources": [
+    {
+      "number": 1,
+      "path": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md",
+      "sha256": "39e8da74736201c28ff84a336d4013fab498fe6b994e9779479579644c26231a",
+      "byte_offset": 6579,
+      "bytes": 4781
+    },
+    {
+      "number": 2,
+      "path": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md",
+      "sha256": "28cdfc7015985445ded605e8ffe5199068967e49a9c5ebe8e691fac67a4e939e",
+      "byte_offset": 11573,
+      "bytes": 3095
+    },
+    {
+      "number": 3,
+      "path": "docs/research/results/instant_batched_source_pilot_20261108/PLAN.json",
+      "sha256": "935c8018425fd15dc2cb02601644d43ee4c78a5ad67876d0b4ca5416339b53ca",
+      "byte_offset": 14886,
+      "bytes": 698
+    },
+    {
+      "number": 4,
+      "path": "docs/research/results/instant_batched_source_pilot_20261108/CHECKS.json",
+      "sha256": "2b6b66d5d174a974de9e5de562063cc3e5da92e62f3a0ce5939b00ebcf87fa21",
+      "byte_offset": 15805,
+      "bytes": 2915
+    },
+    {
+      "number": 5,
+      "path": "docs/research/results/instant_batched_source_pilot_20261108/ATTEMPT_01.json",
+      "sha256": "97141e2d5f61173289503aab8f4c130e9a9320bb0a7b8809d914f5eaff2baa29",
+      "byte_offset": 18947,
+      "bytes": 120295
+    },
+    {
+      "number": 6,
+      "path": "docs/research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md",
+      "sha256": "fd839e311dfdf6e9bb15a2e958fecfbf51db7e8eb3c87f3f34bada43ecb4785f",
+      "byte_offset": 139452,
+      "bytes": 3581
+    },
+    {
+      "number": 7,
+      "path": "docs/research/INSTANT_TIMED_BASELINE_20261106.md",
+      "sha256": "5f38f7da2385eb98c38fc03b8a85350725235a1e151a2da116ae0e66f3ebad89",
+      "byte_offset": 143231,
+      "bytes": 2639
+    },
+    {
+      "number": 8,
+      "path": "docs/research/INSTANT_TIMED_FEATURES_20261107.md",
+      "sha256": "198db0490c6d6040ac9c3bd1d6bb4ab55be7e2957d4ecb90a4bd3aae77cf1b76",
+      "byte_offset": 146068,
+      "bytes": 3598
+    },
+    {
+      "number": 9,
+      "path": "scripts/scoring_experiment/instant_timed_baseline.py",
+      "sha256": "f7a753d37c139d8f44bb6e94905dd809d6d1ffa95653363b9f6637f101586a43",
+      "byte_offset": 149868,
+      "bytes": 6286
+    },
+    {
+      "number": 10,
+      "path": "scripts/scoring_experiment/instant_timed_features.py",
+      "sha256": "4a100cf629e460bae69f75c7bedb624c3835274c38af227c9aa3dab8b2e2eb0b",
+      "byte_offset": 156357,
+      "bytes": 11389
+    },
+    {
+      "number": 11,
+      "path": "docs/research/INSTANT_DELAYED_DECISION_20261107.md",
+      "sha256": "69ac0074fbf5ecb98e15c53eeb184a75146ec2fe46252f5ed9633b31087a9ff5",
+      "byte_offset": 167946,
+      "bytes": 3583
+    },
+    {
+      "number": 12,
+      "path": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md",
+      "sha256": "61933e8656349f2bfb2c94b5dfc7ee0aa1f94d4a5935a1979d27588e0ff3bf2f",
+      "byte_offset": 171733,
+      "bytes": 5207
+    },
+    {
+      "number": 13,
+      "path": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json",
+      "sha256": "6bc6681803fbbea29b544a7af0dbc702938c6361077fb0328ef1987d3189a920",
+      "byte_offset": 177155,
+      "bytes": 1795
+    },
+    {
+      "number": 14,
+      "path": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md",
+      "sha256": "ec241844a8fbf28fa8c5159e0d389aa8788ffd89ab88cbfad3267d3f2ef63d1e",
+      "byte_offset": 179157,
+      "bytes": 14739
+    },
+    {
+      "number": 15,
+      "path": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md",
+      "sha256": "eba23a69dbf4528c9dfcde04f6a3a86d80d8024080f35553e0b04f3b0f4b5a04",
+      "byte_offset": 194101,
+      "bytes": 11385
+    }
+  ]
+}

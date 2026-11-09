@@ -1,7 +1,7 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-08T12:24:00.485131+00:00",
-  "display_date_pacific": "2026-11-08",
+  "updated_utc": "2026-11-09T10:46:55.207898+00:00",
+  "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
@@ -78,7 +78,7 @@
     },
     "gemini": {
       "role": "proposal_consistency_and_falsifiable_F1_F5_hypotheses",
-      "status": "current_29_file_methodology_response_received_reconciled_static_only_no_freeze",
+      "status": "methodology_response_reconciled_eligibility_followup_prepared_dispatch_unverified",
       "review_history": {
         "pre_source_conceptual_responses": 1,
         "source_based_static_responses": 4,
@@ -91,7 +91,7 @@
       "v2_response": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030.md",
       "v2_response_manifest": "docs/research/reviews/GEMINI_V2_DESIGN_REVIEW_20261030_MANIFEST.json",
       "source_scope": "initial 8b5b266 packet plus acceptance report; no independently verified test execution or full patched-source inspection",
-      "current_assignment": {
+      "completed_methodology_assignment": {
         "file": "docs/ai/GEMINI_METHOD_REVIEW_20261104.md",
         "status": "complete_response_received_reconciled",
         "source_commit": "fee55a7dd2bbb32c661c531d6fe9a8432db9400d",
@@ -133,8 +133,19 @@
       }
     }
   },
+  "gemini_eligibility_followup": {
+    "status": "prepared_dispatch_unverified",
+    "scope": "static_outcome_blind_review_of_feature_product_and_study_eligibility",
+    "source_commit": "17b87ac261cae7011b168ca58228905f055748ff",
+    "pilot_implementation_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+    "prompt": "docs/ai/GEMINI_ELIGIBILITY_REVIEW_20261109.md",
+    "packet": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac.txt",
+    "manifest": "docs/research/review_packets/GEMINI_ELIGIBILITY_SOURCE_PACKET_20261109_17b87ac_MANIFEST.json",
+    "packet_sha256": "ca6e28d5f0f006b04bf0cf1512eef1775ed4b94fdb9dd8ceccf36995617ac714",
+    "complete_source_sections": 15
+  },
   "next_actions": [
-    "Predeclare how then-known quote freshness, baseline readiness and trade activity determine feature and study eligibility. Keep the thin products in the coverage report.",
+    "Use the prepared Gemini eligibility review to inform predeclared rules for then-known quote freshness, baseline readiness and trade activity. Keep the thin products in the coverage report.",
     "Resolve the original feed audit and the decision-age policy separately. Use the verified live-readiness evidence to size the prospective design before fitting.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
