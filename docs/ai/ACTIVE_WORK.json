@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-10T00:35:30.307373+00:00",
+  "updated_utc": "2026-11-10T07:38:14.653656+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -218,6 +218,17 @@
       "cohorts_complete": 0,
       "packet_records_verified": 302679,
       "local_observations_verified": 0
+    }
+  },
+  "offline_checks": {
+    "runner": "scripts/scoring_experiment/run_instant_offline_checks.py",
+    "scope": "one_finished_timing_attempt_verification_regressions_and_optional_local_advisory",
+    "us_attempt_smoke": {
+      "packet_records_verified": 302679,
+      "local_observations_verified": 0,
+      "regression_tests_passed": 39,
+      "model": "qwen3.5:9b",
+      "model_note": "advisory"
     }
   },
   "next_actions": [

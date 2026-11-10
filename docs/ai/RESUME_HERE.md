@@ -334,6 +334,32 @@ association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
 merely to seek a favorable verdict.
 
+## Unattended checks on a saved timing attempt
+
+Once a capture has finished, run this from the repository root with the
+repository's Python environment and pytest. Substitute the finished attempt,
+its original plan digest, and a new local output directory.
+
+```text
+python -m scripts.scoring_experiment.run_instant_offline_checks --attempt <saved-attempt> --plan-sha256 <pinned-digest> --out-dir <new-local-folder> --model qwen3.5:9b
+```
+
+It verifies the saved evidence, runs the journal, socket and timing regression
+tests, and optionally asks local Ollama for an advisory note. A verifier or test
+failure stops the remaining checks. The run status, verified results and test
+log are the evidence. The advisory note is separate and never runs commands.
+Omit `--model` on a computer without Ollama. Keep outputs outside the checkout
+and use a new directory for each run. A complete job can verify an incomplete
+capture. On the US capture, the job verified 302,679 journal records, found
+zero timing observations, and passed 39 regression checks.
+
+Suggested parallel work at the verified checkpoint: Claude Fable reviews
+the queue, consumer and journal boundaries and proposes independently tested
+instrumentation on its own branch. Gemini Argon reviews the evidence needed
+to freeze eligibility, timing and study rules using the existing reconciled
+sources. Codex owns local capture evidence, integration and the next
+predeclared pilot. The Coinbase paper experiment stays on its separate branch.
+
 ## Code and environment on another computer
 
 For a new, absent destination directory:
