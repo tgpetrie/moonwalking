@@ -1,10 +1,24 @@
 # Resume Moonwalking from anywhere
 
-Updated November 9, 2026 (Pacific). This page is the current portable
+Updated November 10, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
+
+The active continuation branch is now **`codex/instant-radar-overflow-diagnosis-20261110`**,
+from verified Radar tip `fca475e`. Implementation **`cfa4aff`** adds a bounded
+failure-time reader snapshot and 11 deterministic burst/stalled-writer cases.
+**1,243 Instant Radar tests, guardrails and Black pass on Linux Python 3.12.14.**
+The snapshot distinguishes observed arrival pressure from the occupied writer
+phase, without claiming a unique network, disk or CPU cause. The actual US
+cause is still unresolved: its full Windows capture is unavailable here and
+the committed summary lacks the needed telemetry. No live capture or cap change
+ran. Read the [offline diagnosis and copy-ready PC command](../research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md)
+and [checks](../research/results/instant_reader_overflow_20261110/CHECKS.json).
+A documentation-only checkpoint may follow this implementation commit. The
+original `codex/instant-radar-20261028` remains the historical base branch.
+Next is one bounded PC check in a declared window, preserving the old attempt.
 
 The first [bounded live timing attempt](../research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)
 at `91165cc` ended at the 256-frame reader queue limit. The last reader
@@ -372,11 +386,13 @@ in the job log. The local checker records status on disk.
 For a new, absent destination directory:
 
 ```bash
-git clone --branch codex/instant-radar-20261028 https://github.com/tgpetrie/moonwalking.git Moonwalking-InstantRadar
+git clone --branch codex/instant-radar-overflow-diagnosis-20261110 https://github.com/tgpetrie/moonwalking.git Moonwalking-InstantRadar
 cd Moonwalking-InstantRadar
 ```
 
-For an existing checkout, inspect remote, status and worktrees, then fetch
+Each cloud task is already isolated: use its existing clean checkout and a named
+branch; do not create a worktree unless explicitly requested. For an existing
+PC checkout, inspect remote, status and worktrees, then fetch
 and use the named branch in a suitable separate worktree. Never overwrite
 uncommitted work. Both checkout and Git common storage must be outside
 OneDrive/synced folders. Follow [the access procedures](WORK_FROM_ANYWHERE.md).
@@ -442,7 +458,12 @@ own machines. The Windows collector is a separate running service on port
 ## Paste into any next session
 
 > Resume Moonwalking's instant-radar work from repository
-> `tgpetrie/moonwalking`, branch `codex/instant-radar-20261028`.
+> `tgpetrie/moonwalking`, branch `codex/instant-radar-overflow-diagnosis-20261110`.
+> The verified base was `fca475e`; overflow instrumentation is `cfa4aff`.
+> Read INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md first. Offline burst and
+> stalled-writer tests pass (1,243 Instant Radar tests). The US capture remains
+> inconclusive before warmup. A bounded PC pilot command is prepared, not run;
+> queue and batch caps, feed gate, study and production remain unchanged.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
 > Batched source follow-up `c9d79be` has 1,316 targeted tests passing.

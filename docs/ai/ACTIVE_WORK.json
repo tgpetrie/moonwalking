@@ -1,12 +1,12 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-10T07:38:14.653656+00:00",
-  "display_date_pacific": "2026-11-09",
+  "updated_utc": "2026-11-10T23:29:17.788411+00:00",
+  "display_date_pacific": "2026-11-10",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
-  "resume_branch": "codex/instant-radar-20261028",
-  "implementation_commit": "91165cc10a276f2880323591912845f42cbd345e",
+  "resume_branch": "codex/instant-radar-overflow-diagnosis-20261110",
+  "implementation_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
   "status": {
@@ -40,13 +40,14 @@
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
     "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete",
     "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only",
-    "live_timing_pilot": "us_attempt_queue_overflow_before_warmup_zero_cohorts_verified"
+    "live_timing_pilot": "us_attempt_queue_overflow_before_warmup_zero_cohorts_verified",
+    "reader_overflow": "offline_burst_and_writer_stall_tests_complete_failure_snapshot_added_live_cause_unresolved"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "live_timing_pilot_us_attempt_verified_queue_capacity_open"
+      "status": "offline_overflow_diagnosis_complete_bounded_pc_check_documented_not_run"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -234,7 +235,7 @@
     }
   },
   "next_actions": [
-    "Diagnose reader queue saturation from the verified US attempt before predeclaring any capacity change or follow-up capture. No timing or readiness rows were observed.",
+    "Run the one bounded PC timing check documented in INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md in a declared window; retain failure-time stderr and final reader overflow snapshot. Offline diagnosis is complete; the actual US cause remains unresolved.",
     "Use the declared Asia and Europe activity windows for follow-ups. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -247,16 +248,16 @@
     "No live weights, ranking, recorder integration or deployment was changed"
   ],
   "checks": {
-    "implementation_targeted_tests_passed": 1231,
+    "implementation_targeted_tests_passed": 1243,
     "batched_pilot_targeted_tests_passed": 1316,
     "frozen_historical_artifact_hashes_verified": 11,
-    "guardrails": "passed_at_c9d79be",
+    "guardrails": "passed_at_cfa4aff",
     "independent_claude_review": "complete_fix_accepted_study_freeze_conditional",
     "native_mac_or_cloud_execution": "Claude_reported_Linux_3_13_18_Codex_reproduced_Windows_3_12_10_no_native_Mac",
     "independent_v2_review": "Claude_code_review_accepted_Gemini_v2_design_reconciled_study_candidate_not_frozen",
     "previous_implementation_targeted_tests_passed": 130,
     "instant_target_tests_passed": 265,
-    "black_24_8": "passed_at_c9d79be",
+    "black_24_8": "passed_at_cfa4aff",
     "unrelated_fixture_failure": {
       "test": "tests/test_seed_fixture.py::test_load_dev_volume_fixture",
       "expected_points_each": 10,
@@ -287,7 +288,9 @@
     "new_input_evidence_cases": 32,
     "independent_input_evidence_probes": 46,
     "input_evidence_review": "accepted_no_defect_no_patch_46_probes_pass_on_unchanged_source",
-    "Gemini_methodology_boundary_cases": 6
+    "Gemini_methodology_boundary_cases": 6,
+    "current_native_execution": "Linux_Python_3_12_14_pytest_8_3_5_1243_Instant_Radar_tests",
+    "pre_overflow_implementation_targeted_tests_passed": 1231
   },
   "evidence": {
     "release_tag": "research-handoff-20261027",
@@ -672,7 +675,7 @@
     "Gemini_hashes_computed": false,
     "Codex_new_synthetic_boundary_cases": 6
   },
-  "latest_verification_commit": "c9d79beb4665a1f05e08588819b44450e79fb169",
+  "latest_verification_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
   "methodology_review_20261106": {
     "status": "received_reconciled_no_runtime_contract_or_numeric_policy_change",
     "verification_commit": "840ff97831903c0621fca40891408a1ca1b95d8a",
@@ -899,5 +902,20 @@
       "BTC-USD",
       "SOL-USD"
     ]
+  },
+  "previous_resume_branch": "codex/instant-radar-20261028",
+  "previous_resume_branch_verified_tip": "fca475e014bab94549fdda7816390a4169b58f7d",
+  "reader_overflow_diagnosis": {
+    "implementation_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
+    "results": "docs/research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md",
+    "checks": "docs/research/results/instant_reader_overflow_20261110/CHECKS.json",
+    "new_cases": 11,
+    "targeted_tests_passed": 1243,
+    "evidence": "docs/research/results/instant_live_timing_20261109/US_01_VERIFIED.json",
+    "actual_us_cause": "unresolved_missing_failure_time_instrumentation",
+    "next_pc_pilot": "copy_ready_PowerShell_in_results_document_same_eligibility_timing_256_profile",
+    "capture_run": false,
+    "capacity_change": false,
+    "independent_review": "not_requested_or_performed"
   }
 }

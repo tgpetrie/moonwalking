@@ -6,6 +6,14 @@ Status keys: Open, In progress, Done, Blocked.
 
 ## In progress - instant radar, 2026-10-30
 
+- Done, November 10: offline reader-overflow diagnosis at `cfa4aff` on
+  `codex/instant-radar-overflow-diagnosis-20261110`, from verified `fca475e`.
+  Added bounded failure-time arrival/writer telemetry and deterministic burst,
+  stalled-persistence and stalled-hook cases. Verification: 1,243 Instant Radar
+  tests, Black and guardrails pass. Actual US cause remains unresolved; no new
+  capture or capacity change. The copy-ready next PC command and success criteria
+  are in `docs/research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md`.
+
 - Executable prospective forward/onset label contract and synthetic tests
   are implemented on `codex/instant-radar-20261028`; see
   `docs/research/INSTANT_TARGET_LABELS_20261029.md`.
