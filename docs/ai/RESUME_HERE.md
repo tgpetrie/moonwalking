@@ -353,12 +353,19 @@ and use a new directory for each run. A complete job can verify an incomplete
 capture. On the US capture, the job verified 302,679 journal records, found
 zero timing observations, and passed 39 regression checks.
 
-Suggested parallel work at the verified checkpoint: Claude Fable reviews
-the queue, consumer and journal boundaries and proposes independently tested
-instrumentation on its own branch. Gemini Argon reviews the evidence needed
-to freeze eligibility, timing and study rules using the existing reconciled
-sources. Codex owns local capture evidence, integration and the next
-predeclared pilot. The Coinbase paper experiment stays on its separate branch.
+Codex owns local capture evidence, queue diagnosis, integration and the
+next predeclared pilot. Claude is on the separate design work. An
+independent Fable code review can follow when that slot is available.
+Gemini Argon can review the evidence needed to freeze eligibility, timing
+and study rules using the reconciled sources. The Coinbase paper
+experiment stays on its separate branch.
+
+Use the Codex handoff when a result is ready to review, a reproducible
+failure blocks progress, or a decision changes study scope or a gate.
+Send the branch and commit or result link, what passed or failed, and
+the single decision needed if there is one. A finished design handoff
+should include the preview and build brief. Routine progress can stay
+in the job log. The local checker records status on disk.
 
 ## Code and environment on another computer
 

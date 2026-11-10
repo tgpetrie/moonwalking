@@ -223,6 +223,8 @@
   "offline_checks": {
     "runner": "scripts/scoring_experiment/run_instant_offline_checks.py",
     "scope": "one_finished_timing_attempt_verification_regressions_and_optional_local_advisory",
+    "status_delivery": "local_status_file_and_result_artifacts",
+    "handoff_triggers": ["reviewable_result", "reproducible_blocker", "decision_changes_scope_or_gate"],
     "us_attempt_smoke": {
       "packet_records_verified": 302679,
       "local_observations_verified": 0,
