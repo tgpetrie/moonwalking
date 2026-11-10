@@ -7,15 +7,18 @@ The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
 The first [bounded live timing attempt](../research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)
-is running at `91165cc`. The US window acknowledged six products at
-15:18:07 UTC. It alternates +1.5s and +5s after warmup,
-with LINK and AVAX added to the monitored roster. The earlier
-[startup check](../research/results/instant_live_timing_20261109/STARTUP_01.json)
-confirmed all subscriptions and journal integrity. **1,231 Instant Radar
-tests passed.** See the active-work record for the local attempt paths.
-The completed-run verifier is ready. It matched 80 independent reader
-receipts from the previous capture and verified the current startup
-journal. Its results for this US run are pending.
+at `91165cc` ended at the 256-frame reader queue limit. The last reader
+receipt was 49m 03.474s after the six-product subscription acknowledgment.
+The 62-minute warmup did not finish and none of the 20 planned cohorts ran.
+The [independent verifier report](../research/results/instant_live_timing_20261109/US_01_VERIFIED.json)
+confirmed the pinned plan, SQLite integrity and 302,679 journal records.
+There are no +1.5s or +5s local delivery observations or readiness
+measurements for this attempt. The startup check and earlier replay
+remain separate evidence.
+
+The separate [Coinbase paper-trading handoff](https://github.com/tgpetrie/moonwalking/blob/codex/coinbase-paper-trading/docs/ai/COINBASE_CLOUD_HANDOFF.md)
+starts the account-integration work from existing Portfolio Mode. Its
+offline exit comparison uses explicitly supplied bids and position costs.
 
 The delayed eligibility draft at **`4b19a7a`** replayed all 166,035
 saved packets at four fixed waits. The +1.5s view preserved the same complete decision-input slots as +5s.
@@ -308,7 +311,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | First bounded US timing attempt acknowledged. Capture results pending |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | First bounded US timing attempt ended at queue capacity and was independently verified |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
@@ -324,8 +327,8 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, verify the US timing report and compare planned, ready and on-time rows.
-Keep the four-product
+Next, diagnose reader queue saturation using the saved US attempt before
+predeclaring any capacity change and follow-up capture. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures

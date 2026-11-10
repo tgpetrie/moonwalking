@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-09T15:41:54.368545+00:00",
+  "updated_utc": "2026-11-10T00:35:30.307373+00:00",
   "display_date_pacific": "2026-11-09",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -40,13 +40,13 @@
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
     "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete",
     "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only",
-    "live_timing_pilot": "six_product_startup_passed_us_attempt_running"
+    "live_timing_pilot": "us_attempt_queue_overflow_before_warmup_zero_cohorts_verified"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "live_timing_pilot_predeclared_us_attempt_acknowledged"
+      "status": "live_timing_pilot_us_attempt_verified_queue_capacity_open"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -177,7 +177,7 @@
     "fitting_allowed": false
   },
   "live_timing_pilot": {
-    "status": "us_attempt_acknowledged_results_pending",
+    "status": "us_attempt_finished_queue_overflow_before_warmup",
     "protocol": "docs/research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md",
     "startup_probe": "docs/research/results/instant_live_timing_20261109/STARTUP_01.json",
     "implementation_commit": "91165cc10a276f2880323591912845f42cbd345e",
@@ -211,11 +211,17 @@
       "local_attempt": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01",
       "local_stdout": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01-stdout.txt",
       "local_process_start": "C:/Users/tgpet/.moonwalking/analysis/instant_live_timing_20261109/us-01-process-start.json",
-      "results": "pending"
+      "results": "docs/research/results/instant_live_timing_20261109/US_01_VERIFIED.json",
+      "stop": "queue_overflow",
+      "last_reader_receipt_after_full_ack_ms": 2943474,
+      "cohorts_planned": 20,
+      "cohorts_complete": 0,
+      "packet_records_verified": 302679,
+      "local_observations_verified": 0
     }
   },
   "next_actions": [
-    "Verify the finished US attempt with the pinned plan hash. Compare missed cohorts, local delivery ages and simultaneous non-benchmark readiness.",
+    "Diagnose reader queue saturation from the verified US attempt before predeclaring any capacity change or follow-up capture. No timing or readiness rows were observed.",
     "Use the declared Asia and Europe activity windows for follow-ups. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
