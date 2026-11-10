@@ -2,6 +2,7 @@
 
 import argparse
 from collections import Counter, defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
@@ -245,14 +246,20 @@ def capture(
                     stop = "remote_close"
                     break
                 last_frame = monotonic()
+                activity = getattr(
+                    socket, "writer_activity", lambda *args: nullcontext()
+                )
                 if journal.batch_frames > 1:
                     extra = (
                         min(journal.batch_frames, packet_stop - journal.packet_count)
                         - 1
                     )
-                    callbacks.on_batch((raw, *socket.recv_ready(max(0, extra))))
+                    frames = (raw, *socket.recv_ready(max(0, extra)))
+                    with activity("journal_callback", len(frames)):
+                        callbacks.on_batch(frames)
                 else:
-                    callbacks.on_message(raw)
+                    with activity("journal_callback", 1):
+                        callbacks.on_message(raw)
                 if not journal.connection_active:
                     stop = "exchange_or_source_error"
                     break
@@ -276,7 +283,8 @@ def capture(
                     )
                     break
                 if after_commit is not None and first_ack is not None:
-                    after_commit(first_ack)
+                    with activity("after_commit"):
+                        after_commit(first_ack)
                 if monotonic() - last_progress >= 60:
                     progress(
                         f"{journal.packet_count} packets committed, {journal.record_bytes} logical bytes.",

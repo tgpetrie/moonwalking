@@ -1,8 +1,9 @@
 """Run the real indexed diagnostic and observe the outbox from another process."""
 
 import argparse
-from collections import Counter
-from contextlib import closing
+from collections import Counter, deque
+from contextlib import closing, contextmanager
+from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ from queue import Empty, Full, Queue
 import sqlite3
 import subprocess
 import sys
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 import time
 
 from instant_coverage import TIMING_PACKET_LIMIT, WARMUP_PACKET_LIMIT
@@ -68,7 +69,14 @@ MAX_OBSERVER_S = 240
 class QueuedSocket:
     """One socket reader timestamps frames; the owner thread alone writes."""
 
-    def __init__(self, socket, timeout_errors, *, max_frames=QUEUE_CAPACITY):
+    def __init__(
+        self,
+        socket,
+        timeout_errors,
+        *,
+        max_frames=QUEUE_CAPACITY,
+        monotonic_ns=time.perf_counter_ns,
+    ):
         if type(max_frames) is not int or not 1 <= max_frames <= MAX_QUEUE_CAPACITY:
             raise ValueError("reader queue size outside the supported range")
         self.socket = socket
@@ -80,6 +88,74 @@ class QueuedSocket:
         )
         self.failure = None
         self.received = self.delivered = self.high_water = 0
+        self._ns = monotonic_ns
+        self._stats_lock = Lock()
+        self._returns = deque(maxlen=MAX_QUEUE_CAPACITY + 1)
+        self._writer = dict(phase="between_callbacks", started_ns=self._ns(), frames=0)
+        self._last_writer = None
+        self.overflow = None
+
+    @contextmanager
+    def writer_activity(self, phase, frames=0):
+        """Observe the owner thread without timing/altering journal internals."""
+        with self._stats_lock:
+            self._writer = dict(phase=phase, started_ns=self._ns(), frames=frames)
+        try:
+            yield
+        finally:
+            with self._stats_lock:
+                now = self._ns()
+                self._last_writer = dict(
+                    phase=phase,
+                    frames=frames,
+                    elapsed_ms=(now - self._writer["started_ns"]) / 1000000,
+                )
+                self._writer = dict(phase="between_callbacks", started_ns=now, frames=0)
+
+    def _overflow_snapshot(self, reason, wall, now):
+        # Called under _stats_lock at the failed enqueue, before shutdown/drain.
+        with self.queue.mutex:
+            depth = len(self.queue.queue)
+            oldest = self.queue.queue[0].receipt_ns if depth else None
+        arrivals = {}
+        for window_ms in (100, 1000):
+            boundary = now - window_ms * 1000000
+            arrivals[str(window_ms)] = dict(
+                returned=sum(stamp >= boundary for stamp in self._returns),
+                lower_bound=(
+                    len(self._returns) == self._returns.maxlen
+                    and self._returns[0] >= boundary
+                ),
+            )
+        self.overflow = dict(
+            version="instant-reader-overflow-v1",
+            reason=reason,
+            receipt_ts_ms=wall,
+            queue_capacity=self.queue.maxsize,
+            queue_depth=depth,
+            received=self.received,
+            delivered=self.delivered,
+            oldest_queued_age_ms=None if oldest is None else (now - oldest) / 1000000,
+            retained_returns=len(self._returns),
+            retained_return_span_ms=(now - self._returns[0]) / 1000000,
+            arrival_windows_ms=arrivals,
+            writer=dict(
+                phase=self._writer["phase"],
+                frames=self._writer["frames"],
+                elapsed_ms=(now - self._writer["started_ns"]) / 1000000,
+            ),
+            last_completed_writer=deepcopy(self._last_writer),
+        )
+
+    def reader_report(self):
+        with self._stats_lock:
+            return dict(
+                received=self.received,
+                delivered=self.delivered,
+                received_not_delivered=self.received - self.delivered,
+                sampled_high_water=self.high_water,
+                overflow=deepcopy(self.overflow),
+            )
 
     def send(self, raw):
         self.socket.send(raw)
@@ -92,28 +168,42 @@ class QueuedSocket:
                     raw = self.socket.recv()
                 except self.timeout_errors:
                     continue
-                wall, duration = utc_ms(), time.perf_counter_ns()
+                wall, duration = utc_ms(), self._ns()
                 if raw in ("", b""):
                     break
-                self.received += 1
-                if len(raw) > MAX_FRAME_BYTES or (
-                    isinstance(raw, str)
-                    and len(raw.encode("utf-8", errors="surrogatepass"))
-                    > MAX_FRAME_BYTES
-                ):
-                    raise QueueOverflowError(
-                        "reader frame exceeded the journal frame bound"
-                    )
-                try:
-                    self.queue.put_nowait(ReceivedFrame(raw, wall, duration))
-                except Full as exc:
-                    raise QueueOverflowError(
-                        "socket reader queue reached its frame cap"
-                    ) from exc
-                self.high_water = max(self.high_water, self.queue.qsize())
+                with self._stats_lock:
+                    self.received += 1
+                    self._returns.append(duration)
+                    if len(raw) > MAX_FRAME_BYTES or (
+                        isinstance(raw, str)
+                        and len(raw.encode("utf-8", errors="surrogatepass"))
+                        > MAX_FRAME_BYTES
+                    ):
+                        self._overflow_snapshot("frame_bytes_exceeded", wall, duration)
+                        raise QueueOverflowError(
+                            "reader frame exceeded the journal frame bound"
+                        )
+                    try:
+                        self.queue.put_nowait(ReceivedFrame(raw, wall, duration))
+                    except Full as exc:
+                        self._overflow_snapshot("queue_full", wall, duration)
+                        raise QueueOverflowError(
+                            "socket reader queue reached its frame cap"
+                        ) from exc
+                    self.high_water = max(self.high_water, self.queue.qsize())
         except Exception as exc:
             if not self.stopping.is_set():
                 self.failure = exc
+                if self.overflow is not None:
+                    # One bounded stderr record survives a still-blocked owner.
+                    try:
+                        print(
+                            "READER_OVERFLOW " + json.dumps(self.overflow),
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    except OSError:
+                        pass  # Logging must not replace the original failure.
         finally:
             self.done.set()
 
@@ -128,7 +218,8 @@ class QueuedSocket:
                     raise self.failure
                 return ""
             raise TimeoutError("waiting for socket reader") from exc
-        self.delivered += 1
+        with self._stats_lock:
+            self.delivered += 1
         return frame
 
     def recv_ready(self, limit):
@@ -141,7 +232,8 @@ class QueuedSocket:
                 frames.append(self.queue.get_nowait())
             except Empty:
                 break
-        self.delivered += len(frames)
+        with self._stats_lock:
+            self.delivered += len(frames)
         return frames
 
     def close(self, timeout):
@@ -578,15 +670,7 @@ def main():
     )
     result["journal_sha256"] = _file_sha(db)
     result["journal_bytes"] = db.stat().st_size
-    result["reader"] = [
-        dict(
-            received=socket.received,
-            delivered=socket.delivered,
-            received_not_delivered=socket.received - socket.delivered,
-            sampled_high_water=socket.high_water,
-        )
-        for socket in sockets
-    ]
+    result["reader"] = [socket.reader_report() for socket in sockets]
     result["diagnostic_cohorts"] = dict(
         planned=len(offsets), complete=len(cohorts.elapsed)
     )

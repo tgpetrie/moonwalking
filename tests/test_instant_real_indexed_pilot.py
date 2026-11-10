@@ -174,6 +174,7 @@ def test_real_cli_selects_and_records_the_writer_profile(
     assert report["segment"]["manifest"]["batch_frames"] == batch_frames
     assert report["recovered_pending_ingress_frames"] == 0
     assert report["reader"][0]["received_not_delivered"] == 0
+    assert report["reader"][0]["overflow"] is None
     data = list(iter_packets(path / "capture.sqlite"))[1:-1]
     assert [row["envelope"]["message"]["type"] for row in data] == [
         "subscriptions",
