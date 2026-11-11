@@ -17,6 +17,7 @@ TESTS = (
     "tests/test_instant_source_pilot.py",
     "tests/test_instant_real_indexed_pilot.py",
     "tests/test_instant_reader_overflow.py",
+    "tests/test_instant_reader_disconnect.py",
 )
 
 
