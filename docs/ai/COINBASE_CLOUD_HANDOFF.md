@@ -2,7 +2,7 @@
 
 Repository: `tgpetrie/moonwalking`. Branch: `codex/coinbase-paper-trading`.
 
-Moonwalking's existing [Portfolio Mode](../../backend/portfolio_mode.py) reads Coinbase Advanced Trade account, product, fill and order data with a view-only key. The paper experiment uses only the input file passed to its command. Run it from a checkout of this branch on any machine with Python 3.
+Moonwalking's [Portfolio Mode](../../backend/portfolio_mode.py) reads Coinbase Advanced Trade account, product, fill and order data with a view-only key. The simulator reads a scenario JSON file. The separate [collector](../../backend/paper_exit_adapter.py) can write that file using authenticated Coinbase reads for one USD spot position.
 
 ## Run the sample
 
@@ -38,6 +38,63 @@ Each rule gets a separate first hypothetical exit. The 8% rebound rule fires at 
 
 Open Codex with a [published Cloud environment](https://learn.chatgpt.com/docs/environments/cloud-environments) for this repository. Select this branch as the task checkout or explicitly check it out from origin in the cloud task. Read this handoff and run the sample. The same branch also works from a local checkout on another computer. The repository is public. Keep personal holdings, fills, API keys and real scenario files outside Git.
 
-The next coding task is a read-only input adapter that pairs a user-selected position slice and verified acquisition cost with timestamped Coinbase bids and observable size. Reuse Portfolio Mode's read path. Skip assets with unknown cost basis and reject stale or incomplete inputs before deciding an exit. Choose a fixed observation window and compare predeclared exits against holding the same slice to the same endpoint, including conservative cost and liquidity assumptions. Review results on untouched windows before enabling any order submission.
+## Collect a short window on Windows
+
+Run from the repository root with the backend Python environment and the
+existing `COINBASE_API_KEY_NAME` and `COINBASE_API_KEY_SECRET` set privately
+in the process environment. Choose a held USD spot pair and a quantity
+available in the key's portfolio. The example uses a 10 bps slippage
+assumption and schedules a 30-second smoke check one minute ahead.
+
+```powershell
+$pilotDir = Join-Path $env:USERPROFILE '.moonwalking\analysis\coinbase-paper'
+New-Item -ItemType Directory -Force $pilotDir | Out-Null
+$pair = Read-Host 'Held USD spot pair'
+$quantity = Read-Host 'Quantity of the coin to simulate'
+$start = [DateTimeOffset]::UtcNow.AddMinutes(1).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+$tape = Join-Path $pilotDir ("smoke-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".json")
+python -m backend.paper_exit_adapter --product $pair --quantity $quantity --start-utc $start --duration-seconds 30 --slippage-bps 10 --out $tape
+if ($LASTEXITCODE -eq 0) {
+    python scripts/coinbase_paper_exit.py $tape
+}
+```
+
+For a four-hour research window, supply a future UTC start at 00:00,
+04:00, 08:00, 12:00, 16:00 or 20:00 and omit `--duration-seconds`.
+The collector checks View-only permissions, reconciles the full holding
+to paginated USD fills, and allocates weighted acquisition cost to the
+selected quantity. It checks the balance again after reading fills.
+Transferred inventory, cross-pair fills, ambiguous fill order and
+incomplete pagination can make a holding ineligible. Reconciliation
+can establish agreement between fills and balances. Transfers that
+offset each other can escape a quantity comparison.
+The [transaction summary](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/fees/get-transaction-summary)
+supplies the account's spot taker fee estimate. The
+[product book](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/products/get-product-book)
+supplies the best bid, displayed size and book timestamp. Keep the
+resulting file private because it contains fill IDs and acquisition cost.
+
+## Interpret the pilot result
+
+- The two rebound rules use the gross change in the bid. The net-profit
+  rule uses estimated proceeds after fees and slippage. In the original
+  sample, a $50 gross rebound gives $49.50 in recovery against the
+  after-fee low and leaves a $54.50 loss relative to entry.
+- A quote needs a fresh book timestamp and displayed size covering the
+  full quantity before it can set the low or trigger an exit. The trial
+  uses a 500ms assumed decision delay. The first observation after that
+  delay supplies the hypothetical execution quote or records a miss.
+  The result shows whether the threshold still held using the original
+  trigger's low. Actual fills depend on the book at order arrival.
+- A valid comparison needs usable observations in at least 98% of
+  pre-end polling slots, bounded gaps and a fresh, liquid endpoint.
+  The endpoint mark uses the last observed quote at or before the fixed
+  end, within one poll interval and the same freshness limit. Eligible
+  windows with zero exits contribute a zero difference versus holding.
+  Invalid windows show unavailable comparison values.
+- Use the smoke check to verify data and timing. The proposed four-hour
+  windows, delays and coverage limits are engineering assumptions.
+  Collect fresh windows to measure performance before choosing any
+  rule or numeric promotion criterion.
 
 [Coinbase for Agents](https://docs.cdp.coinbase.com/ai-agents/coinbase-for-agents/coinbase-mcp) is an interactive order path. A later automated execution project would use a separate, explicitly approved trading portfolio with an asset allowlist, order and daily size limits, duplicate-order protection and a stop control. Keep trading credentials out of research and Cloud development. Instant Radar's research status is tracked in its [own branch checkpoint](https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md).
