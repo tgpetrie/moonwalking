@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-10T23:29:17.788411+00:00",
+  "updated_utc": "2026-11-11T01:07:21.002943+00:00",
   "display_date_pacific": "2026-11-10",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -40,14 +40,14 @@
     "batched_journal": "synthetic_burst_and_crash_recovery_verified_follow_up_profile_candidate",
     "batched_source_pilot": "completed_67_minutes_10_cohorts_80_local_reads_thin_readiness_incomplete",
     "delayed_eligibility_replay": "completed_four_offsets_on_preserved_journal_local_delivery_measured_at_original_offset_only",
-    "live_timing_pilot": "us_attempt_queue_overflow_before_warmup_zero_cohorts_verified",
+    "live_timing_pilot": "us_queue_overflow_and_asia_transport_error_before_warmup_zero_cohorts_verified",
     "reader_overflow": "offline_burst_and_writer_stall_tests_complete_failure_snapshot_added_live_cause_unresolved"
   },
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
-      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadar",
-      "status": "offline_overflow_diagnosis_complete_bounded_pc_check_documented_not_run"
+      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarOverflow-20261110",
+      "status": "bounded_asia_pc_check_finished_transport_error_before_warmup_verified"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -235,7 +235,7 @@
     }
   },
   "next_actions": [
-    "Run the one bounded PC timing check documented in INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md in a declared window; retain failure-time stderr and final reader overflow snapshot. Offline diagnosis is complete; the actual US cause remains unresolved.",
+    "Review the Asia disconnect and saved Windows clock logs before predeclaring another timing capture. The cause of the earlier US queue overflow remains open.",
     "Use the declared Asia and Europe activity windows for follow-ups. Resolve the original feed audit and decision-age policy separately.",
     "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
   ],
@@ -913,8 +913,18 @@
     "targeted_tests_passed": 1243,
     "evidence": "docs/research/results/instant_live_timing_20261109/US_01_VERIFIED.json",
     "actual_us_cause": "unresolved_missing_failure_time_instrumentation",
-    "next_pc_pilot": "copy_ready_PowerShell_in_results_document_same_eligibility_timing_256_profile",
-    "capture_run": false,
+    "pc_pilot_protocol": "copy_ready_PowerShell_in_results_document_same_eligibility_timing_256_profile",
+    "capture_run": true,
+    "asia_attempt": {
+      "id": "asia-20261110-162344",
+      "checkout_commit": "d24dadcc2c577904e48e94b5a20e136e6ece2d05",
+      "results": "docs/research/results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json",
+      "local_attempt": ".moonwalking/analysis/instant_reader_overflow_20261110/asia-20261110-162344",
+      "stop": "transport_error",
+      "queue_high_water": 231,
+      "cohorts_complete": 0,
+      "packet_records_verified": 167407
+    },
     "capacity_change": false,
     "independent_review": "not_requested_or_performed"
   }

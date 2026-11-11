@@ -1,5 +1,10 @@
 # Reader queue overflow: offline diagnosis and next PC check
 
+The November 10 Windows Asia attempt ended in a transport error before
+warmup. Review the
+[verified result](results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json)
+before planning another capture.
+
 The verified remote `origin/codex/instant-radar-20261028` tip was
 `fca475e014bab94549fdda7816390a4169b58f7d`, identical to the supplied checkpoint.
 There was no newer work on that branch to review. Implementation is

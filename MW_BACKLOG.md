@@ -13,6 +13,11 @@ Status keys: Open, In progress, Done, Blocked.
   tests, Black and guardrails pass. Actual US cause remains unresolved; no new
   capture or capacity change. The copy-ready next PC command and success criteria
   are in `docs/research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md`.
+- Done, November 10: the bounded Asia PC attempt lost its connection
+  before warmup. The saved journal passed verification and the queue
+  peaked at 231 of 256. Review the transport failure and clock evidence
+  before predeclaring another timing attempt.
+  [Verified attempt](docs/research/results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json).
 
 - Executable prospective forward/onset label contract and synthetic tests
   are implemented on `codex/instant-radar-20261028`; see

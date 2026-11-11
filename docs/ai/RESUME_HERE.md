@@ -10,15 +10,23 @@ The active continuation branch is now **`codex/instant-radar-overflow-diagnosis-
 from verified Radar tip `fca475e`. Implementation **`cfa4aff`** adds a bounded
 failure-time reader snapshot and 11 deterministic burst/stalled-writer cases.
 **1,243 Instant Radar tests, guardrails and Black pass on Linux Python 3.12.14.**
-The snapshot distinguishes observed arrival pressure from the occupied writer
-phase, without claiming a unique network, disk or CPU cause. The actual US
-cause is still unresolved: its full Windows capture is unavailable here and
-the committed summary lacks the needed telemetry. No live capture or cap change
-ran. Read the [offline diagnosis and copy-ready PC command](../research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md)
+The snapshot records arrival pressure and the writer phase at failure.
+The cause of the original US overflow remains open because the preserved
+capture lacks those fields. Read the
+[offline diagnosis](../research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md)
 and [checks](../research/results/instant_reader_overflow_20261110/CHECKS.json).
-A documentation-only checkpoint may follow this implementation commit. The
-original `codex/instant-radar-20261028` remains the historical base branch.
-Next is one bounded PC check in a declared window, preserving the old attempt.
+The original `codex/instant-radar-20261028` is the historical base branch.
+
+The bounded Windows Asia attempt at checkout `d24dadc` lost its connection
+39m 14.898s after full subscription acknowledgment, before the 62-minute
+warmup. The reader delivered all 167,405 received frames, with a sampled
+high-water mark of 231 of 256 and zero overflows. The verifier checked
+167,407 journal records and SQLite integrity. All 20 timing cohorts
+were unreached. Fifty Windows regression checks passed. The immediate
+post-run clock sample failed DNS resolution, and the retry returned all
+five samples. Review the saved transport and clock evidence before
+predeclaring another capture.
+[Asia attempt evidence](../research/results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json).
 
 The first [bounded live timing attempt](../research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)
 at `91165cc` ended at the 256-frame reader queue limit. The last reader
@@ -333,7 +341,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 | Local 9B | Summarize supplied logs/test failures | No active assignment verified |
 
 On this Windows PC, Codex works in
-`C:\Users\tgpet\Projects\Moonwalking-InstantRadar`. Claude's current review
+`C:\Users\tgpet\Projects\Moonwalking-InstantRadarOverflow-20261110`. Claude's current review
 worktree is `C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
 `claude/instant-coverage-reconciliation`; its earlier `claude/instant-radar-v2-review`
 and `claude/instant-radar-review` branches are preserved. Its original separate checkout is
@@ -462,8 +470,9 @@ own machines. The Windows collector is a separate running service on port
 > The verified base was `fca475e`; overflow instrumentation is `cfa4aff`.
 > Read INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md first. Offline burst and
 > stalled-writer tests pass (1,243 Instant Radar tests). The US capture remains
-> inconclusive before warmup. A bounded PC pilot command is prepared, not run;
-> queue and batch caps, feed gate, study and production remain unchanged.
+> inconclusive before warmup. The Windows Asia attempt lost its connection
+> before warmup, with zero overflows and zero timing observations. Read the
+> verified Asia evidence above before planning another capture.
 > Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
 > `AGENTS.md`. Verify the current GitHub tip and review status before acting.
 > Batched source follow-up `c9d79be` has 1,316 targeted tests passing.
