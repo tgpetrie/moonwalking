@@ -6,6 +6,15 @@ Status keys: Open, In progress, Done, Blocked.
 
 ## In progress - instant radar, 2026-10-30
 
+- Done, November 10 Pacific: Asia disconnect review at `975234e` on
+  `codex/instant-radar-disconnect-diagnosis-20261111`, from verified `598fba0`.
+  Ten offline probes verify queued FIFO drain, transport barrier, clean close
+  and timeout behavior. No reader runtime defect was reproduced. Verification:
+  1,253 Instant Radar tests, 60 focused tests, Black and guardrails pass.
+  The disconnect/DNS link remains unproved; collect existing Windows logs
+  before another pilot. Command and evidence limits:
+  `docs/research/INSTANT_READER_DISCONNECT_REVIEW_20261111.md`.
+
 - Done, November 10: offline reader-overflow diagnosis at `cfa4aff` on
   `codex/instant-radar-overflow-diagnosis-20261110`, from verified `fca475e`.
   Added bounded failure-time arrival/writer telemetry and deterministic burst,

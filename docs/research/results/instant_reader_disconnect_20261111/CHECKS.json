@@ -1,0 +1,45 @@
+{
+  "verified_utc": "2026-11-11T02:09:31.968831+00:00",
+  "verification_commit": "975234ed44c6708a28ccce1df11ed671258cd46c",
+  "base_checkpoint": "598fba0bc7d6c2fc754f6bb22cbeedce2f79b394",
+  "runtime_implementation_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
+  "runtime_fix": false,
+  "scope": "offline_synthetic_transport_termination_and_queued_journal_prefix",
+  "targeted_test_command": ".venv/bin/python -m pytest -q tests/test_instant*.py",
+  "targeted_tests_passed": 1253,
+  "focused_tests_passed": 60,
+  "focused_test_command": ".venv/bin/python -m pytest -q tests/test_instant_reader_disconnect.py tests/test_instant_reader_overflow.py tests/test_instant_real_indexed_pilot.py tests/test_instant_source_pilot.py tests/test_instant_stream_journal.py tests/test_instant_timing_attempt_verifier.py",
+  "new_cases": 10,
+  "platform": "Linux",
+  "python": "3.12.14",
+  "pytest": "8.3.5",
+  "websocket_client": "1.9.0",
+  "sqlite": "3.53.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "git_diff_check": "passed",
+  "batch_frames_tested": [
+    1,
+    16
+  ],
+  "new_cloud_capture": false,
+  "full_asia_capture_available_in_cloud": false,
+  "asia_cause_determined": false,
+  "disconnect_dns_link_established": false,
+  "queue_or_batch_limits_changed": false,
+  "historical_validation_rerun": false,
+  "historical_artifact_hashes_reverified": false,
+  "feed_gate_pass": false,
+  "fitting_allowed": false,
+  "new_pilot_recommended": false,
+  "next_action": "collect_existing_Windows_report_clock_outputs_and_retained_events",
+  "normalized_source_sha256": {
+    "tests/test_instant_reader_disconnect.py": "fb455859d4e04836acd0a936787acbd8107f3fb28e8d4e7d5e2a23def739aa37",
+    "scripts/scoring_experiment/run_instant_offline_checks.py": "7d81e775a341eb0b81c9b3ca9a7696704b0318a27c11f615f8a286c092efb510"
+  },
+  "runtime_source_unchanged_from_base": {
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": "8e1a37c46d803c5ffe84de4e4b33380a91953cb9d884e14f6276c7b70ef4ca1b",
+    "scripts/scoring_experiment/instant_source_pilot.py": "58d3a5f78fdff9dd8e01771c21484633d46e56954e4db38727f46eabc232b688",
+    "scripts/scoring_experiment/instant_stream_journal.py": "3b24834f2dfb0ceb622448aef5295d241977eced984b5f6b02367666ecb3139c"
+  }
+}

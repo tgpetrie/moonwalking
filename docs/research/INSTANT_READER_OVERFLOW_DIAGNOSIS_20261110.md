@@ -116,6 +116,11 @@ on Linux Python 3.12.14 / pytest 8.3.5. Black 24.8.0, repository guardrails and
 
 ## Copy-ready next bounded PC pilot
 
+Historical command: the Asia attempt has now run at `d24dadc` and ended in a
+transport error before warmup. The [disconnect review](INSTANT_READER_DISCONNECT_REVIEW_20261111.md)
+supersedes the next action below: collect existing local logs before considering
+another pilot. Do not launch this old command as an automatic retry.
+
 This is a future, manually started engineering check, not authorization for an
 unattended cloud capture. Preserve the old US attempt unchanged. Run one fresh
 Asia attempt under the existing [protocol](INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)

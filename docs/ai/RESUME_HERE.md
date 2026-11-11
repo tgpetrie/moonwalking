@@ -6,7 +6,20 @@ contracts, completed results, work status and downloadable research evidence.
 The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
 commit, owners, gates and next actions in machine-readable form.
 
-The active continuation branch is now **`codex/instant-radar-overflow-diagnosis-20261110`**,
+The active continuation branch is now **`codex/instant-radar-disconnect-diagnosis-20261111`**,
+from verified Windows checkpoint **`598fba0`**. Verification **`975234e`** adds
+ten offline disconnect probes; **1,253 Instant Radar tests pass** (60 focused),
+with Black and guardrails passing. No reader-loss or propagation defect was
+reproduced, so the reader runtime remains **`cfa4aff`**. Transport exception
+text alone cannot link the disconnect to the later DNS error. The final marker
+is an owner observation after draining, not an exact reader failure clock.
+Read the [disconnect review and copy-ready Windows evidence collection command](../research/INSTANT_READER_DISCONNECT_REVIEW_20261111.md)
+and [checks](../research/results/instant_reader_disconnect_20261111/CHECKS.json).
+**Next: collect and inspect existing Windows logs before another pilot.**
+No new capture, cap change or runtime fix ran. A documentation-only commit may
+follow the verification checkpoint. Other agents' review status is preserved.
+
+The previous branch `codex/instant-radar-overflow-diagnosis-20261110` continued
 from verified Radar tip `fca475e`. Implementation **`cfa4aff`** adds a bounded
 failure-time reader snapshot and 11 deterministic burst/stalled-writer cases.
 **1,243 Instant Radar tests, guardrails and Black pass on Linux Python 3.12.14.**
@@ -333,7 +346,7 @@ now been supplied by the user and reconciled; local v2 dispatch is unverified.
 
 | Owner | Assignment | Verified status |
 |---|---|---|
-| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | First bounded US timing attempt ended at queue capacity and was independently verified |
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline Asia disconnect review complete; collect existing Windows logs before another pilot |
 | Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
 | Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
 | Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
@@ -349,8 +362,9 @@ and `claude/instant-radar-review` branches are preserved. Its original separate 
 this computer, not required paths on another machine. Preserve other agents'
 work and use separate branches/worktrees for fixes.
 
-Next, diagnose reader queue saturation using the saved US attempt before
-predeclaring any capacity change and follow-up capture. Keep the four-product
+Next, inspect the existing Asia transport and clock evidence using the new
+disconnect review; do not repeat a timing pilot yet. The original US overflow
+cause is still unresolved. Keep the four-product
 gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
 association/exposure rule freeze and overall study freeze remain required before
 14 valid shadow days and fitting. Do not repeat completed outcomes or captures
@@ -394,7 +408,7 @@ in the job log. The local checker records status on disk.
 For a new, absent destination directory:
 
 ```bash
-git clone --branch codex/instant-radar-overflow-diagnosis-20261110 https://github.com/tgpetrie/moonwalking.git Moonwalking-InstantRadar
+git clone --branch codex/instant-radar-disconnect-diagnosis-20261111 https://github.com/tgpetrie/moonwalking.git Moonwalking-InstantRadar
 cd Moonwalking-InstantRadar
 ```
 
