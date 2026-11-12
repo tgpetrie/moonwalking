@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from scripts.coinbase_paper_exit import simulate_exit
+from scripts.coinbase_paper_exit import PILOT_SETTINGS, simulate_exit
 
 
 def scenario():
@@ -172,6 +172,11 @@ def test_tc04_zero_trigger_window_accounting():
         and row["estimated_net_proceeds_usd"] == Decimal("465.30")
         for row in result["hold_comparison"].values()
     )
+    assert set(result["hold_comparison_status"].values()) == {"AVAILABLE"}
+    assert all(
+        row == {"first_execution": {"status": "none"}}
+        for row in result["rule_diagnostics"].values()
+    )
 
 
 def test_tc05_data_quality_rejections():
@@ -217,6 +222,10 @@ def test_first_post_latency_quote_can_miss_or_lose_the_threshold():
     result = simulate_exit(spec)
     assert result["first_hypothetical_exits"]["rebound_usd"] is None
     assert result["rule_diagnostics"]["rebound_usd"]["execution_unavailable"] == 1
+    assert result["hold_comparison"]["rebound_usd"] is None
+    assert (
+        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
+    )
 
 
 def test_hold_endpoint_uses_observed_and_exchange_age_at_window_end():
@@ -226,3 +235,180 @@ def test_hold_endpoint_uses_observed_and_exchange_age_at_window_end():
     result = simulate_exit(spec)
     assert result["data_quality"]["rejection_reason"] == "ENDPOINT_UNAVAILABLE"
     assert result["hold_last_quote"] is None
+
+
+@pytest.mark.parametrize("lagged_exchange_ms", [900, 1000])
+def test_execution_book_must_be_newer_than_the_trigger_book(lagged_exchange_ms):
+    spec = pilot_window(
+        [
+            (0, 40000, "1"),
+            (1000, 45000, "1"),
+            (1500, 45000, "1"),
+            (2500, 41000, "1"),
+            (3000, 41000, "1"),
+        ],
+        latency=500,
+    )
+    spec["quotes"][2]["exchange_time_ms"] = lagged_exchange_ms
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    diagnostics = result["rule_diagnostics"]["rebound_usd"]
+    assert diagnostics["execution_book_not_after_trigger"] == 1
+    assert diagnostics["first_execution"]["status"] == "missed"
+    assert diagnostics["first_execution"]["reason"] == "BOOK_NOT_AFTER_TRIGGER"
+    assert diagnostics["first_execution"]["trigger_quote"]["observed_at_ms"] == 1000
+    assert diagnostics["first_execution"]["execution_observed_at_ms"] == 1500
+    exit_row = result["first_hypothetical_exits"]["rebound_usd"]
+    assert exit_row["execution_quote"]["observed_at_ms"] == 2500
+    assert exit_row["estimated_net_proceeds_usd"] == Decimal("405.90")
+    assert exit_row["prior_missed_executions"] == 1
+    assert result["hold_comparison"]["rebound_usd"] is None
+    assert (
+        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
+    )
+
+    spec["quotes"][2]["exchange_time_ms"] = 1001
+    result = simulate_exit(spec)
+    exit_row = result["first_hypothetical_exits"]["rebound_usd"]
+    assert exit_row["execution_quote"]["observed_at_ms"] == 1500
+    assert exit_row["prior_missed_executions"] == 0
+    comparison = result["hold_comparison"]["rebound_usd"]
+    assert comparison["delta_vs_hold_usd"] == Decimal("39.60")
+
+
+def test_zero_delay_may_execute_on_the_trigger_book():
+    spec = pilot_window([(0, 40000, "1"), (1000, 45000, "1"), (2000, 41000, "1")])
+    result = simulate_exit(spec)
+    exit_row = result["first_hypothetical_exits"]["rebound_usd"]
+    assert exit_row["execution_quote"]["observed_at_ms"] == 1000
+    assert result["hold_comparison_status"]["rebound_usd"] == "AVAILABLE"
+
+
+def test_missed_first_execution_is_not_credited_with_hold_proceeds():
+    result = simulate_exit(
+        pilot_window(
+            [
+                (0, 40000, "1"),
+                (1000, 40000, "1"),
+                (2000, 40000, "1"),
+                (3000, 45000, "1"),
+                (3600, 30000, "0.004"),
+                (4000, 44900, "1"),
+                (5000, 44900, "1"),
+            ],
+            latency=500,
+        )
+    )
+    assert result["data_quality"]["window_valid"]
+    assert result["hold_last_quote"]["estimated_net_proceeds_usd"] == Decimal("444.51")
+    assert result["first_hypothetical_exits"]["rebound_usd"] is None
+    first = result["rule_diagnostics"]["rebound_usd"]["first_execution"]
+    assert (first["status"], first["reason"]) == ("missed", "QUOTE_THIN")
+    assert first["trigger_quote"]["observed_at_ms"] == 3000
+    assert first["execution_observed_at_ms"] == 3600
+    assert result["hold_comparison"]["rebound_usd"] is None
+    assert (
+        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
+    )
+    # net_profit_pct never triggers in this window: a genuine zero difference.
+    assert result["hold_comparison"]["net_profit_pct"]["delta_vs_hold_usd"] == 0
+    assert result["hold_comparison_status"]["net_profit_pct"] == "AVAILABLE"
+
+
+def test_later_exit_does_not_erase_a_missed_first_execution():
+    result = simulate_exit(
+        pilot_window(
+            [
+                (0, 40000, "1"),
+                (1000, 45000, "1"),
+                (1500, 30000, "0.004"),
+                (2000, 30500, "1"),
+                (3000, 50000, "1"),
+                (4000, 50000, "1"),
+                (5000, 50000, "1"),
+            ],
+            latency=500,
+        )
+    )
+    assert result["data_quality"]["window_valid"]
+    exit_row = result["first_hypothetical_exits"]["rebound_usd"]
+    assert exit_row["trigger_quote"]["observed_at_ms"] == 3000
+    assert exit_row["estimated_net_proceeds_usd"] == Decimal("495.00")
+    assert exit_row["prior_missed_executions"] == 1
+    first = result["rule_diagnostics"]["rebound_usd"]["first_execution"]
+    assert (first["status"], first["reason"]) == ("missed", "QUOTE_THIN")
+    assert first["trigger_quote"]["observed_at_ms"] == 1000
+    assert result["hold_comparison"]["rebound_usd"] is None
+    assert (
+        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
+    )
+
+
+def test_trigger_with_no_quote_after_the_delay_is_unknown():
+    result = simulate_exit(
+        pilot_window(
+            [(0, 40000, "1"), (1000, 40000, "1"), (2000, 45000, "1")], latency=500
+        )
+    )
+    assert result["data_quality"]["window_valid"]
+    first = result["rule_diagnostics"]["rebound_usd"]["first_execution"]
+    assert (first["status"], first["reason"]) == ("missed", "NO_QUOTE_AFTER_DELAY")
+    assert result["hold_comparison"]["rebound_usd"] is None
+
+
+def official_window():
+    return pilot_window([(i * 1000, 40000, "1") for i in range(6)], latency=500)
+
+
+def test_official_pilot_settings_are_declared_and_reported():
+    assert PILOT_SETTINGS == {
+        "poll_interval_ms": 1000,
+        "decision_latency_ms": 500,
+        "max_stale_ms": 2000,
+        "max_gap_ms": 5000,
+    }
+    result = simulate_exit(official_window())
+    assert result["pilot_settings"] == {
+        "declared": PILOT_SETTINGS,
+        "official": PILOT_SETTINGS,
+        "matches_official": True,
+    }
+    assert result["official_pilot_result"] is True
+
+    spec = official_window()
+    spec["quotes"] = spec["quotes"][:2]
+    result = simulate_exit(spec)
+    assert not result["data_quality"]["window_valid"]
+    assert result["official_pilot_result"] is False
+
+
+@pytest.mark.parametrize(
+    ("setting", "value"),
+    [
+        ("poll_interval_ms", 5000),
+        ("decision_latency_ms", 0),
+        ("max_stale_ms", 29000),
+        ("max_gap_ms", 30000),
+    ],
+)
+def test_looser_declared_settings_cannot_be_an_official_pilot_result(setting, value):
+    spec = official_window()
+    spec[setting] = value
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["declared"][setting] == value
+    assert result["pilot_settings"]["matches_official"] is False
+    assert result["official_pilot_result"] is False
+
+
+def test_sparse_stale_custom_tape_replays_but_is_not_official():
+    spec = pilot_window(
+        [(t, 45000 if t >= 60_000 else 40000, "1") for t in range(0, 120_001, 30_000)]
+    )
+    spec.update(poll_interval_ms=30_000, max_stale_ms=29_000, max_gap_ms=30_000)
+    for quote in spec["quotes"]:
+        quote["exchange_time_ms"] = max(0, quote["observed_at_ms"] - 29_000)
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["data_quality"]["valid_poll_slots"] == 4
+    assert result["official_pilot_result"] is False

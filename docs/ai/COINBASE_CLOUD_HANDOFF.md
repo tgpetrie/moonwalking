@@ -84,13 +84,23 @@ resulting file private because it contains fill IDs and acquisition cost.
   full quantity before it can set the low or trigger an exit. The trial
   uses a 500ms assumed decision delay. The first observation after that
   delay supplies the hypothetical execution quote or records a miss.
-  The result shows whether the threshold still held using the original
-  trigger's low. Actual fills depend on the book at order arrival.
+  With a nonzero delay, that quote's book timestamp must be later than
+  the trigger's book timestamp, otherwise it is a miss. The result shows
+  whether the threshold still held using the original trigger's low.
+  Actual fills depend on the book at order arrival.
+- A missed first execution has an unknown outcome. It stays in
+  `rule_diagnostics.<rule>.first_execution` even if a later trigger
+  executes, and that rule's `hold_comparison` is unavailable with status
+  `FIRST_EXECUTION_UNKNOWN`. Only a window where the rule never
+  triggered counts as a zero difference versus holding.
+- The official pilot settings are a 1000ms poll, 500ms decision delay,
+  2000ms freshness limit and 5000ms gap limit. A tape that declares
+  anything else still replays, but `official_pilot_result` is false.
 - A valid comparison needs usable observations in at least 98% of
   pre-end polling slots, bounded gaps and a fresh, liquid endpoint.
   The endpoint mark uses the last observed quote at or before the fixed
   end, within one poll interval and the same freshness limit. Eligible
-  windows with zero exits contribute a zero difference versus holding.
+  windows with zero triggers contribute a zero difference versus holding.
   Invalid windows show unavailable comparison values.
 - Use the smoke check to verify data and timing. The proposed four-hour
   windows, delays and coverage limits are engineering assumptions.

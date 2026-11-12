@@ -13,6 +13,14 @@ BPS = Decimal(10_000)
 PERCENT = Decimal(100)
 RULES = ("rebound_usd", "rebound_pct", "net_profit_pct")
 PILOT_SCHEMA = "2.0"
+# Timing and freshness limits of the official pilot. A schema 2.0 tape may
+# declare other values for replay, but only these qualify as a pilot result.
+PILOT_SETTINGS = {
+    "poll_interval_ms": 1_000,
+    "decision_latency_ms": 500,
+    "max_stale_ms": 2_000,
+    "max_gap_ms": 5_000,
+}
 
 
 def _number(record, field, *, allow_zero=False):
@@ -202,8 +210,16 @@ def _window_quality(start, end, poll, max_stale, max_gap, records, hold):
 
 
 def _rule_exit(records, times, rule, threshold, latency, max_gap, mark_inputs):
+    """Return the first executable exit and what happened to the first trigger.
+
+    A trigger whose execution quote is missing or unusable is a miss: the
+    order's outcome is unknown, so it is kept in ``first_execution`` even when
+    a later trigger goes on to execute.
+    """
     misses = Counter()
+    first = None
     eligible_index = 0
+    exit_mark = None
     for index, (observed, status, trigger) in enumerate(records):
         if index < eligible_index or trigger is None or trigger[rule] < threshold:
             continue
@@ -212,17 +228,40 @@ def _rule_exit(records, times, rule, threshold, latency, max_gap, mark_inputs):
             continue
         misses["candidates"] += 1
         following = bisect_left(times, observed + latency, lo=index)
+        exec_time = execution = None
         if following == len(records):
-            misses["execution_unavailable"] += 1
-            break
-        exec_time, exec_status, execution = records[following]
-        if exec_time - observed > max_gap:
-            misses["execution_unavailable"] += 1
-            eligible_index = following
-            continue
-        if exec_status != "valid":
-            misses["execution_unavailable"] += 1
-            eligible_index = following + 1
+            reason, counter = "NO_QUOTE_AFTER_DELAY", "execution_unavailable"
+        else:
+            exec_time, exec_status, execution = records[following]
+            if exec_time - observed > max_gap:
+                reason, counter = "QUOTE_GAP_EXCEEDED", "execution_unavailable"
+                eligible_index = following
+            elif exec_status != "valid":
+                reason = f"QUOTE_{exec_status.upper()}"
+                counter = "execution_unavailable"
+                eligible_index = following + 1
+            elif (
+                latency
+                and execution["exchange_time_ms"] <= trigger["exchange_time_ms"]
+            ):
+                # The book snapshot is no newer than the one that triggered,
+                # so it says nothing about the book after the decision delay.
+                reason = "BOOK_NOT_AFTER_TRIGGER"
+                counter = "execution_book_not_after_trigger"
+                eligible_index = following
+            else:
+                reason = None
+        if reason is not None:
+            misses[counter] += 1
+            if first is None:
+                first = {
+                    "status": "missed",
+                    "reason": reason,
+                    "trigger_quote": trigger,
+                    "execution_observed_at_ms": exec_time,
+                }
+            if following == len(records):
+                break
             continue
         at_trigger_reference = _mark(
             exec_time,
@@ -231,13 +270,17 @@ def _rule_exit(records, times, rule, threshold, latency, max_gap, mark_inputs):
             trigger["low_observed_at_ms"],
             *mark_inputs,
         )
-        return {
+        exit_mark = {
             **at_trigger_reference,
             "trigger_quote": trigger,
             "execution_quote": execution,
             "threshold_held_at_exec": at_trigger_reference[rule] >= threshold,
-        }, dict(misses)
-    return None, dict(misses)
+            "prior_missed_executions": misses["candidates"] - 1,
+        }
+        if first is None:
+            first = {"status": "executed"}
+        break
+    return exit_mark, {**misses, "first_execution": first or {"status": "none"}}
 
 
 def _simulate_window(spec, inputs):
@@ -252,6 +295,13 @@ def _simulate_window(spec, inputs):
     latency = _integer(spec, "decision_latency_ms")
     max_stale = _integer(spec, "max_stale_ms")
     max_gap = _integer(spec, "max_gap_ms", minimum=max(1, latency))
+    declared = {
+        "poll_interval_ms": poll,
+        "decision_latency_ms": latency,
+        "max_stale_ms": max_stale,
+        "max_gap_ms": max_gap,
+    }
+    official_settings = declared == PILOT_SETTINGS
     mark_inputs = _mark_inputs(inputs)
     records = []
     low = low_at = None
@@ -267,13 +317,21 @@ def _simulate_window(spec, inputs):
     hold = records[-1][2] if records and records[-1][1] == "valid" else None
     quality = _window_quality(start, end, poll, max_stale, max_gap, records, hold)
     times = [observed for observed, _, _ in records]
-    exits, diagnostics, comparisons = {}, {}, {}
+    exits, diagnostics, comparisons, statuses = {}, {}, {}, {}
     for rule, threshold in inputs["thresholds"].items():
         exit_mark, diagnostics[rule] = _rule_exit(
             records, times, rule, threshold, latency, max_gap, mark_inputs
         )
         exits[rule] = exit_mark
-        if quality["window_valid"]:
+        comparisons[rule] = None
+        if not quality["window_valid"]:
+            statuses[rule] = "WINDOW_INVALID"
+        elif diagnostics[rule]["first_execution"]["status"] == "missed":
+            # The first order's fill is unknown. Crediting the hold price or a
+            # later exit would select on book quality after the decision.
+            statuses[rule] = "FIRST_EXECUTION_UNKNOWN"
+        else:
+            statuses[rule] = "AVAILABLE"
             baseline = hold["estimated_net_proceeds_usd"]
             proceeds = (
                 exit_mark["estimated_net_proceeds_usd"] if exit_mark else baseline
@@ -284,17 +342,22 @@ def _simulate_window(spec, inputs):
                 "delta_vs_hold_usd": delta,
                 "delta_vs_hold_bps": BPS * delta / baseline,
             }
-        else:
-            comparisons[rule] = None
     return {
         **inputs,
         "schema_version": PILOT_SCHEMA,
         "window_id": spec.get("window_id"),
+        "pilot_settings": {
+            "declared": declared,
+            "official": dict(PILOT_SETTINGS),
+            "matches_official": official_settings,
+        },
+        "official_pilot_result": official_settings and quality["window_valid"],
         "data_quality": quality,
         "first_hypothetical_exits": exits,
         "hold_last_quote": hold if quality["endpoint_quote_actionable"] else None,
         "rule_diagnostics": diagnostics,
         "hold_comparison": comparisons,
+        "hold_comparison_status": statuses,
     }
 
 

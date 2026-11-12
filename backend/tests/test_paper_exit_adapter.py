@@ -194,5 +194,7 @@ def test_collector_cli_writes_a_replayable_window(monkeypatch, tmp_path):
     result = simulate_exit(json.loads(output.read_text(encoding="utf-8")))
     assert result["data_quality"]["window_valid"]
     assert result["data_quality"]["valid_poll_slots"] == 3
+    assert result["pilot_settings"]["matches_official"] is True
+    assert result["official_pilot_result"] is True
     assert result["hold_last_quote"]["bid_size"] == Decimal("0.25")
     assert result["entry_cost_usd"] == Decimal("202.50")

@@ -15,10 +15,16 @@ from backend.portfolio_mode import (
     UnsafeCoinbasePermissions,
     _weighted_fill_inventory,
 )
-from scripts.coinbase_paper_exit import BPS, PILOT_SCHEMA, _number, _scenario_inputs
+from scripts.coinbase_paper_exit import (
+    BPS,
+    PILOT_SCHEMA,
+    PILOT_SETTINGS,
+    _number,
+    _scenario_inputs,
+)
 
 
-POLL_MS = 1_000
+POLL_MS = PILOT_SETTINGS["poll_interval_ms"]
 FULL_WINDOW_SECONDS = 4 * 60 * 60
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
@@ -250,10 +256,7 @@ def main():
             "window_id": f"{start.isoformat()}_{args.product}_{args.duration_seconds}s",
             "window_start_ms": start_ms,
             "window_end_ms": start_ms + args.duration_seconds * 1_000,
-            "poll_interval_ms": POLL_MS,
-            "decision_latency_ms": 500,
-            "max_stale_ms": 2_000,
-            "max_gap_ms": 5_000,
+            **PILOT_SETTINGS,
             "product_id": args.product,
             "quantity": args.quantity,
             "slippage_bps": args.slippage_bps,
