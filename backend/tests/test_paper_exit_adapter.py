@@ -195,6 +195,7 @@ def test_collector_cli_writes_a_replayable_window(monkeypatch, tmp_path):
     assert result["data_quality"]["window_valid"]
     assert result["data_quality"]["valid_poll_slots"] == 3
     assert result["pilot_settings"]["matches_official"] is True
-    assert result["official_pilot_result"] is True
+    assert result["pilot_settings"]["window_matches_official"] is False
+    assert result["official_pilot_result"] is False
     assert result["hold_last_quote"]["bid_size"] == Decimal("0.25")
     assert result["entry_cost_usd"] == Decimal("202.50")

@@ -13,6 +13,7 @@ BPS = Decimal(10_000)
 PERCENT = Decimal(100)
 RULES = ("rebound_usd", "rebound_pct", "net_profit_pct")
 PILOT_SCHEMA = "2.0"
+PILOT_WINDOW_MS = 4 * 60 * 60 * 1_000
 # Timing and freshness limits of the official pilot. A schema 2.0 tape may
 # declare other values for replay, but only these qualify as a pilot result.
 PILOT_SETTINGS = {
@@ -241,8 +242,7 @@ def _rule_exit(records, times, rule, threshold, latency, max_gap, mark_inputs):
                 counter = "execution_unavailable"
                 eligible_index = following + 1
             elif (
-                latency
-                and execution["exchange_time_ms"] <= trigger["exchange_time_ms"]
+                latency and execution["exchange_time_ms"] <= trigger["exchange_time_ms"]
             ):
                 # The book snapshot is no newer than the one that triggered,
                 # so it says nothing about the book after the decision delay.
@@ -302,6 +302,7 @@ def _simulate_window(spec, inputs):
         "max_gap_ms": max_gap,
     }
     official_settings = declared == PILOT_SETTINGS
+    official_window = end - start == PILOT_WINDOW_MS and start % PILOT_WINDOW_MS == 0
     mark_inputs = _mark_inputs(inputs)
     records = []
     low = low_at = None
@@ -350,8 +351,11 @@ def _simulate_window(spec, inputs):
             "declared": declared,
             "official": dict(PILOT_SETTINGS),
             "matches_official": official_settings,
+            "window_matches_official": official_window,
         },
-        "official_pilot_result": official_settings and quality["window_valid"],
+        "official_pilot_result": (
+            official_settings and official_window and quality["window_valid"]
+        ),
         "data_quality": quality,
         "first_hypothetical_exits": exits,
         "hold_last_quote": hold if quality["endpoint_quote_actionable"] else None,

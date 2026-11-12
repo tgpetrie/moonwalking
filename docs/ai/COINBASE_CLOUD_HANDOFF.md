@@ -45,6 +45,9 @@ existing `COINBASE_API_KEY_NAME` and `COINBASE_API_KEY_SECRET` set privately
 in the process environment. Choose a held USD spot pair and a quantity
 available in the key's portfolio. The example uses a 10 bps slippage
 assumption and schedules a 30-second smoke check one minute ahead.
+Check the Windows clock before starting. The replay compares local
+receipt times with Coinbase book times. One missed polling slot leaves
+29 of 30 usable slots, below the 98% window-quality threshold.
 
 ```powershell
 $pilotDir = Join-Path $env:USERPROFILE '.moonwalking\analysis\coinbase-paper'
@@ -93,9 +96,12 @@ resulting file private because it contains fill IDs and acquisition cost.
   executes, and that rule's `hold_comparison` is unavailable with status
   `FIRST_EXECUTION_UNKNOWN`. Only a window where the rule never
   triggered counts as a zero difference versus holding.
-- The official pilot settings are a 1000ms poll, 500ms decision delay,
-  2000ms freshness limit and 5000ms gap limit. A tape that declares
-  anything else still replays, but `official_pilot_result` is false.
+- The official pilot uses a four-hour window aligned to a UTC four-hour
+  boundary, a 1000ms poll, 500ms decision delay, 2000ms freshness limit
+  and 5000ms gap limit. The replay flag `official_pilot_result` requires
+  those settings and a valid window. Short smoke checks and custom tapes
+  still produce replay diagnostics. The flag evaluates the tape's
+  declared settings and quote quality.
 - A valid comparison needs usable observations in at least 98% of
   pre-end polling slots, bounded gaps and a fresh, liquid endpoint.
   The endpoint mark uses the last observed quote at or before the fixed

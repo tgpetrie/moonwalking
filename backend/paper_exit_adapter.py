@@ -19,13 +19,14 @@ from scripts.coinbase_paper_exit import (
     BPS,
     PILOT_SCHEMA,
     PILOT_SETTINGS,
+    PILOT_WINDOW_MS,
     _number,
     _scenario_inputs,
 )
 
 
 POLL_MS = PILOT_SETTINGS["poll_interval_ms"]
-FULL_WINDOW_SECONDS = 4 * 60 * 60
+FULL_WINDOW_SECONDS = PILOT_WINDOW_MS // 1_000
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 

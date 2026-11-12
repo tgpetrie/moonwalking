@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from scripts.coinbase_paper_exit import PILOT_SETTINGS, simulate_exit
+from scripts.coinbase_paper_exit import PILOT_SETTINGS, PILOT_WINDOW_MS, simulate_exit
 
 
 def scenario():
@@ -223,9 +223,7 @@ def test_first_post_latency_quote_can_miss_or_lose_the_threshold():
     assert result["first_hypothetical_exits"]["rebound_usd"] is None
     assert result["rule_diagnostics"]["rebound_usd"]["execution_unavailable"] == 1
     assert result["hold_comparison"]["rebound_usd"] is None
-    assert (
-        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
-    )
+    assert result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
 
 
 def test_hold_endpoint_uses_observed_and_exchange_age_at_window_end():
@@ -263,9 +261,7 @@ def test_execution_book_must_be_newer_than_the_trigger_book(lagged_exchange_ms):
     assert exit_row["estimated_net_proceeds_usd"] == Decimal("405.90")
     assert exit_row["prior_missed_executions"] == 1
     assert result["hold_comparison"]["rebound_usd"] is None
-    assert (
-        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
-    )
+    assert result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
 
     spec["quotes"][2]["exchange_time_ms"] = 1001
     result = simulate_exit(spec)
@@ -307,9 +303,7 @@ def test_missed_first_execution_is_not_credited_with_hold_proceeds():
     assert first["trigger_quote"]["observed_at_ms"] == 3000
     assert first["execution_observed_at_ms"] == 3600
     assert result["hold_comparison"]["rebound_usd"] is None
-    assert (
-        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
-    )
+    assert result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
     # net_profit_pct never triggers in this window: a genuine zero difference.
     assert result["hold_comparison"]["net_profit_pct"]["delta_vs_hold_usd"] == 0
     assert result["hold_comparison_status"]["net_profit_pct"] == "AVAILABLE"
@@ -339,9 +333,7 @@ def test_later_exit_does_not_erase_a_missed_first_execution():
     assert (first["status"], first["reason"]) == ("missed", "QUOTE_THIN")
     assert first["trigger_quote"]["observed_at_ms"] == 1000
     assert result["hold_comparison"]["rebound_usd"] is None
-    assert (
-        result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
-    )
+    assert result["hold_comparison_status"]["rebound_usd"] == "FIRST_EXECUTION_UNKNOWN"
 
 
 def test_trigger_with_no_quote_after_the_delay_is_unknown():
@@ -367,18 +359,43 @@ def test_official_pilot_settings_are_declared_and_reported():
         "max_stale_ms": 2000,
         "max_gap_ms": 5000,
     }
-    result = simulate_exit(official_window())
+    spec = pilot_window(
+        [(time, 40000, "1") for time in range(0, PILOT_WINDOW_MS + 1, 1000)],
+        latency=500,
+    )
+    result = simulate_exit(spec)
     assert result["pilot_settings"] == {
         "declared": PILOT_SETTINGS,
         "official": PILOT_SETTINGS,
         "matches_official": True,
+        "window_matches_official": True,
     }
     assert result["official_pilot_result"] is True
 
-    spec = official_window()
+    spec["max_stale_ms"] = 29_000
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["window_matches_official"] is True
+    assert result["official_pilot_result"] is False
+    spec["max_stale_ms"] = PILOT_SETTINGS["max_stale_ms"]
+
+    spec["window_start_ms"] += 1000
+    spec["window_end_ms"] += 1000
+    for quote in spec["quotes"]:
+        quote["observed_at_ms"] += 1000
+        quote["exchange_time_ms"] += 1000
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["matches_official"] is True
+    assert result["pilot_settings"]["window_matches_official"] is False
+    assert result["official_pilot_result"] is False
+
     spec["quotes"] = spec["quotes"][:2]
+    spec["window_start_ms"] = 0
+    spec["window_end_ms"] = PILOT_WINDOW_MS
     result = simulate_exit(spec)
     assert not result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["window_matches_official"] is True
     assert result["official_pilot_result"] is False
 
 
