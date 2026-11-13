@@ -12,6 +12,11 @@ tested flag had a higher sustained reversal rate, so none advanced to a
 directional freeze. Percentage move remains the reference. A causal
 flag budget and fresh confirmation design remain open.
 
+Claude's local Step 1 result `6ed116c` reached the same selection decision
+on earlier dates. The runner report now includes an archive coverage
+check and a day-level power sensitivity at the observed 2–3% runner
+base rate. Step 2 candle signals remain unscored.
+
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)
 are available from the fresh-replication branch. The local archive lacks

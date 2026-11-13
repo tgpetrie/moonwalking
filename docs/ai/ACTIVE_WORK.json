@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-13T18:29:16.9959694+00:00",
+  "updated_utc": "2026-11-13T18:40:19.0091957+00:00",
   "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -409,6 +409,10 @@
       "candidate_for_fresh_confirmation": null,
       "reference_signal": "directional_percentage_move",
       "directional_screen": "carbon_sustained_runner_and_mirror_explored_on_same_days_all_flags_had_more_sustained_reversals",
+      "claude_step1_local_result_commit": "6ed116c06ae766ac32da7e2a4b85259cea266a9a",
+      "claude_step1_remote_status_when_checked": "local_branch_ahead_three_commits",
+      "candle_step2": "existing_archive_overlap_profiled_candle_signals_unscored",
+      "confirmation_power": "paired_daily_sensitivity_documented_no_final_sample_size",
       "study_frozen": false,
       "fresh_confirmation_run": false,
       "candle_backfill_run": false,

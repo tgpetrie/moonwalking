@@ -176,6 +176,93 @@ case ambiguous and need one fixed rule or a calibrated sequential design.
 Set the holdout after the finalized rule. No confirmation outcomes were
 read and no signal or protocol was frozen in this follow-up.
 
+### Independent Step 1 comparison and confirmation sizing
+
+Claude's Step 1 protocol `aa94299`, implementation `7ebd794`, and result
+`6ed116c` on `claude/instant-radar-fresh-replication-20261113` were three
+local commits ahead of the remote when checked. The production screen
+used 333,104 eligible entries from August 18 through October 17 UTC.
+Its October 18–27 check used 54,033. The Codex screen used October 28
+through November 12, so the evaluated dates do not overlap. Both
+capture digests and the frozen production episode index verified.
+
+Under the sustained label, Claude's largest percentage moves had more
+runners than base on all three boards, and the same flags had roughly
+1.8–1.9 times as many reversals as runners. None of Claude's signals
+cleared its selection gate. The reverse of acceleration on 1m gainers
+was nearly even (2.00% runners, 1.98% reversals), with fewer runners than
+the 2.72% board base rate. The positive acceleration score gained 0.09
+points of runner precision over raw move (−0.07 to +0.24) and −0.02
+points in the check sample. Codex measured +0.47 points on its dates
+under the sustained label. The score formulas, cutoff tie-breaks and
+handling of outcome eligibility differ. Claude used a ratio of 1m to
+3m moves and ranked the gradable cohort. Codex used the difference in
+nominal log-return rates and ranked before grading. Claude's cross-board
+persistence variant also uses entries up to 180 seconds after the
+decision. Use these as separate exploratory comparisons of the tested
+rules. On the losers board, an adverse result means a rebound.
+
+On 3m gainers, the sustained-runner base rate averaged 2.95% (median
+2.81%) across Claude's 61 scored production days, 2.95% (median 2.85%)
+across its ten check days, and 2.18% on Codex's 16 days. Claude's paired
+daily precision difference for its acceleration score versus raw move
+had a sample standard deviation of 0.98 percentage points in production
+and 1.51 points in the check. These are planning proxies from a snapshot
+signal. The variance of a future candle signal at an entry-time flag
+budget remains to be measured.
+
+For one paired contrast against zero, a two-sided 5% normal approximation
+at 80% power gives
+`ceil(D × ((1.960 + 0.842) × daily_SD / true_gain)^2)` days. `D`
+represents variance inflation from dependence between days. The table
+uses daily standard deviations in percentage points. Each cell shows
+independent days / days at illustrative `D=1.5`.
+
+| Daily paired SD | +0.5 point | +1.0 point | +1.5 points |
+| --- | ---: | ---: | ---: |
+| 1.0 points | 32 / 48 | 8 / 12 | 4 / 6 |
+| 1.5 points | 71 / 106 | 18 / 27 | 8 / 12 |
+| 2.0 points | 126 / 189 | 32 / 48 | 14 / 21 |
+| 3.0 points | 283 / 424 | 71 / 106 | 32 / 48 |
+
+At 2-point daily SD and `D=1.5`, 14 days give 80% power against zero
+only for a gain of about 1.83 points or larger. A 25% lift over a
+2–3% base is just 0.50–0.75 points. Carbon's separate +1.5-point
+gain over the raw-move flag is a different effect. Power against zero
+also differs from the chance of clearing a gate that requires the
+point estimate itself to exceed +1.5 points, favorable direction,
+and multiple interval checks. Small counts in this table describe the
+formula and give no minimum for reliable resampling or market-regime
+coverage. Size the actual test after a candidate and causal flag
+rule exist, using paired day or market-wave blocks and a single fixed
+sample and calendar cap. Keep zero-runner days when they meet the
+outcome-blind coverage criteria.
+
+### Existing candle coverage for Step 2
+
+The read-only archive has 5,920,622 one-minute candles for 407 product
+IDs. Its first and last open timestamps are September 6 at 12:00 and
+October 12 at 17:59 UTC. The table profiles the frozen production
+episode index inside that span. The availability probe uses the last
+whole minute before board entry. A comparison with stored snapshot
+features must use their recorded capture timestamp where it is earlier.
+Counts are coverage diagnostics before any runner label or signal score.
+
+| Board | Eligible entries | Latest closed coin candle | Three consecutive coin candles | Coin and BTC 3m endpoints | 61 consecutive coin closes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1m gainers | 72,270 | 44,350 | 19,278 | 23,586 | 8,088 |
+| 3m gainers | 63,244 | 33,940 | 14,991 | 18,391 | 5,833 |
+| 3m losers | 63,615 | 34,047 | 15,334 | 19,005 | 5,838 |
+
+The 3m endpoints are the closes at the cutoff and three minutes earlier.
+Sixty-one consecutive closes supply 60 one-minute returns. Strict
+volatility coverage is about 9–11% of eligible entries, so a complete-case
+comparison could change the liquidity mix substantially. For a future
+screen, compare the candidate and raw move on identical rows and report
+the raw-move baseline and exclusion rates on the original roster.
+Declare any sparse-window rule before outcomes. No candle signal was
+scored in this coverage check.
+
 One-minute candles can support research on unusual moves, activity and
 BTC-relative movement, and a separate pre-entry early-watch comparison.
 Start with explicit historical product IDs and audit completed-minute
@@ -185,6 +272,14 @@ A candle-only replay can measure minute-scale opportunities under an
 explicit observation model. Live board membership, sub-minute lead and
 delivery require their own timestamped evidence.
 [Coinbase Exchange candle documentation](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).
+
+Carbon's early-watch proposal requires these boundaries in a replay:
+historical roster coverage is partial, a successful fetch does not
+prove every missing minute had no trades, and eligibility at the cutoff
+cannot depend on a window's later availability. Use closed candles and
+describe any publication lag as a replay assumption. A synthetic top
+eight from minute closes is a proxy for the live board. A null result
+would bound the tested candle signals, horizon and population.
 
 For any future recorder extension, retain the original top-eight entry
 series and add separate observation for ranks 9–16, including transitions
