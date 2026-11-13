@@ -35,6 +35,13 @@ candidate. A short public probe succeeded. Asset mapping and usable
 freshness still need measurement. The always-on collector is still writing
 v2 only. The v3 rollout and a sustained external intake pilot are open.
 
+The [revised Gemini review](../research/RADAR_SENTIMENT_REVIEW_20261113.md#revised-gemini-review--november-13)
+finds that the documented LunarCrush batch lacks the proposed 60m input.
+Hyperliquid remains the first external readiness candidate. Claude's local
+Step 2 found a possible dollar-activity reversal filter on 3m gainers and
+lower runner precision in its check window. A causal activity comparison
+and outcome-blind external readiness check are open.
+
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)
 are available from the fresh-replication branch. The local archive lacks
