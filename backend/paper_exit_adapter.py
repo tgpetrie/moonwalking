@@ -108,6 +108,10 @@ def _usd_fills(fills, product_id, cutoff):
             )
         if type(fill.get("size_in_quote")) is not bool:
             raise ValueError("fill size unit is unknown")
+        if fill["size_in_quote"]:
+            raise ValueError("holding history includes a quote-sized fill")
+        if "trade_type" in fill and fill["trade_type"] != "FILL":
+            raise ValueError("holding history includes a nonstandard fill type")
         _number(fill, "size")
         _number(fill, "price")
         _number(fill, "commission", allow_zero=True)

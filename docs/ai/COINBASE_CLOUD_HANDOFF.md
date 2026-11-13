@@ -75,9 +75,9 @@ The normal Portfolio Mode still uses its five-page budget.
 Transferred inventory, cross-pair fills, ambiguous fill order and
 incomplete pagination can make a holding ineligible. Reconciliation
 can establish agreement between fills and balances. Transfers that
-offset each other can escape a quantity comparison. A USD-sized fill
-can still fail exact balance reconciliation if its credited base
-quantity differs from the reconstructed quantity.
+offset each other can escape a quantity comparison. The collector
+rejects quote-sized fills and nonstandard fill types such as reversals.
+It requires exact balance reconciliation with the supported fills.
 The [transaction summary](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/fees/get-transaction-summary)
 supplies the account's spot taker fee estimate. The
 [product book](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/products/get-product-book)

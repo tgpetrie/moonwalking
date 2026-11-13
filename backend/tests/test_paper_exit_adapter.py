@@ -116,6 +116,32 @@ def test_pilot_checks_permissions_before_reading_account(monkeypatch):
     assert calls == ["/api/v3/brokerage/key_permissions"]
 
 
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"size_in_quote": True, "size": "400"}, "quote-sized fill"),
+        ({"trade_type": "REVERSAL"}, "nonstandard fill type"),
+        ({"trade_type": "CORRECTION"}, "nonstandard fill type"),
+        ({"trade_type": "SYNTHETIC"}, "nonstandard fill type"),
+    ],
+)
+def test_pilot_rejects_ambiguous_fills_even_when_the_balance_matches(
+    monkeypatch, change, message
+):
+    client, _ = coinbase_client(monkeypatch)
+    original_get = client.get
+
+    def get(path, *, params=None):
+        if path.endswith("/fills"):
+            fill = _fill("buy", size="0.010", price="40000")
+            return {"fills": [{**fill, **change}], "cursor": ""}
+        return original_get(path, params=params)
+
+    monkeypatch.setattr(client, "get", get)
+    with pytest.raises(UnverifiedCostBasisError, match=message):
+        verify_slice_cost_basis(client, "BTC-USD", "0.005")
+
+
 @pytest.mark.parametrize("max_fill_pages", [None, 5, 6])
 def test_pilot_requires_terminal_page_at_or_before_cap(monkeypatch, max_fill_pages):
     client, calls = coinbase_client(monkeypatch)
