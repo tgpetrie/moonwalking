@@ -1,0 +1,123 @@
+{
+  "source_branch": "claude/instant-radar-fresh-replication-20261113",
+  "source_commit": "b5248e1d6c0e00a124768b31cdf07de985a3c413",
+  "prompt": "docs/ai/CARBON_RUNNER_STUDY_ASSIGNMENT_20261113.md",
+  "prompt_sha256": "a005ea6a89211e1e19baf1da9662e74832aabac69d474aea27208261a71affe5",
+  "packet": "docs/research/review_packets/CARBON_RUNNER_STUDY_PACKET_20261113_b5248e1.txt",
+  "packet_sha256": "96a8790de69f5e877aead65c2b59f8ecbd0359c5bcfe8f5aac4f6247bd926792",
+  "packet_bytes": 393421,
+  "sources": [
+    {
+      "number": 1,
+      "path": "docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md",
+      "sha256": "279f8d03bf69a56229e937e0602f609b161577de7f5075e16f44184047aaeebe",
+      "byte_offset": 8807,
+      "bytes": 6884
+    },
+    {
+      "number": 2,
+      "path": "docs/research/LIVE_MOVERS_FRESH_REPLICATION_PROTOCOL_20261113.md",
+      "sha256": "231cf96336fb9b3a3e4f982df5a2fd2a51f44a959a829d6bdd905edea2210b4f",
+      "byte_offset": 15815,
+      "bytes": 5417
+    },
+    {
+      "number": 3,
+      "path": "docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md",
+      "sha256": "dbc05e47f04d32bd0d3631297f226c763f24399cdcb10f0333fd293d461d580b",
+      "byte_offset": 21355,
+      "bytes": 7301
+    },
+    {
+      "number": 4,
+      "path": "docs/research/results/live_movers_fresh_replication_20261113/results_test_fresh_replication.json",
+      "sha256": "0880d56dfb3bfc74796b25ceead7c55548990cd1ee9f358b6018c7163a584af4",
+      "byte_offset": 28812,
+      "bytes": 208065
+    },
+    {
+      "number": 5,
+      "path": "docs/research/LIVE_MOVERS_RESULTS_20261027.md",
+      "sha256": "19d18dcdd7caf32d8783b97879be9514c5589498ae76f02acdd80248790caf56",
+      "byte_offset": 236982,
+      "bytes": 6330
+    },
+    {
+      "number": 6,
+      "path": "docs/research/LIVE_MOVERS_DATA_CONTRACT_20261027.md",
+      "sha256": "fe0e5abb71774260ca4be02d5fe311e2d8e9e9ce94058b002e14466af4fcb0e5",
+      "byte_offset": 243423,
+      "bytes": 13408
+    },
+    {
+      "number": 7,
+      "path": "docs/research/results/live_movers_contract_20261027/CONTRACT_PRODUCTION.json",
+      "sha256": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e",
+      "byte_offset": 256967,
+      "bytes": 2644
+    },
+    {
+      "number": 8,
+      "path": "docs/research/results/live_movers_contract_20261027/COMPARISON_SPEC.json",
+      "sha256": "075cdddf56ccf3500934bc316d0d8bef1ec5258201a14a4d21478e820f7de7f6",
+      "byte_offset": 259743,
+      "bytes": 3252
+    },
+    {
+      "number": 9,
+      "path": "backend/board_outcomes.py",
+      "sha256": "3c403b69df4ef8d268d2ba1a9ef560929778d50bec8e7b0f78b7955d050c1296",
+      "byte_offset": 263080,
+      "bytes": 33689
+    },
+    {
+      "number": 10,
+      "path": "backend/live_ranking.py",
+      "sha256": "342267707724ebbe6f14940de0863ecf65e15a4813df6a9828e7cb5c0df5ac65",
+      "byte_offset": 296852,
+      "bytes": 17121
+    },
+    {
+      "number": 11,
+      "path": "scripts/scoring_experiment/live_movers_fresh_replication.py",
+      "sha256": "3c4e860723403e8079d1eacdc39b896c8e8531beba7523bdeda279e7824a9617",
+      "byte_offset": 314092,
+      "bytes": 14655
+    },
+    {
+      "number": 12,
+      "path": "scripts/scoring_experiment/live_movers_run.py",
+      "sha256": "386ab8ec71287061e8c662885d96e3cad0aa5dd0574274f20782c721e4aff546",
+      "byte_offset": 328852,
+      "bytes": 21656
+    },
+    {
+      "number": 13,
+      "path": "scripts/scoring_experiment/freeze_live_contract.py",
+      "sha256": "068e474d8df25d618d56c5fd8d26813599c82e0472ec6cf338e839f679d50307",
+      "byte_offset": 350618,
+      "bytes": 9128
+    },
+    {
+      "number": 14,
+      "path": "backend/candle_archive.py",
+      "sha256": "a4d08c89b3ca14601ee5e8cf1c876ef1f862f417a5bfdc4fc5e3d14283a94b5b",
+      "byte_offset": 359831,
+      "bytes": 12591
+    },
+    {
+      "number": 15,
+      "path": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md",
+      "sha256": "ec241844a8fbf28fa8c5159e0d389aa8788ffd89ab88cbfad3267d3f2ef63d1e",
+      "byte_offset": 372538,
+      "bytes": 14739
+    },
+    {
+      "number": 16,
+      "path": "docs/ai/RADAR_RESEARCH_RESTART_20261113.md",
+      "sha256": "3734bb22a0080e3482bfb231ec8d8bb4557e429966f5b663ab5c3149e70b6c77",
+      "byte_offset": 387379,
+      "bytes": 6016
+    }
+  ]
+}
