@@ -237,6 +237,7 @@ except ImportError as e:  # pragma: no cover - optional during partial installs
         return {"config_version": None, "observations": 0, "rungs": {}}
 
 
+from board_outcomes import research_store as board_outcome_research_store
 from board_outcomes import store as board_outcome_store
 from live_ranking import (
     LIVE_RANKING_MODEL_VERSION,
@@ -14414,6 +14415,7 @@ def _compute_snapshots_from_cache():
         # published by the dashboard.  Membership transitions and 5/15/30/60m
         # directional returns share the persistent signal database, so deploys
         # do not reset the sample.
+        observed_boards = None
         try:
 
             def _board_rows(name):
@@ -14426,12 +14428,13 @@ def _compute_snapshots_from_cache():
                     else None
                 )
 
+            observed_boards = {
+                "ignition_1m": _board_rows("gainers_1m"),
+                "confirmation_3m_up": _board_rows("gainers_3m"),
+                "confirmation_3m_down": _board_rows("losers_3m"),
+            }
             board_outcome_store.observe(
-                {
-                    "ignition_1m": _board_rows("gainers_1m"),
-                    "confirmation_3m_up": _board_rows("gainers_3m"),
-                    "confirmation_3m_down": _board_rows("losers_3m"),
-                },
+                observed_boards,
                 price_snapshot,
                 now_ts=int(time.time()),
                 ranking_snapshot=_board_features,
@@ -14444,6 +14447,24 @@ def _compute_snapshots_from_cache():
             }
         except Exception as exc:
             logging.warning("Board outcome measurement skipped: %s", exc)
+
+        if board_outcome_research_store is not None and observed_boards is not None:
+            try:
+                quote_snapshot = {}
+                if coinbase_ws_get_feed is not None:
+                    feed = coinbase_ws_get_feed()
+                    if feed is not None:
+                        quote_snapshot = feed.fresh_quotes()
+                board_outcome_research_store.observe(
+                    observed_boards,
+                    price_snapshot,
+                    now_ts=int(time.time()),
+                    ranking_snapshot=_board_features,
+                    ranking_captured_ts=_board_features_ts,
+                    quote_snapshot=quote_snapshot,
+                )
+            except Exception as exc:
+                logging.warning("Expanded board research measurement skipped: %s", exc)
 
         watchlist_quotes = {}
         for key, quote in price_snapshot.items():

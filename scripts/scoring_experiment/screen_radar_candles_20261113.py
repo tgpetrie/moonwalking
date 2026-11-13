@@ -66,6 +66,7 @@ def load_board_rows(capture):
             for row in csv.DictReader(handle)
             if START <= int(row["entered_ts"]) < END
         }
+    # The frozen episode index already requires observed 5m and 15m marks.
     columns = """id, board, product_id, direction, entered_ts, start_change_pct,
         feature_snapshot_json, gross_return_5m, gross_return_15m, gross_return_30m,
         max_favorable_15m, max_adverse_15m, outcome_15m"""

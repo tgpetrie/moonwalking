@@ -1,3 +1,7 @@
+import json
+import sqlite3
+from contextlib import closing
+
 import pytest
 
 try:
@@ -107,6 +111,52 @@ def test_tracks_only_the_published_top_eight_by_default(tmp_path):
         now_ts=30_000,
     )
     assert store.status()["total_entries"] == 8
+
+
+def test_expanded_research_tracks_rank_16_and_sampled_quotes_in_its_own_table(tmp_path):
+    db_path = tmp_path / "board.sqlite"
+    legacy = BoardOutcomeStore(db_path)
+    research = BoardOutcomeStore(
+        db_path, table_name="board_outcomes_v3", visible_limit=16
+    )
+    boards = {"ignition_1m": [row(f"C{i}", 100) for i in range(17)]}
+    prices = {f"C{i}-USD": 100 for i in range(17)}
+    quotes = {
+        "C15-USD": {"bid": 99, "ask": 101, "age_s": 1},
+        "C14-USD": {"bid": 99, "ask": 101, "age_s": 16},
+    }
+    legacy.observe(boards, prices, now_ts=1000)
+    research.observe(boards, prices, now_ts=1000, quote_snapshot=quotes)
+    research.observe(
+        boards, {**prices, "C15-USD": 101}, now_ts=1300, quote_snapshot=quotes
+    )
+    research.observe(boards, {**prices, "C15-USD": 110}, now_ts=1910)
+    with closing(sqlite3.connect(db_path)) as con:
+        assert con.execute(
+            "SELECT max(entry_rank) FROM board_outcomes_v2"
+        ).fetchone() == (8,)
+        assert con.execute(
+            "SELECT max(entry_rank) FROM board_outcomes_v3"
+        ).fetchone() == (16,)
+        entry, five, fifteen, peak, observations = con.execute(
+            """SELECT quote_entry_json, quote_300s_json, quote_900s_json,
+                      max_favorable_15m, price_observations_15m
+               FROM board_outcomes_v3 WHERE entry_rank = 16"""
+        ).fetchone()
+        assert json.loads(entry) == {
+            "bid": 99,
+            "ask": 101,
+            "age_s": 1,
+            "observed_ts": 1000,
+            "source": "coinbase_ticker_sample",
+        }
+        assert json.loads(five)["observed_ts"] == 1300
+        assert fifteen is None
+        assert peak == pytest.approx(1)
+        assert observations == 1
+        assert con.execute(
+            "SELECT quote_entry_json FROM board_outcomes_v3 WHERE entry_rank = 15"
+        ).fetchone() == (None,)
 
 
 def test_matches_a_non_board_control_and_reports_cost_adjusted_excess(

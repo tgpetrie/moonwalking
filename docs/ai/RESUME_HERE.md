@@ -15,7 +15,19 @@ flag budget and fresh confirmation design remain open.
 Claude's local Step 1 result `6ed116c` reached the same selection decision
 on earlier dates. The runner report now includes an archive coverage
 check and a day-level power sensitivity at the observed 2–3% runner
-base rate. Step 2 candle signals remain unscored.
+base rate.
+
+[Step 2 and early-watch results](../research/RADAR_CANDLE_RESULTS_20261113.md)
+are available. None of the three standalone candle scores advanced. The
+early-watch replay observed about two minutes of median lead among successful
+simulated graduates, with raw 3m move ahead of both candle challengers on
+runner precision. The separate public backfill is running. The opt-in
+16-rank quote recorder and existing v3 feature metadata need a collector
+rollout before they can produce fresh rows.
+
+Read the [sentiment and Chart Read audit](../research/RADAR_SENTIMENT_AND_CHART_20261113.md)
+and the [Carbon or Gemini research assignment](CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md)
+for the external attention and catalyst feasibility study.
 
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)

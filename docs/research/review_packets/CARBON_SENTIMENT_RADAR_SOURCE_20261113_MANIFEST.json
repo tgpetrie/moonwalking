@@ -1,0 +1,109 @@
+{
+  "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+  "prompt": "docs/ai/CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md",
+  "prompt_sha256": "5acadf496b07542734a221ff806cbfced4a16665a07e33dddb57fd7b2c463eaa",
+  "packet": "docs/research/review_packets/CARBON_SENTIMENT_RADAR_SOURCE_20261113.txt",
+  "packet_bytes": 184113,
+  "packet_sha256": "aa51e1960052265d45b04734644409eb0772eacd921ec8b15156e4bd1f836528",
+  "sources": [
+    {
+      "number": 1,
+      "path": "docs/SENTIMENT_SOURCES.md",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 782,
+      "bytes": 4688,
+      "sha256": "05c92af36c9c4873a9775333c303873621b5939544fe0186d340fc02583c2770"
+    },
+    {
+      "number": 2,
+      "path": "backend/live_ranking.py",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 5552,
+      "bytes": 17121,
+      "sha256": "342267707724ebbe6f14940de0863ecf65e15a4813df6a9828e7cb5c0df5ac65"
+    },
+    {
+      "number": 3,
+      "path": "backend/signal_context.py",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 22757,
+      "bytes": 6603,
+      "sha256": "95db4ace813e7bd8f248a9e358f238439a65a45e73daa2d14febf0d87327a115"
+    },
+    {
+      "number": 4,
+      "path": "backend/sentiment_api.py",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 29443,
+      "bytes": 48892,
+      "sha256": "77336be6d814802d173cd24ea277be83930d0b85620e22a52a015772ddbac916"
+    },
+    {
+      "number": 5,
+      "path": "backend/coin_intel_external.py",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 78424,
+      "bytes": 51964,
+      "sha256": "547f063d3b254481812930248a0898b0b921381e47fcec52acf6c107da538c06"
+    },
+    {
+      "number": 6,
+      "path": "backend/chart_reader.py",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 130470,
+      "bytes": 16623,
+      "sha256": "13a86447f8def1380be1265195d9ff675beb49510692dcd3fe220d4f80f2f90c"
+    },
+    {
+      "number": 7,
+      "path": "frontend/src/components/ChartReadPanel.jsx",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 147194,
+      "bytes": 5805,
+      "sha256": "89e949dc667462b51e76c9e19ba5e45dcf96e62a2fa14b74ca1d367d7b166d39"
+    },
+    {
+      "number": 8,
+      "path": "docs/research/RADAR_BOARD_RUNNER_SCREEN_20261113.md",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 153109,
+      "bytes": 17944,
+      "sha256": "52c838aa090d4bde228d871780d15f2a7d9713e35e51b4cb924b936dfcf1439f"
+    },
+    {
+      "number": 9,
+      "path": "docs/research/RADAR_CANDLE_SCREEN_20261113.md",
+      "source_commit": "4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99",
+      "kind": "git_blob",
+      "byte_offset": 171157,
+      "bytes": 3942,
+      "sha256": "28b60e86b5b5f1712c4555132a6c2d3464eec2d5ef6288ecd5767886910e3e83"
+    },
+    {
+      "number": 10,
+      "path": "docs/research/RADAR_CANDLE_RESULTS_20261113.md",
+      "source_commit": null,
+      "kind": "handoff_addendum",
+      "byte_offset": 175204,
+      "bytes": 3772,
+      "sha256": "b5bded80e05cc0a6504c068b2ede84e8e8b66cdd31a6a9151227378e9d1ee010"
+    },
+    {
+      "number": 11,
+      "path": "docs/research/RADAR_SENTIMENT_AND_CHART_20261113.md",
+      "source_commit": null,
+      "kind": "handoff_addendum",
+      "byte_offset": 179086,
+      "bytes": 5000,
+      "sha256": "a21d984196bd8b326b0ad0aa3f6f450c31cbce788fa25b56b831c90a40857f63"
+    }
+  ]
+}
