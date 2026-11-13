@@ -1,9 +1,8 @@
 # Radar research restart: November 13, 2026
 
 The user wants the market-signal work prioritized and deep, independent reviews
-from Carbon and Fable alongside Codex. These assignments are requested but
-not yet dispatched. Prompts and complete uploadable source packets are the
-next deliverable; a local path or GitHub link alone is insufficient for Carbon.
+from Carbon and Fable alongside Codex. The independent assignments and
+uploadable packets are ready for Tom. Dispatch has not been confirmed.
 
 ## Verified starting point
 
@@ -22,7 +21,23 @@ next deliverable; a local path or GitHub link alone is insufficient for Carbon.
   rerun is authorized by these findings. Coinbase paper accounting is a separate
   lane; do not let it replace the Radar research objective.
 
-## Independent assignments to prepare
+## Independent assignments
+
+Both plain-text packets carry complete, numbered Git source bodies from
+`257be69e6058cd2addc04dc1c191d7cdf3b25c4e`. Each SHA-256 manifest identifies the
+exact bytes of the prompt, whole packet and every source body.
+
+| Reviewer | Copy-ready assignment | Uploads |
+| --- | --- | --- |
+| Carbon | [Hypothesis and fresh study design](CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md) | [45-source packet](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69.txt) · [SHA-256 manifest](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69_MANIFEST.json) |
+| Claude Fable | [Pipeline and capture readiness](FABLE_RADAR_PIPELINE_ASSIGNMENT_20261113.md) | [111-source packet](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69.txt) · [SHA-256 manifest](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69_MANIFEST.json) |
+
+Fable's clean Windows worktree is
+`C:/Users/tgpet/Projects/Moonwalking-FableRadarReview-20261113`, on
+`claude/instant-radar-pipeline-review-20261113` at the source pin. Its
+sparse index tree matches the pinned Git tree and retains skipped public
+images. On another machine, create a new review worktree from that remote
+branch and verify its base before editing.
 
 **Carbon: hypothesis and experiment challenge.** Give complete pinned sources,
 including historical results, corrected prospective proposal, current features,
@@ -48,11 +63,9 @@ through interrupted warmup, tune thresholds, run private-account calls or new
 captures, change production, or fit/rerun historical validation. Commit/push its
 report and probes on its own branch; leave Codex checkpoint files alone.
 
-**Codex: integration and local evidence.** Prepare both packets with full source
-bodies and SHA-256 manifests, verify them against Git, publish the checkpoint,
-then integrate reviewed changes and execute only the appropriately declared
-next engineering step. Own the local failure evidence and avoid duplicate
-branches/sessions implementing the same change. Preserve prior review statuses.
+**Codex: integration and local evidence.** Own the local failure evidence,
+integrate reviewed changes, and execute the declared next engineering step.
+Preserve prior review statuses and keep one owner for each implementation.
 
 ## New Windows evidence, inspected November 13
 
@@ -82,16 +95,36 @@ A reviewer may use this sanitized summary while Codex retains the originals.
 No network setting, VPN setting, service or event-log setting was changed.
 No new capture or Coinbase account request ran in this restart work.
 
+## Local offline verification after the packet source pin
+
+On Windows, ran `verify_instant_timing_attempt.py` read-only against each
+preserved attempt with its archived plan SHA-256. All 13 verifier fields
+matched the archived JSON in each case, including the per-schedule planned
+slots. Asia verified 167,407 records and 167,405 batch-ingress clocks.
+US verified 302,679 records and 302,677 batch-ingress clocks. Each SQLite
+quick check passed and each run had zero consumer observations. The two
+new verifier outputs are private under the corresponding
+`codex-offline-reverify-*` analysis folders. All 16 files in the private
+Windows evidence manifest matched their SHA-256 entries.
+
+22 focused checks passed using Windows Python 3.12.10 and pytest 8.3.5
+across `test_instant_reader_disconnect.py`,
+`test_instant_reader_overflow.py` and `test_instant_timing_attempt_verifier.py`.
+Repository guardrails passed. The next engineering decision is which
+bounded probe and failure-time evidence would differentiate network
+transition, transport close/reset, and arrival pressure or writer stalls.
+
 ## Handoff state
 
 The separate local checkout is
 `C:/Users/tgpet/Projects/Moonwalking-RadarResearch-20261113` with common Git
 storage `C:/Users/tgpet/Projects/Moonwalking/.git`, both outside OneDrive.
-It uses a sparse checkout of docs/scripts/tests/backend; its initial index tree
+It uses a sparse checkout of docs/scripts/tests/backend/frontend/src; its initial index tree
 was verified identical to HEAD. Preserve the Windows-invalid tracked PNG by
 using the existing sparse checkout. Do not operate in the app's old saved
 OneDrive project folder. Source code and historical evidence are unchanged.
 
-Still to do: produce the two final copy-ready prompts and upload packets,
-record exact pinned sources and review ownership, and continue the local
-readiness work. Do not claim Carbon or Fable has started until confirmed.
+The assignments are ready for Tom to send. Codex retains ownership of the
+portable checkpoint and integration. Capture, eligibility policy, feed
+certification, study freeze and fitting require their separately declared
+next steps.

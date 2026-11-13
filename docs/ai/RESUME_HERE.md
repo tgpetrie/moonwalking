@@ -3,12 +3,26 @@
 ## November 13 research restart
 
 Active continuation is `codex/instant-radar-research-restart-20261113`.
-Read [the new handoff](RADAR_RESEARCH_RESTART_20261113.md). Carbon and Fable
-are requested for separate deep reviews; prompts/source packets are being
-prepared and dispatch is not yet confirmed. Codex inspected retained Windows
-logs and found a VPN adapter disconnect about 102 ms after the last Asia
-frame. This supports a network-transition hypothesis, not a proven cause.
-No new capture, fitting, historical rerun, score or production change occurred.
+Read the [restart handoff](RADAR_RESEARCH_RESTART_20261113.md). The two
+independent reviews are ready for Tom to dispatch. The full source bodies
+in both upload packets are pinned to `257be69`.
+
+- Carbon owns the hypothesis and fresh study design.
+  [Prompt](CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md) ·
+  [Source packet](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69.txt) ·
+  [SHA-256 manifest](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69_MANIFEST.json)
+- Fable owns pipeline correctness and capture readiness on
+  `claude/instant-radar-pipeline-review-20261113`.
+  [Prompt](FABLE_RADAR_PIPELINE_ASSIGNMENT_20261113.md) ·
+  [Source packet](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69.txt) ·
+  [SHA-256 manifest](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69_MANIFEST.json)
+
+Codex reverified the original US and Asia journals read-only. Both matched the
+archived verifier results and reached zero timing cohorts. The VPN adapter
+disconnect about 102 ms after the last Asia frame is a lead for the transport
+diagnosis. The next decision is which bounded offline probe or additional
+failure-time observation can distinguish plausible causes before any new
+capture. The study freeze, feed gate and fitting remain closed.
 The older dated checkpoints below remain historical evidence.
 
 Updated November 10, 2026 (Pacific). This page is the current portable

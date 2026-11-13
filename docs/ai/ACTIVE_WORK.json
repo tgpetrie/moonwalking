@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-13T10:13:44.226023+00:00",
+  "updated_utc": "2026-11-13T15:30:37.3488074+00:00",
   "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -48,7 +48,7 @@
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
       "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-RadarResearch-20261113",
-      "status": "prepare_carbon_fable_source_packets_and_review_new_windows_evidence"
+      "status": "review_packets_prepared_saved_us_and_asia_journals_reverified"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -245,9 +245,9 @@
     }
   },
   "next_actions": [
-    "Collect the existing Asia REPORT/PLAN, sibling stdout/stderr, failed and retried clock outputs and retained Windows System/network/DNS events using INSTANT_READER_DISCONNECT_REVIEW_20261111.md. No tested reader-loss defect or disconnect/DNS link was found.",
-    "Review that local evidence before predeclaring another PC pilot. No automatic retry, reconnect, capacity change or new timing capture is recommended; feed audit and decision-age policy remain separate.",
-    "Freeze stages, model/comparator/effect/power and stopping rules before prospective outcome collection and fitting; historical validation and production stay unchanged"
+    "Tom can dispatch the Carbon hypothesis and study assignment and the Fable pipeline and readiness assignment using their pinned packets.",
+    "Use the saved Windows evidence and the Fable review to choose a bounded offline probe or failure-time diagnostic. Review that protocol before any new timing attempt.",
+    "Use the Carbon design review and engineering readiness results to decide the user-facing target, comparator, worthwhile effect, sample and stopping rules before prospective outcomes or fitting."
   ],
   "constraints": [
     "Do not rerun historical discovery or validation",
@@ -952,16 +952,42 @@
     "disconnect_dns_link_established": false,
     "full_asia_capture_available_in_cloud": false,
     "new_pilot_recommended": false,
-    "next_windows_action": "Run_copy_ready_existing_evidence_collection_block_in_review_then_inspect_attempts_clock_logs_and_retained_Windows_events",
+    "next_windows_action": "Choose_a_bounded_probe_using_the_collected_and_reverified_evidence_before_any_new_timing_attempt",
     "independent_review": "not_requested_or_performed"
   },
   "research_restart_20261113": {
     "handoff": "docs/ai/RADAR_RESEARCH_RESTART_20261113.md",
     "source_checkpoint": "f291b35",
     "requested_by_user": true,
-    "carbon_assignment": "hypothesis_and_fresh_study_design",
-    "fable_assignment": "research_pipeline_and_capture_readiness",
-    "dispatch_status": "prompts_and_source_packets_pending_not_dispatched",
+    "packet_source_commit": "257be69e6058cd2addc04dc1c191d7cdf3b25c4e",
+    "carbon_assignment": {
+      "scope": "hypothesis_and_fresh_study_design",
+      "prompt": "docs/ai/CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md",
+      "packet": "docs/research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69.txt",
+      "manifest": "docs/research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69_MANIFEST.json",
+      "source_count": 45,
+      "packet_sha256": "44df708242ea8c236aec5ee07eb760583a5f5a48039bd9d4962bc51adebdd097"
+    },
+    "fable_assignment": {
+      "scope": "research_pipeline_and_capture_readiness",
+      "branch": "claude/instant-radar-pipeline-review-20261113",
+      "windows_worktree": "C:/Users/tgpet/Projects/Moonwalking-FableRadarReview-20261113",
+      "prompt": "docs/ai/FABLE_RADAR_PIPELINE_ASSIGNMENT_20261113.md",
+      "packet": "docs/research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69.txt",
+      "manifest": "docs/research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69_MANIFEST.json",
+      "source_count": 111,
+      "packet_sha256": "c1cebf9fa1be33afade06c5886fd6cdf5683e1649f5c86e63d8477e21cb2fd5f"
+    },
+    "dispatch_status": "ready_for_tom_to_dispatch",
+    "offline_windows_reverification": {
+      "us_records_verified": 302679,
+      "asia_records_verified": 167407,
+      "verifier_fields_matched_per_attempt": 13,
+      "consumer_observations_per_attempt": 0,
+      "private_evidence_hashes_matched": 16,
+      "focused_tests_passed": 22,
+      "guardrails_passed": true
+    },
     "windows_evidence": "network_profile_vpn_disconnect_about_102ms_after_last_frame_cause_not_proven",
     "raw_evidence_private": true,
     "new_capture": false,

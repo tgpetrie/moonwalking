@@ -1,0 +1,377 @@
+{
+  "role": "CARBON",
+  "repository": "https://github.com/tgpetrie/moonwalking",
+  "source_branch": "codex/instant-radar-research-restart-20261113",
+  "source_commit": "257be69e6058cd2addc04dc1c191d7cdf3b25c4e",
+  "reader_runtime_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
+  "offline_verification_commit": "975234ed44c6708a28ccce1df11ed671258cd46c",
+  "assignment": "docs/ai/CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md",
+  "assignment_bytes": 5395,
+  "assignment_sha256": "38e3553d0903d768e1f4d264aa61407c7f5039c1b26906b29d5d6601c1296700",
+  "packet": "docs/research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69.txt",
+  "packet_bytes": 325846,
+  "packet_sha256": "44df708242ea8c236aec5ee07eb760583a5f5a48039bd9d4962bc51adebdd097",
+  "source_body_byte_offsets": "zero-based offsets into the UTF-8 packet; source digests cover exact unmodified Git blob bytes",
+  "sources": [
+    {
+      "number": 1,
+      "path": "docs/ai/RADAR_RESEARCH_RESTART_20261113.md",
+      "git_blob_oid": "c5dc6f17d6b63ff2d9d6aee655ccb87b933f0aff",
+      "bytes": 6016,
+      "sha256": "3734bb22a0080e3482bfb231ec8d8bb4557e429966f5b663ab5c3149e70b6c77",
+      "byte_offset": 4525
+    },
+    {
+      "number": 2,
+      "path": "docs/research/INSTANT_RADAR_NEXT_STEPS_20261028.md",
+      "git_blob_oid": "5e178e3427c45487d3ce6ca3a666c00be4a31ba8",
+      "bytes": 7299,
+      "sha256": "81876dd85d55de59f935ce9d7a4f8fa9a4b466d62170c191ebf8395389aeeac6",
+      "byte_offset": 10724
+    },
+    {
+      "number": 3,
+      "path": "docs/research/LIVE_MOVERS_RESULTS_20261027.md",
+      "git_blob_oid": "d588b55ea25f79d4c07da220d009aa7dfd09ffe2",
+      "bytes": 6330,
+      "sha256": "19d18dcdd7caf32d8783b97879be9514c5589498ae76f02acdd80248790caf56",
+      "byte_offset": 18201
+    },
+    {
+      "number": 4,
+      "path": "docs/research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md",
+      "git_blob_oid": "9edf93a789541a813734569da8a6b1d127c7fe70",
+      "bytes": 24078,
+      "sha256": "b43b781f626790097bfa2da5cdfa64db16a3ab1b143622b40a229301dae4a442",
+      "byte_offset": 24722
+    },
+    {
+      "number": 5,
+      "path": "docs/research/results/live_movers_contract_20261027/COMPARISON_SPEC.json",
+      "git_blob_oid": "5ddf258aa76aa6750f1adea9d91d049cfffbf411",
+      "bytes": 3252,
+      "sha256": "075cdddf56ccf3500934bc316d0d8bef1ec5258201a14a4d21478e820f7de7f6",
+      "byte_offset": 49005
+    },
+    {
+      "number": 6,
+      "path": "docs/research/results/live_movers_comparison/results_verify_live_movers.json",
+      "git_blob_oid": "e140e4c13b3ba826ea2e0446d8b928e1e419aa47",
+      "bytes": 2156,
+      "sha256": "445ae1e6fee1b109c5aaa142cb14bd3a0c0ad8816af0873e88238f93191173b6",
+      "byte_offset": 52466
+    },
+    {
+      "number": 7,
+      "path": "docs/research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md",
+      "git_blob_oid": "706a8de34a0461588927fcd3e48e300ebc09ac63",
+      "bytes": 14739,
+      "sha256": "ec241844a8fbf28fa8c5159e0d389aa8788ffd89ab88cbfad3267d3f2ef63d1e",
+      "byte_offset": 54811
+    },
+    {
+      "number": 8,
+      "path": "docs/research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md",
+      "git_blob_oid": "8c53becd09af25bf45391d58505ba5beb94b696f",
+      "bytes": 11385,
+      "sha256": "eba23a69dbf4528c9dfcde04f6a3a86d80d8024080f35553e0b04f3b0f4b5a04",
+      "byte_offset": 69737
+    },
+    {
+      "number": 9,
+      "path": "docs/research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md",
+      "git_blob_oid": "a693c2243231b09c17f4f873b5689cb6572e1a69",
+      "bytes": 4121,
+      "sha256": "79fdf55906e17b57aae0db52bc28ab2959efb39b13ee226a262980b492bd7425",
+      "byte_offset": 81309
+    },
+    {
+      "number": 10,
+      "path": "docs/research/INSTANT_TARGET_LABELS_20261029.md",
+      "git_blob_oid": "6218a01618bc4dc24e65b79847c6b3dcfbb48a0e",
+      "bytes": 9541,
+      "sha256": "414b44132ec04eda42f0a9f0d737c74b392a8eff3b504141d7d560a2bfac3b7e",
+      "byte_offset": 85610
+    },
+    {
+      "number": 11,
+      "path": "docs/research/INSTANT_TARGET_CONTRACT_V1.json",
+      "git_blob_oid": "2f89ddc9b2110e6f134b90b90878373374f44e00",
+      "bytes": 2329,
+      "sha256": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+      "byte_offset": 95329
+    },
+    {
+      "number": 12,
+      "path": "docs/research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json",
+      "git_blob_oid": "674e83a1954deb11799d7f33eb0c5bf5ae8cff37",
+      "bytes": 3832,
+      "sha256": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3",
+      "byte_offset": 97842
+    },
+    {
+      "number": 13,
+      "path": "docs/research/INSTANT_TIMED_BASELINE_20261106.md",
+      "git_blob_oid": "3971edd1d6b938bb71e46ddbcc8fd499f1e0839c",
+      "bytes": 2639,
+      "sha256": "5f38f7da2385eb98c38fc03b8a85350725235a1e151a2da116ae0e66f3ebad89",
+      "byte_offset": 101855
+    },
+    {
+      "number": 14,
+      "path": "docs/research/INSTANT_TIMED_FEATURES_20261107.md",
+      "git_blob_oid": "ba362f0881651cd196711c4bdcc2d20c77fcfd04",
+      "bytes": 3598,
+      "sha256": "198db0490c6d6040ac9c3bd1d6bb4ab55be7e2957d4ecb90a4bd3aae77cf1b76",
+      "byte_offset": 104675
+    },
+    {
+      "number": 15,
+      "path": "scripts/scoring_experiment/instant_targets.py",
+      "git_blob_oid": "e9d51602ad4d6aed42b9f00f20040ff03e9a1734",
+      "bytes": 24480,
+      "sha256": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015",
+      "byte_offset": 108451
+    },
+    {
+      "number": 16,
+      "path": "scripts/scoring_experiment/instant_timed_baseline.py",
+      "git_blob_oid": "646afd15c28eb466764edc9ceb6e2c9a7423b744",
+      "bytes": 6286,
+      "sha256": "f7a753d37c139d8f44bb6e94905dd809d6d1ffa95653363b9f6637f101586a43",
+      "byte_offset": 133116
+    },
+    {
+      "number": 17,
+      "path": "scripts/scoring_experiment/instant_timed_features.py",
+      "git_blob_oid": "9156e29fe60a1e7f3762a1fcc648e6cf9bf15663",
+      "bytes": 11389,
+      "sha256": "4a100cf629e460bae69f75c7bedb624c3835274c38af227c9aa3dab8b2e2eb0b",
+      "byte_offset": 139587
+    },
+    {
+      "number": 18,
+      "path": "docs/research/INSTANT_DELAYED_DECISION_20261107.md",
+      "git_blob_oid": "228e092e0e12e2c6207b89486ea4069cd8d71702",
+      "bytes": 3583,
+      "sha256": "69ac0074fbf5ecb98e15c53eeb184a75146ec2fe46252f5ed9633b31087a9ff5",
+      "byte_offset": 151159
+    },
+    {
+      "number": 19,
+      "path": "docs/research/INSTANT_DELAYED_ELIGIBILITY_REPLAY_20261109.md",
+      "git_blob_oid": "b8b559f28478db3d953fed4e3c994a493c64d73b",
+      "bytes": 4470,
+      "sha256": "a9f04b33042464ec2f2db9892557eecf6f3864d169bd60d5b1e6fb2c692cc1a5",
+      "byte_offset": 154935
+    },
+    {
+      "number": 20,
+      "path": "docs/research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md",
+      "git_blob_oid": "5230b548767350ad1e0a19e13b463b2fe48413bb",
+      "bytes": 8090,
+      "sha256": "a5243152cba6054c454de3c2aa373d26cb0eeb4dbfe045b25ae7b1120cfd4ae9",
+      "byte_offset": 159597
+    },
+    {
+      "number": 21,
+      "path": "docs/research/INSTANT_ASSOCIATION_EXPOSURE_20261103.md",
+      "git_blob_oid": "b2aa2ae0140a64154fbdc1ec6a9a7860ef0cd914",
+      "bytes": 8983,
+      "sha256": "675c740146c8a76cb5ef150552b08ce72357ff873c7ad98651f092c31efac8ca",
+      "byte_offset": 167874
+    },
+    {
+      "number": 22,
+      "path": "docs/research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md",
+      "git_blob_oid": "7cfaf67b3609936e34a777ecdf68a1109246cf92",
+      "bytes": 4327,
+      "sha256": "5d4cd8452917a12066eb48179df02bbbb1e9c0129619137d0870c049a5d55b98",
+      "byte_offset": 177046
+    },
+    {
+      "number": 23,
+      "path": "docs/research/INSTANT_ASSOCIATION_CONTRACT_V1_DRAFT.json",
+      "git_blob_oid": "9c141aa334032361569426c490a6c3470a920592",
+      "bytes": 2182,
+      "sha256": "4a66c231401eaa64d07edb6dde6011bc23215561ea4a05265388e36fe0905e66",
+      "byte_offset": 181562
+    },
+    {
+      "number": 24,
+      "path": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md",
+      "git_blob_oid": "2361a531cfaf760e5df8815461b793401e5410b3",
+      "bytes": 5207,
+      "sha256": "61933e8656349f2bfb2c94b5dfc7ee0aa1f94d4a5935a1979d27588e0ff3bf2f",
+      "byte_offset": 183931
+    },
+    {
+      "number": 25,
+      "path": "docs/research/INSTANT_DIRECTIONAL_EXPOSURE_CONTRACT_V1_DRAFT.json",
+      "git_blob_oid": "aadc8f0dae5e4ffd58d1c1fc748ba45b3f55957f",
+      "bytes": 1795,
+      "sha256": "6bc6681803fbbea29b544a7af0dbc702938c6361077fb0328ef1987d3189a920",
+      "byte_offset": 189336
+    },
+    {
+      "number": 26,
+      "path": "docs/research/INSTANT_BOOK_AND_PUBLICATION_20261103.md",
+      "git_blob_oid": "5d5fe765d57757c096b69b8bc67a635df1bff373",
+      "bytes": 7593,
+      "sha256": "9ccbc147339d9aa66755a4b5d428eac354ac94ba15abedfd1e506df1409fb1e0",
+      "byte_offset": 191318
+    },
+    {
+      "number": 27,
+      "path": "docs/research/INSTANT_PUBLICATION_CONTRACT_V1_DRAFT.json",
+      "git_blob_oid": "cd4437e47486cbe95ad53137a3566b1bc72a339c",
+      "bytes": 1002,
+      "sha256": "884da2068d047e59cd820355d643b95c98e78483769c299300a922ddb84ada1f",
+      "byte_offset": 199100
+    },
+    {
+      "number": 28,
+      "path": "docs/research/INSTANT_COVERAGE_AND_QUOTE_POLICY_20261030.md",
+      "git_blob_oid": "bf710a6bb7cd320303d7e563c127ae5c15ac1ec1",
+      "bytes": 12794,
+      "sha256": "2bd6f0170642223a6fecca45436b69bae2655dfc0f88a3b63ddcc19f619e60a4",
+      "byte_offset": 200294
+    },
+    {
+      "number": 29,
+      "path": "docs/research/INSTANT_INPUT_EVIDENCE_20261104.md",
+      "git_blob_oid": "5bb1050300bd8aba22836afa7b89477712b749f5",
+      "bytes": 7322,
+      "sha256": "b3e8ca3b06c7ba448e30a6564f86beaa14dac7f4395aad4458d735f2a64e9eaf",
+      "byte_offset": 213269
+    },
+    {
+      "number": 30,
+      "path": "scripts/scoring_experiment/instant_delayed_decision.py",
+      "git_blob_oid": "3130bc8bff8d3924a923b1f017ce75f149139060",
+      "bytes": 11053,
+      "sha256": "2312423761c7220fee5f9528183e641c01638b1c6ca0b352d15b73abc204a16d",
+      "byte_offset": 220778
+    },
+    {
+      "number": 31,
+      "path": "scripts/scoring_experiment/instant_delayed_eligibility.py",
+      "git_blob_oid": "3831787e3aed4443446c8156e7516e23de5b47df",
+      "bytes": 5543,
+      "sha256": "5ead9c0dd9a79cea3e0b836c7a2340888c7d7c7eb4b9bf5b619f79c0b5d3c2d3",
+      "byte_offset": 232021
+    },
+    {
+      "number": 32,
+      "path": "scripts/scoring_experiment/instant_association.py",
+      "git_blob_oid": "5ae32195e100b1a5141485c804e8b1726f531a42",
+      "bytes": 18059,
+      "sha256": "0e79b8f1d609157d40f1ed3d34e7f01b85201c37489bc80e3b065d897bb485c3",
+      "byte_offset": 237746
+    },
+    {
+      "number": 33,
+      "path": "scripts/scoring_experiment/instant_directional_exposure.py",
+      "git_blob_oid": "92cb40f778e496f462a8b26eb99e4c34a80981d9",
+      "bytes": 8568,
+      "sha256": "638db051a2eb20c66431281606b384cec101f7cb2114b3dd72e045d89692f424",
+      "byte_offset": 255996
+    },
+    {
+      "number": 34,
+      "path": "scripts/scoring_experiment/instant_publication.py",
+      "git_blob_oid": "b3921475423d0d3154c2760f6cdece8c103f8f4e",
+      "bytes": 3441,
+      "sha256": "db1c7ede0db61f7a278edcfde90095b665d7410b64bb8c609ab8099da03702ab",
+      "byte_offset": 264746
+    },
+    {
+      "number": 35,
+      "path": "docs/research/COINBASE_FEED_AUDIT_20261027.md",
+      "git_blob_oid": "646686c0d1814e2795fdb262f777970168bc42d7",
+      "bytes": 5643,
+      "sha256": "dd666205602499f460462eccc46868a54475ca351a3230e5f6b22cc5c7259bbe",
+      "byte_offset": 268365
+    },
+    {
+      "number": 36,
+      "path": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_PROTOCOL_20261108.md",
+      "git_blob_oid": "98354f9e15f648e24903054f5e70e9269e16b982",
+      "bytes": 3095,
+      "sha256": "28cdfc7015985445ded605e8ffe5199068967e49a9c5ebe8e691fac67a4e939e",
+      "byte_offset": 274204
+    },
+    {
+      "number": 37,
+      "path": "docs/research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md",
+      "git_blob_oid": "1ef7388e311fd96cdc17a89618214780fe7eaf80",
+      "bytes": 4781,
+      "sha256": "39e8da74736201c28ff84a336d4013fab498fe6b994e9779479579644c26231a",
+      "byte_offset": 277494
+    },
+    {
+      "number": 38,
+      "path": "docs/research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md",
+      "git_blob_oid": "ef15dc86b59c6b9bec367495ea18edfc218e906e",
+      "bytes": 4585,
+      "sha256": "258bed490efcdfbbe768b9960d8d816b2eac252ddbac0d27c11c871e61debd0f",
+      "byte_offset": 282468
+    },
+    {
+      "number": 39,
+      "path": "docs/research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md",
+      "git_blob_oid": "8ddbc72ee06f67bb38758e336935737bf3e503fe",
+      "bytes": 12057,
+      "sha256": "a9aa7e7ebad9a322d8c457e297fc8e2a8ec5982dbb1f43960c6f89506bb51491",
+      "byte_offset": 287245
+    },
+    {
+      "number": 40,
+      "path": "docs/research/INSTANT_READER_DISCONNECT_REVIEW_20261111.md",
+      "git_blob_oid": "103c6db727e59253d5df1cf061cebaf80b763381",
+      "bytes": 11443,
+      "sha256": "4481dd460ddda86433c23504d3e081658381bdcd7a7167d19a928368a550a550",
+      "byte_offset": 299493
+    },
+    {
+      "number": 41,
+      "path": "docs/research/results/instant_batched_source_pilot_20261108/PLAN.json",
+      "git_blob_oid": "3bc040a80a91911c2cce84e54d64b0896e96c8ff",
+      "bytes": 698,
+      "sha256": "935c8018425fd15dc2cb02601644d43ee4c78a5ad67876d0b4ca5416339b53ca",
+      "byte_offset": 311138
+    },
+    {
+      "number": 42,
+      "path": "docs/research/results/instant_batched_source_pilot_20261108/CHECKS.json",
+      "git_blob_oid": "0cd86497d4a786149cc03acf5c6910bad9d59a55",
+      "bytes": 2915,
+      "sha256": "2b6b66d5d174a974de9e5de562063cc3e5da92e62f3a0ce5939b00ebcf87fa21",
+      "byte_offset": 312040
+    },
+    {
+      "number": 43,
+      "path": "docs/research/results/instant_live_timing_20261109/STARTUP_01.json",
+      "git_blob_oid": "a8d3d91013889c62fe70e8ce244c896c8fd1d73e",
+      "bytes": 1293,
+      "sha256": "00b3174fb0511e9ef5d3070b2e007be41d2faf7d71acab4d3e770939a352c08b",
+      "byte_offset": 315154
+    },
+    {
+      "number": 44,
+      "path": "docs/research/results/instant_live_timing_20261109/US_01_VERIFIED.json",
+      "git_blob_oid": "157a39ab86392f08de487dfcc30fa2b5366e534e",
+      "bytes": 3835,
+      "sha256": "d0ff9551c2b0c0d0145ccd95c67c5a202f1ce161c8ed50f2bb38afd4cf50a068",
+      "byte_offset": 316650
+    },
+    {
+      "number": 45,
+      "path": "docs/research/results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json",
+      "git_blob_oid": "62183b15170d0f6145cd39856b74f05858bd96bd",
+      "bytes": 5125,
+      "sha256": "0d18c539328dd5d47cbfc8de6a338b2cc0cbdc77ac2f2ee5ff1d0232aabbc715",
+      "byte_offset": 320694
+    }
+  ]
+}
