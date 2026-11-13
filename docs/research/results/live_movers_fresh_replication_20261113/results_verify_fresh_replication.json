@@ -1,0 +1,209 @@
+{
+  "phase": "verify",
+  "protocol_sha256": "231cf96336fb9b3a3e4f982df5a2fd2a51f44a959a829d6bdd905edea2210b4f",
+  "code_commit": "37e6c7830b85fdca0cdb86f99bb90f796fd4c8bc",
+  "code_dirty": true,
+  "code_hashes": {
+    "scripts/scoring_experiment/live_movers_fresh_replication.py": "3c4e860723403e8079d1eacdc39b896c8e8531beba7523bdeda279e7824a9617",
+    "scripts/scoring_experiment/live_movers_run.py": "386ab8ec71287061e8c662885d96e3cad0aa5dd0574274f20782c721e4aff546",
+    "scripts/scoring_experiment/freeze_live_contract.py": "068e474d8df25d618d56c5fd8d26813599c82e0472ec6cf338e839f679d50307"
+  },
+  "runtime_versions": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.6"
+  },
+  "frozen_inputs": {
+    "capture_files": {
+      "board_episodes.sqlite": "b3c26d4dd963161c8bbb858e5d341e3edf681e6e6c0f65c5d2711fc86887b30e",
+      "CONTRACT.json": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e",
+      "eligible_episodes.csv": "8a5235aed7c38e76696dddd0404b508cde238f073ae58a8cd958e8e2b5d2b7b9"
+    },
+    "contract_sha256": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e",
+    "spec_sha256": "075cdddf56ccf3500934bc316d0d8bef1ec5258201a14a4d21478e820f7de7f6",
+    "manifest_sha256": "c8adca26d7e1ee6577da4fa37fe4c5fb8d6f18c98e1903d39f246edcf071ca70"
+  },
+  "frozen_result_sha256": "77f76a448a7078266a45597fcc3d191855d6d1dae6c232da98a27ab769cde355",
+  "windows_utc": {
+    "secondary_gap": [
+      "2026-10-18T00:00:00+00:00",
+      "2026-10-28T00:00:00+00:00"
+    ],
+    "test": [
+      "2026-10-28T00:00:00+00:00",
+      "2026-11-13T00:00:00+00:00"
+    ]
+  },
+  "seed": 20261113,
+  "bootstrap_replicates": 5000,
+  "minimum_effect_ic": 0.02,
+  "minimum_scored_days": 12,
+  "frozen_model_reproduction": {
+    "ignition_1m/up/h5": {
+      "fit_rows": 92990,
+      "alpha": {
+        "B2": 100,
+        "M1": 1000
+      },
+      "coefficients_match": true
+    },
+    "ignition_1m/up/h15": {
+      "fit_rows": 92990,
+      "alpha": {
+        "B2": 1000,
+        "M1": 1000
+      },
+      "coefficients_match": true
+    },
+    "confirmation_3m_up/up/h5": {
+      "fit_rows": 81255,
+      "alpha": {
+        "B2": 1,
+        "M1": 1000
+      },
+      "coefficients_match": true
+    },
+    "confirmation_3m_up/up/h15": {
+      "fit_rows": 81255,
+      "alpha": {
+        "B2": 1000,
+        "M1": 1000
+      },
+      "coefficients_match": true
+    },
+    "confirmation_3m_down/down/h5": {
+      "fit_rows": 81821,
+      "alpha": {
+        "B2": 1000,
+        "M1": 0.1
+      },
+      "coefficients_match": true
+    },
+    "confirmation_3m_down/down/h15": {
+      "fit_rows": 81821,
+      "alpha": {
+        "B2": 0.1,
+        "M1": 1000
+      },
+      "coefficients_match": true
+    }
+  },
+  "capture": {
+    "path": "~/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite",
+    "sha256": "7a3eca1482726d7b5bc431c41bb2fc73929f4abe3635afb2edf5e9315ddea82c",
+    "reused_existing_capture": true
+  },
+  "rejections": {
+    "outside_phases_or_purged": 40719,
+    "rolling_cooldown": 76,
+    "missing_snapshot": 224,
+    "label_unavailable": 1661,
+    "required_features_missing": 2762
+  },
+  "coverage": {
+    "secondary_gap": {
+      "rows": 54338,
+      "days": 10,
+      "products": 369,
+      "rows_by_stratum_and_day": {
+        "confirmation_3m_down/down": {
+          "2026-10-18": 1764,
+          "2026-10-19": 1682,
+          "2026-10-20": 1392,
+          "2026-10-21": 1770,
+          "2026-10-22": 1887,
+          "2026-10-23": 1739,
+          "2026-10-24": 1714,
+          "2026-10-25": 1744,
+          "2026-10-26": 1778,
+          "2026-10-27": 1716
+        },
+        "confirmation_3m_up/up": {
+          "2026-10-18": 1739,
+          "2026-10-19": 1669,
+          "2026-10-20": 1420,
+          "2026-10-21": 1766,
+          "2026-10-22": 1837,
+          "2026-10-23": 1756,
+          "2026-10-24": 1714,
+          "2026-10-25": 1735,
+          "2026-10-26": 1749,
+          "2026-10-27": 1720
+        },
+        "ignition_1m/up": {
+          "2026-10-18": 2046,
+          "2026-10-19": 1962,
+          "2026-10-20": 1619,
+          "2026-10-21": 2082,
+          "2026-10-22": 2083,
+          "2026-10-23": 2048,
+          "2026-10-24": 2081,
+          "2026-10-25": 2075,
+          "2026-10-26": 2049,
+          "2026-10-27": 2002
+        }
+      }
+    },
+    "test": {
+      "rows": 83567,
+      "days": 16,
+      "products": 403,
+      "rows_by_stratum_and_day": {
+        "confirmation_3m_down/down": {
+          "2026-10-28": 1801,
+          "2026-10-29": 1810,
+          "2026-10-30": 1835,
+          "2026-10-31": 1751,
+          "2026-11-01": 1640,
+          "2026-11-02": 235,
+          "2026-11-03": 1782,
+          "2026-11-04": 1752,
+          "2026-11-05": 1859,
+          "2026-11-06": 1858,
+          "2026-11-07": 1741,
+          "2026-11-08": 1545,
+          "2026-11-09": 1786,
+          "2026-11-10": 1705,
+          "2026-11-11": 1707,
+          "2026-11-12": 1756
+        },
+        "confirmation_3m_up/up": {
+          "2026-10-28": 1767,
+          "2026-10-29": 1829,
+          "2026-10-30": 1826,
+          "2026-10-31": 1730,
+          "2026-11-01": 1650,
+          "2026-11-02": 221,
+          "2026-11-03": 1809,
+          "2026-11-04": 1772,
+          "2026-11-05": 1855,
+          "2026-11-06": 1859,
+          "2026-11-07": 1727,
+          "2026-11-08": 1566,
+          "2026-11-09": 1793,
+          "2026-11-10": 1716,
+          "2026-11-11": 1752,
+          "2026-11-12": 1776
+        },
+        "ignition_1m/up": {
+          "2026-10-28": 2045,
+          "2026-10-29": 2069,
+          "2026-10-30": 2097,
+          "2026-10-31": 2075,
+          "2026-11-01": 1906,
+          "2026-11-02": 257,
+          "2026-11-03": 2109,
+          "2026-11-04": 2114,
+          "2026-11-05": 2032,
+          "2026-11-06": 2118,
+          "2026-11-07": 1953,
+          "2026-11-08": 1733,
+          "2026-11-09": 1988,
+          "2026-11-10": 1927,
+          "2026-11-11": 1935,
+          "2026-11-12": 1998
+        }
+      }
+    }
+  },
+  "outcome_values_summarized": false
+}
