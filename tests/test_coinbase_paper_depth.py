@@ -202,6 +202,39 @@ def test_execution_book_must_be_newer_than_trigger_book():
     assert first["reason"] == "BOOK_NOT_AFTER_TRIGGER"
 
 
+def test_threshold_at_execution_uses_the_low_seen_at_trigger():
+    # Low $40,000; trigger at $45,000 (12.5%, $100); the book then dips to
+    # $35,000 before execution at $42,000. Against the trigger's low that is
+    # 5% and $40, below both rebound thresholds. Against the later low it
+    # would read 20% and $140.
+    result = simulate_depth_exit(
+        depth_window(
+            [
+                (0, [(40000, "1")]),
+                (1000, [(45000, "1")]),
+                (1200, [(35000, "1")]),
+                (1500, [(42000, "1")]),
+                (2000, [(42000, "1")]),
+                (3000, [(42000, "1")]),
+            ],
+            quantity="0.02",
+        )
+    )
+    for rule in ("rebound_pct", "rebound_usd"):
+        exit_row = result["first_hypothetical_exits"][rule]
+        assert exit_row["trigger_quote"]["observed_at_ms"] == 1000
+        assert exit_row["trigger_quote"]["observed_low_bid_usd"] == 40000
+        assert exit_row["observed_at_ms"] == 1500
+        assert exit_row["top_bid_usd"] == 42000
+        assert exit_row["observed_low_bid_usd"] == 40000
+        assert exit_row["rebound_pct"] == Decimal("5")
+        assert exit_row["rebound_usd"] == Decimal("40")
+        # The running low did fall; it just isn't the reference.
+        assert exit_row["execution_quote"]["observed_low_bid_usd"] == 35000
+        assert exit_row["execution_quote"]["rebound_pct"] == Decimal("20")
+        assert exit_row["threshold_held_at_exec"] is False
+
+
 def test_four_hour_synthetic_depth_run_is_never_official():
     spec = depth_window(
         [(time, DEEP) for time in range(0, PILOT_WINDOW_MS + 1, 1000)]

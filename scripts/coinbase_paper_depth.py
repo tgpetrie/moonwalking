@@ -219,7 +219,8 @@ def _depth_quote(quote, observed, inputs, max_stale, fee, slip, low, low_at):
     return status, mark
 
 
-def _depth_rule_exit(records, times, rule, threshold, latency, max_gap):
+def _depth_rule_exit(records, times, rule, threshold, latency, max_gap,
+                     cost, quantity):
     """First executable exit, plus what became of the first trigger.
 
     Carries over the two corrections the pilot already makes: an execution
@@ -278,11 +279,24 @@ def _depth_rule_exit(records, times, rule, threshold, latency, max_gap):
             if following == len(records):
                 break
             continue
+        # As in the pilot, re-measure the execution book from the low the
+        # trigger saw. The running low can fall between trigger and execution,
+        # and measuring from that later low would report a rebound the
+        # trigger's decision never relied on.
+        at_trigger_reference = _depth_mark(
+            exec_observed,
+            execution["exchange_time_ms"],
+            execution["depth"],
+            mark["observed_low_bid_usd"],
+            mark["low_observed_at_ms"],
+            cost,
+            quantity,
+        )
         exit_mark = {
-            **execution,
+            **at_trigger_reference,
             "trigger_quote": mark,
-            "threshold_held_at_exec": execution.get(rule) is not None
-            and execution[rule] >= threshold,
+            "execution_quote": execution,
+            "threshold_held_at_exec": at_trigger_reference[rule] >= threshold,
             "prior_missed_executions": misses["candidates"] - 1,
         }
         if first is None:
@@ -327,7 +341,8 @@ def simulate_depth_exit(spec):
     exits, diagnostics, comparisons, statuses = {}, {}, {}, {}
     for rule, threshold in inputs["thresholds"].items():
         exit_mark, diagnostics[rule] = _depth_rule_exit(
-            records, times, rule, threshold, latency, max_gap
+            records, times, rule, threshold, latency, max_gap,
+            inputs["entry_cost_usd"], inputs["quantity"],
         )
         exits[rule] = exit_mark
         comparisons[rule] = None
