@@ -1,5 +1,16 @@
 # Resume Moonwalking from anywhere
 
+## November 13 research restart
+
+Active continuation is `codex/instant-radar-research-restart-20261113`.
+Read [the new handoff](RADAR_RESEARCH_RESTART_20261113.md). Carbon and Fable
+are requested for separate deep reviews; prompts/source packets are being
+prepared and dispatch is not yet confirmed. Codex inspected retained Windows
+logs and found a VPN adapter disconnect about 102 ms after the last Asia
+frame. This supports a network-transition hypothesis, not a proven cause.
+No new capture, fitting, historical rerun, score or production change occurred.
+The older dated checkpoints below remain historical evidence.
+
 Updated November 10, 2026 (Pacific). This page is the current portable
 checkpoint for the **instant radar scoring work**. GitHub holds the code,
 contracts, completed results, work status and downloadable research evidence.

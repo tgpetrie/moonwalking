@@ -1,11 +1,11 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-11T02:09:31.968831+00:00",
-  "display_date_pacific": "2026-11-10",
+  "updated_utc": "2026-11-13T10:13:44.226023+00:00",
+  "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
-  "resume_branch": "codex/instant-radar-disconnect-diagnosis-20261111",
+  "resume_branch": "codex/instant-radar-research-restart-20261113",
   "implementation_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
   "documentation_checkpoint": "Use the current pushed branch tip; documentation-only commits may follow implementation_commit",
   "start_page": "docs/ai/RESUME_HERE.md",
@@ -47,8 +47,8 @@
   "owners": {
     "codex": {
       "role": "implementation_verification_and_portable_checkpoint",
-      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-InstantRadarOverflow-20261110",
-      "status": "disconnect_review_complete_collect_existing_windows_logs_before_new_pilot"
+      "windows_worktree": "C:\\Users\\tgpet\\Projects\\Moonwalking-RadarResearch-20261113",
+      "status": "prepare_carbon_fable_source_packets_and_review_new_windows_evidence"
     },
     "claude": {
       "role": "independent_code_and_target_review",
@@ -204,7 +204,12 @@
     "logical_byte_stop": 503316480,
     "targeted_tests_passed": 1231,
     "verifier": "scripts/scoring_experiment/verify_instant_timing_attempt.py",
-    "verifier_validation": {"targeted_tests_passed": 10, "archived_packet_records_verified": 166035, "archived_local_observations_verified": 80, "startup_packet_records_verified": 5743},
+    "verifier_validation": {
+      "targeted_tests_passed": 10,
+      "archived_packet_records_verified": 166035,
+      "archived_local_observations_verified": 80,
+      "startup_packet_records_verified": 5743
+    },
     "current_attempt": {
       "window_utc": "us",
       "full_subscription_ack_utc": "2026-11-09T15:18:07.078000+00:00",
@@ -226,7 +231,11 @@
     "runner": "scripts/scoring_experiment/run_instant_offline_checks.py",
     "scope": "one_finished_timing_attempt_verification_regressions_and_optional_local_advisory",
     "status_delivery": "local_status_file_and_result_artifacts",
-    "handoff_triggers": ["reviewable_result", "reproducible_blocker", "decision_changes_scope_or_gate"],
+    "handoff_triggers": [
+      "reviewable_result",
+      "reproducible_blocker",
+      "decision_changes_scope_or_gate"
+    ],
     "us_attempt_smoke": {
       "packet_records_verified": 302679,
       "local_observations_verified": 0,
@@ -945,5 +954,18 @@
     "new_pilot_recommended": false,
     "next_windows_action": "Run_copy_ready_existing_evidence_collection_block_in_review_then_inspect_attempts_clock_logs_and_retained_Windows_events",
     "independent_review": "not_requested_or_performed"
+  },
+  "research_restart_20261113": {
+    "handoff": "docs/ai/RADAR_RESEARCH_RESTART_20261113.md",
+    "source_checkpoint": "f291b35",
+    "requested_by_user": true,
+    "carbon_assignment": "hypothesis_and_fresh_study_design",
+    "fable_assignment": "research_pipeline_and_capture_readiness",
+    "dispatch_status": "prompts_and_source_packets_pending_not_dispatched",
+    "windows_evidence": "network_profile_vpn_disconnect_about_102ms_after_last_frame_cause_not_proven",
+    "raw_evidence_private": true,
+    "new_capture": false,
+    "fitting_allowed": false,
+    "live_changes": false
   }
 }
