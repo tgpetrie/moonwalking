@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-13T15:30:37.3488074+00:00",
+  "updated_utc": "2026-11-13T15:43:56.9937741+00:00",
   "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -394,6 +394,23 @@
     "packet_scope": "pinned_initial_v2_at_8b5b266_before_catalog_guard_fix; include current acceptance report and patch as follow-up addendum"
   },
   "other_research_lanes": {
+    "board_runner_continuation": {
+      "status": "exploratory_screen_completed_fresh_confirmation_open",
+      "objective": "Flag board entries more likely to continue in the displayed direction",
+      "replication_branch": "claude/instant-radar-fresh-replication-20261113",
+      "replication_results_commit": "7bd275748e1b9ee5758835337843a2dc1fe2a64e",
+      "study_brief_commit": "b5248e1d6c0e00a124768b31cdf07de985a3c413",
+      "carbon_runner_packet_commit": "a090711a5be561d2362348fba9a9393f70aed0fc",
+      "screen": "docs/research/RADAR_BOARD_RUNNER_SCREEN_20261113.md",
+      "reproducer": "scripts/scoring_experiment/screen_board_runners_20261113.py",
+      "screen_utc_interval": ["2026-10-28T00:00:00Z", "2026-11-13T00:00:00Z"],
+      "screen_raw_rows": 87155,
+      "candidate_for_fresh_confirmation": "one_minute_acceleration_vs_directional_percentage_move_on_one_minute_gainers",
+      "study_frozen": false,
+      "fresh_confirmation_run": false,
+      "candle_backfill_run": false,
+      "board_or_collector_changed": false
+    },
     "fundamentals_driver_review": {
       "status": "review_complete_corrected_readiness_passed_discovery_not_run",
       "branch": "codex/fundamentals-driver-review-20261030",

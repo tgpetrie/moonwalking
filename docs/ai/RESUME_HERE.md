@@ -1,5 +1,22 @@
 # Resume Moonwalking from anywhere
 
+## Board continuation research · November 13
+
+The [fresh replication](https://github.com/tgpetrie/moonwalking/blob/7bd275748e1b9ee5758835337843a2dc1fe2a64e/docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md)
+supports an overextension warning on board entries. A separate
+[exploratory runner screen](../research/RADAR_BOARD_RUNNER_SCREEN_20261113.md)
+on the same dates finds that large movers are also enriched for sampled
+continuation peaks. Percentage move is the baseline. Nominal 1m acceleration
+is a candidate challenger on 1m gainers. Fresh confirmation and a causal
+flag budget remain open.
+
+Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
+and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)
+are available from the fresh-replication branch. The local archive lacks
+minute candles for the screen dates. The episode ledger covers ranks
+1–8 and omits within-hour same-board re-entries. A broader early-watch
+study needs evidence before board entry.
+
 ## November 13 research restart
 
 Active continuation is `codex/instant-radar-research-restart-20261113`.
