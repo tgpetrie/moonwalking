@@ -27,6 +27,10 @@ from scripts.coinbase_paper_exit import (
 
 POLL_MS = PILOT_SETTINGS["poll_interval_ms"]
 FULL_WINDOW_SECONDS = PILOT_WINDOW_MS // 1_000
+DEFAULT_FILL_PAGES = 25
+MAX_FILL_PAGES = 50
+PREFLIGHT_SECONDS = 45
+PREFLIGHT_LEAD_SECONDS = PREFLIGHT_SECONDS + 15
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
@@ -118,8 +122,12 @@ def _usd_fills(fills, product_id, cutoff):
     return [fill for _, fill in ordered]
 
 
-def verify_slice_cost_basis(client, product_id, quantity):
+def verify_slice_cost_basis(
+    client, product_id, quantity, *, max_fill_pages=DEFAULT_FILL_PAGES
+):
     """Reconcile a fixed slice to the selected holding's weighted USD cost."""
+    if type(max_fill_pages) is not int or not 1 <= max_fill_pages <= MAX_FILL_PAGES:
+        raise ValueError(f"max fill pages must be between 1 and {MAX_FILL_PAGES}")
     if not isinstance(product_id, str) or not re.fullmatch(
         r"[A-Z0-9]+-USD", product_id
     ):
@@ -131,7 +139,9 @@ def verify_slice_cost_basis(client, product_id, quantity):
     if available < quantity:
         raise UnverifiedCostBasisError("selected quantity exceeds available balance")
     cutoff = datetime.now(timezone.utc)
-    fills = client.list_fills(asset=asset, require_complete=True)
+    fills = client.list_fills(
+        asset=asset, require_complete=True, max_pages=max_fill_pages
+    )
     if not fills.complete:
         raise UnverifiedCostBasisError("Coinbase fill pagination is incomplete")
     try:
@@ -222,6 +232,14 @@ def main():
     )
     parser.add_argument("--duration-seconds", type=int, default=FULL_WINDOW_SECONDS)
     parser.add_argument(
+        "--max-fill-pages",
+        type=int,
+        choices=range(1, MAX_FILL_PAGES + 1),
+        default=DEFAULT_FILL_PAGES,
+        metavar=f"[1-{MAX_FILL_PAGES}]",
+        help=f"100 fills per page (default: {DEFAULT_FILL_PAGES} pages)",
+    )
+    parser.add_argument(
         "--slippage-bps", required=True, help="Paper execution assumption"
     )
     parser.add_argument(
@@ -265,12 +283,23 @@ def main():
         }
         # Validate user-controlled inputs before any authenticated requests.
         _scenario_inputs({**spec, "entry_cost_usd": 1, "exit_fee_bps": 0})
-        wait = (start_ms - _now_ms()) / 1_000 - 60
+        wait = (start_ms - _now_ms()) / 1_000 - PREFLIGHT_LEAD_SECONDS
         if wait > 0:
             time.sleep(wait)
         client = CoinbaseAdvancedTradeClient.from_environment()
-        spec.update(verify_slice_cost_basis(client, args.product, args.quantity))
-        spec["exit_fee_bps"] = fetch_fee_tier_bps(client)
+        seconds_until_start = (start_ms - _now_ms()) / 1_000
+        client.request_deadline_monotonic = time.monotonic() + min(
+            PREFLIGHT_SECONDS, seconds_until_start
+        )
+        try:
+            spec.update(
+                verify_slice_cost_basis(
+                    client, args.product, args.quantity, max_fill_pages=args.max_fill_pages
+                )
+            )
+            spec["exit_fee_bps"] = fetch_fee_tier_bps(client)
+        finally:
+            client.request_deadline_monotonic = None
         spec["fee_tier_source"] = "coinbase_transaction_summary_taker"
         if _now_ms() >= start_ms:
             raise ValueError("position and fee verification missed the declared start")

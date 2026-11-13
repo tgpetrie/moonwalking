@@ -116,6 +116,7 @@ class CoinbaseAdvancedTradeClient:
         self.oauth_access_token = str(oauth_access_token or "").strip()
         self.http = http_session or requests.Session()
         self.timeout = timeout
+        self.request_deadline_monotonic: float | None = None
         self.auth_method = "oauth" if self.oauth_access_token else "jwt"
 
     @classmethod
@@ -148,12 +149,18 @@ class CoinbaseAdvancedTradeClient:
         )
 
     def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        deadline = self.request_deadline_monotonic
         try:
             if self.auth_method == "oauth":
                 auth_header = f"Bearer {self.oauth_access_token}"
             else:
                 auth_header = f"Bearer {self._jwt('GET', path)}"
 
+            timeout = self.timeout
+            if deadline is not None:
+                timeout = min(timeout, deadline - time.monotonic())
+                if timeout <= 0:
+                    raise CoinbaseRequestError("Coinbase preflight time budget expired.")
             response = self.http.get(
                 f"{COINBASE_BASE_URL}{path}",
                 params=params or None,
@@ -162,7 +169,7 @@ class CoinbaseAdvancedTradeClient:
                     "Accept": "application/json",
                     "Cache-Control": "no-cache",
                 },
-                timeout=self.timeout,
+                timeout=timeout,
             )
         except PortfolioModeError:
             raise
@@ -184,6 +191,8 @@ class CoinbaseAdvancedTradeClient:
             raise CoinbaseRequestError(
                 "Coinbase returned an unreadable response."
             ) from exc
+        if deadline is not None and time.monotonic() >= deadline:
+            raise CoinbaseRequestError("Coinbase preflight time budget expired.")
         return payload if isinstance(payload, dict) else {}
 
     def _pages(
@@ -196,7 +205,10 @@ class CoinbaseAdvancedTradeClient:
         require_complete: bool = False,
         filters: dict[str, Any] | None = None,
     ) -> PageResult:
+        if max_pages < 1:
+            raise ValueError("pagination requires at least one page")
         cursor = ""
+        seen_cursors: set[str] = set()
         items: list[dict[str, Any]] = []
         complete = True
         for page_index in range(max_pages):
@@ -214,7 +226,12 @@ class CoinbaseAdvancedTradeClient:
                 items.extend(item for item in page_items if isinstance(item, dict))
             if payload.get("proof_token_required") is True:
                 return PageResult(items=items, complete=False)
-            next_cursor = str(payload.get("cursor") or "")
+            cursor_value = payload.get("cursor")
+            if require_complete and cursor_value is not None and not isinstance(
+                cursor_value, str
+            ):
+                return PageResult(items, complete=False)
+            next_cursor = str(cursor_value or "")
             has_next_value = payload.get("has_next")
             if require_complete:
                 has_next = (
@@ -224,8 +241,9 @@ class CoinbaseAdvancedTradeClient:
                     return PageResult(items, complete=False)
                 if not has_next:
                     return PageResult(items)
-                if not next_cursor or next_cursor == cursor:
+                if not next_cursor or next_cursor in seen_cursors:
                     return PageResult(items, complete=False)
+                seen_cursors.add(next_cursor)
                 cursor = next_cursor
                 complete = False
                 continue
@@ -255,12 +273,17 @@ class CoinbaseAdvancedTradeClient:
         )
 
     def list_fills(
-        self, *, asset: str | None = None, require_complete: bool = False
+        self,
+        *,
+        asset: str | None = None,
+        require_complete: bool = False,
+        max_pages: int = 5,
     ) -> PageResult:
         return self._pages(
             "/api/v3/brokerage/orders/historical/fills",
             "fills",
             limit=100 if require_complete else 1000,
+            max_pages=max_pages,
             require_complete=require_complete,
             filters={"asset_filters": [asset]} if asset else None,
         )

@@ -44,7 +44,7 @@ Run from the repository root with the backend Python environment and the
 existing `COINBASE_API_KEY_NAME` and `COINBASE_API_KEY_SECRET` set privately
 in the process environment. Choose a held USD spot pair and a quantity
 available in the key's portfolio. The example uses a 10 bps slippage
-assumption and schedules a 30-second smoke check one minute ahead.
+assumption and schedules a 30-second smoke check two minutes ahead.
 Check the Windows clock before starting. The replay compares local
 receipt times with Coinbase book times. One missed polling slot leaves
 29 of 30 usable slots, below the 98% window-quality threshold.
@@ -54,9 +54,9 @@ $pilotDir = Join-Path $env:USERPROFILE '.moonwalking\analysis\coinbase-paper'
 New-Item -ItemType Directory -Force $pilotDir | Out-Null
 $pair = Read-Host 'Held USD spot pair'
 $quantity = Read-Host 'Quantity of the coin to simulate'
-$start = [DateTimeOffset]::UtcNow.AddMinutes(1).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+$start = [DateTimeOffset]::UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
 $tape = Join-Path $pilotDir ("smoke-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".json")
-python -m backend.paper_exit_adapter --product $pair --quantity $quantity --start-utc $start --duration-seconds 30 --slippage-bps 10 --out $tape
+python -m backend.paper_exit_adapter --product $pair --quantity $quantity --start-utc $start --duration-seconds 30 --max-fill-pages 25 --slippage-bps 10 --out $tape
 if ($LASTEXITCODE -eq 0) {
     python scripts/coinbase_paper_exit.py $tape
 }
@@ -67,10 +67,17 @@ For a four-hour research window, supply a future UTC start at 00:00,
 The collector checks View-only permissions, reconciles the full holding
 to paginated USD fills, and allocates weighted acquisition cost to the
 selected quantity. It checks the balance again after reading fills.
+The paper collector defaults to 25 fill pages of 100 and accepts
+`--max-fill-pages` from 1 to 50. It requires a terminal page and rejects
+repeated cursors. The permission, balance, fill and fee requests share a
+45-second preflight deadline, shortened if the declared start is closer.
+The normal Portfolio Mode still uses its five-page budget.
 Transferred inventory, cross-pair fills, ambiguous fill order and
 incomplete pagination can make a holding ineligible. Reconciliation
 can establish agreement between fills and balances. Transfers that
-offset each other can escape a quantity comparison.
+offset each other can escape a quantity comparison. A USD-sized fill
+can still fail exact balance reconciliation if its credited base
+quantity differs from the reconstructed quantity.
 The [transaction summary](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/fees/get-transaction-summary)
 supplies the account's spot taker fee estimate. The
 [product book](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/products/get-product-book)
