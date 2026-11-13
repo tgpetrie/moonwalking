@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-13T19:01:19.8010161+00:00",
+  "updated_utc": "2026-11-13T19:14:15.1315576+00:00",
   "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -419,6 +419,9 @@
       "sentiment_assignment": "docs/ai/CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md",
       "sentiment_source_packet": "docs/research/review_packets/CARBON_SENTIMENT_RADAR_SOURCE_20261113.txt",
       "sentiment_packet_sha256": "aa51e1960052265d45b04734644409eb0772eacd921ec8b15156e4bd1f836528",
+      "sentiment_review_received_sha256": "86a7786040156514e65a2fcfd002251f43e9f2cdfa086eafb7141cc1cd2ab3e4",
+      "sentiment_review_disposition": "docs/research/RADAR_SENTIMENT_REVIEW_20261113.md",
+      "external_positioning": "hyperliquid_public_probe_passed_mapping_and_sustained_readiness_open_bybit_403",
       "collector_research_recording": "opt_in_v3_prepared_no_live_rollout",
       "confirmation_power": "paired_daily_sensitivity_documented_no_final_sample_size",
       "study_frozen": false,

@@ -29,6 +29,12 @@ Read the [sentiment and Chart Read audit](../research/RADAR_SENTIMENT_AND_CHART_
 and the [Carbon or Gemini research assignment](CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md)
 for the external attention and catalyst feasibility study.
 
+The [received review and source checks](../research/RADAR_SENTIMENT_REVIEW_20261113.md)
+identify Hyperliquid open interest as the first positioning feasibility
+candidate. A short public probe succeeded. Asset mapping and usable
+freshness still need measurement. The always-on collector is still writing
+v2 only. The v3 rollout and a sustained external intake pilot are open.
+
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)
 are available from the fresh-replication branch. The local archive lacks
