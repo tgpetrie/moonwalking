@@ -369,6 +369,7 @@ def test_official_pilot_settings_are_declared_and_reported():
         "official": PILOT_SETTINGS,
         "matches_official": True,
         "window_matches_official": True,
+        "synthetic_tape": False,
     }
     assert result["official_pilot_result"] is True
 
@@ -429,3 +430,28 @@ def test_sparse_stale_custom_tape_replays_but_is_not_official():
     assert result["data_quality"]["window_valid"]
     assert result["data_quality"]["valid_poll_slots"] == 4
     assert result["official_pilot_result"] is False
+
+
+@pytest.mark.parametrize(
+    ("flag", "value", "synthetic"),
+    [
+        ("synthetic_position", True, True),
+        ("market_data_check", True, True),
+        # Fail closed: any declared value but a literal False blocks it.
+        ("synthetic_position", "false", True),
+        ("synthetic_position", 0, True),
+        ("synthetic_position", False, False),
+    ],
+)
+def test_synthetic_tape_is_never_official_even_over_four_hours(flag, value, synthetic):
+    spec = pilot_window(
+        [(time, 40000, "1") for time in range(0, PILOT_WINDOW_MS + 1, 1000)],
+        latency=500,
+    )
+    spec[flag] = value
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["matches_official"] is True
+    assert result["pilot_settings"]["window_matches_official"] is True
+    assert result["pilot_settings"]["synthetic_tape"] is synthetic
+    assert result["official_pilot_result"] is (not synthetic)

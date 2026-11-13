@@ -22,6 +22,8 @@ PILOT_SETTINGS = {
     "max_stale_ms": 2_000,
     "max_gap_ms": 5_000,
 }
+# Any of these marks a tape as synthetic, which can never be a pilot result.
+SYNTHETIC_FLAGS = ("synthetic_position", "market_data_check")
 
 
 def _number(record, field, *, allow_zero=False):
@@ -303,6 +305,12 @@ def _simulate_window(spec, inputs):
     }
     official_settings = declared == PILOT_SETTINGS
     official_window = end - start == PILOT_WINDOW_MS and start % PILOT_WINDOW_MS == 0
+    # A tape built around an invented position or public quotes alone has no
+    # verified holding behind it, however long and clean the window. Fail
+    # closed: anything but an absent flag or a literal False counts.
+    synthetic = any(
+        flag in spec and spec[flag] is not False for flag in SYNTHETIC_FLAGS
+    )
     mark_inputs = _mark_inputs(inputs)
     records = []
     low = low_at = None
@@ -352,9 +360,13 @@ def _simulate_window(spec, inputs):
             "official": dict(PILOT_SETTINGS),
             "matches_official": official_settings,
             "window_matches_official": official_window,
+            "synthetic_tape": synthetic,
         },
         "official_pilot_result": (
-            official_settings and official_window and quality["window_valid"]
+            official_settings
+            and official_window
+            and quality["window_valid"]
+            and not synthetic
         ),
         "data_quality": quality,
         "first_hypothetical_exits": exits,
