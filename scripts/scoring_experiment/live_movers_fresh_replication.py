@@ -36,6 +36,7 @@ PROTOCOL = ROOT / "docs/research/LIVE_MOVERS_FRESH_REPLICATION_PROTOCOL_20261113
 PHASES = {"secondary_gap": ["2026-10-18T00:00:00+00:00", "2026-10-28T00:00:00+00:00"],
           "test": ["2026-10-28T00:00:00+00:00", "2026-11-13T00:00:00+00:00"]}
 CAPTURE_END = "2026-11-13T00:00:00+00:00"
+PRIVATE_PATH = "~/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite"  # home-relative; outside Git
 PRIMARY = ("confirmation_3m_up/up", "h5")
 SEED, REPS = 20261113, 5000
 MIN_EFFECT, MIN_DAYS = 0.02, 12
@@ -81,7 +82,7 @@ def capture_ledger(source: Path, work: Path, freeze) -> dict:
     """Copy board rows before the capture end from the live ledger, read-only, into a private file. Never overwrites."""
     db = work / "board_episodes.sqlite"
     if db.exists():
-        return {"path": str(db), "sha256": run_digest(db), "reused_existing_capture": True}
+        return {"path": PRIVATE_PATH, "sha256": run_digest(db), "reused_existing_capture": True}
     work.mkdir(parents=True, exist_ok=True)
     src = sqlite3.connect(source.as_uri() + "?mode=ro", uri=True, timeout=30)
     src.execute("pragma query_only=on")
@@ -105,7 +106,7 @@ def capture_ledger(source: Path, work: Path, freeze) -> dict:
     dest.commit()
     assert dest.execute("pragma integrity_check").fetchone()[0] == "ok"
     dest.close()
-    return {"path": str(db), "sha256": run_digest(db), "rows": rows, "reused_existing_capture": False,
+    return {"path": PRIVATE_PATH, "sha256": run_digest(db), "rows": rows, "reused_existing_capture": False,
             "captured_at_utc": datetime.now(timezone.utc).isoformat(), "capture_end_exclusive_utc": CAPTURE_END}
 
 
