@@ -85,14 +85,96 @@ overlapping windows, repeated products and cross-board dependence.
 
 ## Next research decision
 
-Use raw percentage move as the baseline at a practical flag budget. The
-cleanest challenger from this screen is 1m acceleration on the 1m gainers.
-Freeze a threshold or ranking against data available at decision time and
-an absolute continuation sensitivity alongside the daily relative tail.
-Validate on days after the rule is fixed. Determine the required number of
-days and episodes from day-block uncertainty and a meaningful lift before
-declaring a stopping rule. Keep 3m up and down separate. A fresh holdout
-needs enough independent periods, even when entry volume is high.
+### Relative drawdown check
+
+The follow-up used the identical capture, dates, eligibility, score weights,
+and top-fifth flag budget. Each UTC board/day has two outcome cutoffs: the
+upper 5% of `max_favorable_15m` and the lower 5% of `max_adverse_15m`. Both
+include boundary ties and use all entries with the existing 15m grade.
+The adverse field measures the worst excursion from entry, with the same
+sampling and possible checkpoint overshoot as the favorable field. On the
+losers board, an adverse excursion is a price rebound. The two events can
+occur in one episode. Their order is unavailable.
+
+Each cell shows the average daily flagged runner / adverse-tail rates.
+Matched base rates were about 5% for each tail on every board.
+
+| Entry-time signal | 1m gainers | 3m gainers | 3m losers |
+| --- | ---: | ---: | ---: |
+| Directional percentage move | 9.45% / 15.67% | 10.12% / 16.24% | 11.14% / 16.47% |
+| Entry rank | 8.89% / 13.86% | 9.43% / 15.01% | 9.71% / 15.11% |
+| Direction-aligned stored live score | 8.34% / 13.71% | 9.32% / 14.19% | 9.87% / 14.84% |
+| Nominal 1m acceleration | 10.96% / 16.49% | 7.91% / 13.24% | 9.08% / 13.36% |
+| 1h volume change | 5.65% / 6.20% | 6.23% / 5.62% | 6.04% / 5.99% |
+| Prior same-board entries over 24h | 4.53% / 3.36% | 6.40% / 5.40% | 6.30% / 5.29% |
+
+On 3m gainers, the raw-move flags had a 16.24% adverse-tail rate against
+2.26% unflagged. For 1m acceleration the rates were 16.49% and 2.16%.
+About 2% of flags in each of these comparisons reached both tails.
+At equal-sized 1% excursions, 3m raw-move flags reached +1% in the board
+direction 11.52% of the time and −1% 26.52%. The 1m acceleration figures
+were 11.96% and 24.34%.
+
+The 1m acceleration runner-minus-adverse gap was −5.53 percentage points
+(exploratory three-day block interval −6.61 to −4.32), versus −6.22 for
+raw move. The paired improvement was +0.69 points (+0.27 to +1.14).
+On 3m gainers the raw-move gap was −6.12 points (−8.65 to −4.20).
+Volume on 3m gainers and prior entries on both 3m boards had small
+positive gaps of 0.61–1.01 points. Prior entries on 1m gainers also had
+a positive gap, driven by fewer adverse events and a runner rate below
+base. Intervals use 5,000 draws of contiguous three-UTC-day blocks of
+paired daily rates. They are descriptive across signals on 16 explored
+days, with no multiplicity adjustment.
+
+### Carbon's sustained-runner proposal
+
+Carbon's November 13 memo supplied a useful absolute label. On the same
+dates, score a runner when the gross directional 15m checkpoint is at
+least +1%, the 5m checkpoint is above −0.5%, and either the stored 15m
+peak or the 30m checkpoint reaches +1.5%. Its mirror uses the negated
+directional returns and adverse excursion. Require all three finite
+checkpoints and the original non-interrupted 15m grade. This label
+matures at the 30m checkpoint and inherits ledger timing and last-trade
+limitations. It allows an episode to qualify from the 30m value, so
+the extension need not precede the 15m checkpoint.
+
+For this separate sensitivity, use Carbon's 25% daily quota, rounded down,
+on the same input-eligible rows before grading. Ties receive proportional
+weights. This preserves the alert denominator when an outcome is missing.
+The full-day quota remains a retrospective comparison.
+
+| Entry-time signal | 1m gainers runner / reversal | 3m gainers runner / reversal | 3m losers runner / reversal |
+| --- | ---: | ---: | ---: |
+| Matched base rates | 2.05% / 3.69% | 2.18% / 4.33% | 2.36% / 3.80% |
+| Directional percentage move | 3.49% / 9.25% | 4.19% / 11.02% | 4.81% / 9.79% |
+| Entry rank | 3.39% / 8.50% | 3.85% / 10.50% | 3.75% / 9.09% |
+| Direction-aligned stored live score | 3.19% / 8.44% | 4.02% / 10.15% | 4.25% / 9.50% |
+| Nominal 1m acceleration | 3.96% / 9.59% | 3.01% / 9.33% | 3.56% / 8.38% |
+| 1h volume change | 2.51% / 4.41% | 2.57% / 4.87% | 2.78% / 4.59% |
+| Prior same-board entries over 24h | 2.13% / 2.67% | 2.79% / 4.64% | 2.48% / 3.67% |
+
+The sustained comparison has 29,903 graded rows for 1m gainers, 26,227
+for 3m gainers, and 26,189 for 3m losers. Every tested flag has a higher
+sustained reversal rate than runner rate. The small positive gaps for
+volume and prior entries under the relative labels disappear under the
+sustained definition. Carbon expected a 5–10% runner base rate. The observed
+2.05–2.36% matters for any power calculation.
+
+### Disposition
+
+No tested flag clears the requested directional screen. Keep percentage
+move as the reference. The two-sided enrichment supports describing
+activity or reversal exposure. Volatility, liquidity and quote effects
+remain possible explanations that the ledger cannot separate.
+
+Use Carbon's absolute label as a design candidate alongside its adverse
+mirror. Before any freeze, specify an entry-time flag rule with a practical
+budget, and derive sample requirements from paired day or market-wave
+variation under the observed base rates. Carbon's full-day quota cannot
+run at entry. The proposed stopping rules also leave the 12–13 valid-day
+case ambiguous and need one fixed rule or a calibrated sequential design.
+Set the holdout after the finalized rule. No confirmation outcomes were
+read and no signal or protocol was frozen in this follow-up.
 
 One-minute candles can support research on unusual moves, activity and
 BTC-relative movement, and a separate pre-entry early-watch comparison.
@@ -118,7 +200,12 @@ uses October 27 entries only to initialize prior appearances and reads no
 entries from November 13 onward. No new capture or candle backfill ran.
 The 23 existing board, gap and candle-archive tests, the synthetic peak
 probe, formatting, JSON, diff and repository guardrail checks passed.
+The follow-up matched every previously emitted result across three boards
+and 18 score cells. The 14 board and gap tests passed again. Synthetic
+checks covered tied cutoffs, both tails on one row, ungradable flags,
+and the sustained label boundaries.
 
 ```powershell
 python scripts/scoring_experiment/screen_board_runners_20261113.py "$env:USERPROFILE/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite"
+python scripts/scoring_experiment/screen_board_runners_20261113.py "$env:USERPROFILE/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite" --carbon
 ```

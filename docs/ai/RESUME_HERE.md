@@ -5,10 +5,12 @@
 The [fresh replication](https://github.com/tgpetrie/moonwalking/blob/7bd275748e1b9ee5758835337843a2dc1fe2a64e/docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md)
 supports an overextension warning on board entries. A separate
 [exploratory runner screen](../research/RADAR_BOARD_RUNNER_SCREEN_20261113.md)
-on the same dates finds that large movers are also enriched for sampled
-continuation peaks. Percentage move is the baseline. Nominal 1m acceleration
-is a candidate challenger on 1m gainers. Fresh confirmation and a causal
-flag budget remain open.
+on the same dates finds enrichment in both tails. Raw percentage move and
+nominal 1m acceleration flag more adverse excursions than favorable ones.
+The follow-up also tested Carbon's sustained runner and its mirror. Every
+tested flag had a higher sustained reversal rate, so none advanced to a
+directional freeze. Percentage move remains the reference. A causal
+flag budget and fresh confirmation design remain open.
 
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)

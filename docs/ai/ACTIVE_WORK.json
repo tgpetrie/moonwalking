@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-13T15:43:56.9937741+00:00",
+  "updated_utc": "2026-11-13T18:29:16.9959694+00:00",
   "display_date_pacific": "2026-11-13",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -395,7 +395,7 @@
   },
   "other_research_lanes": {
     "board_runner_continuation": {
-      "status": "exploratory_screen_completed_fresh_confirmation_open",
+      "status": "exploratory_two_sided_screen_complete_no_directional_signal_advanced",
       "objective": "Flag board entries more likely to continue in the displayed direction",
       "replication_branch": "claude/instant-radar-fresh-replication-20261113",
       "replication_results_commit": "7bd275748e1b9ee5758835337843a2dc1fe2a64e",
@@ -405,7 +405,10 @@
       "reproducer": "scripts/scoring_experiment/screen_board_runners_20261113.py",
       "screen_utc_interval": ["2026-10-28T00:00:00Z", "2026-11-13T00:00:00Z"],
       "screen_raw_rows": 87155,
-      "candidate_for_fresh_confirmation": "one_minute_acceleration_vs_directional_percentage_move_on_one_minute_gainers",
+      "carbon_design_memo_received_sha256": "c8c354652bbda35bc805b14222a401060c10fafec8613a87c54b26722db781e1",
+      "candidate_for_fresh_confirmation": null,
+      "reference_signal": "directional_percentage_move",
+      "directional_screen": "carbon_sustained_runner_and_mirror_explored_on_same_days_all_flags_had_more_sustained_reversals",
       "study_frozen": false,
       "fresh_confirmation_run": false,
       "candle_backfill_run": false,
