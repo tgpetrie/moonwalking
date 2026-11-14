@@ -1,7 +1,7 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-14T00:00:43.9628476Z",
-  "display_date_pacific": "2026-11-13",
+  "updated_utc": "2026-11-14T18:13:36.7291592Z",
+  "display_date_pacific": "2026-11-14",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
   "repository": "https://github.com/tgpetrie/moonwalking",
@@ -432,7 +432,20 @@
       "confirmation_power": "paired_daily_sensitivity_documented_no_final_sample_size",
       "study_frozen": false,
       "fresh_confirmation_run": false,
-      "candle_backfill": "btc_pilot_completed_full_497_product_backfill_in_progress",
+      "candle_backfill": "complete_verified_manifest_all_request_windows_accounted_for",
+      "candle_backfill_archive": {
+        "local_directory": "~/.moonwalking/analysis/radar_candle_backfill_20261113",
+        "manifest": "MANIFEST.json",
+        "range_start_utc": "2026-10-12T18:00:00Z",
+        "last_candle_open_bound_utc": "2026-11-13T14:59:00Z",
+        "roster_products": 497,
+        "products_with_candles": 407,
+        "candles": 4726150,
+        "empty_windows": 14419,
+        "unrecorded_windows": 0,
+        "request_errors": 8,
+        "archive_sha256": "d192386093794a9cf49658ea867f41bc4ea9b2686dec8880c2eea81e04b14553"
+      },
       "board_or_collector_changed": false
     },
     "fundamentals_driver_review": {

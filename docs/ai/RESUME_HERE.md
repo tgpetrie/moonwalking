@@ -21,9 +21,15 @@ the observed 2–3% runner base rate.
 are available. None of the three standalone candle scores advanced. The
 early-watch replay observed about two minutes of median lead among successful
 simulated graduates, with raw 3m move ahead of both candle challengers on
-runner precision. The separate public backfill is running. The opt-in
-16-rank quote recorder and existing v3 feature metadata need a collector
-rollout before they can produce fresh rows.
+runner precision. The public candle backfill finished November 13 Pacific.
+Its verified manifest records 4,726,150 one-minute candles across 407
+products from the 497-product roster, from October 12 18:00 UTC through
+the November 13 14:59 UTC candle open. All grid windows are accounted for,
+including 14,419 empty responses. Eight request failures occurred during
+the run. The archive and manifest are local under
+`~/.moonwalking/analysis/radar_candle_backfill_20261113`. The opt-in 16-rank
+quote recorder and existing v3 feature metadata need a collector rollout
+before they can produce fresh rows.
 
 Read the [sentiment and Chart Read audit](../research/RADAR_SENTIMENT_AND_CHART_20261113.md)
 and the [Carbon or Gemini research assignment](CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md)
