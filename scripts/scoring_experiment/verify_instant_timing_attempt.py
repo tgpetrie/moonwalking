@@ -28,6 +28,23 @@ def _index(rows, key):
     return indexed
 
 
+def _observations(path):
+    """Read consumer receipts; only an interrupted final append is tolerated."""
+    if not path.is_file():
+        return [], 0
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    rows = []
+    for number, line in enumerate(lines, 1):
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            if number == len(lines) and not text.endswith("\n"):
+                return rows, 1
+            raise ValueError(f"unreadable local observation at line {number}") from None
+    return rows, 0
+
+
 def _verify_packets(db, asofs, plan):
     waiting = iter(sorted(set(asofs)))
     next_asof = next(waiting, None)
@@ -172,18 +189,8 @@ def verify(attempt, *, plan_sha256=None):
         "journal digest differs from the report",
     )
 
-    observer_path = attempt / "observed.jsonl"
-    observed = _index(
-        (
-            (
-                json.loads(line)
-                for line in observer_path.read_text(encoding="utf-8").splitlines()
-            )
-            if observer_path.is_file()
-            else ()
-        ),
-        "publication_id",
-    )
+    observations, torn = _observations(attempt / "observed.jsonl")
+    observed = _index(observations, "publication_id")
     reported = _index(report["diagnostic_rows"], "publication_id")
     with closing(
         sqlite3.connect(
@@ -359,6 +366,7 @@ def verify(attempt, *, plan_sha256=None):
             r.local_commit_observed_ts_ms is None for r, _ in publications.values()
         ),
         local_observations_verified=len(observed),
+        torn_final_observation_lines=torn,
         schedule_results=arms,
     )
 

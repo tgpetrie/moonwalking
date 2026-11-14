@@ -256,7 +256,10 @@ def test_subcapacity_burst_drains_in_order_without_loss(monkeypatch):
             1_000_000_000 + i * 100_000 for i in range(1, 17)
         ]
         assert socket.recv() == ""
-        assert socket.reader_report() == dict(
+        report = socket.reader_report()
+        # The synthetic source ends with an empty return, not an overflow.
+        assert report.pop("transport")["kind"] == "empty_return"
+        assert report == dict(
             received=16,
             delivered=16,
             received_not_delivered=0,

@@ -18,6 +18,10 @@ from instant_stream_journal import (
 )
 
 
+def packets_barrier_ts(path):
+    return list(iter_packets(path))[-1]["envelope"]["receipt_ts_ms"]
+
+
 class TerminalSource:
     def __init__(self, clock, messages):
         self.clock = clock
@@ -126,18 +130,37 @@ def test_transport_termination_drains_exact_prefix_then_preserves_barrier(
     if isinstance(ending, Exception):
         assert socket.failure is ending
         assert attempt["error"] == str(ending)
-        # This is a diagnostic limitation, not evidence of a new connection bug:
-        # the reader keeps an exception object but the report only saves text.
+        # The attempt still saves only text; the structured detail is in the
+        # reader's transport snapshot below.
         assert "error_type" not in attempt and "errno" not in attempt
     else:
         assert socket.failure is None and "error" not in attempt
-    assert socket.reader_report() == dict(
+    report = socket.reader_report()
+    transport = report.pop("transport")
+    assert report == dict(
         received=33,
         delivered=33,
         received_not_delivered=0,
         sampled_high_water=33,
         overflow=None,
     )
+    # Reader-side detection precedes the owner's later journal barrier.
+    assert transport["detected_ts_ms"] == source.terminal_ms
+    assert transport["detected_ts_ms"] < packets_barrier_ts(path)
+    assert transport["last_return_age_ms"] == 10
+    assert (transport["received"], transport["queue_depth"]) == (33, 33)
+    assert transport["close_status"] is None
+    if isinstance(ending, Exception):
+        assert transport["kind"] == "exception"
+        assert transport["close_frame_returned"] is False
+        first = transport["exception_chain"][0]
+        assert first["message"] == str(ending)
+        assert first["type"].endswith(type(ending).__qualname__)
+        assert first["errno"] == getattr(ending, "errno", None)
+    else:
+        assert transport["kind"] == "empty_return"
+        assert transport["close_frame_returned"] is True
+        assert transport["exception_chain"] == []
     packets = list(iter_packets(path))
     assert [row["envelope"]["message"] for row in packets[1:-1]] == json.loads(
         json.dumps(messages)
@@ -153,8 +176,10 @@ def test_transport_termination_drains_exact_prefix_then_preserves_barrier(
         assert db.execute("PRAGMA quick_check").fetchone() == ("ok",)
         assert db.execute("SELECT count(*) FROM publications").fetchone() == (0,)
     assert source.closed
-    # Transport loss has no immediate stderr event in the current reader.
-    assert capsys.readouterr().err == ""
+    # One immediate stderr record survives an owner that never reports.
+    lines = capsys.readouterr().err.splitlines()
+    assert len(lines) == 1 and lines[0].startswith("READER_TRANSPORT ")
+    assert json.loads(lines[0].split(" ", 1)[1]) == transport
 
 
 def test_socket_timeout_is_retried_without_poisoning_later_data(monkeypatch):

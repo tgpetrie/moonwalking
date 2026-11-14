@@ -94,6 +94,8 @@ class QueuedSocket:
         self._writer = dict(phase="between_callbacks", started_ns=self._ns(), frames=0)
         self._last_writer = None
         self.overflow = None
+        self.transport = None
+        self._timeouts_since_return = 0
 
     @contextmanager
     def writer_activity(self, phase, frames=0):
@@ -112,8 +114,8 @@ class QueuedSocket:
                 )
                 self._writer = dict(phase="between_callbacks", started_ns=now, frames=0)
 
-    def _overflow_snapshot(self, reason, wall, now):
-        # Called under _stats_lock at the failed enqueue, before shutdown/drain.
+    def _queue_state(self, now):
+        # Caller holds _stats_lock. Depth is a sample, not a queue transaction.
         with self.queue.mutex:
             depth = len(self.queue.queue)
             oldest = self.queue.queue[0].receipt_ns if depth else None
@@ -127,6 +129,68 @@ class QueuedSocket:
                     and self._returns[0] >= boundary
                 ),
             )
+        return depth, oldest, arrivals
+
+    def _transport_snapshot(self, kind, failure):
+        """Freeze reader-side context when the transport ends, before draining.
+
+        Detection is the reader's own observation; it bounds, but is not, the
+        instant the network or peer failed. recv() exposes no close code.
+        """
+        wall, now = utc_ms(), self._ns()
+        chain, current = [], failure
+        while current is not None and len(chain) < 4:
+            chain.append(
+                dict(
+                    type=f"{type(current).__module__}.{type(current).__qualname__}",
+                    errno=getattr(current, "errno", None),
+                    winerror=getattr(current, "winerror", None),
+                    message=str(current)[:200],
+                )
+            )
+            current = current.__cause__ or current.__context__
+        with self._stats_lock:
+            depth, oldest, arrivals = self._queue_state(now)
+            self.transport = dict(
+                version="instant-reader-transport-v1",
+                kind=kind,
+                detected_ts_ms=wall,
+                detected_monotonic_ns=now,
+                last_return_age_ms=(
+                    (now - self._returns[-1]) / 1000000 if self._returns else None
+                ),
+                timeouts_since_last_return=self._timeouts_since_return,
+                queue_capacity=self.queue.maxsize,
+                queue_depth=depth,
+                oldest_queued_age_ms=(
+                    None if oldest is None else (now - oldest) / 1000000
+                ),
+                received=self.received,
+                delivered=self.delivered,
+                arrival_windows_ms=arrivals,
+                writer=dict(
+                    phase=self._writer["phase"],
+                    frames=self._writer["frames"],
+                    elapsed_ms=(now - self._writer["started_ns"]) / 1000000,
+                ),
+                last_completed_writer=deepcopy(self._last_writer),
+                exception_chain=chain,
+                close_frame_returned=kind == "empty_return",
+                close_status=None,
+                close_status_reason="not_exposed_by_websocket_recv",
+            )
+        try:
+            print(
+                "READER_TRANSPORT " + json.dumps(self.transport),
+                file=sys.stderr,
+                flush=True,
+            )
+        except OSError:
+            pass  # Logging must not replace the original failure.
+
+    def _overflow_snapshot(self, reason, wall, now):
+        # Called under _stats_lock at the failed enqueue, before shutdown/drain.
+        depth, oldest, arrivals = self._queue_state(now)
         self.overflow = dict(
             version="instant-reader-overflow-v1",
             reason=reason,
@@ -155,6 +219,7 @@ class QueuedSocket:
                 received_not_delivered=self.received - self.delivered,
                 sampled_high_water=self.high_water,
                 overflow=deepcopy(self.overflow),
+                transport=deepcopy(self.transport),
             )
 
     def send(self, raw):
@@ -167,13 +232,18 @@ class QueuedSocket:
                 try:
                     raw = self.socket.recv()
                 except self.timeout_errors:
+                    with self._stats_lock:
+                        self._timeouts_since_return += 1
                     continue
                 wall, duration = utc_ms(), self._ns()
                 if raw in ("", b""):
+                    if not self.stopping.is_set():
+                        self._transport_snapshot("empty_return", None)
                     break
                 with self._stats_lock:
                     self.received += 1
                     self._returns.append(duration)
+                    self._timeouts_since_return = 0
                     if len(raw) > MAX_FRAME_BYTES or (
                         isinstance(raw, str)
                         and len(raw.encode("utf-8", errors="surrogatepass"))
@@ -193,6 +263,8 @@ class QueuedSocket:
                     self.high_water = max(self.high_water, self.queue.qsize())
         except Exception as exc:
             if not self.stopping.is_set():
+                if self.overflow is None:
+                    self._transport_snapshot("exception", exc)
                 self.failure = exc
                 if self.overflow is not None:
                     # One bounded stderr record survives a still-blocked owner.
@@ -326,7 +398,9 @@ class DiagnosticCohorts:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         asof = self.next_cutoff + self.offsets[len(self.elapsed)]
-        if now < asof:
+        # A packet finished while the clock still reads the as-of millisecond
+        # becomes available at that as-of. Freeze only once it has closed.
+        if now <= asof:
             return
         # A clock passing the planned as-of can coexist with queued packets.
         # Use the declared knowledge time and leave unavailable features null.
