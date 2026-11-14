@@ -12,10 +12,10 @@ tested flag had a higher sustained reversal rate, so none advanced to a
 directional freeze. Percentage move remains the reference. A causal
 flag budget and fresh confirmation design remain open.
 
-Claude's local Step 1 result `6ed116c` reached the same selection decision
-on earlier dates. The runner report now includes an archive coverage
-check and a day-level power sensitivity at the observed 2–3% runner
-base rate.
+[Claude's Step 1](https://github.com/tgpetrie/moonwalking/blob/6ed116c06ae766ac32da7e2a4b85259cea266a9a/docs/research/RADAR_RUNNER_SIGNAL_SCREEN_RESULTS_20261113.md)
+reached the same selection decision on earlier dates. The runner report
+includes an archive coverage check and day-level power sensitivity at
+the observed 2–3% runner base rate.
 
 [Step 2 and early-watch results](../research/RADAR_CANDLE_RESULTS_20261113.md)
 are available. None of the three standalone candle scores advanced. The
@@ -35,12 +35,27 @@ candidate. A short public probe succeeded. Asset mapping and usable
 freshness still need measurement. The always-on collector is still writing
 v2 only. The v3 rollout and a sustained external intake pilot are open.
 
+Claude pushed its nine research commits through `ade1694` on
+`claude/instant-radar-fresh-replication-20261113`.
+[Step 2](https://github.com/tgpetrie/moonwalking/blob/ade1694ec52cae31a8ef59f8e71d6755c82964e0/docs/research/RADAR_RUNNER_CANDLE_SCREEN_RESULTS_20261113.md)
+found a possible dollar-activity reversal filter. In the 3m-gainer check
+window, reversal precision fell from 8.48% to 3.94% and runner precision
+fell from 3.77% to 3.33%. The historical screen used whole-day quotas.
+The next test is a price-ranked filter applied at entry, compared at
+the same alert burden with reversals avoided and runners missed reported.
+
+[Claude's early-watch screen](https://github.com/tgpetrie/moonwalking/blob/ade1694ec52cae31a8ef59f8e71d6755c82964e0/docs/research/RADAR_EARLY_WATCH_SCREEN_RESULTS_20261113.md)
+also completed. The BTC-relative challenger gained about 0.4 percentage
+points in runner precision and added a similar number of reversals.
+Nothing met the promotion criteria. Its post-run mirror check found
+roughly balanced outcomes among pre-board candidates and more reversals
+among top-eight coin-minutes. The replay used synthetic candle rankings
+and whole-day quotas.
+
 The [revised Gemini review](../research/RADAR_SENTIMENT_REVIEW_20261113.md#revised-gemini-review--november-13)
 finds that the documented LunarCrush batch lacks the proposed 60m input.
-Hyperliquid remains the first external readiness candidate. Claude's local
-Step 2 found a possible dollar-activity reversal filter on 3m gainers and
-lower runner precision in its check window. A causal activity comparison
-and outcome-blind external readiness check are open.
+Hyperliquid remains the first candidate for an outcome-blind external
+readiness check.
 
 Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
 and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)

@@ -142,9 +142,8 @@ supply no measured arrival lag for a news or social feed.
   three-minute dollar activity by observed candle density. The full-day
   flag quota and treatment of missing bars limit the inference. Coinbase
   documents both no-tick omissions and potentially incomplete history.
-  Carry the result forward as a possible reversal filter. The source at
-  `333edb6419cbbfd834f74b9a763ebf7b533d3365` was still local in Claude's
-  checkout when verified.
+  Carry the result forward as a possible reversal filter.
+  [Published Step 2 report](https://github.com/tgpetrie/moonwalking/blob/ade1694ec52cae31a8ef59f8e71d6755c82964e0/docs/research/RADAR_RUNNER_CANDLE_SCREEN_RESULTS_20261113.md)
   [Coinbase candle behavior](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles)
 
 ### Before a confirmation freeze
