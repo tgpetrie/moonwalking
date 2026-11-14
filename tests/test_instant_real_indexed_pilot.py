@@ -323,13 +323,14 @@ def test_staggered_cohorts_use_their_own_asof_and_actual_observer_clock(
             offsets=(1500, 5000) * 10,
             step_ms=10000,
         )
-        clock.now = first + 1499
+        # The as-of millisecond itself is still open to same-clock packets.
+        clock.now = first + 1500
         cohorts.after_commit(4999)
         assert len(cohorts.rows) == 0
         assert calls[0][-2:] == ["--observer-limit-s", "240"]
-        clock.now = first + 1500
+        clock.now = first + 1501
         cohorts.after_commit(4999)
-        clock.now = first + 15000
+        clock.now = first + 15001
         cohorts.after_commit(4999)
         assert [r["knowledge_asof_ts_ms"] for r in cohorts.rows] == (
             [first + 1500] * 12 + [first + 15000] * 12

@@ -18,6 +18,7 @@ TESTS = (
     "tests/test_instant_real_indexed_pilot.py",
     "tests/test_instant_reader_overflow.py",
     "tests/test_instant_reader_disconnect.py",
+    "tests/test_instant_pipeline_boundary_review.py",
 )
 
 
