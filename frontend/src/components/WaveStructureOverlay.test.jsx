@@ -65,7 +65,7 @@ describe("wave structure overlay", () => {
 
     const zone = screen.getByTestId("wave-c-zone").querySelector("rect");
     expect(Number(zone.getAttribute("height"))).toBeGreaterThan(1);
-    expect(screen.getByTestId("wave-c-zone").textContent).toContain("C = 1.000 × A");
+    expect(screen.getByTestId("wave-c-zone").textContent).toContain("1.000");
 
     const broken = screen.getByTestId("wave-invalidation");
     expect(broken.querySelector("line").getAttribute("stroke-dasharray")).toBe("6 4");

@@ -92,7 +92,7 @@ export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
               <rect x={x(c[0]) - candleWidth / 2} y={378 - c[5] / volumeMax * 35} width={candleWidth} height={c[5] / volumeMax * 35} fill={color} opacity="0.35" />
             </g>;
           })}
-          {wave && <WaveStructureOverlay wave={wave} x={x} y={y} xMin={16} xMax={580} firstTime={firstTime} priceText={priceText} />}
+          {wave && <WaveStructureOverlay wave={wave} x={x} y={y} xMin={16} xMax={580} firstTime={firstTime} />}
           {positioned.map((level) => <g key={level.id} role="button" tabIndex={0}
             aria-label={`Explain ${level.label.toLowerCase()} at ${priceText(level.price)}`} aria-pressed={active.id === level.id}
             className="risk-chart__line" onClick={() => setSelected(level.id)}
@@ -116,7 +116,7 @@ export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
       <div className="risk-chart__explanation" aria-live="polite" style={{ borderColor: active.color }}>
         <h4>{active.label} · {priceText(active.price)}</h4><p>{active.why}</p>
       </div>
-      {wave && <p className="risk-chart__hint" data-testid="risk-chart-wave-note"><strong>Wave structure · {wavePatternLabel(wave)}.</strong> {wave.summary} Wave counts are descriptive and not outcome-validated.</p>}
+      {wave && <p className="risk-chart__hint" data-testid="risk-chart-wave-note"><strong>Wave structure · {wavePatternLabel(wave)}.</strong> {wave.summary} The shaded band is the projected wave C zone, 0.618 to 1.618 of wave A. Wave counts are descriptive and not outcome-validated.</p>}
       <p className="risk-chart__hint">Quote as of {timeText(plan.price_as_of)} · Last candle closed {timeText(chart.last_close_at)} · Times shown in your local timezone. This is a snapshot; refresh Risk Levels for an updated plan.</p>
       <p className="risk-chart__hint">Suggested prices are reference levels, not exchange-validated order prices. The sell-limit gap is an uncalibrated ATR-based compatibility placeholder, not a live liquidity or spread estimate. Check the market pair and allowed price increment before entering them. A stop-limit can remain unfilled if price gaps below the limit. <a href="https://help.coinbase.com/en/coinbase/trading-and-funding/advanced-trade/order-types" target="_blank" rel="noreferrer">How stop-limit orders work</a></p>
     </section>

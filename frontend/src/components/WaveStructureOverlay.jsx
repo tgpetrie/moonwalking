@@ -55,7 +55,7 @@ export function wavePrices(wave, firstTime = -Infinity) {
 }
 
 export default function WaveStructureOverlay({
-  wave, x, y, xMin, xMax, firstTime = -Infinity, priceText = defaultPriceText,
+  wave, x, y, xMin, xMax, firstTime = -Infinity, priceText = defaultPriceText, compact = false,
 }) {
   if (!waveIsDrawable(wave)) return null;
   const points = wavePointsInView(wave, firstTime);
@@ -79,8 +79,13 @@ export default function WaveStructureOverlay({
           </rect>
           {Object.entries(zone.levels || {}).filter(([, price]) => positive(price)).map(([ratio, price]) => (
             <g key={ratio}>
-              <line x1={zoneX} x2={xMax} y1={y(price)} y2={y(price)} stroke={WAVE_COLOR} strokeOpacity="0.35" strokeDasharray="2 4" />
-              <text x={xMax - 4} y={y(price) - 3} fill={WAVE_COLOR} fillOpacity="0.8" fontSize="9" textAnchor="end">{`C = ${ratio} × A`}</text>
+              <line x1={zoneX} x2={xMax} y1={y(price)} y2={y(price)} stroke={WAVE_COLOR} strokeOpacity="0.35" strokeDasharray="2 4">
+                <title>{`Wave C equal to ${ratio} of wave A: ${priceText(price)}`}</title>
+              </line>
+              {/* Ratio of wave A, at the zone's left edge where wave C has not yet travelled. */}
+              {!compact && (
+                <text x={zoneX + 4} y={y(price) - 3} fill={WAVE_COLOR} fontSize="9" stroke="#0c1119" strokeWidth="2.5" paintOrder="stroke">{ratio}</text>
+              )}
             </g>
           ))}
         </g>
@@ -90,7 +95,7 @@ export default function WaveStructureOverlay({
           <line x1={xMin} x2={xMax} y1={y(breakPrice)} y2={y(breakPrice)} stroke={WAVE_BREAK_COLOR} strokeWidth="1.2" strokeDasharray="6 4">
             <title>{`The wave count no longer applies ${side} ${priceText(breakPrice)}`}</title>
           </line>
-          <text x={xMin + 4} y={y(breakPrice) - 4} fill={WAVE_BREAK_COLOR} fontSize="10">{`Wave count breaks ${side} ${priceText(breakPrice)}`}</text>
+          <text x={xMin + 4} y={y(breakPrice) - 4} fill={WAVE_BREAK_COLOR} fontSize="10" stroke="#0c1119" strokeWidth="3" paintOrder="stroke">{`Wave count breaks ${side} ${priceText(breakPrice)}`}</text>
         </g>
       )}
       {confirmed.length >= 2 && (

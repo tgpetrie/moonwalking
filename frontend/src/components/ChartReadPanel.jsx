@@ -83,7 +83,7 @@ function WaveMiniChart({ wave }) {
       {bars.map((c) => <line key={c[0]} x1={x(c[0])} x2={x(c[0])} y1={y(c[2])} y2={y(c[1])} stroke="#ffffff22" />)}
       {bars.length >= 2 && <polyline fill="none" stroke="#e6edf580" strokeWidth="1"
         points={bars.map((c) => `${x(c[0])},${y(c[4])}`).join(' ')} />}
-      <WaveStructureOverlay wave={wave} x={x} y={y} xMin={10} xMax={550} firstTime={firstTime} priceText={wavePrice} />
+      <WaveStructureOverlay wave={wave} x={x} y={y} xMin={10} xMax={550} firstTime={firstTime} priceText={wavePrice} compact />
     </svg>
   );
 }
