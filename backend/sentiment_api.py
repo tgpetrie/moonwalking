@@ -91,6 +91,8 @@ CG_STALE_SEC = 10 * 60  # 10 minutes
 # Binance USD-M futures public market-positioning cache
 _BINANCE_DERIVATIVES_CACHE: Optional[Dict[str, Any]] = None
 _BINANCE_DERIVATIVES_CACHE_TS: Optional[datetime] = None
+# Latest all-coin Hyperliquid snapshot, refreshed with the derivatives payload.
+_HYPERLIQUID_COIN_POSITIONING: Dict[str, Dict[str, Any]] = {}
 BINANCE_DERIVATIVES_CACHE_TTL_SEC = 120  # 2 minutes
 BINANCE_DERIVATIVES_STALE_SEC = 10 * 60  # 10 minutes
 
@@ -738,6 +740,54 @@ async def _get_bybit_symbol_positioning(
         return None, _source_error("bybit", symbol, exc)
 
 
+def _extract_all_hyperliquid_coin_positioning(
+    meta: Any, asset_ctxs: Any
+) -> Dict[str, Dict[str, Any]]:
+    """Positioning for every listed Hyperliquid perp with a positive mark price.
+
+    `meta["universe"][i]` describes `asset_ctxs[i]`. Keys are the uppercase
+    Hyperliquid name. A `k` prefix (kPEPE) is a 1000x contract: the key stays
+    `KPEPE`, with `underlying_symbol` and `price_multiplier` recorded, because
+    its mark price is not the spot coin's. Delisted, unnamed and malformed
+    entries, and assets without a positive `markPx`, are left out. Funding is
+    the hourly rate; `funding_rate_8h_equiv` only rescales it for comparison
+    with 8h venues. Missing values stay `None`, never zero.
+    """
+    universe = meta.get("universe") if isinstance(meta, dict) else None
+    out: Dict[str, Dict[str, Any]] = {}
+    if not isinstance(universe, list) or not isinstance(asset_ctxs, list):
+        return out
+    for asset, ctx in zip(universe, asset_ctxs):
+        if not isinstance(asset, dict) or not isinstance(ctx, dict):
+            continue
+        name = asset.get("name")
+        if not isinstance(name, str) or not name.strip() or asset.get("isDelisted"):
+            continue
+        name = name.strip()
+        mark_price = _safe_float(ctx.get("markPx"))
+        if mark_price is None or mark_price <= 0 or name.upper() in out:
+            continue
+        thousand = len(name) > 1 and name[0] == "k" and name[1:].isupper()
+        funding = _safe_float(ctx.get("funding"))
+        open_interest = _safe_float(ctx.get("openInterest"))
+        out[name.upper()] = {
+            "exchange": "hyperliquid",
+            "symbol": name,
+            "underlying_symbol": name[1:] if thousand else name.upper(),
+            "price_multiplier": 1000 if thousand else 1,
+            "mark_price": mark_price,
+            "index_price": _safe_float(ctx.get("oraclePx")),
+            "funding_rate": funding,
+            "funding_interval_hours": HYPERLIQUID_FUNDING_INTERVAL_HOURS,
+            "funding_rate_8h_equiv": None if funding is None else funding * 8.0,
+            "open_interest": open_interest,
+            "open_interest_usd": (
+                None if open_interest is None else open_interest * mark_price
+            ),
+        }
+    return out
+
+
 async def _get_hyperliquid_positioning() -> (
     List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]
 ):
@@ -758,9 +808,15 @@ async def _get_hyperliquid_positioning() -> (
         resp.raise_for_status()
         return resp.json()
 
+    global _HYPERLIQUID_COIN_POSITIONING
+    # A failed fetch must not leave an earlier snapshot under a new timestamp.
+    _HYPERLIQUID_COIN_POSITIONING = {}
     try:
         data = await asyncio.to_thread(_req)
         meta, asset_ctxs = data[0], data[1]
+        _HYPERLIQUID_COIN_POSITIONING = _extract_all_hyperliquid_coin_positioning(
+            meta, asset_ctxs
+        )
         universe = meta.get("universe") or []
         index_by_name = {asset.get("name"): i for i, asset in enumerate(universe)}
         results: List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
@@ -1005,6 +1061,9 @@ async def _get_derivatives_positioning_payload() -> Optional[Dict[str, Any]]:
                 valid_symbols, len(configured_exchanges)
             ),
             "symbols": valid_symbols,
+            # Every Hyperliquid perp from the same keyless call. Not part of
+            # `symbols` or `summary`, which stay BTC and ETH.
+            "coin_positioning": dict(_HYPERLIQUID_COIN_POSITIONING),
         }
         _BINANCE_DERIVATIVES_CACHE = payload
         _BINANCE_DERIVATIVES_CACHE_TS = now
