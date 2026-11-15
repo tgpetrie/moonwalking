@@ -37,9 +37,12 @@ for the external attention and catalyst feasibility study.
 
 The [received review and source checks](../research/RADAR_SENTIMENT_REVIEW_20261113.md)
 identify Hyperliquid open interest as the first positioning feasibility
-candidate. A short public probe succeeded. Asset mapping and usable
-freshness still need measurement. The always-on collector is still writing
-v2 only. The v3 rollout and a sustained external intake pilot are open.
+candidate. A short public probe succeeded. Commit `f994276` caches per-coin
+funding and open interest from the existing request. Two focused offline
+tests verified extraction and BTC/ETH summary scope. Asset mapping and
+usable freshness still need measurement. The always-on collector is still
+writing v2 only. The v3 rollout and a sustained external intake pilot are
+open.
 
 Claude pushed its nine research commits through `ade1694` on
 `claude/instant-radar-fresh-replication-20261113`.
