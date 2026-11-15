@@ -487,3 +487,51 @@ def test_results_json_has_no_nan():
         {"a": np.float64("nan"), "b": [np.int64(3), np.bool_(True), math.inf]}
     )
     assert cleaned == {"a": None, "b": [3, True, None]}
+
+
+# ---------- post hoc descriptives ----------
+
+
+def test_live_base_counts_cover_every_universe_product():
+    mk = synthetic_board()
+    cutoff = M0 + 2
+    t = (mc.FIRST_MINUTE + cutoff) * 60
+    spans = {
+        "P08-USD": (np.array([t + 100]), np.array([t + 160])),  # graduates
+        "P10-USD": (
+            np.array([t - 50, t + 2000]),
+            np.array([t + 30, t + 2100]),
+        ),  # on board
+        "P00-USD": (
+            np.array([t + 5]),
+            np.array([t + 9]),
+        ),  # a leader: not in the universe
+    }
+    found = mc.cutoff_candidates(mk, cutoff)["baseline"]
+    none = np.empty((0, 2))
+    counts = mc.live_base_counts(mk, spans, none, {cutoff: found}, [cutoff])
+    row = counts.iloc[0].to_dict()
+    assert row["universe_seen"] == 3 and row["universe_grads"] == 1  # P08, P09, P10
+    assert row["universe_fresh_seen"] == 2 and row["universe_fresh_grads"] == 1
+    assert (
+        row["baseline_candidates_seen"] == 1 and row["baseline_candidates_grads"] == 1
+    )
+    hidden = np.array([[t + 10, t + 5000]])  # collector gap inside the window
+    assert mc.live_base_counts(mk, spans, hidden, {cutoff: found}, [cutoff]).empty
+
+
+def test_flag_inputs_report_medians_of_each_arm():
+    # One scored day: rows (B0, D3) = (4, 30), (3.3, 20), (10, 0), (3.4, 12).
+    board = causal_board(future=[]).assign(stratum="confirmation_3m_up/up")
+    flags = {b: mc.build_flags(board) for b in mc.BOARDS}
+    out = mc.flag_inputs(board, flags)["screen"]["confirmation_3m_up/up"]
+    assert out["all_entries"] == {
+        "flags": 4,
+        "median_B0_pct": 3.7,
+        "median_D3_usd": 16.0,
+    }
+    assert out["a1"] == {"flags": 1, "median_B0_pct": 4.0, "median_D3_usd": 30.0}
+    dropped = {"flags": 2, "median_B0_pct": 6.7, "median_D3_usd": 6.0}  # rows 3 and 4
+    assert out["a0_dropped_by_gate"] == dropped
+    empty = mc.flag_inputs(board, flags)["check"]["confirmation_3m_up/up"]["a0"]
+    assert empty == {"flags": 0, "median_B0_pct": None, "median_D3_usd": None}

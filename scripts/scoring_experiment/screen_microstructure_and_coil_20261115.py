@@ -562,9 +562,12 @@ def parity_a(tables: dict) -> dict:
     return out
 
 
-def part_a(df: pd.DataFrame) -> dict:
+def primary_flags(df: pd.DataFrame) -> dict:
+    return {b: build_flags(df[df["stratum"] == b]) for b in BOARDS}
+
+
+def part_a(df: pd.DataFrame, flags: dict) -> dict:
     by_board = {b: df[df["stratum"] == b] for b in BOARDS}
-    flags = {b: build_flags(g) for b, g in by_board.items()}
     tables = part_a_tables(flags)
     sens = {
         "rank_by_snapshot_move": part_a_tables(
@@ -667,13 +670,18 @@ def ordered(rows: np.ndarray, keep: np.ndarray, score: np.ndarray) -> np.ndarray
     return picked[np.argsort(-values, kind="stable")]
 
 
-def cutoff_candidates(mk, cutoff: int) -> dict:
-    """Each arm's qualifying products at one cutoff, ranked, before cooldown."""
-    m0 = cutoff - 2
+def universe_rows(mk, m0: int) -> tuple:
+    """Active products with a trade at m0, outside the synthetic top eight."""
     one, three, active = carbon.ranked_movers(mk.log_close, mk.observed, m0)
     universe = active & np.isfinite(mk.close[:, m0])
     universe[list(carbon.top_eight(one, three, active, 1))] = False
-    rows = np.flatnonzero(universe)
+    return np.flatnonzero(universe), one, three
+
+
+def cutoff_candidates(mk, cutoff: int) -> dict:
+    """Each arm's qualifying products at one cutoff, ranked, before cooldown."""
+    m0 = cutoff - 2
+    rows, one, three = universe_rows(mk, m0)
     close, move = mk.close[rows, m0], three[rows]
     with np.errstate(invalid="ignore"):
         moving = move >= MOVE_FLOOR
@@ -941,6 +949,85 @@ def part_b(frame: pd.DataFrame, hist: pd.DataFrame) -> dict:
             "delta": deltas(mine, base),
         }
     out["reading"] = reading_b(out["matched_cutoffs"])
+    counts = live_base_counts(mk, spans, gaps, found["baseline"], cutoffs)
+    return out, live_base_rate(counts)
+
+
+# ---------- post hoc, added after the declared results were read ----------
+
+BASE_GROUPS = ("universe", "baseline_candidates")
+BASE_FIELDS = ("seen", "grads", "fresh_seen", "fresh_grads")
+
+
+def live_base_counts(mk, spans: dict, gaps: np.ndarray, baseline: dict, cutoffs):
+    """Live graduation of every universe product at each cutoff, flagged or not."""
+    rows = []
+    for cutoff in cutoffs:
+        t = (FIRST_MINUTE + cutoff) * 60
+        if not live_observable(gaps, t):
+            continue
+        members, _, _ = universe_rows(mk, cutoff - 2)
+        qualified = {int(p) for p in baseline.get(cutoff, ())}
+        rec = {f"{g}_{f}": 0 for g in BASE_GROUPS for f in BASE_FIELDS}
+        for product in members:
+            on_board, lead = live_graduation(spans.get(mk.products[product]), t)
+            groups = BASE_GROUPS if int(product) in qualified else BASE_GROUPS[:1]
+            for group in groups:
+                rec[f"{group}_seen"] += 1
+                rec[f"{group}_grads"] += lead is not None
+                rec[f"{group}_fresh_seen"] += not on_board
+                rec[f"{group}_fresh_grads"] += not on_board and lead is not None
+        rows.append({"ts": t, **rec})
+    names = ["ts"] + [f"{g}_{f}" for g in BASE_GROUPS for f in BASE_FIELDS]
+    out = pd.DataFrame(rows, columns=names)
+    out["day"] = utc_day(out["ts"])
+    return out
+
+
+def live_base_rate(counts: pd.DataFrame) -> dict:
+    """Share of universe products, and of all baseline candidates, that graduate."""
+    out = {}
+    for window, (lo, hi) in B_WINDOWS.items():
+        c = counts[(counts["day"] >= lo) & (counts["day"] <= hi)].sum(numeric_only=True)
+        out[window] = {
+            group: {
+                "product_cutoffs": int(c[f"{group}_seen"]),
+                "live_graduation_rate": ratio(c[f"{group}_grads"], c[f"{group}_seen"]),
+                "fresh_live_graduation_rate": ratio(
+                    c[f"{group}_fresh_grads"], c[f"{group}_fresh_seen"]
+                ),
+            }
+            for group in BASE_GROUPS
+        }
+    return out
+
+
+def median(values: np.ndarray) -> float | None:
+    return float(np.median(values)) if len(values) else None
+
+
+def flag_inputs(df: pd.DataFrame, flags: dict) -> dict:
+    """Outcome-blind: median displayed move and 3m dollars of each arm's causal flags."""
+    values = df.set_index("id")[["B0", "D3"]]
+    out = {}
+    for window in ("screen", "check"):
+        lo, hi = CAUSAL_WINDOWS[window]
+        out[window] = {}
+        for board in BOARDS:
+            f = flags[board]
+            f = f[f["scored"] & (f["day"] >= lo) & (f["day"] <= hi)]
+            v = values.reindex(f["id"])
+            masks = {arm: f[f"ca_{arm}"].to_numpy() for arm in ("a0", "a1", "a2", "a3")}
+            masks["a0_dropped_by_gate"] = masks["a0"] & ~f["ca_gate"].to_numpy()
+            masks["all_entries"] = np.ones(len(f), dtype=bool)
+            out[window][board] = {
+                name: {
+                    "flags": int(mask.sum()),
+                    "median_B0_pct": median(v["B0"].to_numpy()[mask]),
+                    "median_D3_usd": median(v["D3"].to_numpy()[mask]),
+                }
+                for name, mask in masks.items()
+            }
     return out
 
 
@@ -980,6 +1067,8 @@ def main() -> int:
         )
     frame = load_candle_frame(CANDLES)
     df = add_features(df, product_arrays(frame))
+    flags = primary_flags(df)
+    early_watch, base_rate = part_b(frame, hist)
     out = {
         "protocol_sha256": run.digest(PROTOCOL),
         "script_sha256": run.digest(Path(__file__)),
@@ -990,8 +1079,12 @@ def main() -> int:
         "flag_share": Q,
         "eligible_entries": rows,
         "candle_rows_loaded": int(len(frame)),
-        "part_a": part_a(df),
-        "part_b": part_b(frame, hist),
+        "part_a": part_a(df, flags),
+        "part_b": early_watch,
+        "post_hoc_added_after_declared_results": {
+            "part_a_flag_inputs_causal": flag_inputs(df, flags),
+            "part_b_live_base_rate": base_rate,
+        },
     }
     args.out.mkdir(parents=True, exist_ok=True)
     text = json.dumps(clean(out), indent=1, allow_nan=False) + "\n"
