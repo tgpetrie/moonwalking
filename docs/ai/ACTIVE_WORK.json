@@ -1,6 +1,6 @@
 {
   "version": "moonwalking-active-work-v1",
-  "updated_utc": "2026-11-14T18:13:36.7291592Z",
+  "updated_utc": "2026-11-15T00:38:26.4062264Z",
   "display_date_pacific": "2026-11-14",
   "lane": "instant_radar_scoring",
   "objective": "Separate instant early-warning and developing-move targets/formulas using shared underlying market data",
@@ -1032,7 +1032,11 @@
       "source_count": 111,
       "packet_sha256": "c1cebf9fa1be33afade06c5886fd6cdf5683e1649f5c86e63d8477e21cb2fd5f"
     },
-    "dispatch_status": "ready_for_tom_to_dispatch",
+    "dispatch_status": "fable_review_complete_carbon_research_dispatch_unverified",
+    "fable_review_commit": "e0ac071a7de65442c74e6aeafe0848275cf7f776",
+    "fable_integration_commit": "6fbaf02",
+    "fable_review_report": "docs/research/reviews/FABLE_RADAR_PIPELINE_REVIEW_20261113.md",
+    "next_capture_diagnostic": "read_only_adapter_route_and_clock_sidecar_preferred_implementation_open_no_capture_run",
     "offline_windows_reverification": {
       "us_records_verified": 302679,
       "asia_records_verified": 167407,

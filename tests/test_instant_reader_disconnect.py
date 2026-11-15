@@ -152,14 +152,14 @@ def test_transport_termination_drains_exact_prefix_then_preserves_barrier(
     assert transport["close_status"] is None
     if isinstance(ending, Exception):
         assert transport["kind"] == "exception"
-        assert transport["close_frame_returned"] is False
+        assert transport["recv_returned_empty"] is False
         first = transport["exception_chain"][0]
         assert first["message"] == str(ending)
         assert first["type"].endswith(type(ending).__qualname__)
         assert first["errno"] == getattr(ending, "errno", None)
     else:
         assert transport["kind"] == "empty_return"
-        assert transport["close_frame_returned"] is True
+        assert transport["recv_returned_empty"] is True
         assert transport["exception_chain"] == []
     packets = list(iter_packets(path))
     assert [row["envelope"]["message"] for row in packets[1:-1]] == json.loads(

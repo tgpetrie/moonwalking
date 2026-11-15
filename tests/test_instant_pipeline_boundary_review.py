@@ -726,6 +726,7 @@ def reader_end(ending, *, timeouts=0):
             "violation of protocol",
         ),
         (b"\x88\x02\x03\xe8", "empty_return", None, None),
+        (b"\x81\x00", "empty_return", None, None),
     ],
     ids=[
         "tcp-or-tls-eof",
@@ -733,6 +734,7 @@ def reader_end(ending, *, timeouts=0):
         "local-abort",
         "ragged-tls-eof-unsuppressed",
         "websocket-close-1000",
+        "websocket-empty-text",
     ],
 )
 def test_reader_snapshot_separates_eof_reset_abort_and_protocol_close(
@@ -740,6 +742,7 @@ def test_reader_snapshot_separates_eof_reset_abort_and_protocol_close(
 ):
     transport, failure = reader_end(ending)
     assert transport["kind"] == kind
+    assert transport["recv_returned_empty"] == (kind == "empty_return")
     assert transport["received"] == transport["delivered"] + 1 == 1
     assert transport["close_status"] is None  # never exposed by recv()
     if error_type is None:

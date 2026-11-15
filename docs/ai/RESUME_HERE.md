@@ -70,12 +70,29 @@ minute candles for the screen dates. The episode ledger covers ranks
 1–8 and omits within-hour same-board re-entries. A broader early-watch
 study needs evidence before board entry.
 
+### Fable pipeline review accepted
+
+Fable published `e0ac071`. Codex integrated the as-of millisecond fix,
+torn observer-line handling and reader transport snapshot in `6fbaf02`.
+The snapshot identifies an empty receive as such because the receive API
+can return empty data for multiple frame types. The Asia link transition
+remains a possible explanation. Healthy local samples cannot establish
+which endpoint closed the connection.
+
+The next bounded research capture should use the accepted instrumentation
+and a read-only local clock and adapter/route sidecar. Omit DNS log changes
+and TLS EOF option changes for the first attempt so it retains the
+existing network and socket settings. DNS history and TLS close type
+remain unavailable. Sidecar implementation and capture are open.
+Feed validation, publication-based grading and the delayed eligibility
+bridge remain open. The always-on mover collector is separate.
+
 ## November 13 research restart
 
 Active continuation is `codex/instant-radar-research-restart-20261113`.
-Read the [restart handoff](RADAR_RESEARCH_RESTART_20261113.md). The two
-independent reviews are ready for Tom to dispatch. The full source bodies
-in both upload packets are pinned to `257be69`.
+Read the [restart handoff](RADAR_RESEARCH_RESTART_20261113.md). Fable's
+review is complete. The separate Carbon study-design dispatch is unverified.
+The full source bodies in both upload packets are pinned to `257be69`.
 
 - Carbon owns the hypothesis and fresh study design.
   [Prompt](CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md) ·

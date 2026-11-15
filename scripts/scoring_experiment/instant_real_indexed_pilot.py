@@ -175,7 +175,7 @@ class QueuedSocket:
                 ),
                 last_completed_writer=deepcopy(self._last_writer),
                 exception_chain=chain,
-                close_frame_returned=kind == "empty_return",
+                recv_returned_empty=kind == "empty_return",
                 close_status=None,
                 close_status_reason="not_exposed_by_websocket_recv",
             )
