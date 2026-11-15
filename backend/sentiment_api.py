@@ -738,15 +738,53 @@ async def _get_bybit_symbol_positioning(
         return None, _source_error("bybit", symbol, exc)
 
 
-async def _get_hyperliquid_positioning() -> (
-    List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]
-):
+def _extract_all_hyperliquid_coin_positioning(
+    meta: dict[str, Any], asset_ctxs: list[Any]
+) -> dict[str, dict[str, Any]]:
+    coin_positioning = {}
+    for asset, ctx in zip(meta.get("universe") or [], asset_ctxs):
+        if not isinstance(asset, dict) or not isinstance(ctx, dict):
+            continue
+        name = asset.get("name")
+        if not isinstance(name, str) or not name.strip() or asset.get("isDelisted"):
+            continue
+
+        mark_price = _safe_float(ctx.get("markPx"))
+        funding = _safe_float(ctx.get("funding"))
+        open_interest = _safe_float(ctx.get("openInterest"))
+        if (
+            mark_price is None
+            or mark_price <= 0
+            or funding is None
+            or open_interest is None
+        ):
+            continue
+
+        funding_8h_equiv = funding * 8.0
+        open_interest_usd = open_interest * mark_price
+        if not math.isfinite(funding_8h_equiv) or not math.isfinite(open_interest_usd):
+            continue
+
+        coin_positioning[name.strip().upper()] = {
+            "funding_rate": funding,
+            "funding_8h_equiv": funding_8h_equiv,
+            "open_interest": open_interest,
+            "open_interest_usd": open_interest_usd,
+            "mark_price": mark_price,
+            "oracle_price": _safe_float(ctx.get("oraclePx")),
+        }
+    return coin_positioning
+
+
+async def _get_hyperliquid_positioning() -> tuple[
+    list[tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]],
+    dict[str, dict[str, Any]],
+]:
     """Fetch on-chain perp positioning from Hyperliquid (keyless public API).
 
     A single POST returns every asset's context in parallel arrays
-    (`universe[i]` <-> `assetCtxs[i]`), so one request covers BTC and ETH.
-    Funding on Hyperliquid settles hourly — tagged so the summary can normalize
-    it against the 8h CEX venues.
+    (`universe[i]` <-> `assetCtxs[i]`). The benchmark rows retain their
+    hourly funding interval for normalization in the market summary.
     """
 
     def _req():
@@ -762,7 +800,11 @@ async def _get_hyperliquid_positioning() -> (
         data = await asyncio.to_thread(_req)
         meta, asset_ctxs = data[0], data[1]
         universe = meta.get("universe") or []
-        index_by_name = {asset.get("name"): i for i, asset in enumerate(universe)}
+        index_by_name = {
+            asset["name"]: i
+            for i, asset in enumerate(universe)
+            if isinstance(asset, dict) and isinstance(asset.get("name"), str)
+        }
         results: List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
         for base_asset, hl_name in HYPERLIQUID_DERIVATIVES_ASSETS.items():
             idx = index_by_name.get(hl_name)
@@ -794,10 +836,10 @@ async def _get_hyperliquid_positioning() -> (
                     None,
                 )
             )
-        return results
+        return results, _extract_all_hyperliquid_coin_positioning(meta, asset_ctxs)
     except Exception as exc:
         logger.warning("Hyperliquid derivatives fetch failed: %s", exc)
-        return [(None, _source_error("hyperliquid", "metaAndAssetCtxs", exc))]
+        return [(None, _source_error("hyperliquid", "metaAndAssetCtxs", exc))], {}
 
 
 async def _get_coinalyze_json(path: str, params: Dict[str, str]) -> Any:
@@ -948,9 +990,7 @@ async def _get_derivatives_positioning_payload() -> Optional[Dict[str, Any]]:
             for base_asset, symbol in BYBIT_DERIVATIVES_SYMBOLS.items()
         )
     )
-    # Hyperliquid (on-chain, keyless) and Coinalyze (CEX-aggregated, key-gated)
-    # each return a ready list of (item, error) tuples.
-    hyperliquid_symbols = await _get_hyperliquid_positioning()
+    hyperliquid_symbols, coin_positioning = await _get_hyperliquid_positioning()
     coinalyze_symbols = await _get_coinalyze_positioning()
     results = [
         *binance_symbols,
@@ -1005,6 +1045,7 @@ async def _get_derivatives_positioning_payload() -> Optional[Dict[str, Any]]:
                 valid_symbols, len(configured_exchanges)
             ),
             "symbols": valid_symbols,
+            "coin_positioning": coin_positioning,
         }
         _BINANCE_DERIVATIVES_CACHE = payload
         _BINANCE_DERIVATIVES_CACHE_TS = now
