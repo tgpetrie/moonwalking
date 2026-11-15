@@ -350,7 +350,7 @@ def _c_zone(base: dict[str, float], sgn: int) -> dict[str, Any] | None:
     edge_a, edge_b = sgn * floor, sgn * shallow
     if min(edge_a, edge_b) <= 0:
         return None
-    ext_a, ext_b = max(floor, qb - 1.618 * a_len), qb - 1.272 * a_len
+    ext_a, ext_b = floor, qb - 1.272 * a_len
     extended = None
     if ext_a < ext_b:
         extended = {
@@ -434,7 +434,7 @@ def _abc_complete(
             "c_projection_of_a": c_proj,
             "a_retrace_of_prior_leg": base["a_retrace_of_prior_leg"],
         },
-        "pre": pivots[:-3],
+        "pre": pivots[:-5],
     }
 
 
@@ -475,7 +475,7 @@ def _abc_in_progress(
             "c_projection_of_a": (base["qb"] - q_c) / base["a_len"],
             "a_retrace_of_prior_leg": base["a_retrace_of_prior_leg"],
         },
-        "pre": pivots[:-2],
+        "pre": pivots[:-4],
     }
 
 
@@ -509,7 +509,7 @@ def _impulse(
             if after is None:
                 continue
             # Wave 3 may not be the shortest, which caps wave 5 when 3 < 1.
-            if after[0] <= q[1] or (len3 < len1 and after[1] - q[4] >= len3):
+            if after[0] <= q[1] or (len3 < len1 and after[1] - q[4] > len3):
                 continue
             status, q_inv = "wave_5_underway", q[1]
             fib["wave4_retrace_of_wave3"] = (q[3] - q[4]) / len3
