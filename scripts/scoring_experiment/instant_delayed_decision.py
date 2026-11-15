@@ -131,7 +131,9 @@ def _mid(quote):
     return bid + (ask - bid) / 2
 
 
-def _forward_metrics(quotes, product, direction, volatility, trades, horizon, cfg):
+def _forward_metrics(
+    quotes, product, direction, volatility, trades, horizon, cfg, start
+):
     first_coin, first_btc = (_mid(quotes[0][pid]) for pid in (product, BENCHMARK))
     sign = 1 if direction == "up" else -1
     path = [
@@ -168,6 +170,8 @@ def _forward_metrics(quotes, product, direction, volatility, trades, horizon, cf
         terminal_residual_log=terminal,
         required_terminal_log=required,
         peak_residual_log=peak,
+        # First tie wins, as in the v2 target evaluator.
+        peak_ts_ms=start + path.index(peak) * GRID_MS,
         retention=retention,
         forward_match_count=trades,
     )
@@ -175,6 +179,14 @@ def _forward_metrics(quotes, product, direction, volatility, trades, horizon, cf
 
 def _mature_grade(recorder, decision, row, end, asof, horizon, cfg):
     product, start = decision.product_id, decision.feature_cutoff_ts_ms
+    if product == BENCHMARK:
+        # The benchmark's residual against itself is zero by construction.
+        # That is undefined evidence, never a failed forward outcome.
+        return dict(
+            status="unavailable",
+            reason="benchmark_self_residual_undefined",
+            cutoff_verified_forward=None,
+        )
     missing = [
         name for name, result in row["features"].items() if result["status"] != "ready"
     ]
@@ -241,6 +253,7 @@ def _mature_grade(recorder, decision, row, end, asof, horizon, cfg):
         trade_count,
         horizon,
         cfg,
+        start,
     )
 
 
