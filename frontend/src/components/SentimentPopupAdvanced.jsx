@@ -974,7 +974,7 @@ const planOutcomeLabel = (value) => ({
   expired: 'No boundary in 24h',
 }[value] || 'Still open');
 
-export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen }) {
+export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen, waveAnalysis = null }) {
   if (loading && !data) {
     return <div className="risk-levels-loading">Building risk levels from completed candles…</div>;
   }
@@ -1033,7 +1033,7 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen 
         </div>
       </section>
 
-      <RiskLevelsChart key={plan.product_id} plan={plan} />
+      <RiskLevelsChart key={plan.product_id} plan={plan} waveAnalysis={waveAnalysis} />
 
       <section className="risk-levels-grid" aria-label="Suggested risk levels">
         <article className="risk-level-card risk-level-card--stop">
@@ -2646,6 +2646,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                   data={riskLevels}
                   loading={riskLevelsLoading}
                   error={riskLevelsError}
+                  waveAnalysis={chartRead?.wave_analysis}
                 />
               )}
             </section>

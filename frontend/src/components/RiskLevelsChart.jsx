@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import WaveStructureOverlay, { waveIsDrawable, wavePatternLabel, wavePrices } from './WaveStructureOverlay.jsx';
 
 const positive = (value) => typeof value === 'number' && Number.isFinite(value) && value > 0;
 const priceText = (value) => positive(value)
@@ -6,7 +7,7 @@ const priceText = (value) => positive(value)
 const timeText = (value) => positive(value)
   ? new Date(value * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unavailable';
 
-export default function RiskLevelsChart({ plan, entry }) {
+export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
   const [selected, setSelected] = useState('stop');
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -46,16 +47,20 @@ export default function RiskLevelsChart({ plan, entry }) {
   const active = levels.find((level) => level.id === selected) || levels[0];
   const zone = plan.support_zone || {};
   const zoneValid = positive(zone.low) && positive(zone.high) && zone.high >= zone.low;
+  const firstTime = bars[0][0];
+  const lastTime = bars[bars.length - 1][0];
+  // Wave structure is drawn only when it was read on this chart's candle size.
+  const wave = waveIsDrawable(waveAnalysis)
+    && (!Number.isFinite(waveAnalysis.bar_seconds) || waveAnalysis.bar_seconds === chart.granularity_seconds)
+    ? waveAnalysis : null;
   const prices = [...bars.flatMap((c) => [c[1], c[2]]), ...levels.map((l) => l.price),
-    ...(zoneValid ? [zone.low, zone.high] : [])];
+    ...(zoneValid ? [zone.low, zone.high] : []), ...wavePrices(wave, firstTime)];
   const low = Math.min(...prices);
   const high = Math.max(...prices);
   const padding = Math.max((high - low) * 0.12, high * 0.001);
   const floor = Math.max(0, low - padding);
   const ceiling = high + padding;
   const y = (price) => 24 + (ceiling - price) / (ceiling - floor) * 290;
-  const firstTime = bars[0][0];
-  const lastTime = bars[bars.length - 1][0];
   const x = (time) => 22 + (time - firstTime) / Math.max(lastTime - firstTime, 1) * 534;
   const candleWidth = Math.max(1, Math.min(8, 380 / bars.length));
   // Separate nearby labels without moving the actual price lines.
@@ -87,6 +92,7 @@ export default function RiskLevelsChart({ plan, entry }) {
               <rect x={x(c[0]) - candleWidth / 2} y={378 - c[5] / volumeMax * 35} width={candleWidth} height={c[5] / volumeMax * 35} fill={color} opacity="0.35" />
             </g>;
           })}
+          {wave && <WaveStructureOverlay wave={wave} x={x} y={y} xMin={16} xMax={580} firstTime={firstTime} priceText={priceText} />}
           {positioned.map((level) => <g key={level.id} role="button" tabIndex={0}
             aria-label={`Explain ${level.label.toLowerCase()} at ${priceText(level.price)}`} aria-pressed={active.id === level.id}
             className="risk-chart__line" onClick={() => setSelected(level.id)}
@@ -110,6 +116,7 @@ export default function RiskLevelsChart({ plan, entry }) {
       <div className="risk-chart__explanation" aria-live="polite" style={{ borderColor: active.color }}>
         <h4>{active.label} · {priceText(active.price)}</h4><p>{active.why}</p>
       </div>
+      {wave && <p className="risk-chart__hint" data-testid="risk-chart-wave-note"><strong>Wave structure · {wavePatternLabel(wave)}.</strong> {wave.summary} Wave counts are descriptive and not outcome-validated.</p>}
       <p className="risk-chart__hint">Quote as of {timeText(plan.price_as_of)} · Last candle closed {timeText(chart.last_close_at)} · Times shown in your local timezone. This is a snapshot; refresh Risk Levels for an updated plan.</p>
       <p className="risk-chart__hint">Suggested prices are reference levels, not exchange-validated order prices. The sell-limit gap is an uncalibrated ATR-based compatibility placeholder, not a live liquidity or spread estimate. Check the market pair and allowed price increment before entering them. A stop-limit can remain unfilled if price gaps below the limit. <a href="https://help.coinbase.com/en/coinbase/trading-and-funding/advanced-trade/order-types" target="_blank" rel="noreferrer">How stop-limit orders work</a></p>
     </section>

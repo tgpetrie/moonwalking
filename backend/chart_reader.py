@@ -9,9 +9,15 @@ returned descending by time from the API. Pass raw; this module sorts ascending.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-__all__ = ["analyze_candles"]
+__all__ = ["analyze_candles", "build_wave_analysis"]
+
+_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
+# Higher timeframe used for the wave read's trend check, built from the same candles.
+_HIGHER_TIMEFRAME = {"1m": "15m", "5m": "1h", "15m": "4h", "1h": "4h", "4h": "1d"}
+_WAVE_CHART_BARS = 160
 
 
 # ─── normalise ────────────────────────────────────────────────────────────────
@@ -418,6 +424,84 @@ def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
     return None
 
 
+# ─── wave structure ───────────────────────────────────────────────────────────
+
+
+def _wave_fallback(reason: str) -> dict[str, Any]:
+    """Same shape as an engine result, saying no wave read is available."""
+    return {
+        "available": False,
+        "reason": reason,
+        "active_pattern": "none",
+        "status": "none",
+        "bias": "neutral",
+        "pivots": [],
+        "wave_points": [],
+        "projected_c_zone": None,
+        "invalidation_price": None,
+        "target_price": None,
+        "fib_ratios": {},
+        "confluence_factors": [],
+        "confluence_score": 0.0,
+        "confluence_confirmed": False,
+        "confidence": 0.0,
+        "confidence_label": "low",
+        "summary": "Wave structure is not available for this chart.",
+        "outcome_validated": False,
+    }
+
+
+def build_wave_analysis(
+    raw_candles: list[list[Any]] | None,
+    timeframe: str = "1h",
+    higher_tf_candles: list[list[Any]] | None = None,
+    *,
+    as_of_ts: float | None = None,
+) -> dict[str, Any]:
+    """Elliott wave read for the chart payload. Never raises.
+
+    ``as_of_ts`` drops candles that have not closed by that time, so a forming
+    bar cannot confirm or move a swing. Without ``higher_tf_candles`` the
+    trend check is resampled from the same candles when there are enough.
+    Returns the fallback shape when history is short or the engine fails.
+    """
+    try:
+        try:
+            from elliott_wave_engine import analyze_wave_structure, resample_candles
+        except ImportError:
+            from backend.elliott_wave_engine import (
+                analyze_wave_structure,
+                resample_candles,
+            )
+
+        step = _SECONDS.get(timeframe)
+        rows = _normalize_candles(raw_candles or [])
+        if as_of_ts is not None and step:
+            rows = [r for r in rows if r[0] + step <= as_of_ts]
+        candles = [list(r) for r in rows]
+        higher_name = None
+        if higher_tf_candles is None:
+            higher_name = _HIGHER_TIMEFRAME.get(timeframe)
+            if higher_name:
+                higher_tf_candles = resample_candles(candles, _SECONDS[higher_name])
+        result = dict(
+            analyze_wave_structure(candles, higher_tf_candles=higher_tf_candles)
+        )
+        result["timeframe"] = timeframe
+        result["higher_timeframe"] = higher_name
+        if result.get("available"):
+            result["chart"] = {
+                "candles": candles[-_WAVE_CHART_BARS:],
+                "granularity_seconds": step,
+            }
+        return result
+    except Exception as exc:  # the chart read must survive a wave failure
+        logging.warning("[ChartRead] wave analysis failed: %s", exc)
+        fallback = _wave_fallback("engine_error")
+        fallback["timeframe"] = timeframe
+        return fallback
+
+
 # ─── public API ───────────────────────────────────────────────────────────────
 
 
@@ -426,11 +510,18 @@ def analyze_candles(
     symbol: str,
     timeframe: str = "1h",
     event_context: dict[str, Any] | None = None,
+    *,
+    wave_candles: list[list[Any]] | None = None,
+    higher_tf_candles: list[list[Any]] | None = None,
 ) -> dict | None:
     """Analyze raw OHLCV candles and return a basic-user-friendly read.
 
     Returns ``None`` when there are not enough candles to produce an honest read.
     Caller is responsible for fetching candles; this module does no network I/O.
+
+    ``wave_analysis`` is always present. It reads ``wave_candles`` (a longer
+    history of completed bars) when given, else the same candles, and falls
+    back to an unavailable result when the history is too short.
     """
     rows = _normalize_candles(raw_candles)
     if len(rows) < 5:
@@ -487,4 +578,9 @@ def analyze_candles(
         "not_financial_advice": True,
         "candle_count": len(rows),
         "window_hours": round(len(rows) * _hours_per_candle(timeframe), 1),
+        "wave_analysis": build_wave_analysis(
+            wave_candles if wave_candles is not None else raw_candles,
+            timeframe,
+            higher_tf_candles,
+        ),
     }

@@ -13131,7 +13131,8 @@ def get_chart(symbol):
 def get_chart_read(symbol):
     """Deterministic chart read for a coin — math-derived, basic-user language.
 
-    Uses 1h candles over the most recent ~50 hours (Coinbase Exchange).
+    Uses 1h candles over the most recent ~50 hours (Coinbase Exchange), plus
+    up to 300 completed 1h candles for the descriptive wave-structure read.
     No predictions, no trading advice.
     """
     try:
@@ -13165,13 +13166,28 @@ def get_chart_read(symbol):
             event_context["evidence"] = evidence
 
     product_id = f"{sym}-USD"
-    candles = _fetch_coinbase_candles(product_id, granularity=3600, count=50)
-    if not candles:
+    # One request serves both reads: the newest 50 candles feed the basic read
+    # as before, the full history (up to 300) feeds the wave structure.
+    history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+    if not history:
         return jsonify({"error": f"No candle data for {sym}"}), 404
+    candles = history[:50]
 
     result = analyze_candles(candles, sym, "1h", event_context=event_context)
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
+
+    try:
+        import chart_reader
+
+        result["wave_analysis"] = chart_reader.build_wave_analysis(
+            history, "1h", as_of_ts=time.time()
+        )
+    except Exception as exc:
+        logging.warning(f"[ChartRead] wave analysis unavailable for {sym}: {exc}")
+        result.setdefault(
+            "wave_analysis", {"available": False, "active_pattern": "none"}
+        )
 
     return jsonify(result)
 
