@@ -249,7 +249,7 @@ class TestWeightedScoring:
         total_weight = tier1_weight + tier3_weight
         expected = weighted_sum / total_weight
 
-        assert abs(expected - 62.04) < 0.1  # Approximately 62.04
+        assert abs(expected - 62.59) < 0.1  # (59.5 + 25.0) / 1.35 ~= 62.59
 
 
 # ============================================================================

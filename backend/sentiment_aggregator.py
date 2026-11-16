@@ -39,8 +39,6 @@ except Exception:
     redis = None
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from sentiment_aggregator_enhanced import aggregator as _enhanced_aggregator
-
 
 # ----------------------------
 # Custom Exceptions
@@ -496,18 +494,32 @@ _SOURCE_CACHE = _create_cache_backend()
 
 # HTTP connection pooling
 _HTTP_SESSION: Optional[Any] = None
+_HTTP_SESSION_LOOP: Optional[asyncio.AbstractEventLoop] = None
 _HTTP_SESSION_LOCK = threading.Lock()
 
 
 def _get_http_session() -> Optional[Any]:
     """Get or create persistent aiohttp ClientSession with connection pooling."""
-    global _HTTP_SESSION
+    global _HTTP_SESSION, _HTTP_SESSION_LOOP
 
     if aiohttp is None:
         return None
 
+    try:
+        running_loop: Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
+    except RuntimeError:
+        running_loop = None
+
     with _HTTP_SESSION_LOCK:
-        if _HTTP_SESSION is None or _HTTP_SESSION.closed:
+        # A ClientSession is bound to the loop that created it; recreate when the
+        # cached session is closed, its loop is gone, or a different loop is running.
+        stale = (
+            _HTTP_SESSION is None
+            or _HTTP_SESSION.closed
+            or (_HTTP_SESSION_LOOP is not None and _HTTP_SESSION_LOOP.is_closed())
+            or (running_loop is not None and _HTTP_SESSION_LOOP is not running_loop)
+        )
+        if stale:
             # Create session with connection pooling
             connector = aiohttp.TCPConnector(
                 limit=100,  # Max 100 concurrent connections
@@ -521,6 +533,7 @@ def _get_http_session() -> Optional[Any]:
                 timeout=timeout,
                 raise_for_status=False,  # We'll handle status manually
             )
+            _HTTP_SESSION_LOOP = running_loop
             logger.info("Created persistent HTTP session with connection pooling (limit=100, per_host=30)")
 
         return _HTTP_SESSION
@@ -528,13 +541,14 @@ def _get_http_session() -> Optional[Any]:
 
 async def _close_http_session() -> None:
     """Close the persistent HTTP session (for cleanup)."""
-    global _HTTP_SESSION
+    global _HTTP_SESSION, _HTTP_SESSION_LOOP
 
     with _HTTP_SESSION_LOCK:
         if _HTTP_SESSION is not None and not _HTTP_SESSION.closed:
             await _HTTP_SESSION.close()
             logger.info("Closed persistent HTTP session")
             _HTTP_SESSION = None
+            _HTTP_SESSION_LOOP = None
 
 
 def _cfg(path: str, default=None):
@@ -1117,18 +1131,6 @@ async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Di
         _SOURCE_CACHE.set(cache_key, result, 600)  # Cache disabled status for 10 min
         return result
 
-
-    async def fetch_coingecko_coin_data(sym: str) -> Dict[str, Any]:
-        """Compatibility shim for older `fetch_coingecko_coin_data` name.
-
-        Delegates to the async `fetch_coingecko_metrics` collector.
-        """
-        try:
-            return await fetch_coingecko_metrics(sym)
-        except Exception:
-            # Let exceptions bubble up so tests can patch/observe failures
-            raise
-
     # Build search query with multiple term variations
     search_terms = [symbol, f"${symbol}", f"#{symbol}"]
     query = " OR ".join(search_terms) + " -is:retweet lang:en"
@@ -1326,35 +1328,44 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     idx = label = None
     fg_meta: Dict[str, Any] = {}
     if fg_task:
-        idx, label, fg_meta = await fg_task
-        fg_score = (float(idx) / 100.0) if idx is not None else None
-        fg_cfg = sources_cfg.get("fear_greed", {})
-        sources.append(_source_record(
-            name="Fear & Greed Index",
-            tier=str(fg_cfg.get("tier", "tier1")),
-            weight=float(fg_cfg.get("weight", 0.90)),
-            score_0_1=fg_score,
-            meta={"index": idx, "label": label, **fg_meta},
-            url="https://alternative.me/crypto/fear-and-greed-index/",
-        ))
-        _add(bucket, str(fg_cfg.get("tier", "tier1")), fg_score, float(fg_cfg.get("weight", 0.90)))
+        try:
+            idx, label, fg_meta = await fg_task
+            fg_score = (float(idx) / 100.0) if idx is not None else None
+            fg_cfg = sources_cfg.get("fear_greed", {})
+            sources.append(_source_record(
+                name="Fear & Greed Index",
+                tier=str(fg_cfg.get("tier", "tier1")),
+                weight=float(fg_cfg.get("weight", 0.90)),
+                score_0_1=fg_score,
+                meta={"index": idx, "label": label, **fg_meta},
+                url="https://alternative.me/crypto/fear-and-greed-index/",
+            ))
+            _add(bucket, str(fg_cfg.get("tier", "tier1")), fg_score, float(fg_cfg.get("weight", 0.90)))
+        except Exception as exc:
+            # Degrade gracefully: one failing/malformed source must not kill the bundle
+            logger.warning(f"Fear & Greed source failed, continuing without it: {exc}")
+            idx, label, fg_meta = None, None, {}
 
     # CoinGecko
     cg_metrics: Dict[str, Any] = {}
     if cg_task:
-        cg = await cg_task
-        cg_score = cg.get("score_0_1") if cg.get("enabled") else None
-        cg_metrics = cg.get("metrics") or {}
-        cg_cfg = sources_cfg.get("coingecko", {})
-        sources.append(_source_record(
-            name=f"CoinGecko ({sym})",
-            tier=str(cg_cfg.get("tier", "tier1")),
-            weight=float(cg_cfg.get("weight", 0.85)),
-            score_0_1=cg_score if _isfinite(cg_score) else None,
-            meta={"coingecko": cg},
-            url=f"https://www.coingecko.com/en/coins/{cg.get('coingecko_id')}" if cg.get("coingecko_id") else "https://www.coingecko.com/",
-        ))
-        _add(bucket, str(cg_cfg.get("tier", "tier1")), cg_score if _isfinite(cg_score) else None, float(cg_cfg.get("weight", 0.85)))
+        try:
+            cg = await cg_task
+        except Exception as exc:
+            logger.warning(f"CoinGecko source failed, continuing without it: {exc}")
+        else:
+            cg_score = cg.get("score_0_1") if cg.get("enabled") else None
+            cg_metrics = cg.get("metrics") or {}
+            cg_cfg = sources_cfg.get("coingecko", {})
+            sources.append(_source_record(
+                name=f"CoinGecko ({sym})",
+                tier=str(cg_cfg.get("tier", "tier1")),
+                weight=float(cg_cfg.get("weight", 0.85)),
+                score_0_1=cg_score if _isfinite(cg_score) else None,
+                meta={"coingecko": cg},
+                url=f"https://www.coingecko.com/en/coins/{cg.get('coingecko_id')}" if cg.get("coingecko_id") else "https://www.coingecko.com/",
+            ))
+            _add(bucket, str(cg_cfg.get("tier", "tier1")), cg_score if _isfinite(cg_score) else None, float(cg_cfg.get("weight", 0.85)))
 
     # RSS (sync -> offload to thread)
     rss_cfg = sources_cfg.get("rss", {})
@@ -1850,20 +1861,16 @@ def get_intelligence_bundle(symbol: str) -> Dict[str, Any]:
 
 
 # --- BACKWARD COMPATIBILITY SHIMS (For Legacy Tests) -----------------------
-
-async def fetch_reddit_mentions(symbol: str) -> Dict[str, Any]:
-    """Shim that exposes reddit sentiment for legacy consumers."""
-    return await _enhanced_aggregator.fetch_reddit_sentiment(symbol)
-
+# Note: `fetch_reddit_mentions` and `fetch_rss_sentiment` compatibility
+# wrappers are defined earlier in this module alongside their real
+# implementations; only the CoinGecko alias needs a shim here.
 
 async def fetch_coingecko_coin_data(symbol: str) -> Dict[str, Any]:
-    """Legacy alias for coin-specific CoinGecko fetches."""
-    return await _enhanced_aggregator.fetch_coingecko_coin_data(symbol)
+    """Legacy alias for coin-specific CoinGecko fetches.
 
-
-async def fetch_rss_sentiment(symbol: str) -> List[Dict[str, Any]]:
-    """Expose RSS scoring for the old contract (symbol is ignored)."""
-    return await _enhanced_aggregator.fetch_rss_sentiment()
+    Delegates to the async `fetch_coingecko_metrics` collector.
+    """
+    return await fetch_coingecko_metrics(symbol)
 
 
 def calculate_weighted_sentiment(scores: List[float], weights: List[float]) -> float:

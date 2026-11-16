@@ -42,8 +42,12 @@ class TestFearGreedSource:
 
         result = await fetch_fear_greed()
 
+        # Contract: (index, label, meta) tuple with graceful fallback on failure
         assert result is not None
-        assert "value" in result or isinstance(result, (int, float))
+        idx, label, meta = result
+        assert idx is None or isinstance(idx, int)
+        assert label is None or isinstance(label, str)
+        assert isinstance(meta, dict)
 
     @pytest.mark.unit
     @patch('aiohttp.ClientSession.get')
@@ -96,9 +100,11 @@ class TestCoinGeckoSource:
 
         result = await fetch_coingecko_coin_data("BTC")
 
+        # Contract: delegates to fetch_coingecko_metrics -> wrapper dict
         assert result is not None
-        # Check for expected fields
-        assert any(key in result for key in ["market_data", "community_data", "price"])
+        assert result.get("enabled") is True
+        assert result.get("coingecko_id") == "bitcoin"
+        assert "score_0_1" in result or "error" in result
 
     @pytest.mark.unit
     def test_coingecko_id_mapping(self):
