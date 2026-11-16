@@ -1,0 +1,371 @@
+/*
+ * Industry Pulse & Cycle Scanner — home board panel.
+ * Dense board preset (docs/DESIGN_SYSTEM.md §2 "Density"): compact padding,
+ * tracked uppercase labels, numbers in --font-numeric with tabular digits.
+ * Sits in the rail next to .bh-live-leaders and borrows its frame.
+ *
+ * Colour jobs here are all STATUS, never price direction: the gate chip is
+ * ok / neutral / danger, breadth shares are plain KPI numbers.
+ */
+
+.bh-pulse {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 0.7rem;
+  padding: var(--space-compact-y) var(--space-compact-x);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-sans);
+}
+
+.bh-pulse__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.bh-pulse__title {
+  color: var(--text-primary);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.bh-pulse__sub,
+.bh-pulse__asof {
+  color: var(--text-faint);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--label-tracking-compact);
+  text-transform: uppercase;
+}
+
+.bh-pulse__asof {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-pulse__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* ---- stage + gate ---- */
+
+.bh-pulse__stage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bh-pulse__steps {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.bh-pulse__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-1);
+  color: var(--text-faint);
+  font-family: var(--font-numeric);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.bh-pulse__step.is-past {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
+}
+
+.bh-pulse__step.is-active {
+  border-color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.bh-pulse__stage-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bh-pulse__stage-label {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.bh-pulse__stage-why {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bh-pulse__gate {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 3px var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--r-1);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-compact);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bh-pulse__gate--ok { color: var(--status-ok); }
+.bh-pulse__gate--neutral { color: var(--text-muted); }
+.bh-pulse__gate--danger { color: var(--danger); }
+
+/* ---- breadth ---- */
+
+.bh-pulse__breadth {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.bh-pulse__metric {
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bh-pulse__metric dt {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--label-tracking-compact);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bh-pulse__metric dd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 2px 0 0;
+}
+
+.bh-pulse__metric strong {
+  color: var(--text-primary);
+  font-family: var(--font-numeric);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.bh-pulse__metric dd span {
+  color: var(--text-faint);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- bucket filter ---- */
+
+.bh-pulse__filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.bh-pulse__bucket,
+.bh-pulse__coin,
+.bh-pulse__more {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2);
+  background: rgba(0, 0, 0, 0.34);
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bh-pulse__bucket {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 6px var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-compact);
+  text-transform: uppercase;
+}
+
+.bh-pulse__bucket > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh-pulse__count {
+  color: var(--text-faint);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-pulse__bucket:hover,
+.bh-pulse__coin:hover,
+.bh-pulse__more:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: var(--text-primary);
+}
+
+.bh-pulse__bucket:focus-visible,
+.bh-pulse__coin:focus-visible,
+.bh-pulse__more:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.bh-pulse__bucket.is-active {
+  border-color: var(--accent-primary);
+  background: rgba(192, 132, 252, 0.12);
+  color: var(--text-primary);
+}
+
+.bh-pulse__bucket.is-active .bh-pulse__count {
+  color: var(--text-primary);
+}
+
+/* ---- ranked coins ---- */
+
+.bh-pulse__coins {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.bh-pulse__coin {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px var(--space-1);
+  min-width: 0;
+  padding: 5px 6px;
+  text-align: left;
+}
+
+.bh-pulse__rank {
+  color: var(--text-faint);
+  font-family: var(--font-numeric);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-pulse__symbol {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh-pulse__value {
+  color: var(--text-primary);
+  font-family: var(--font-numeric);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bh-pulse__note {
+  grid-column: 2 / -1;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: var(--text-2xs);
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh-pulse__more {
+  padding: 5px 6px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-compact);
+  text-transform: uppercase;
+}
+
+.bh-pulse__state,
+.bh-pulse__foot {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.bh-pulse__foot {
+  color: var(--text-faint);
+  font-size: var(--text-2xs);
+}
+
+@media (max-width: 1100px) {
+  .bh-pulse__coins {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .bh-pulse__summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .bh-pulse__filter,
+  .bh-pulse__coins {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bh-pulse__sub {
+    display: none;
+  }
+
+  /* Narrow columns: let labels wrap instead of colliding or being cut. */
+  .bh-pulse__metric dt,
+  .bh-pulse__bucket > span:first-child {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .bh-pulse__metric dd {
+    flex-wrap: wrap;
+    gap: 0 var(--space-2);
+  }
+
+  .bh-pulse__bucket {
+    text-align: left;
+    line-height: 1.25;
+  }
+
+  .bh-pulse__stage {
+    flex-wrap: wrap;
+  }
+
+  .bh-pulse__gate {
+    margin-left: 0;
+  }
+}

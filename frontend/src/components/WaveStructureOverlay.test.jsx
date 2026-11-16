@@ -338,3 +338,278 @@ describe("swing history helpers", () => {
     expect(runLabel(null)).toBe("");
   });
 });
+
+// Shapes copied from chart_structure.multi_year_context / top_down_confluence
+// run on the backend's theta_wxy_confluence fixture.
+const rsi = (timeframe, value, regime, extra = {}) => ({
+  timeframe, value, previous: value - 1, regime, near_bull_support: false, trend: "down", bars: 100, ...extra,
+});
+
+const cycleContext = (overrides = {}) => ({
+  available: true,
+  is_multi_year: true,
+  current_price: 0.7996,
+  log_fib_retracements: { "0.618": 1.3875, "0.886": 0.9002 },
+  rsi_regimes: {
+    "1d": rsi("1d", 78.79, "growth_expansion"),
+    "1w": rsi("1w", 26.41, "oversold_compression"),
+    "1m": rsi("1m", 42.41, "no_mans_land"),
+  },
+  weekly_stoch_rsi: { available: true, weekly_stoch_rsi_k: 82.16, weekly_stoch_rsi_d: 53.89, previous_k: 55.97, direction: "bullish_expansion", bars: 157 },
+  monthly_cycle_exhaustion: {
+    available: true, monthly_bearish_streak: 10, streak_threshold: 18, multi_year_oversold_exhaustion: false,
+    histogram_shrinking: false, monthly_rsi: 42.41, monthly_bars: 35,
+  },
+  weekly_sma_ladder: {
+    price: 0.7996, weekly_bars: 157, sma_50w: 1.0162, sma_100w: 1.1934, sma_200w: null,
+    levels: [
+      { key: "sma_50w", period: 50, value: 1.0162, available: true, role: "resistance", distance_pct: 27.08, bars_needed: 50 },
+      { key: "sma_100w", period: 100, value: 1.1934, available: true, role: "resistance", distance_pct: 49.24, bars_needed: 100 },
+      { key: "sma_200w", period: 200, value: null, available: false, role: null, distance_pct: null, bars_needed: 200 },
+    ],
+    overhead_resistance: ["sma_50w", "sma_100w"], reclaimed_support: [],
+  },
+  daily_structure: {
+    structural_low: { price: 0.7489, timestamp: 1792108800 },
+    low_confirmation_pivot: { price: 1.0714, timestamp: 1782864000, kind: "wave_4_swing_high", distance_pct: 33.98 },
+    confirmation_breakout: { broken: false },
+  },
+  outcome_validated: false,
+  ...overrides,
+});
+
+const cluster = {
+  low: 2.6404, high: 2.6636, mid: 2.652, retracement_ratio: 0.786, retracement_price: 2.6636,
+  extension_ratio: 1.618, extension_price: 2.6404, spread_pct: 0.88, score: 0.854, conviction: "high",
+  position: "above_price", distance_pct: 231.64,
+};
+
+const cycleTop = (overrides = {}) => ({
+  available: true,
+  at_multi_year_support: true,
+  in_accumulation_box: true,
+  macro_log_support_box: { low: 0.9002, high: 1.3875 },
+  micro_support_box: null, micro_breakout_pivot: null, micro_timeframe: null,
+  cycle_pattern: { kind: "wxy_terminal_sweep", description: "Three-leg decline from the cycle high (5-3-5 / W-X-Y). The last leg has reached the base the prior advance started from." },
+  confirmation_breakout: { broken: false },
+  low_confirmation_pivot: { price: 1.0714, timestamp: 1782864000, kind: "wave_4_swing_high", distance_pct: 33.98, message: "Break above $1.07 signals cycle low is in" },
+  accumulation_invalidation_stop: {
+    stop_price: 0.7339, stop_distance_pct: 8.22, reference_low: 0.7489, basis: "wave_c_low", buffer_pct: 2.0, tight: true,
+    message: "Accumulation read is invalid below $0.7339 (8.2% under price)",
+  },
+  fib_confluence_clusters: [cluster],
+  rollover_target_box: {
+    available: true, label: "Conservative / High-Probability Rollover Zone", low: 2.0309, high: 2.6636,
+    levels: { "0.618": 2.0309, "0.702": 2.3258, "0.786": 2.6636 }, price_position: "below",
+    extension_confluence: [{ source: "secondary_range", ratio: 1.618, price: 2.6404 }], clusters: [cluster],
+  },
+  full_extension_targets: {
+    available: true, label: "Full Alt-Season Extension Confluence",
+    levels: { "1.618": 2.6404, "2.618": 5.7531, "3.618": 12.535, "4.236": 20.2837 },
+    targets: [
+      { ratio: 1.618, price: 2.6404, confluence: true, distance_pct: 230.2 },
+      { ratio: 2.618, price: 5.7531, confluence: false, distance_pct: 619.45 },
+      { ratio: 3.618, price: 12.535, confluence: false, distance_pct: 1467.56 },
+      { ratio: 4.236, price: 20.2837, confluence: false, distance_pct: 2436.6 },
+    ],
+    clusters: [cluster],
+  },
+  macro_regime_gate: "risk_off_headwind",
+  liquidity_rotation_stage: "stage_1_macro_compression",
+  active_target_tier: "rollover_target_box",
+  outcome_validated: false,
+  ...overrides,
+});
+
+const cycleRegime = (overrides = {}) => ({
+  available: true,
+  liquidity_rotation_stage: "stage_1_macro_compression",
+  stage_number: 1,
+  stage_label: "Stage 1 · Macro compression",
+  macro_regime_gate: "risk_off_headwind",
+  gate_label: "Risk-off headwind",
+  active_target_tier: "rollover_target_box",
+  reasons: ["Neither the majors nor the altcoin index is in an expansion.", "BTC is below its 50-week average with weak weekly momentum, which works against altcoin recoveries."],
+  ...overrides,
+});
+
+const cycleRead = (overrides = {}) => read({
+  horizon: "cycle", timeframe: "1d",
+  multi_year_context: cycleContext(), top_down_confluence: cycleTop(), macro_industry_regime: cycleRegime(),
+  ...overrides,
+});
+
+describe("chart read cycle horizon", () => {
+  it("renders the cycle read only on the cycle view", () => {
+    const { unmount } = render(<ChartReadPanel data={cycleRead({ horizon: "swing" })} />);
+    expect(screen.queryByTestId("cycle-read")).toBeNull();
+    unmount();
+    render(<ChartReadPanel data={cycleRead()} />);
+    expect(screen.getByTestId("cycle-read")).toBeTruthy();
+    expect(screen.getByTestId("cycle-pattern").textContent).toContain("Three-leg decline");
+  });
+
+  it("shows the industry gate with its stage, and says so when it is warming", () => {
+    const { unmount } = render(<ChartReadPanel data={cycleRead()} />);
+    const badge = screen.getByTestId("cycle-gate-badge");
+    expect(badge.getAttribute("data-gate")).toBe("risk_off_headwind");
+    expect(badge.textContent).toBe("Risk-off headwind");
+    expect(badge.className).toContain("cycle-read__badge--danger");
+    expect(screen.getByTestId("cycle-gate").textContent).toContain("Stage 1 · Macro compression");
+    unmount();
+    render(<ChartReadPanel data={cycleRead({
+      macro_industry_regime: { available: false, reason: "warming" },
+      top_down_confluence: cycleTop({ macro_regime_gate: null, liquidity_rotation_stage: undefined }),
+    })} />);
+    expect(screen.getByTestId("cycle-gate-badge").getAttribute("data-gate")).toBe("unavailable");
+    expect(screen.getByTestId("cycle-gate-badge").textContent).toBe("Warming up");
+  });
+
+  it("names the RSI regime on each timeframe around the 40 and 60 lines", () => {
+    render(<ChartReadPanel data={cycleRead()} />);
+    const tile = (tf) => screen.getByTestId(`cycle-rsi-${tf}`);
+    expect(tile("1d").getAttribute("data-regime")).toBe("growth_expansion");
+    expect(tile("1d").textContent).toContain("78.8");
+    expect(tile("1d").textContent).toContain("Above 60 · growth expansion");
+    expect(tile("1w").textContent).toContain("26.4");
+    expect(tile("1w").textContent).toContain("Below 40 · oversold compression");
+    expect(tile("1m").textContent).toContain("40–60 · no-man's-land");
+    expect(tile("1m").textContent).not.toContain("Near 40 support");
+  });
+
+  it("flags RSI near 40 support in an uptrend and a timeframe with no history", () => {
+    const context = cycleContext();
+    context.rsi_regimes["1w"] = rsi("1w", 41.2, "no_mans_land", { near_bull_support: true, trend: "up" });
+    context.rsi_regimes["1m"] = { timeframe: "1m", value: null, regime: "unavailable", near_bull_support: false };
+    render(<ChartReadPanel data={cycleRead({ multi_year_context: context })} />);
+    expect(screen.getByTestId("cycle-rsi-1w").textContent).toContain("Near 40 support in an uptrend");
+    expect(screen.getByTestId("cycle-rsi-1m").textContent).toContain("—");
+    expect(screen.getByTestId("cycle-rsi-1m").textContent).toContain("Not enough history");
+  });
+
+  it("reads weekly StochRSI and the monthly streak, with the exhaustion badge only when it fired", () => {
+    const { unmount } = render(<ChartReadPanel data={cycleRead()} />);
+    const stoch = screen.getByTestId("cycle-stoch");
+    expect(stoch.getAttribute("data-direction")).toBe("bullish_expansion");
+    expect(stoch.textContent).toContain("82 / 54");
+    expect(stoch.textContent).toContain("Rising · %K above %D");
+    const streak = screen.getByTestId("cycle-exhaustion");
+    expect(streak.getAttribute("data-exhausted")).toBe("false");
+    expect(streak.textContent).toContain("10 / 18");
+    expect(streak.textContent).toContain("Not exhausted");
+    expect(screen.queryByTestId("cycle-exhaustion-badge")).toBeNull();
+    unmount();
+
+    const context = cycleContext({
+      weekly_stoch_rsi: { available: false, reason: "needs_more_weekly_history", direction: null },
+      monthly_cycle_exhaustion: { available: true, monthly_bearish_streak: 21, streak_threshold: 18, multi_year_oversold_exhaustion: true, histogram_shrinking: true },
+    });
+    render(<ChartReadPanel data={cycleRead({ multi_year_context: context })} />);
+    expect(screen.getByTestId("cycle-stoch").textContent).toContain("Needs more weekly history");
+    expect(screen.getByTestId("cycle-exhaustion-badge").textContent).toBe("Multi-year exhaustion");
+    expect(screen.getByTestId("cycle-exhaustion").textContent).toContain("21 / 18");
+  });
+
+  it("lays out the 50W, 100W and 200W averages with their role, and a missing one as missing", () => {
+    const context = cycleContext();
+    context.weekly_sma_ladder.levels[0] = { key: "sma_50w", period: 50, value: 0.71, available: true, role: "support", distance_pct: -11.2, bars_needed: 50 };
+    render(<ChartReadPanel data={cycleRead({ multi_year_context: context })} />);
+    const ladder = screen.getByTestId("cycle-sma-ladder");
+    expect(within(ladder).getByTestId("cycle-sma_50w").textContent).toContain("Below price · support");
+    expect(within(ladder).getByTestId("cycle-sma_50w").textContent).toContain("$0.71");
+    expect(within(ladder).getByTestId("cycle-sma_100w").textContent).toContain("$1.19");
+    expect(within(ladder).getByTestId("cycle-sma_100w").textContent).toContain("Above price · resistance");
+    expect(within(ladder).getByTestId("cycle-sma_100w").textContent).toContain("+49.2%");
+    const missing = within(ladder).getByTestId("cycle-sma_200w");
+    expect(missing.getAttribute("data-role")).toBe("unavailable");
+    expect(missing.textContent).toContain("Needs 200 weekly bars · 157 so far");
+    expect(missing.textContent).not.toContain("$");
+  });
+
+  it("states the confirmation pivot and the invalidation stop in the backend's words", () => {
+    render(<ChartReadPanel data={cycleRead()} />);
+    const pivot = screen.getByTestId("cycle-pivot");
+    expect(pivot.textContent).toContain("$1.07");
+    expect(pivot.textContent).toContain("Break above $1.07 signals cycle low is in");
+    const stop = screen.getByTestId("cycle-stop");
+    expect(stop.textContent).toContain("$0.7339");
+    expect(stop.textContent).toContain("Accumulation read is invalid below $0.7339 (8.2% under price)");
+    expect(stop.textContent).toContain("Tight");
+    expect(stop.textContent).toContain("2% under the last leg's low");
+    expect(screen.queryByTestId("cycle-breakout")).toBeNull();
+  });
+
+  it("does not call a pivot break a cycle low away from support, and shows no stop there", () => {
+    render(<ChartReadPanel data={cycleRead({ top_down_confluence: cycleTop({
+      at_multi_year_support: false, in_accumulation_box: false, low_confirmation_pivot: null, accumulation_invalidation_stop: null,
+      confirmation_breakout: { broken: true, pivot_price: 0.95, bars_since_break: 4, recent: true },
+    }) })} />);
+    const pivot = screen.getByTestId("cycle-pivot");
+    expect(pivot.textContent).toContain("$1.07");
+    expect(pivot.textContent).not.toContain("cycle low is in");
+    expect(pivot.textContent).toContain("not at multi-year support");
+    expect(screen.getByTestId("cycle-stop").textContent).toContain("None.");
+    expect(screen.getByTestId("cycle-breakout").textContent).toContain("Closed above it 4 days ago");
+  });
+
+  it("lists where the two Fibonacci grids overlap, or says they do not", () => {
+    const { unmount } = render(<ChartReadPanel data={cycleRead()} />);
+    const found = within(screen.getByTestId("cycle-clusters")).getAllByTestId("cycle-cluster");
+    expect(found).toHaveLength(1);
+    expect(found[0].textContent).toContain("$2.64–$2.66");
+    expect(found[0].textContent).toContain("0.786 retracement meets 1.618 extension");
+    expect(found[0].textContent).toContain("+231.6% from price");
+    unmount();
+    render(<ChartReadPanel data={cycleRead({ top_down_confluence: cycleTop({ fib_confluence_clusters: [] }) })} />);
+    expect(screen.getByTestId("cycle-clusters").textContent).toContain("do not overlap");
+  });
+
+  it("separates the rollover box from the full extensions and marks the active tier", () => {
+    const { unmount } = render(<ChartReadPanel data={cycleRead()} />);
+    expect(screen.getByTestId("cycle-targets").getAttribute("data-active-tier")).toBe("rollover_target_box");
+    const box = screen.getByTestId("cycle-rollover-box");
+    const full = screen.getByTestId("cycle-full-extension");
+    expect(box.getAttribute("data-active")).toBe("true");
+    expect(box.textContent).toContain("Active expectation");
+    expect(box.textContent).toContain("$2.03–$2.66");
+    expect(box.textContent).toContain("Price is below the zone");
+    expect(box.textContent).toContain("1.618 extension at $2.64");
+    expect(full.getAttribute("data-active")).toBe("false");
+    expect(full.textContent).toContain("Reference only");
+    expect(full.textContent).toContain("$5.75");
+    expect(full.textContent).toContain("$20.28");
+    expect(full.querySelectorAll('[data-confluence="true"]')).toHaveLength(1);
+    unmount();
+
+    render(<ChartReadPanel data={cycleRead({
+      top_down_confluence: cycleTop({ active_target_tier: "full_extension_targets", macro_regime_gate: "risk_on_aligned", liquidity_rotation_stage: "stage_3_alt_index_breakout" }),
+      macro_industry_regime: cycleRegime({ macro_regime_gate: "risk_on_aligned", gate_label: "Risk-on aligned", stage_number: 3, stage_label: "Stage 3 · Alt index breakout" }),
+    })} />);
+    expect(screen.getByTestId("cycle-full-extension").getAttribute("data-active")).toBe("true");
+    expect(screen.getByTestId("cycle-rollover-box").getAttribute("data-active")).toBe("false");
+    expect(screen.getByTestId("cycle-gate-badge").className).toContain("cycle-read__badge--ok");
+  });
+
+  it("explains a tier the coin has no levels for instead of inventing them", () => {
+    render(<ChartReadPanel data={cycleRead({ top_down_confluence: cycleTop({
+      full_extension_targets: { available: false, reason: "no_secondary_range" }, fib_confluence_clusters: [],
+    }) })} />);
+    const full = screen.getByTestId("cycle-full-extension");
+    expect(full.textContent).toContain("No counter-rally inside the decline to extend from.");
+    expect(full.textContent).not.toContain("$");
+  });
+
+  it("keeps the momentum reads when the top-down read is unavailable", () => {
+    render(<ChartReadPanel data={cycleRead({ top_down_confluence: { available: false, reason: "history_unavailable" } })} />);
+    expect(screen.getByTestId("cycle-momentum")).toBeTruthy();
+    expect(screen.getByTestId("cycle-top-unavailable")).toBeTruthy();
+    expect(screen.queryByTestId("cycle-targets")).toBeNull();
+    expect(screen.getByTestId("cycle-pivot").textContent).not.toContain("multi-year support");
+  });
+
+  it("renders nothing for the cycle read without a multi-year context", () => {
+    render(<ChartReadPanel data={cycleRead({ multi_year_context: { available: false, reason: "no_daily_history" } })} />);
+    expect(screen.queryByTestId("cycle-read")).toBeNull();
+    expect(screen.getByText("Basic read.")).toBeTruthy();
+  });
+});

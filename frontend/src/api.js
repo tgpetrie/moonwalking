@@ -64,8 +64,27 @@ const buildEndpoints = () => ({
 
     const query = params.toString();
     return query ? `${base}?${query}` : base;
+  },
+  // Industry liquidity stage, breadth and cycle buckets. `symbols` adds the
+  // caller's watchlist to the scanned universe.
+  macroCycleScan: (symbols = []) => {
+    const base = `${API_BASE_URL}/api/macro-cycle-scan`;
+    const list = normalizeScanSymbols(symbols);
+    return list.length ? `${base}?symbols=${list.join(",")}` : base;
   }
 });
+
+// The server accepts at most 30 extra symbols; sorting keeps the URL (and so
+// the request cache key) stable when a watchlist is merely reordered.
+const MACRO_SCAN_MAX_SYMBOLS = 30;
+export function normalizeScanSymbols(symbols) {
+  const out = [];
+  for (const raw of Array.isArray(symbols) ? symbols : []) {
+    const sym = String(raw?.symbol ?? raw ?? "").trim().toUpperCase().replace(/-USD$/, "");
+    if (/^[A-Z0-9]{1,15}$/.test(sym) && !out.includes(sym)) out.push(sym);
+  }
+  return out.sort().slice(0, MACRO_SCAN_MAX_SYMBOLS);
+}
 
 export let API_ENDPOINTS = buildEndpoints();
 export const getApiBaseUrl = () => API_BASE_URL;
@@ -207,6 +226,24 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
   }
 };
 
+
+/**
+ * GET /api/macro-cycle-scan: the industry liquidity stage, universe breadth
+ * and the four ranked cycle buckets.
+ *
+ * The first call after a server restart answers `status: "warming"` with no
+ * industry read while daily histories load; call again for the result. A
+ * later call can answer `status: "refreshing"` with the previous scan.
+ * Display context only: the payload says `blocks_alerts: false` and
+ * `outcome_validated: false`.
+ */
+export async function fetchMacroCycleScan(symbols = [], fetchOptions = {}) {
+  const payload = await fetchData(API_ENDPOINTS.macroCycleScan(symbols), fetchOptions);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Unexpected macro cycle scan response");
+  }
+  return payload;
+}
 
 // --- Local Storage Watchlist Functions ---
 const WATCHLIST_KEY = 'crypto_watchlist';

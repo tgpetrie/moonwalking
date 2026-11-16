@@ -26,7 +26,13 @@ vi.mock("../hooks/useDashboardData", () => ({
 }));
 
 vi.mock("../context/WatchlistContext.jsx", () => ({
-  useWatchlist: () => ({ items: [], toggle: vi.fn() }),
+  useWatchlist: () => ({ items: [{ symbol: "RENDER" }, { symbol: "FET" }], toggle: vi.fn() }),
+}));
+
+vi.mock("./IndustryPulse.jsx", () => ({
+  default: ({ symbols, onInfo }) => (
+    <div data-testid="industry-pulse-mount" data-symbols={symbols.join(",")} data-clickable={typeof onInfo === "function" ? "yes" : "no"} />
+  ),
 }));
 
 vi.mock("./VolumeBannerScroll.jsx", () => ({ default: () => null }));
@@ -54,5 +60,16 @@ describe("DashboardShell market status", () => {
 
     expect(screen.getByTitle("Market Pressure: 72")).toHaveTextContent("HOT 72");
     expect(screen.queryByText("Unsupported market verdict")).not.toBeInTheDocument();
+  });
+});
+
+describe("DashboardShell industry pulse", () => {
+  it("mounts the cycle scanner on the board with the watchlist symbols and a coin opener", () => {
+    render(<DashboardShell />);
+
+    const pulse = screen.getByTestId("industry-pulse-mount");
+    expect(pulse).toHaveAttribute("data-symbols", "RENDER,FET");
+    expect(pulse).toHaveAttribute("data-clickable", "yes");
+    expect(pulse.closest(".bh-rail-stack")).not.toBeNull();
   });
 });

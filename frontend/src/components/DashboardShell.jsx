@@ -17,6 +17,7 @@ import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
+import IndustryPulse from "./IndustryPulse.jsx";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -482,6 +483,9 @@ export default function DashboardShell({ onInfo }) {
                     </div>
 
                     <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
+
+                    {/* Multi-year cycle context. It never filters or ranks the boards below. */}
+                    <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} />
 
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">

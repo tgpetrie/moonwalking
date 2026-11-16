@@ -6,6 +6,7 @@ import WaveStructureOverlay, {
 import SwingHistoryOverlay, {
   SWING_DOWN_COLOR, SWING_FLAT_COLOR, SWING_UP_COLOR, swingsInView,
 } from './SwingHistoryOverlay.jsx';
+import CycleReadSection from './CycleReadSection.jsx';
 
 function windowLabel(window_hours, timeframe) {
   const h = Math.round(window_hours || 0);
@@ -309,6 +310,11 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
               </details>
             ) : null}
           </div>
+        ) : null}
+        {/* Cycle view only: the gate, momentum regimes, SMA ladder, confirmation
+            and invalidation levels, and the two target tiers. */}
+        {data.horizon === 'cycle' ? (
+          <CycleReadSection context={data.multi_year_context} top={data.top_down_confluence} regime={data.macro_industry_regime} />
         ) : null}
       </div>
 
