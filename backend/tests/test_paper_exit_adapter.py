@@ -1,0 +1,345 @@
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+import json
+import sys
+
+import pytest
+
+import backend.paper_exit_adapter as adapter
+import backend.portfolio_mode as portfolio
+from backend.paper_exit_adapter import (
+    UnverifiedCostBasisError,
+    collect_quotes,
+    fetch_fee_tier_bps,
+    poll_top_of_book,
+    verify_slice_cost_basis,
+)
+from backend.portfolio_mode import (
+    CoinbaseAdvancedTradeClient,
+    CoinbaseRequestError,
+    UnsafeCoinbasePermissions,
+)
+from scripts.coinbase_paper_exit import simulate_exit
+
+
+def _fill(entry, *, size, price, commission="0", side="BUY", day=1):
+    return {
+        "entry_id": entry,
+        "trade_time": f"2025-01-{day:02d}T00:00:00Z",
+        "product_id": "BTC-USD",
+        "size_in_quote": False,
+        "size": size,
+        "price": price,
+        "commission": commission,
+        "side": side,
+    }
+
+
+def coinbase_client(
+    monkeypatch, *, can_trade=False, balance="0.010", broken_cursor=False
+):
+    client = CoinbaseAdvancedTradeClient()
+    buy = _fill("buy", size="0.012", price="40000", commission="6")
+    sell = _fill("sell", size="0.002", price="45000", side="SELL", day=2)
+    calls = []
+
+    def get(path, *, params=None):
+        calls.append(path)
+        if path.endswith("/key_permissions"):
+            return {"can_view": True, "can_trade": can_trade, "can_transfer": False}
+        if path.endswith("/accounts"):
+            return {
+                "accounts": [
+                    {
+                        "currency": "BTC",
+                        "available_balance": {"value": balance},
+                        "hold": {"value": "0"},
+                    }
+                ]
+            }
+        if path.endswith("/fills"):
+            assert params["asset_filters"] == ["BTC"]
+            if "cursor" not in params:
+                return {"fills": [sell], "cursor": "next"}
+            return {"fills": [buy, sell], "cursor": "next" if broken_cursor else ""}
+        if path.endswith("/transaction_summary"):
+            assert params == {"product_type": "SPOT"}
+            return {"fee_tier": {"taker_fee_rate": "0.006"}}
+        assert path.endswith("/product_book")
+        assert params == {"product_id": "BTC-USD", "limit": 1}
+        return {
+            "pricebook": {
+                "product_id": "BTC-USD",
+                "time": "1970-01-01T00:00:01.011Z",
+                "bids": [{"price": "45000", "size": "0.25"}],
+            }
+        }
+
+    monkeypatch.setattr(client, "get", get)
+    return client, calls
+
+
+def test_pilot_follows_short_fill_pages_and_allocates_decimal_cost(monkeypatch):
+    client, calls = coinbase_client(monkeypatch)
+    basis = verify_slice_cost_basis(client, "BTC-USD", "0.005")
+    assert basis["entry_cost_usd"] == Decimal("202.50")
+    assert basis["source_fill_ids"] == ["buy", "sell"]
+    assert basis["cost_basis_verified"] is True
+    assert calls.count("/api/v3/brokerage/orders/historical/fills") == 2
+    assert fetch_fee_tier_bps(client) == Decimal("60")
+    assert poll_top_of_book(client, "BTC-USD", now_ms=lambda: 1120) == {
+        "observed_at_ms": 1120,
+        "exchange_time_ms": 1011,
+        "bid_usd": Decimal("45000"),
+        "bid_size": Decimal("0.25"),
+    }
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"balance": "0.010001"}, "do not reconcile"),
+        ({"broken_cursor": True}, "pagination is incomplete"),
+        ({"balance": "0.004"}, "exceeds available balance"),
+    ],
+)
+def test_pilot_rejects_unverified_inventory(monkeypatch, kwargs, message):
+    client, _ = coinbase_client(monkeypatch, **kwargs)
+    with pytest.raises(UnverifiedCostBasisError, match=message):
+        verify_slice_cost_basis(client, "BTC-USD", "0.005")
+
+
+def test_pilot_checks_permissions_before_reading_account(monkeypatch):
+    client, calls = coinbase_client(monkeypatch, can_trade=True)
+    with pytest.raises(UnsafeCoinbasePermissions, match="View-only"):
+        verify_slice_cost_basis(client, "BTC-USD", "0.005")
+    assert calls == ["/api/v3/brokerage/key_permissions"]
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"size_in_quote": True, "size": "400"}, "quote-sized fill"),
+        ({"trade_type": "REVERSAL"}, "nonstandard fill type"),
+        ({"trade_type": "CORRECTION"}, "nonstandard fill type"),
+        ({"trade_type": "SYNTHETIC"}, "nonstandard fill type"),
+    ],
+)
+def test_pilot_rejects_ambiguous_fills_even_when_the_balance_matches(
+    monkeypatch, change, message
+):
+    client, _ = coinbase_client(monkeypatch)
+    original_get = client.get
+
+    def get(path, *, params=None):
+        if path.endswith("/fills"):
+            fill = _fill("buy", size="0.010", price="40000")
+            return {"fills": [{**fill, **change}], "cursor": ""}
+        return original_get(path, params=params)
+
+    monkeypatch.setattr(client, "get", get)
+    with pytest.raises(UnverifiedCostBasisError, match=message):
+        verify_slice_cost_basis(client, "BTC-USD", "0.005")
+
+
+@pytest.mark.parametrize("max_fill_pages", [None, 5, 6])
+def test_pilot_requires_terminal_page_at_or_before_cap(monkeypatch, max_fill_pages):
+    client, calls = coinbase_client(monkeypatch)
+    get_account = client.get
+    fill_pages = []
+
+    def get(path, *, params=None):
+        if not path.endswith("/fills"):
+            return get_account(path, params=params)
+        page = int(params.get("cursor", "0"))
+        fill_pages.append(page)
+        assert params["limit"] == 100
+        assert params["asset_filters"] == ["BTC"]
+        if page < 5:
+            return {
+                "fills": [
+                    _fill(f"{page}-{i}", size="0.00001", price="40000")
+                    for i in range(100)
+                ],
+                "cursor": str(page + 1),
+            }
+        return {"fills": [_fill("last", size="0.005", price="40000")], "cursor": ""}
+
+    monkeypatch.setattr(client, "get", get)
+    if max_fill_pages == 5:
+        with pytest.raises(UnverifiedCostBasisError, match="pagination is incomplete"):
+            verify_slice_cost_basis(client, "BTC-USD", "0.005", max_fill_pages=5)
+        assert fill_pages == list(range(5))
+        assert calls.count("/api/v3/brokerage/accounts") == 1
+    else:
+        options = {} if max_fill_pages is None else {"max_fill_pages": max_fill_pages}
+        basis = verify_slice_cost_basis(client, "BTC-USD", "0.005", **options)
+        assert basis["entry_cost_usd"] == Decimal("200.00")
+        assert len(basis["source_fill_ids"]) == 501
+        assert fill_pages == list(range(6))
+        assert calls.count("/api/v3/brokerage/accounts") == 2
+
+
+def test_pilot_rejects_nonadjacent_cursor_cycle(monkeypatch):
+    client, _ = coinbase_client(monkeypatch)
+    get_account = client.get
+    cursors = []
+
+    def get(path, *, params=None):
+        if not path.endswith("/fills"):
+            return get_account(path, params=params)
+        cursor = params.get("cursor")
+        cursors.append(cursor)
+        return {"fills": [], "cursor": {None: "a", "a": "b", "b": "a"}[cursor]}
+
+    monkeypatch.setattr(client, "get", get)
+    with pytest.raises(UnverifiedCostBasisError, match="pagination is incomplete"):
+        verify_slice_cost_basis(client, "BTC-USD", "0.005")
+    assert cursors == [None, "a", "b"]
+
+
+def test_ordinary_portfolio_fill_budget_stays_at_five_pages(monkeypatch):
+    client = CoinbaseAdvancedTradeClient()
+    requested = []
+
+    def get(path, *, params):
+        requested.append(params["limit"])
+        return {"fills": [], "has_next": True, "cursor": str(len(requested))}
+
+    monkeypatch.setattr(client, "get", get)
+    assert client.list_fills().complete is False
+    assert requested == [1000] * 5
+
+
+def test_preflight_request_budget_limits_timeout_and_rejects_late_response(monkeypatch):
+    now = 44.5
+    timeouts = []
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"fills": [], "cursor": ""}
+
+    class Session:
+        def get(self, url, *, params, headers, timeout):
+            nonlocal now
+            timeouts.append(timeout)
+            now += 0.6
+            return Response()
+
+    monkeypatch.setattr(portfolio.time, "monotonic", lambda: now)
+    client = CoinbaseAdvancedTradeClient(oauth_access_token="test", http_session=Session())
+    client.request_deadline_monotonic = 45
+    with pytest.raises(CoinbaseRequestError, match="time budget expired"):
+        client.list_fills(asset="BTC", require_complete=True)
+    with pytest.raises(CoinbaseRequestError, match="time budget expired"):
+        client.get_key_permissions()
+    assert timeouts == [0.5]
+
+
+def test_unavailable_book_and_overrun_do_not_create_synthetic_receipts(monkeypatch):
+    client, calls = coinbase_client(monkeypatch)
+    now = 1000
+
+    def book_request(path, *, params):
+        nonlocal now
+        calls.append(path)
+        now += 2200
+        return {"pricebook": {"product_id": "ETH-USD"}}
+
+    def sleep(seconds):
+        nonlocal now
+        now += round(seconds * 1000)
+
+    monkeypatch.setattr(client, "get", book_request)
+    quotes = collect_quotes(
+        client,
+        {"window_start_ms": 1000, "window_end_ms": 5000, "product_id": "BTC-USD"},
+        now_ms=lambda: now,
+        sleep=sleep,
+    )
+    assert quotes == [
+        {"observed_at_ms": 3200, "quote_status": "UNAVAILABLE"},
+    ]
+    assert len(calls) == 2
+
+
+def test_collector_cli_writes_a_replayable_window(monkeypatch, tmp_path):
+    client, calls = coinbase_client(monkeypatch)
+    start = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(seconds=10)
+    now = int(start.timestamp()) * 1000 - 1000
+    original_get = client.get
+    original_collect = adapter.collect_quotes
+
+    def sleep(seconds):
+        nonlocal now
+        now += round(seconds * 1000)
+
+    def get(path, *, params=None):
+        if path.endswith("/product_book"):
+            assert client.request_deadline_monotonic is None
+        else:
+            assert client.request_deadline_monotonic is not None
+        response = original_get(path, params=params)
+        if path.endswith("/product_book"):
+            response["pricebook"]["time"] = datetime.fromtimestamp(
+                now / 1000, timezone.utc
+            ).isoformat()
+        return response
+
+    monkeypatch.setattr(client, "get", get)
+    monkeypatch.setattr(CoinbaseAdvancedTradeClient, "from_environment", lambda: client)
+    monkeypatch.setattr(adapter, "_now_ms", lambda: now)
+    monkeypatch.setattr(
+        adapter,
+        "collect_quotes",
+        lambda client, spec: original_collect(
+            client, spec, now_ms=lambda: now, sleep=sleep
+        ),
+    )
+    output = tmp_path / "window.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "paper_exit_adapter",
+            "--product",
+            "BTC-USD",
+            "--quantity",
+            "0.005",
+            "--start-utc",
+            start.isoformat(),
+            "--duration-seconds",
+            "3",
+            "--slippage-bps",
+            "10",
+            "--out",
+            str(output),
+        ],
+    )
+    adapter.main()
+    result = simulate_exit(json.loads(output.read_text(encoding="utf-8")))
+    assert result["data_quality"]["window_valid"]
+    assert result["data_quality"]["valid_poll_slots"] == 3
+    assert result["pilot_settings"]["matches_official"] is True
+    assert result["pilot_settings"]["window_matches_official"] is False
+    assert result["official_pilot_result"] is False
+    assert result["hold_last_quote"]["bid_size"] == Decimal("0.25")
+    assert result["entry_cost_usd"] == Decimal("202.50")
+    assert calls.count("/api/v3/brokerage/orders/historical/fills") == 2
+
+    failed_output = tmp_path / "incomplete.json"
+    monkeypatch.setattr(adapter, "_now_ms", lambda: now - 10_000)
+    monkeypatch.setattr(
+        sys, "argv", [*sys.argv[:-1], str(failed_output), "--max-fill-pages", "1"]
+    )
+    calls.clear()
+    with pytest.raises(SystemExit) as failure:
+        adapter.main()
+    assert failure.value.code == 2
+    assert not failed_output.exists()
+    assert not any(
+        path.endswith(("/product_book", "/transaction_summary")) for path in calls
+    )
+    assert client.request_deadline_monotonic is None
