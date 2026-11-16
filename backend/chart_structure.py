@@ -29,6 +29,7 @@ __all__ = [
     "horizon_list",
     "swing_history",
     "plain_story",
+    "short_headline",
     "trend_state",
     "radar_structure",
     "radar_posture",
@@ -569,6 +570,77 @@ def plain_story(wave: dict[str, Any] | None) -> dict[str, Any]:
     except Exception as exc:  # the chart read must survive a wording failure
         logging.warning("[ChartStructure] plain story failed: %s", exc)
         return empty
+
+
+def short_headline(wave: dict[str, Any] | None) -> str | None:
+    """One line for a coin header: the active setup, else the run of swings.
+
+    Returns ``None`` when there is no usable read, so the caller can fall back
+    to something else. Never raises.
+    """
+    try:
+        if not wave or not wave.get("available"):
+            return None
+        pattern = str(wave.get("active_pattern") or "none")
+        status = wave.get("status")
+        up = wave.get("bias") == "bullish"
+        zone = wave.get("projected_c_zone") or {}
+        target, breaks = wave.get("target_price"), wave.get("invalidation_price")
+        if pattern.startswith("abc") and zone.get("low") and zone.get("high"):
+            band = f"{_money(zone['low'])}–{_money(zone['high'])}"
+            name = "dip zone" if up else "bounce zone"
+            goal = "recovery target" if up else "downside target"
+            if pattern == "abc_complete":
+                if status == "target_reached":
+                    return (
+                        f"Pullback recovered to {_money(target)}"
+                        if up
+                        else f"Relief bounce faded back to {_money(target)}"
+                    )
+                points = {p.get("label"): p for p in wave.get("wave_points") or []}
+                end = (points.get("C") or {}).get("price", breaks)
+                swing = "Dip" if up else "Bounce"
+                return (
+                    f"{swing} looks finished near {_money(end)} · "
+                    f"{goal} {_money(target)}"
+                )
+            if status == "in_c_zone":
+                move = "bounce" if up else "turn back down"
+                return (
+                    f"Inside {name} ({band}) · watching for a {move} toward "
+                    f"{_money(target)}"
+                )
+            lead = "Pulling back toward" if up else "Bouncing toward"
+            return f"{lead} {name} ({band}) · {goal} {_money(target)}"
+        if pattern.startswith("impulse"):
+            move = "advance" if up else "decline"
+            if status == "complete":
+                return (
+                    f"Extended run · five-step {move} looks complete · breaks "
+                    f"{'below' if up else 'above'} {_money(breaks)}"
+                )
+            return (
+                f"Stair-step {move} · intact while {'above' if up else 'below'} "
+                f"{_money(breaks)}"
+            )
+        history = wave.get("swing_history") or {}
+        watch = history.get("watch_level")
+        if (history.get("higher_lows") or 0) >= 2:
+            return (
+                f"{history['higher_lows']} higher lows in a row · floor at "
+                f"{_money(watch)}"
+            )
+        if (history.get("lower_highs") or 0) >= 2:
+            return (
+                f"{history['lower_highs']} lower highs in a row · needs a break "
+                f"above {_money(watch)}"
+            )
+        if history.get("swings"):
+            return "No clear setup in the recent swings"
+        return None
+    except Exception as exc:  # a header line must never break the chart read
+        logging.warning("[ChartStructure] short headline failed: %s", exc)
+        return None
 
 
 # ─── Radar posture ────────────────────────────────────────────────────────────

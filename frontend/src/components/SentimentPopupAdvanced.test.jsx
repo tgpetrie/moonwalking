@@ -257,11 +257,32 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
       />
     );
 
+    // The risk posture rides on the header strip's tape pill, not a full-screen card.
     expect(await screen.findByText("STAY CLEAR")).toBeInTheDocument();
+    const tape = screen.getByTestId("coin-strip-tape");
+    expect(within(tape).getByText("STAY CLEAR")).toBeInTheDocument();
+    const lean = within(tape).getByText("TAPE UP");
+    expect(lean).toHaveStyle({ color: "#f1b43a" });
+    expect(lean.getAttribute("title")).toMatch(/risk warning overrides entry quality/i);
+    // With no chart history the tape posture is the headline, risk reason included.
+    const headline = screen.getByTestId("coin-strip-headline");
+    expect(headline).toHaveAttribute("data-source", "tape");
+    expect(headline.textContent).toMatch(/active risk warning is overriding the setup/i);
 
-    const earlyRead = screen.getByText("Early read").closest("div");
-    expect(within(earlyRead).getByText("TAPE UP")).toHaveStyle({ color: "#f1b43a" });
-    expect(within(earlyRead).getByText(/risk warning overrides entry quality/i)).toBeInTheDocument();
+    // The full reasoning is still there, under "See the evidence".
+    const posture = screen.getByTestId("coin-tape-posture");
+    expect(posture.closest("details")).not.toBeNull();
+    expect(within(posture).getByText(/risk warning overrides entry quality/i)).toBeInTheDocument();
+    expect(within(posture).getByText("What blocks it")).toBeInTheDocument();
+
+    // No wall of text above the chart, and the chart read is not behind an accordion.
+    expect(screen.queryByText(/RIGHT NOW/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Early read")).not.toBeInTheDocument();
+    expect(document.querySelector(".cp-simple-read")).toBeNull();
+    const hero = screen.getByTestId("coin-chart-hero");
+    expect(hero.closest("details")).toBeNull();
+    expect(screen.getByTestId("coin-strip").compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Chart & Read")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
 

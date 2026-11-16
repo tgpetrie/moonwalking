@@ -431,15 +431,19 @@ def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
 
 def _structure_layer():
     try:
-        from chart_structure import plain_story, swing_history
+        from chart_structure import plain_story, short_headline, swing_history
     except ImportError:
-        from backend.chart_structure import plain_story, swing_history
-    return plain_story, swing_history
+        from backend.chart_structure import (
+            plain_story,
+            short_headline,
+            swing_history,
+        )
+    return plain_story, swing_history, short_headline
 
 
 def _wave_fallback(reason: str) -> dict[str, Any]:
     """Same shape as an engine result, saying no wave read is available."""
-    plain_story, swing_history = _structure_layer()
+    plain_story, swing_history, _ = _structure_layer()
     return {
         "available": False,
         "reason": reason,
@@ -460,6 +464,7 @@ def _wave_fallback(reason: str) -> dict[str, Any]:
         "summary": "Wave structure is not available for this chart.",
         "swing_history": swing_history([]),
         "story": plain_story(None),
+        "short_headline": None,
         "outcome_validated": False,
     }
 
@@ -478,9 +483,10 @@ def build_wave_analysis(
     trend check is resampled from the same candles when there are enough.
     Returns the fallback shape when history is short or the engine fails.
 
-    Two plain-English layers ride along with every read: ``swing_history``
-    (each confirmed swing labeled as a higher or lower high or low) and
-    ``story`` (the read restated as numbered steps).
+    Plain-English layers ride along with every read: ``swing_history`` (each
+    confirmed swing labeled as a higher or lower high or low), ``story`` (the
+    read restated as numbered steps) and ``short_headline`` (one line for a
+    header, or ``None``).
     """
     try:
         try:
@@ -507,11 +513,12 @@ def build_wave_analysis(
         )
         result["timeframe"] = timeframe
         result["higher_timeframe"] = higher_name
-        plain_story, swing_history = _structure_layer()
+        plain_story, swing_history, short_headline = _structure_layer()
         result["swing_history"] = swing_history(
             result.get("pivots"), candles[-1][4] if candles else None
         )
         result["story"] = plain_story(result)
+        result["short_headline"] = short_headline(result)
         if result.get("available"):
             result["chart"] = {
                 "candles": candles[-_WAVE_CHART_BARS:],

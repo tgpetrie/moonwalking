@@ -3798,3 +3798,299 @@ a.news-item-title:hover {
         gap: 3px;
     }
 }
+
+/* ============================================================
+   COIN MODAL: HEADER STRIP, CHART HERO, COMPACT SELL-SIDE ROW
+   ============================================================ */
+
+.cp-strip {
+    --cp-strip-accent: rgba(143, 199, 255, 0.85);
+    display: grid;
+    gap: 0.38rem;
+    margin-bottom: 0.6rem;
+    padding: 0.45rem 0.75rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-left: 3px solid var(--cp-strip-accent);
+    background: linear-gradient(100deg, rgba(143, 199, 255, 0.06), rgba(0, 0, 0, 0.3) 46%);
+}
+
+.cp-strip--positive { --cp-strip-accent: var(--sentiment-pos); }
+.cp-strip--negative { --cp-strip-accent: var(--sentiment-neg); }
+
+.cp-strip__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+.cp-strip__headline {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    color: var(--sentiment-text);
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.cp-strip__tape {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.15rem 0.5rem;
+    max-width: 52%;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.62);
+    font: 400 0.64rem/1.3 'Fragment Mono', 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+}
+
+.cp-strip__tape > * + *::before {
+    content: "·";
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.cp-strip__tape--positive { border-color: rgba(69, 255, 179, 0.3); }
+.cp-strip__tape--negative { border-color: rgba(174, 75, 245, 0.4); }
+
+.cp-strip__posture {
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--sentiment-text);
+}
+
+.cp-strip__tape--positive .cp-strip__posture { color: var(--sentiment-pos); }
+.cp-strip__tape--negative .cp-strip__posture { color: var(--sentiment-neg); }
+
+.cp-strip__levels {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin: 0;
+}
+
+.cp-strip__level {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.5rem;
+    min-width: 0;
+    padding: 0.22rem 0.5rem;
+    background: rgba(0, 0, 0, 0.22);
+    border-left: 2px solid rgba(255, 255, 255, 0.14);
+}
+
+.cp-strip__level--zone { border-left-color: #8fc7ff; }
+.cp-strip__level--support { border-left-color: #5fdbad; }
+.cp-strip__level--stop { border-left-color: #ffbc66; }
+.cp-strip__level--target,
+.cp-strip__level--trim { border-left-color: #b9a0ff; }
+
+.cp-strip__level dt {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.cp-strip__level dd {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font: 600 0.8rem/1.2 'JetBrains Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+}
+
+.cp-strip__risk {
+    margin: 0;
+    color: var(--sentiment-neg);
+    font-size: 0.74rem;
+    line-height: 1.35;
+}
+
+.cp-chart-hero > div:first-child {
+    margin-top: 0;
+}
+
+/* Chart Read: chart and the reasons for the read side by side on a wide modal,
+   stacked on a narrow one. */
+.chart-read__split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 0.3rem 1rem;
+    align-items: start;
+}
+
+.chart-read__chart,
+.chart-read__context {
+    min-width: 0;
+}
+
+.chart-read__context {
+    padding-top: 0.25rem;
+}
+
+@media (max-width: 900px) {
+    .chart-read__split {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-read__context {
+        padding-top: 0;
+    }
+}
+
+.cp-full-chart {
+    margin: 0.85rem 0;
+}
+
+.cp-full-chart .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.cp-full-chart .section-header .mini-toggle {
+    margin-top: 0;
+}
+
+/* Sell-side prices as one row under the chart. */
+.risk-levels-compact--row {
+    margin: 0.7rem 0;
+    padding: 0.55rem 0.7rem;
+}
+
+.risk-levels-compact__row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.risk-levels-compact--row .risk-levels-compact__grid {
+    flex: 1 1 auto;
+    margin-top: 0;
+    gap: 0.4rem;
+}
+
+.risk-levels-compact--row .risk-levels-compact__grid > div {
+    padding: 0.4rem 0.55rem;
+}
+
+.risk-levels-compact__open {
+    flex: 0 0 auto;
+    padding: 0 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.26);
+    color: rgba(255, 255, 255, 0.78);
+    font: inherit;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.risk-levels-compact__open:hover,
+.risk-levels-compact__open:focus-visible {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.risk-levels-compact--row > .risk-levels-compact__warning {
+    margin: 0.45rem 0 0;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.74rem;
+}
+
+/* Tape posture detail inside "See the evidence". */
+.cp-tape-posture {
+    margin-bottom: 0.9rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 3px solid var(--sentiment-neu);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cp-tape-posture--positive { border-left-color: var(--sentiment-pos); }
+.cp-tape-posture--negative { border-left-color: var(--sentiment-neg); }
+
+.cp-tape-posture__early,
+.cp-tape-posture__line {
+    margin: 0.4rem 0 0;
+    color: var(--sentiment-subtext);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.cp-tape-posture__line span {
+    margin-right: 0.4rem;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.cp-tape-posture__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.cp-tape-posture__columns h4 {
+    margin: 0 0 0.25rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.64rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.cp-tape-posture__columns ul {
+    margin: 0;
+    padding-left: 1rem;
+}
+
+.cp-tape-posture__columns li,
+.cp-tape-posture__columns p {
+    margin: 0;
+    color: var(--sentiment-subtext);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+    .cp-strip__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .cp-strip__tape {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    .cp-strip__levels {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-levels-compact__row {
+        flex-direction: column;
+    }
+
+    .risk-levels-compact__open {
+        padding: 0.45rem 0.75rem;
+    }
+
+    .cp-tape-posture__columns {
+        grid-template-columns: 1fr;
+    }
+}

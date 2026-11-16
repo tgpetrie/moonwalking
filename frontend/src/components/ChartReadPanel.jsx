@@ -210,39 +210,51 @@ function StructureSection({ wave }) {
         {drawable ? story.headline || wave.summary : 'No clear setup in the recent swings.'}
       </p>
       {drawable && <StoryStrip story={story} up={up} />}
-      <StructureChart wave={wave} />
-      <ChartLegend history={history} />
-      {hasHistory && history.headline && (
-        <div style={styles.historyBlock} data-testid="chart-read-history">
-          <p style={styles.watchLabel}>The bigger picture</p>
-          <p style={styles.summary}><strong>{history.headline}</strong>{history.why ? ` ${history.why}` : ''}</p>
+      {/* On a wide modal the chart and the reasons for the read sit side by side,
+          so both are on screen without scrolling (see .chart-read__split). */}
+      <div className="chart-read__split">
+        <div className="chart-read__chart">
+          <StructureChart wave={wave} />
+          <ChartLegend history={history} />
         </div>
-      )}
-      {drawable && <WhyItMatters items={story.why_it_matters} />}
-      {drawable && (
-        <div style={styles.chips}>
-          <Chip color={confColor}><strong style={{ color: confColor }}>Read strength:</strong>{' '}{wave.confidence_label}</Chip>
+        <div className="chart-read__context">
+          {hasHistory && history.headline && (
+            <div style={styles.historyBlock} data-testid="chart-read-history">
+              <p style={styles.watchLabel}>The bigger picture</p>
+              <p style={styles.summary}><strong>{history.headline}</strong>{history.why ? ` ${history.why}` : ''}</p>
+            </div>
+          )}
+          {drawable && <WhyItMatters items={story.why_it_matters} />}
+          {drawable && (
+            <div style={styles.chips}>
+              <Chip color={confColor}><strong style={{ color: confColor }}>Read strength:</strong>{' '}{wave.confidence_label}</Chip>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       <TechnicalDetails wave={wave} />
       <p style={styles.disclaimer}>This describes the shape of recent swings on {wave.timeframe || 'these'} candles. It has not been tested against outcomes.</p>
     </div>
   );
 }
 
-export default function ChartReadPanel({ data, loading, error, horizon, onHorizonChange }) {
-  const switcher = (
-    <HorizonSwitcher horizons={data?.horizons} horizon={horizon || data?.horizon} onChange={onHorizonChange} busy={Boolean(loading)} />
+// `afterSetup` is rendered between the setup block and the range read, so the
+// caller can keep something (the sell-side price row) right under the chart.
+export default function ChartReadPanel({ data, loading, error, horizon, onHorizonChange, afterSetup = null }) {
+  // Title and time-horizon switcher share one row to keep the chart high on screen.
+  const head = (
+    <div style={styles.header}>
+      <span style={styles.title}>Chart Read</span>
+      <HorizonSwitcher horizons={data?.horizons} horizon={horizon || data?.horizon} onChange={onHorizonChange} busy={Boolean(loading)} />
+    </div>
   );
 
   if (loading && !data) {
     return (
       <div style={styles.wrapper}>
-        <div style={styles.header}>
-          <span style={styles.title}>Chart Read</span>
-        </div>
-        {switcher}
+        {head}
         <p style={styles.loading}>Reading the chart…</p>
+        {afterSetup}
       </div>
     );
   }
@@ -250,33 +262,38 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
   if (error && !loading) {
     return (
       <div style={styles.wrapper}>
-        <div style={styles.header}>
-          <span style={styles.title}>Chart Read</span>
-        </div>
-        {switcher}
+        {head}
         <p style={styles.errorText}>Chart data temporarily unavailable.</p>
+        {afterSetup}
       </div>
     );
   }
 
-  if (!data) return null;
+  if (!data) return afterSetup;
 
   const { summary, direction, lower_area, upper_area, trading_activity, confidence, watch_next, timeframe, window_hours, wave_analysis } = data;
   const dirColor = DIRECTION_COLOR[direction?.label] || 'var(--sentiment-subtext)';
   const wLabel = windowLabel(window_hours, timeframe);
   const volColor = VOLUME_COLOR[trading_activity?.label] || 'var(--sentiment-subtext)';
   const confColor = CONFIDENCE_COLOR[confidence] || 'var(--sentiment-subtext)';
+  const dim = { opacity: loading ? 0.55 : 1, transition: 'opacity 160ms ease' };
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.header}>
-        <span style={styles.title}>Chart Read</span>
-        {wLabel && <span style={styles.meta}>{wLabel}</span>}
-      </div>
-      {switcher}
+      {head}
 
-      {/* A view that is still loading keeps the previous read on screen, dimmed. */}
-      <div style={{ opacity: loading ? 0.55 : 1, transition: 'opacity 160ms ease' }} aria-busy={Boolean(loading)}>
+      {/* A view that is still loading keeps the previous read on screen, dimmed.
+          The setup, its chart and the bigger picture lead; the range read follows. */}
+      <div style={dim} aria-busy={Boolean(loading)}>
+        <StructureSection wave={wave_analysis} />
+      </div>
+
+      {afterSetup}
+
+      <div style={dim}>
+        <p style={styles.watchLabel} data-testid="chart-read-range-label">
+          Recent range{wLabel ? <span style={styles.rangeMeta}> · {wLabel}</span> : null}
+        </p>
         <p style={styles.summary}>{summary}</p>
 
         <div style={styles.chips}>
@@ -318,8 +335,6 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
             </ul>
           </div>
         )}
-
-        <StructureSection wave={wave_analysis} />
       </div>
 
       <p style={styles.disclaimer}>
@@ -339,9 +354,15 @@ const styles = {
   },
   header: {
     display: 'flex',
-    alignItems: 'baseline',
-    gap: '0.6rem',
-    marginBottom: '0.5rem',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '0.4rem 0.75rem',
+    marginBottom: '0.6rem',
+  },
+  rangeMeta: {
+    fontWeight: 400,
+    letterSpacing: '0.02em',
+    textTransform: 'none',
   },
   title: {
     fontSize: '0.75rem',
@@ -359,7 +380,7 @@ const styles = {
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: '0.6rem',
-    margin: '0 0 0.7rem',
+    margin: 0,
   },
   summary: {
     margin: '0 0 0.65rem',
@@ -402,9 +423,9 @@ const styles = {
     marginBottom: '0.2rem',
   },
   waveBlock: {
-    margin: '0.25rem 0 0.6rem',
-    paddingTop: '0.6rem',
-    borderTop: '1px solid rgba(255,255,255,0.07)',
+    margin: '0 0 0.75rem',
+    paddingBottom: '0.7rem',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
   },
   storyStrip: {
     display: 'grid',

@@ -16,6 +16,7 @@ import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import { tokenIconUrl } from '../utils/tokenIcon.js';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
+import CoinHeaderStrip from './CoinHeaderStrip.jsx';
 import RiskLevelsChart from './RiskLevelsChart.jsx';
 import '../styles/sentiment-popup-advanced.css';
 
@@ -999,22 +1000,24 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen,
   const outcomes = history?.outcomes || {};
 
   if (compact) {
+    // One tight row: the four order-placing prices and the way into the full
+    // plan. A real top/exit warning keeps its label and advice; "no top
+    // signal" takes no space.
+    const warning = topSignal.tone && topSignal.tone !== 'neutral' && topSignal.label;
     return (
-      <section className={`risk-levels-compact risk-levels-compact--${topSignal.tone || 'neutral'}`}>
-        <div className="risk-levels-compact__head">
-          <div>
-            <span>Sell-side intelligence</span>
-            <strong>{topSignal.label || 'Risk map ready'}</strong>
+      <section className={`risk-levels-compact risk-levels-compact--row risk-levels-compact--${topSignal.tone || 'neutral'}`} aria-label="Sell-side intelligence" data-testid="risk-levels-compact">
+        <div className="risk-levels-compact__row">
+          <div className="risk-levels-compact__grid">
+            <div><span>Stop trigger</span><strong>{formatPlanPrice(stop.trigger_price)}</strong></div>
+            <div><span>Sell limit (uncalibrated)</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
+            <div><span>Support fails</span><strong>{formatPlanPrice(stop.invalidation_price)}</strong></div>
+            <div><span>First trim</span><strong>{formatPlanPrice(profit.first_trim_price)}</strong></div>
           </div>
-          <button type="button" onClick={onOpen}>Open risk levels</button>
+          <button type="button" className="risk-levels-compact__open" onClick={onOpen}>Open risk levels</button>
         </div>
-        <div className="risk-levels-compact__grid">
-          <div><span>Stop trigger</span><strong>{formatPlanPrice(stop.trigger_price)}</strong></div>
-          <div><span>Sell limit (uncalibrated)</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
-          <div><span>Support fails</span><strong>{formatPlanPrice(stop.invalidation_price)}</strong></div>
-          <div><span>First trim</span><strong>{formatPlanPrice(profit.first_trim_price)}</strong></div>
-        </div>
-        <p>{topSignal.action}</p>
+        {warning ? (
+          <p className="risk-levels-compact__warning"><strong>{topSignal.label}.</strong> {topSignal.action}</p>
+        ) : null}
       </section>
     );
   }
@@ -1170,7 +1173,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const chartReadShown = chartRead || (chartReadLoading ? lastChartReadRef.current : null);
   // Risk Levels draws on 1h candles, so it always uses the swing (1h) read.
   const swingChartRead = chartReads.swing || null;
-  const [chartDrawerOpen, setChartDrawerOpen] = useState(false);
 
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinHistoryLoading, setCoinHistoryLoading] = useState(false);
@@ -1203,14 +1205,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   useEffect(() => {
     if (isOpen) setActiveTab(normalizeTab(defaultTab));
   }, [isOpen, defaultTab]);
-
-  useEffect(() => {
-    if (chartEventContext) setChartDrawerOpen(true);
-  }, [chartEventContext]);
-
-  useEffect(() => {
-    if (!isOpen) setChartDrawerOpen(false);
-  }, [isOpen]);
 
   useEffect(() => {
     const onEsc = (evt) => {
@@ -2407,23 +2401,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '0.6rem 0.9rem',
-                      marginBottom: 12,
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 10,
-                      background: 'rgba(255,255,255,0.02)',
-                    }}
-                  >
-                    <span style={{ fontSize: 11, letterSpacing: '0.05em', color: '#8a8a8a', textTransform: 'uppercase' }}>Early read</span>
-                    <span style={{ fontSize: 16, fontWeight: 600, color: { positive: '#45ffb3', negative: '#ff6b6b', caution: '#f1b43a', neutral: '#a3a3a3' }[earlyRead.tone] || '#a3a3a3' }}>{earlyRead.label}</span>
-                    <span style={{ fontSize: 12.5, color: '#b8b8b8' }}>{earlyRead.note}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6f6f6f', fontStyle: 'italic' }}>fast · unconfirmed</span>
-                  </div>
+                  {/* One compact strip: the chart read leads, the levels sit in one
+                      row and the live tape is a pill. */}
+                  <CoinHeaderStrip
+                    wave={swingChartRead?.wave_analysis}
+                    plan={riskLevels?.plan}
+                    posture={simpleCoinRead}
+                    earlyRead={earlyRead}
+                    liveRanking={coinLiveRanking}
+                    chartLoading={chartReadLoading && !swingChartRead}
+                    formatPlanPrice={formatPlanPrice}
+                  />
 
                   {alertBanner ? (
                     <div className="mw-alert-banner" data-tone={alertBanner.tone}>
@@ -2432,61 +2420,100 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     </div>
                   ) : null}
 
-                  <section className={`cp-simple-read cp-simple-read--${simpleCoinRead.tone}`}>
-                    <div className="cp-simple-read__topline">
-                      <span>{coinSymbol} · RIGHT NOW</span>
-                      <span>
-                        {coinLiveRanking
-                          ? `Tape rank #${coinLiveRanking.live_rank}/${coinLiveRanking.universe_size} · Tape strength ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live`
-                          : `updated ${humanTime(lastCoinUpdateTs)}`}
-                      </span>
-                    </div>
-                    <div className="cp-simple-read__answer">{simpleCoinRead.label}</div>
-                    <h2>{simpleCoinRead.headline}</h2>
-
-                    <div className="cp-simple-read__columns">
-                      <div>
-                        <h3>What helps</h3>
-                        {simpleCoinRead.supports.length ? (
-                          <ul>{simpleCoinRead.supports.map((item) => <li key={item}>{item}</li>)}</ul>
-                        ) : (
-                          <p>Nothing meaningful is confirming the setup yet.</p>
-                        )}
-                      </div>
-                      <div>
-                        <h3>What blocks it</h3>
-                        {simpleCoinRead.blockers.length ? (
-                          <ul>{simpleCoinRead.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
-                        ) : (
-                          <p>No major blocker is active.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="cp-simple-read__next">
-                      <span>WHAT WOULD IMPROVE IT</span>
-                      <strong>{simpleCoinRead.upgrade}</strong>
-                    </div>
-                    <div className="cp-simple-read__fails">
-                      <span>WHEN TO STOP TRUSTING IT</span>
-                      <strong>{simpleCoinRead.invalidation}</strong>
-                    </div>
-                    {simpleCoinRead.history ? (
-                      <div className="cp-simple-read__history">History: {simpleCoinRead.history}</div>
-                    ) : null}
+                  {/* Chart & Read is the hero: always open, first thing on screen. */}
+                  <section className="cp-chart-hero" aria-label="Chart and read" data-testid="coin-chart-hero">
+                    <ChartReadPanel
+                      data={chartReadShown}
+                      loading={chartReadLoading}
+                      error={chartReadError}
+                      horizon={chartHorizon}
+                      onHorizonChange={setChartHorizon}
+                      afterSetup={(
+                        // The four order-placing prices sit right under the chart.
+                        <RiskLevelsPanel
+                          data={riskLevels}
+                          loading={riskLevelsLoading}
+                          error={riskLevelsError}
+                          compact
+                          onOpen={() => setActiveTab('levels')}
+                        />
+                      )}
+                    />
                   </section>
 
-                  <RiskLevelsPanel
-                    data={riskLevels}
-                    loading={riskLevelsLoading}
-                    error={riskLevelsError}
-                    compact
-                    onOpen={() => setActiveTab('levels')}
-                  />
+                  <section className="cp-full-chart mw-coin-chart-block" aria-label="Full candlestick chart">
+                    <div className="section-header">
+                      <h3>Full candlestick chart</h3>
+                      <div className="mini-toggle" role="group" aria-label="Chart source">
+                        {['auto', 'coinbase', 'binance'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
+                            onClick={() => setChartExchange(opt)}
+                            aria-pressed={chartExchange === opt}
+                          >
+                            {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
+                          </button>
+                        ))}
+                        <span className="mini-toggle-label">Using {tvResolved.source}</span>
+                      </div>
+                    </div>
+                    <div className="tradingview-widget-container" style={{ height: '360px' }}>
+                      <iframe
+                        key={`${tvResolved.symbol}-${tvResolved.source}`}
+                        src={tvUrl}
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+                        title={`${coinSymbol} chart`}
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
+                    </div>
+                  </section>
 
                   <details className="cp-evidence-drawer">
                     <summary>See the evidence</summary>
                     <div className="cp-evidence-drawer__body">
+                      {/* The tape posture and its reasons, in full, for anyone who wants them. */}
+                      <section className={`cp-tape-posture cp-tape-posture--${simpleCoinRead.tone}`} data-testid="coin-tape-posture">
+                        <div className="section-header">
+                          <h3>Live tape posture · {simpleCoinRead.label}</h3>
+                          <p className="section-desc">
+                            {simpleCoinRead.headline}
+                            {coinLiveRanking
+                              ? ` Tape rank #${coinLiveRanking.live_rank}/${coinLiveRanking.universe_size} · strength ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live.`
+                              : ` Updated ${humanTime(lastCoinUpdateTs)}.`}
+                          </p>
+                        </div>
+                        <p className="cp-tape-posture__early">
+                          Fast lean (unconfirmed): <strong>{earlyRead.label}</strong>. {earlyRead.note}
+                        </p>
+                        <div className="cp-tape-posture__columns">
+                          <div>
+                            <h4>What helps</h4>
+                            {simpleCoinRead.supports.length ? (
+                              <ul>{simpleCoinRead.supports.map((item) => <li key={item}>{item}</li>)}</ul>
+                            ) : (
+                              <p>Nothing meaningful is confirming the setup yet.</p>
+                            )}
+                          </div>
+                          <div>
+                            <h4>What blocks it</h4>
+                            {simpleCoinRead.blockers.length ? (
+                              <ul>{simpleCoinRead.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
+                            ) : (
+                              <p>No major blocker is active.</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="cp-tape-posture__line"><span>What would improve it</span> {simpleCoinRead.upgrade}</p>
+                        <p className="cp-tape-posture__line"><span>When to stop trusting it</span> {simpleCoinRead.invalidation}</p>
+                        {simpleCoinRead.history ? (
+                          <p className="cp-tape-posture__line"><span>History</span> {simpleCoinRead.history}</p>
+                        ) : null}
+                      </section>
+
                       <SupportRail items={coinSupportRail} />
 
                       <div className="section-header">
@@ -2517,62 +2544,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                         hideFoot
                         emptyCopy={coinEvidenceEmptyCopy}
                       />
-                    </div>
-                  </details>
-
-                  <details
-                    className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block"
-                    open={chartDrawerOpen}
-                    onToggle={(e) => setChartDrawerOpen(e.currentTarget.open)}
-                  >
-                    <summary>Chart &amp; Read</summary>
-                    <div className="cp-evidence-drawer__body">
-                      {chartEventContext ? (
-                        <ChartReadPanel
-                          data={chartReadShown}
-                          loading={chartReadLoading}
-                          error={chartReadError}
-                          horizon={chartHorizon}
-                          onHorizonChange={setChartHorizon}
-                        />
-                      ) : null}
-                      <div className="section-header">
-                        <p className="section-desc">{chartEventContext ? 'Chart below for reference.' : 'Chart first, plain-English read below.'}</p>
-                      <div className="mini-toggle" role="group" aria-label="Chart source">
-                        {['auto', 'coinbase', 'binance'].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
-                            onClick={() => setChartExchange(opt)}
-                            aria-pressed={chartExchange === opt}
-                          >
-                            {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
-                          </button>
-                        ))}
-                        <span className="mini-toggle-label">Using {tvResolved.source}</span>
-                      </div>
-                      </div>
-                      <div className="tradingview-widget-container" style={{ height: '360px' }}>
-                        <iframe
-                          key={`${tvResolved.symbol}-${tvResolved.source}`}
-                          src={tvUrl}
-                          style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
-                          title={`${coinSymbol} chart`}
-                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                        />
-                      </div>
-                      {!chartEventContext ? (
-                        <ChartReadPanel
-                          data={chartReadShown}
-                          loading={chartReadLoading}
-                          error={chartReadError}
-                          horizon={chartHorizon}
-                          onHorizonChange={setChartHorizon}
-                        />
-                      ) : null}
                     </div>
                   </details>
 

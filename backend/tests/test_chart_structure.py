@@ -445,3 +445,83 @@ def test_history_says_when_price_has_already_slipped_under_the_floor():
     over = cs.swing_history(falling, last_price=111)
     assert over["ceiling"]["intact"] is False
     assert "now above the latest of them ($110.00)" in over["why"]
+
+
+# ─── one-line header ──────────────────────────────────────────────────────────
+
+
+def test_short_headline_names_the_zone_and_the_target_while_price_is_in_it():
+    wave = build_wave_analysis(BULL_ABC[:82], "1h", [])
+    zone, target = wave["projected_c_zone"], wave["target_price"]
+    assert wave["status"] == "in_c_zone"
+    assert wave["short_headline"] == (
+        f"Inside dip zone (${zone['low']:.2f}–${zone['high']:.2f}) · "
+        f"watching for a bounce toward ${target:.2f}"
+    )
+    early = build_wave_analysis(BULL_ABC[:77], "1h", [])
+    assert early["status"] == "awaiting_c_zone"
+    assert early["short_headline"].startswith("Pulling back toward dip zone ($")
+    assert early["short_headline"].endswith(f"recovery target ${target:.2f}")
+
+
+def test_short_headline_for_finished_pullbacks_and_runs():
+    done = build_wave_analysis(BULL_ABC, "1h", [])
+    assert done["short_headline"] == (
+        f"Dip looks finished near ${done['invalidation_price']:.2f} · "
+        f"recovery target ${done['target_price']:.2f}"
+    )
+    bear = build_wave_analysis(mirrored(BULL_ABC), "1h", [])
+    assert bear["short_headline"].startswith("Bounce looks finished near $")
+    assert "downside target $" in bear["short_headline"]
+
+    run = build_wave_analysis(IMPULSE, "1h", [])
+    assert run["short_headline"] == (
+        "Extended run · five-step advance looks complete · breaks below $89.90"
+    )
+    going = build_wave_analysis(IMPULSE[:84], "1h", [])
+    assert going["short_headline"].startswith(
+        "Stair-step advance · intact while above $"
+    )
+    fall = build_wave_analysis(mirrored(IMPULSE[:84]), "1h", [])
+    assert fall["short_headline"].startswith(
+        "Stair-step decline · intact while below $"
+    )
+
+
+def test_short_headline_falls_back_to_the_run_of_swings_then_to_nothing():
+    base = {"available": True, "active_pattern": "none"}
+    lower = cs.swing_history(swings([120, 100, 115, 96, 110, 92], first="high"))
+    assert cs.short_headline({**base, "swing_history": lower}) == (
+        "2 lower highs in a row · needs a break above $110.00"
+    )
+    higher = cs.swing_history(swings([90, 100, 95, 108, 99, 112]))
+    assert cs.short_headline({**base, "swing_history": higher}) == (
+        "2 higher lows in a row · floor at $99.00"
+    )
+    mixed = cs.swing_history(swings([100, 110, 96, 108]))
+    assert cs.short_headline({**base, "swing_history": mixed}) == (
+        "No clear setup in the recent swings"
+    )
+    for wave in (None, {}, {"available": False}, base, {**base, "swing_history": {}}):
+        assert cs.short_headline(wave) is None
+    assert build_wave_analysis(BULL_ABC[:20], "1h")["short_headline"] is None
+
+
+def test_short_headline_has_no_jargon_and_no_advice():
+    lines = [
+        build_wave_analysis(candles, "1h", [])["short_headline"]
+        for candles in (
+            BULL_ABC,
+            BULL_ABC[:77],
+            BULL_ABC[:82],
+            mirrored(BULL_ABC),
+            mirrored(BULL_ABC[:82]),
+            IMPULSE,
+            IMPULSE[:80],
+            mirrored(IMPULSE),
+        )
+    ]
+    assert all(lines)
+    for line in lines:
+        for word in JARGON + ADVICE:
+            assert word not in line.lower(), (word, line)
