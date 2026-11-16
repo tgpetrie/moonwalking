@@ -23,7 +23,20 @@ from typing import Any
 
 import requests
 
-__all__ = ["analyze_candles", "build_wave_analysis", "fetch_multi_year_daily_candles", "aggregate_weekly_candles"]
+__all__ = [
+    "analyze_candles",
+    "build_wave_analysis",
+    "fetch_multi_year_daily_candles",
+    "aggregate_weekly_candles",
+    "cached_cycle_products",
+    "CYCLE_HISTORY_YEARS",
+]
+
+# Daily history loaded for a cycle read. The cycle range and Fibonacci grids
+# use the trailing three years (``cycle_analysis.CYCLE_WINDOW_DAYS``); the
+# fourth year is warm-up, so the 200-week average and the monthly MACD have
+# enough bars behind them.
+CYCLE_HISTORY_YEARS = 4
 
 _SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400, "1w": 604800}
 # Higher timeframe used for the wave read's trend check, built from the same candles.
@@ -87,6 +100,22 @@ def fetch_multi_year_daily_candles(product_id: str, years: int = 3) -> list[list
             (product, years, end, json.dumps(candles, allow_nan=False)),
         )
     return candles
+
+
+def cached_cycle_products(years: int = CYCLE_HISTORY_YEARS) -> list[str]:
+    """Products with daily history already in the cycle cache, newest first."""
+    path = Path(os.environ.get("MW_CYCLE_HISTORY_DB") or Path(__file__).resolve().parent / "data" / "cycle_history.sqlite")
+    if not path.exists():
+        return []
+    try:
+        with closing(sqlite3.connect(path, timeout=10)) as conn:
+            rows = conn.execute(
+                "SELECT product FROM cycle_history WHERE years=? ORDER BY day_end DESC, product",
+                (years,),
+            ).fetchall()
+    except sqlite3.Error:
+        return []
+    return [str(row[0]) for row in rows]
 
 
 def aggregate_weekly_candles(daily: list[list[Any]] | None) -> list[list[float]]:

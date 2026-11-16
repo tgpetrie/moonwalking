@@ -341,3 +341,61 @@ def enable_controls():
         return store
 
     return _enable
+
+
+# ============================================================================
+# Cycle read fixtures
+# ============================================================================
+
+CYCLE_FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+CYCLE_LAST_TS = 1794700800  # 2026-11-15 00:00 UTC, the last bar of every series
+
+
+@pytest.fixture
+def cycle_fixture():
+    """Load a deterministic three-year candle fixture by name (oldest first)."""
+
+    def load(name, full=False):
+        path = os.path.join(CYCLE_FIXTURE_DIR, f"{name}.json")
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return payload if full else payload["candles"]
+
+    return load
+
+
+@pytest.fixture
+def daily_series():
+    """Build synthetic daily candles along straight lines in log price.
+
+    ``legs`` are ``(days, end_price)``. A fixed sine texture gives the bars a
+    range; nothing is random. Bars are oldest first and end at CYCLE_LAST_TS.
+    """
+    import math
+
+    def build(start, legs, texture=0.008, wick=0.012):
+        closes, price = [], start
+        for days, end in legs:
+            for step in range(1, days + 1):
+                closes.append(price * (end / price) ** (step / days))
+            price = end
+        shaped = [
+            close * (1 + texture * (math.sin(i * 0.9) + 0.6 * math.sin(i * 0.23 + 1)))
+            for i, close in enumerate(closes)
+        ]
+        out = []
+        for i, close in enumerate(shaped):
+            open_ = shaped[i - 1] if i else close / 1.002
+            out.append(
+                [
+                    CYCLE_LAST_TS - (len(shaped) - 1 - i) * 86400,
+                    min(open_, close) * (1 - wick),
+                    max(open_, close) * (1 + wick),
+                    open_,
+                    close,
+                    1_000_000.0,
+                ]
+            )
+        return out
+
+    return build

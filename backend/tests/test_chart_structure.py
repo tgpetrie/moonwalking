@@ -1,6 +1,7 @@
 """Tests for chart_structure: synthetic candles only, no network."""
 
 import json
+import math
 import os
 import random
 import sys
@@ -10,6 +11,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import chart_structure as cs
+import cycle_analysis as ca
 from chart_reader import build_wave_analysis
 from elliott_wave_engine import detect_pivots
 
@@ -604,3 +606,392 @@ def test_short_headline_has_no_jargon_and_no_advice():
     for line in lines:
         for word in JARGON + ADVICE:
             assert word not in line.lower(), (word, line)
+
+
+# ─── multi-timeframe cycle read ───────────────────────────────────────────────
+
+
+RETRACEMENT_KEYS = ["0.236", "0.309", "0.382", "0.5", "0.618", "0.702", "0.786", "0.886"]
+EXTENSION_KEYS = ["1.272", "1.618", "2.618", "3.618", "4.236"]
+
+
+def _top_down(context):
+    return cs.top_down_confluence(context, {}, context["current_price"])
+
+
+def test_wilder_rsi_matches_a_hand_calculation():
+    # Alternating +2 / -1: average gain 1.0 and average loss 0.5 after 14 changes.
+    closes = [100.0]
+    for i in range(15):
+        closes.append(closes[-1] + (2.0 if i % 2 == 0 else -1.0))
+    rsi = ca.wilder_rsi(closes)
+    assert rsi[:14] == [None] * 14
+    assert rsi[14] == pytest.approx(100 - 100 / (1 + 1.0 / 0.5))
+    gain, loss = (1.0 * 13 + 2.0) / 14, 0.5 * 13 / 14
+    assert rsi[15] == pytest.approx(100 - 100 / (1 + gain / loss))
+    assert ca.wilder_rsi([float(i) for i in range(1, 30)])[-1] == 100.0
+    assert ca.wilder_rsi([5.0] * 30)[-1] == 50.0
+    assert ca.wilder_rsi([1.0, 2.0]) == [None, None]
+
+
+def test_rsi_regime_boundaries_and_bull_support_flag():
+    assert ca.rsi_regime(39.99)["regime"] == "oversold_compression"
+    assert ca.rsi_regime(40.0)["regime"] == "no_mans_land"
+    assert ca.rsi_regime(60.0)["regime"] == "no_mans_land"
+    assert ca.rsi_regime(60.01)["regime"] == "growth_expansion"
+    assert ca.rsi_regime(None) == {"regime": "unavailable", "near_bull_support": False}
+    for value, expected in ((37.9, False), (38.0, True), (41.0, True), (44.0, True), (44.1, False)):
+        assert ca.rsi_regime(value, uptrend=True)["near_bull_support"] is expected
+    # 38-40 is still oversold by regime, and never bull support in a downtrend.
+    assert ca.rsi_regime(39.0, uptrend=True)["regime"] == "oversold_compression"
+    assert ca.rsi_regime(41.0, uptrend=False)["near_bull_support"] is False
+
+
+def test_macd_and_stoch_rsi_warm_up_then_stay_in_range():
+    closes = [100.0 + 10.0 * math.sin(i / 5.0) for i in range(80)]
+    line, signal, hist = ca.macd(closes)
+    assert line[24] is None and line[25] is not None
+    assert signal[32] is None and signal[33] is not None
+    assert hist[40] == pytest.approx(line[40] - signal[40])
+    flat_line, flat_signal, flat_hist = ca.macd([7.0] * 60)
+    assert flat_line[-1] == pytest.approx(0) and flat_hist[-1] == pytest.approx(0)
+    k, d = ca.stoch_rsi(closes)
+    assert k[28] is None and k[29] is not None
+    assert d[30] is None and d[31] is not None
+    assert all(0.0 <= v <= 100.0 for v in k + d if v is not None)
+    assert d[-1] == pytest.approx(sum(k[-3:]) / 3)
+
+
+def test_weekly_and_monthly_bars_leave_out_the_forming_period():
+    monday = 4 * 86400  # 5 January 1970
+    days = [(monday + i * 86400, 9.0, 12.0 + i, 10.0, 11.0 + i, 1.0) for i in range(17)]
+    weeks = ca.weekly_bars(days)
+    assert [w[0] for w in weeks] == [monday, monday + 7 * 86400]
+    assert weeks[0][1:] == (9.0, 18.0, 10.0, 17.0, 7.0)
+    january = [(i * 86400, 9.0, 12.0, 10.0, 11.0 + i, 1.0) for i in range(45)]
+    months = ca.monthly_bars(january)
+    assert len(months) == 1 and months[0][0] == 0 and months[0][4] == 41.0
+    assert ca.weekly_bars([]) == [] and ca.monthly_bars([]) == []
+
+
+def test_render_fixture_is_a_three_leg_decline_with_monthly_exhaustion_and_a_macd_kiss(cycle_fixture):
+    context = cs.multi_year_context(cycle_fixture("render_cycle_fixture"))
+    assert context["candle_count"] == 1096 and context["is_multi_year"] is True
+    assert context["timeframe_bars"] == {"1d": 1096, "1w": 157, "1m": 35}
+
+    # 5-3-5: two lows separated by one rally, the second lower.
+    structure = context["corrective_structure"]
+    assert structure["kind"] == "wxy_zigzag" and structure["legs"] == 3
+    assert [p["kind"] for p in structure["swings"]] == ["low", "high", "low"]
+
+    monthly = context["monthly_cycle_exhaustion"]
+    assert monthly["monthly_bearish_streak"] >= 18
+    assert monthly["histogram_shrinking"] is True
+    assert monthly["monthly_macd_histogram"] > monthly["previous_monthly_macd_histogram"]
+    assert monthly["multi_year_oversold_exhaustion"] is True
+
+    signals = context["macd_signals"]
+    assert signals["daily_macd_kiss"] is True
+    daily = signals["1d"]
+    assert daily["previous_histogram"] < daily["histogram"] < 0
+    assert abs(daily["histogram"]) < abs(daily["macd"]) * 0.15
+
+    regimes = context["rsi_regimes"]
+    assert {tf: regimes[tf]["regime"] for tf in ("1d", "1w", "1m")} == {
+        "1d": "oversold_compression",
+        "1w": "oversold_compression",
+        "1m": "oversold_compression",
+    }
+
+    top = _top_down(context)
+    assert top["at_multi_year_support"] is True
+    assert top["cycle_pattern"]["kind"] == "wxy_terminal_sweep"
+    assert top["cycle_pattern"]["terminal_wave_5"] is True
+    pivot = top["low_confirmation_pivot"]
+    assert pivot["price"] > context["current_price"]
+    assert pivot["message"] == "Break above $1.88 signals cycle low is in"
+    assert top["active_target_tier"] == "rollover_target_box"
+
+
+def test_fet_fixture_is_a_channel_double_bottom_with_a_weekly_turn_and_a_tight_stop(cycle_fixture):
+    candles = cycle_fixture("fet_channel_fixture")
+    context = cs.multi_year_context(candles)
+
+    structure = context["corrective_structure"]
+    assert structure["kind"] == "abcde_channel" and structure["legs"] == 5
+    channel = structure["channel"]
+    assert channel["holds"] is True and channel["testing_now"] is True
+    # The E low dips through the line through A and C, by less than the allowance.
+    assert channel["overthrow"] is True
+    assert -ca.CHANNEL_OVERTHROW * 100 < channel["e_deviation_pct"] < 0
+    assert structure["double_bottom_retest"] is True
+    assert abs(structure["double_bottom_gap_pct"]) <= ca.DOUBLE_BOTTOM_TOLERANCE * 100
+
+    stoch = context["weekly_stoch_rsi"]
+    assert stoch["direction"] == "oversold_turn_up"
+    assert stoch["weekly_stoch_rsi_d"] < stoch["weekly_stoch_rsi_k"] < 25
+
+    rows = sorted(tuple(c) for c in candles)
+    weekly_closes = [w[4] for w in ca.weekly_bars(rows)]
+    ladder = context["weekly_sma_ladder"]
+    assert ladder["sma_50w"] == pytest.approx(sum(weekly_closes[-50:]) / 50)
+    assert ladder["sma_100w"] == pytest.approx(sum(weekly_closes[-100:]) / 100)
+    assert ladder["overhead_resistance"] == ["sma_50w", "sma_100w"]
+    assert ladder["reclaimed_support"] == []
+    # Three years is 157 closed weeks: the 200-week average is reported as
+    # unavailable, never estimated from fewer bars.
+    assert ladder["sma_200w"] is None
+    assert ladder["levels"][2] == {
+        "key": "sma_200w", "period": 200, "value": None, "available": False,
+        "role": None, "distance_pct": None, "bars_needed": 200,
+    }
+
+    top = _top_down(context)
+    assert top["at_multi_year_support"] is True and top["in_accumulation_box"] is True
+    assert top["cycle_pattern"]["kind"] == "abcde_channel_test"
+    assert top["cycle_pattern"]["double_bottom"] is True
+    assert top["cycle_pattern"]["channel_overthrow"] is True
+    stop = top["accumulation_invalidation_stop"]
+    assert stop["basis"] == "double_bottom_low"
+    assert stop["stop_price"] == pytest.approx(stop["reference_low"] * 0.98)
+    assert stop["stop_price"] < context["daily_structure"]["structural_low"]["price"]
+    assert 0 < stop["stop_distance_pct"] < 10 and stop["tight"] is True
+    assert top["low_confirmation_pivot"]["kind"] == "wave_4_swing_high"
+
+
+def test_weekly_sma_ladder_fills_in_the_200_week_average_with_a_fourth_year(cycle_fixture):
+    candles = cycle_fixture("fet_channel_fixture")
+    first = candles[0]
+    earlier = [
+        [first[0] - (365 - i) * 86400, first[1], first[2], first[3], first[3], first[5]]
+        for i in range(365)
+    ]
+    context = cs.multi_year_context(earlier + candles)
+    assert context["history_candle_count"] == 1461 and context["candle_count"] == 1096
+    ladder = context["weekly_sma_ladder"]
+    weekly_closes = [w[4] for w in ca.weekly_bars(sorted(tuple(c) for c in earlier + candles))]
+    assert len(weekly_closes) >= 200
+    assert ladder["sma_200w"] == pytest.approx(sum(weekly_closes[-200:]) / 200)
+    assert ladder["overhead_resistance"] == ["sma_50w", "sma_100w", "sma_200w"]
+    assert all(level["role"] == "resistance" for level in ladder["levels"])
+    # The range still comes from the trailing three years.
+    assert context["first_timestamp"] == first[0]
+
+
+def test_weekly_sma_ladder_marks_reclaimed_averages_as_support(daily_series):
+    context = cs.multi_year_context(daily_series(10, [(1461, 60)]))
+    ladder = context["weekly_sma_ladder"]
+    assert ladder["overhead_resistance"] == []
+    assert ladder["reclaimed_support"] == ["sma_50w", "sma_100w", "sma_200w"]
+    assert ladder["levels"][0]["distance_pct"] < 0
+
+
+def test_theta_fixture_filters_the_flash_wick_and_finds_the_dual_grid_cluster(cycle_fixture):
+    fixture = cycle_fixture("theta_wxy_confluence_fixture", full=True)
+    context = cs.multi_year_context(fixture["candles"])
+
+    wick = context["flash_wick_filter"]
+    assert wick["applied"] is True and wick["threshold_multiple"] == 3.5
+    assert [f["timestamp"] for f in wick["filtered"]] == [fixture["flash_wick_timestamp"]]
+    assert wick["filtered"][0]["side"] == "low"
+    assert wick["filtered"][0]["wick_multiple"] > 3.5
+    # The raw extreme is recorded; the grid is anchored on the filtered low.
+    assert context["raw_cycle_low"]["timestamp"] == fixture["flash_wick_timestamp"]
+    assert context["raw_cycle_low"]["price"] == pytest.approx(wick["filtered"][0]["raw_price"])
+    assert context["raw_cycle_low"]["price"] < context["cycle_low"]["price"] * 0.5
+    assert context["cycle_low"]["timestamp"] != fixture["flash_wick_timestamp"]
+
+    assert list(context["log_fib_retracements"]) == RETRACEMENT_KEYS
+    assert list(context["macro_fib_levels"]) == RETRACEMENT_KEYS
+    assert list(context["drawdown_log_retracements"]) == RETRACEMENT_KEYS
+    assert list(context["secondary_log_extensions"]) == EXTENSION_KEYS
+
+    low, high = context["cycle_low"]["price"], context["cycle_high"]["price"]
+    wave_x = context["secondary_wave_x_high"]
+    assert wave_x["kind"] == "wave_x" and low < wave_x["price"] < high
+    for ratio in (0.618, 0.702, 0.786):
+        assert context["drawdown_log_retracements"][str(ratio)] == pytest.approx(
+            low * (high / low) ** ratio
+        )
+    for ratio in (1.618, 4.236):
+        assert context["secondary_log_extensions"][str(ratio)] == pytest.approx(
+            low * (wave_x["price"] / low) ** ratio
+        )
+
+    clusters = context["fib_confluence_clusters"]
+    assert [(c["retracement_ratio"], c["extension_ratio"]) for c in clusters] == [(0.786, 1.618)]
+    cluster = clusters[0]
+    assert cluster["spread_pct"] < 6 and cluster["conviction"] == "high"
+    assert cluster["low"] <= cluster["mid"] <= cluster["high"]
+    assert cluster["position"] == "above_price" and 0 < cluster["score"] <= 1
+
+    box = context["rollover_target_box"]
+    assert box["label"] == "Conservative / High-Probability Rollover Zone"
+    assert list(box["levels"]) == ["0.618", "0.702", "0.786"]
+    assert box["low"] == box["levels"]["0.618"] and box["high"] == box["levels"]["0.786"]
+    assert box["price_position"] == "below" and box["clusters"] == clusters
+    assert [c["source"] for c in box["extension_confluence"]] == ["secondary_range"]
+
+    full = context["full_extension_targets"]
+    assert full["label"] == "Full Alt-Season Extension Confluence"
+    assert [t["ratio"] for t in full["targets"]] == [1.618, 2.618, 3.618, 4.236]
+    assert [t["confluence"] for t in full["targets"]] == [True, False, False, False]
+
+    top = _top_down(context)
+    assert context["corrective_structure"]["kind"] == "wxy_zigzag"
+    assert context["corrective_structure"]["at_historic_base"] is True
+    assert top["cycle_pattern"]["kind"] == "wxy_terminal_sweep"
+    assert top["fib_confluence_clusters"] == clusters
+    assert top["rollover_target_box"] == box and top["full_extension_targets"] == full
+
+
+def test_without_the_wick_filter_the_theta_grid_would_move(cycle_fixture):
+    fixture = cycle_fixture("theta_wxy_confluence_fixture", full=True)
+    rows = sorted(tuple(c) for c in fixture["candles"])
+    lows, highs, info = ca.flash_filtered_extremes(rows)
+    index = next(i for i, r in enumerate(rows) if r[0] == fixture["flash_wick_timestamp"])
+    assert lows[index] == min(rows[index][3], rows[index][4]) > rows[index][1]
+    assert highs == [r[2] for r in rows]
+    # An ordinary wick is left alone.
+    assert sum(1 for i, r in enumerate(rows) if lows[i] != r[1]) == 1
+    assert info["median_weekly_range_pct"] > 0
+
+
+def test_fib_clusters_need_the_two_grids_within_six_percent(daily_series):
+    # The same decline with a smaller Wave X rally: its 1.618 extension lands
+    # well below the 0.786 retracement, so there is no cluster.
+    legs = [(210, 0.9), (120, 3.7), (240, 1.06), (150, 1.3), (346, 0.76), (30, 0.8)]
+    context = cs.multi_year_context(daily_series(0.92, legs))
+    assert context["secondary_wave_x_high"]["kind"] == "wave_x"
+    assert context["fib_confluence_clusters"] == []
+    assert context["full_extension_targets"]["available"] is True
+    assert not any(t["confluence"] for t in context["full_extension_targets"]["targets"])
+
+
+def test_targets_are_unavailable_without_a_macro_drawdown(daily_series):
+    context = cs.multi_year_context(daily_series(10, [(1096, 60)]))
+    assert context["macro_drawdown"]["available"] is False
+    assert context["rollover_target_box"] == {"available": False, "reason": "no_macro_drawdown"}
+    assert context["full_extension_targets"]["available"] is False
+    assert context["fib_confluence_clusters"] == []
+    top = _top_down(context)
+    assert top["at_multi_year_support"] is False
+    assert top["low_confirmation_pivot"] is None
+    assert top["accumulation_invalidation_stop"] is None
+
+
+def test_weekly_bullish_divergence_on_a_lower_low_and_on_a_retest(daily_series):
+    base = [(120, 40), (1011, 12), (60, 6), (70, 8.6)]
+    lower = cs.multi_year_context(daily_series(30, base + [(200, 5.9)]))["macd_signals"]
+    assert lower["macro_bullish_divergence"] is True
+    assert lower["divergence"]["kind"] == "lower_low"
+    assert lower["divergence"]["rsi"]["second"] > lower["divergence"]["rsi"]["first"]
+    assert "rsi" in lower["divergence"]["confirmed_by"]
+    retest = cs.multi_year_context(daily_series(30, base + [(200, 6.15)]))["macd_signals"]
+    assert retest["macro_bullish_divergence"] is True
+    assert retest["divergence"]["kind"] == "double_bottom_retest"
+    # One straight decline has no second low to compare.
+    straight = cs.multi_year_context(daily_series(30, [(120, 40), (1131, 14), (70, 17), (140, 6)]))
+    assert straight["macd_signals"]["macro_bullish_divergence"] is False
+    assert straight["macd_signals"]["divergence"] is None
+
+
+def test_weekly_macd_cross_is_reported_on_the_week_it_happens():
+    falling = [100.0 - i for i in range(60)]
+    assert ca._weekly_cross(falling)["weekly_macd_bullish_cross"] is False
+    # Extend a decline with a rally until the histogram first turns positive.
+    closes = list(falling)
+    for step in range(1, 40):
+        closes.append(closes[-1] + 2.0)
+        state = ca._weekly_cross(closes)
+        if state["weekly_macd_above_signal"]:
+            break
+    assert state["weekly_macd_bullish_cross"] is True
+    assert state["weeks_since_weekly_bullish_cross"] == 0
+    later = ca._weekly_cross(closes + [closes[-1] + 2.0])
+    assert later["weekly_macd_bullish_cross"] is False
+    assert later["weekly_macd_above_signal"] is True
+    assert later["weeks_since_weekly_bullish_cross"] == 1
+
+
+def test_confirmation_breakout_once_price_closes_above_the_prior_swing_high(daily_series):
+    legs = [(120, 40), (1200, 4.2), (25, 5.0), (40, 3.5), (76, 5.4)]
+    context = cs.multi_year_context(daily_series(30, legs))
+    breakout = context["daily_structure"]["confirmation_breakout"]
+    assert breakout["broken"] is True and breakout["recent"] is True
+    assert breakout["pivot_price"] < context["current_price"]
+    assert breakout["bars_since_break"] <= 30
+    assert _top_down(context)["confirmation_breakout"] == breakout
+
+
+def test_the_cycle_range_uses_the_trailing_three_years_only(daily_series):
+    # A deep low in the first of four years is warm-up, not the cycle low, but
+    # it is the base the later advance started from.
+    candles = daily_series(4.0, [(200, 1.0), (165, 8.0), (300, 40.0), (796, 1.15)])
+    context = cs.multi_year_context(candles)
+    assert context["history_candle_count"] == 1461 and context["candle_count"] == 1096
+    assert context["first_timestamp"] == candles[365][0]
+    assert context["cycle_low"]["timestamp"] >= candles[365][0]
+    base = context["corrective_structure"]["historic_base"]
+    assert base["timestamp"] < candles[365][0]
+    assert base["low"] == pytest.approx(min(c[1] for c in candles[:365]))
+    assert context["corrective_structure"]["at_historic_base"] is True
+
+
+def test_macro_gate_switches_the_active_target_tier(cycle_fixture):
+    context = cs.multi_year_context(cycle_fixture("theta_wxy_confluence_fixture"))
+    for stage, tier in cs.TARGET_TIER_BY_STAGE.items():
+        top = cs.apply_macro_regime(
+            _top_down(context),
+            {"liquidity_rotation_stage": stage, "macro_regime_gate": "neutral_chop"},
+        )
+        assert top["active_target_tier"] == tier
+        assert top["liquidity_rotation_stage"] == stage
+        assert top["macro_regime_gate"] == "neutral_chop"
+    assert tier == "full_extension_targets"
+    none = cs.apply_macro_regime(_top_down(context), None)
+    assert none["active_target_tier"] == "rollover_target_box"
+    assert none["macro_regime_gate"] is None
+    assert cs.apply_macro_regime({"available": False}, {"liquidity_rotation_stage": stage}) == {"available": False}
+
+
+def test_macro_gate_keeps_the_box_when_a_coin_has_no_extension_targets(cycle_fixture, daily_series):
+    context = cs.multi_year_context(daily_series(30, [(120, 40), (976, 4.0)]))
+    assert context["full_extension_targets"]["available"] is False
+    top = cs.apply_macro_regime(
+        _top_down(context),
+        {"liquidity_rotation_stage": "stage_4_alt_season_expansion", "macro_regime_gate": "risk_on_aligned"},
+    )
+    assert top["active_target_tier"] == "rollover_target_box"
+    assert top["macro_regime_gate"] == "risk_on_aligned"
+
+
+def test_cycle_read_on_a_short_history_reports_what_is_missing():
+    candles = [[86400 * i, 9.0, 12.0, 10.0, 11.0, 1.0] for i in range(40)]
+    context = cs.multi_year_context(candles)
+    assert context["available"] is True and context["is_multi_year"] is False
+    assert context["rsi_regimes"]["1w"]["regime"] == "unavailable"
+    assert context["weekly_stoch_rsi"]["available"] is False
+    assert context["monthly_cycle_exhaustion"]["available"] is False
+    assert context["monthly_cycle_exhaustion"]["multi_year_oversold_exhaustion"] is False
+    assert context["macd_signals"]["daily_macd_kiss"] is False
+    assert context["weekly_sma_ladder"]["sma_50w"] is None
+    assert context["flash_wick_filter"]["filtered"] == []
+    assert context["outcome_validated"] is False
+    json.dumps(context)  # the whole read serialises
+
+
+def test_cycle_fixtures_match_their_generator(cycle_fixture):
+    import importlib.util
+
+    path = os.path.join(os.path.dirname(__file__), "fixtures", "build_cycle_fixtures.py")
+    spec = importlib.util.spec_from_file_location("build_cycle_fixtures", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for build in (module.render, module.fet, module.theta):
+        built = build()
+        stored = cycle_fixture(built["name"], full=True)
+        assert stored["candles"] == built["candles"]
+        assert len(stored["candles"]) == 1096 and stored["synthetic"] is True
+        times = [c[0] for c in stored["candles"]]
+        assert times == sorted(times) and times[-1] - times[0] == 1095 * 86400

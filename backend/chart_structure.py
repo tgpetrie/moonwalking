@@ -28,6 +28,9 @@ __all__ = [
     "HORIZONS",
     "DEFAULT_HORIZON",
     "horizon_list",
+    "multi_year_context",
+    "top_down_confluence",
+    "apply_macro_regime",
     "swing_history",
     "plain_story",
     "short_headline",
@@ -94,9 +97,27 @@ def horizon_list() -> list[dict[str, Any]]:
     return [dict(HORIZONS[key]) for key in ("short", "swing", "macro", "cycle")]
 
 
+def _cycle_analysis():
+    try:
+        import cycle_analysis
+    except ImportError:
+        from backend import cycle_analysis
+    return cycle_analysis
+
+
 def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
-    """Describe the observed daily range and repeated 2%-wide high/low shelves."""
-    rows = []
+    """Describe the multi-year daily range and the momentum behind it.
+
+    The range, the Fibonacci grids, the historical shelves and the structure
+    are read from the trailing ``cycle_analysis.CYCLE_WINDOW_DAYS`` bars. The
+    daily, weekly and monthly indicators warm up on every bar supplied, so
+    passing a longer history only steadies them.
+
+    The cycle low and high skip single-bar flash wicks; the raw extremes are
+    reported next to them.
+    """
+    analysis = _cycle_analysis()
+    by_ts = {}
     for bar in candles or []:
         if not isinstance(bar, (list, tuple)) or len(bar) < 6:
             continue
@@ -106,14 +127,28 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
         ts, low, high, opening, close, volume = values
         if low <= 0 or volume < 0 or not low <= min(opening, close) <= max(opening, close) <= high:
             continue
-        rows.append(values)
-    if not rows:
+        by_ts[ts] = tuple(values)
+    if not by_ts:
         return {"available": False, "reason": "no_daily_history"}
-    rows.sort(key=lambda row: row[0])
-    low = min(rows, key=lambda row: row[1])
-    high = max(rows, key=lambda row: row[2])
+    history = [by_ts[ts] for ts in sorted(by_ts)]
+    rows = history[-analysis.CYCLE_WINDOW_DAYS:]
+    grids = analysis.fib_structure(rows)
+    index, filtered = grids.pop("_index"), grids.pop("_rows")
+    low = (grids["cycle_low"]["timestamp"], grids["cycle_low"]["price"])
+    high = (grids["cycle_high"]["timestamp"], None, grids["cycle_high"]["price"])
     price = rows[-1][4]
     span = high[2] - low[1]
+    try:
+        extras = {
+            **analysis.momentum_stack(history),
+            "daily_structure": analysis.daily_structure(filtered),
+            "corrective_structure": analysis.corrective_structure(
+                filtered, index["high"], history
+            ),
+        }
+    except Exception:  # the range read must survive an indicator failure
+        logging.exception("[ChartStructure] cycle momentum unavailable")
+        extras = {"cycle_momentum_error": True}
     groups: dict[tuple[str, int], list] = {}
     for row in rows:
         for kind, value in (("support", row[1]), ("resistance", row[2])):
@@ -134,24 +169,109 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
     expected_days = int((rows[-1][0] - rows[0][0]) / 86400) + 1
     return {
         "available": True,
-        "cycle_high": {"price": high[2], "timestamp": high[0]},
-        "cycle_low": {"price": low[1], "timestamp": low[0]},
+        **grids,
         "current_price": price,
         "pct_from_cycle_high": round((price / high[2] - 1) * 100, 2),
         "cycle_range_position_pct": round((price - low[1]) / span * 100, 2) if span else None,
-        "macro_fib_levels": {str(ratio): high[2] - span * ratio for ratio in (0.236, 0.382, 0.5, 0.618, 0.786)},
+        "macro_fib_levels": {str(ratio): high[2] - span * ratio for ratio in analysis.RETRACEMENT_RATIOS},
         "log_fib_retracements": {
             str(ratio): high[2] ** (1.0 - ratio) * low[1] ** ratio
-            for ratio in (0.236, 0.382, 0.5, 0.618, 0.786, 0.886)
+            for ratio in analysis.RETRACEMENT_RATIOS
         } if span > 0 else {},
+        "fib_ratio_sets": {
+            "retracements": list(analysis.RETRACEMENT_RATIOS),
+            "extensions": list(analysis.EXTENSION_RATIOS),
+        },
         "major_historical_zones": zones[:6],
         "zone_method": "daily highs/lows grouped into 2% price bands; at least three daily touches; sorted by touches then base volume",
         "candle_count": len(rows),
+        "history_candle_count": len(history),
         "coverage_days": expected_days,
         "missing_days": max(0, expected_days - len(rows)),
         "is_multi_year": len(rows) >= 365 and expected_days - len(rows) <= expected_days * 0.1,
         "first_timestamp": rows[0][0],
         "last_timestamp": rows[-1][0],
+        **extras,
+        "outcome_validated": False,
+    }
+
+
+_PATTERN_TEXT = {
+    "wxy_terminal_sweep": (
+        "Three-leg decline from the cycle high (5-3-5 / W-X-Y). The last leg "
+        "has reached the base the prior advance started from."
+    ),
+    "abcde_channel_test": (
+        "Five-leg channel from the cycle high (A-B-C-D-E). The latest low is "
+        "testing the channel's lower trendline."
+    ),
+    "double_bottom_accumulation": (
+        "The latest low is retesting the prior low (a double bottom)."
+    ),
+}
+
+
+def _cycle_pattern(
+    structure: dict[str, Any], daily: dict[str, Any], in_box: bool = False
+) -> dict[str, Any]:
+    """Name the multi-year pattern in the two shapes this read supports.
+
+    A three-leg decline counts as a sweep of the base when price is at the
+    base the advance started from or, when the window holds no earlier base,
+    inside the multi-year support box.
+    """
+    corrective = str(structure.get("kind") or "none")
+    channel = structure.get("channel") or {}
+    double_bottom = bool(structure.get("double_bottom_retest") or daily.get("double_bottom"))
+    terminal = (daily.get("final_leg_down_swings") or 0) >= 3
+    kind = "none"
+    if corrective == "abcde_channel" and channel.get("holds"):
+        kind = "abcde_channel_test"
+    elif corrective in {"wxy_zigzag", "flat_retest"} and (
+        structure.get("at_historic_base") or in_box
+    ):
+        kind = "wxy_terminal_sweep"
+    elif double_bottom:
+        kind = "double_bottom_accumulation"
+    text = _PATTERN_TEXT.get(kind, "")
+    if kind == "abcde_channel_test" and channel.get("overthrow"):
+        text += " It dipped through the line briefly and closed back near it."
+    if kind == "wxy_terminal_sweep" and terminal:
+        text += " That leg came down in a stair-step, which is how a finishing leg usually looks."
+    return {
+        "kind": kind,
+        "corrective_kind": corrective,
+        "legs": structure.get("legs") or 0,
+        "terminal_wave_5": bool(terminal and corrective in {"wxy_zigzag", "flat_retest"}),
+        "at_historic_base": bool(structure.get("at_historic_base")),
+        "double_bottom": double_bottom,
+        "channel_overthrow": bool(channel.get("overthrow")) if channel else False,
+        "description": text,
+    }
+
+
+def _invalidation_stop(daily: dict[str, Any], price: float) -> dict[str, Any] | None:
+    """A structural stop just under the prior double-bottom or last-leg low."""
+    analysis = _cycle_analysis()
+    reference = _num((daily.get("structural_low") or {}).get("price"))
+    if reference is None or reference <= 0:
+        return None
+    basis = "wave_c_low"
+    first = _num(((daily.get("double_bottom") or {}).get("first") or {}).get("price"))
+    if first is not None and first > 0:
+        reference, basis = min(reference, first), "double_bottom_low"
+    stop = reference * (1.0 - analysis.STOP_BUFFER)
+    if stop >= price:
+        return None
+    distance = round((price - stop) / price * 100.0, 2)
+    return {
+        "stop_price": stop,
+        "stop_distance_pct": distance,
+        "reference_low": reference,
+        "basis": basis,
+        "buffer_pct": analysis.STOP_BUFFER * 100.0,
+        "tight": distance < 10.0,
+        "message": f"Accumulation read is invalid below {_money(stop)} ({distance:.1f}% under price)",
     }
 
 
@@ -207,8 +327,59 @@ def top_down_confluence(cycle: dict[str, Any], reads: dict[str, dict[str, Any]],
                 micro_support_box={"low": peak - span * 0.786, "high": peak - span * 0.5},
                 micro_breakout_pivot=pivot if pivot is not None and pivot > 0 else None,
             )
+    # Multi-year structure: a channel trendline, double-bottom or base test
+    # counts as support even when price sits above the lower third of the range.
+    structure = cycle.get("corrective_structure") or {}
+    daily = cycle.get("daily_structure") or {}
+    in_box = overlaps(price, price) or bool(structure.get("testing_support"))
+    at_support = at_support or in_box
     result["at_multi_year_support"] = at_support
+    result["in_accumulation_box"] = in_box
+    result["cycle_pattern"] = _cycle_pattern(structure, daily, in_box)
+    result["confirmation_breakout"] = daily.get("confirmation_breakout") or {"broken": False}
+    result["low_confirmation_pivot"] = None
+    pivot = daily.get("low_confirmation_pivot")
+    if at_support and pivot and _num(pivot.get("price")):
+        result["low_confirmation_pivot"] = {
+            **pivot,
+            "message": f"Break above {_money(pivot['price'])} signals cycle low is in",
+        }
+    result["accumulation_invalidation_stop"] = _invalidation_stop(daily, price) if in_box else None
+    result["fib_confluence_clusters"] = cycle.get("fib_confluence_clusters") or []
+    result["rollover_target_box"] = cycle.get("rollover_target_box") or {"available": False}
+    result["full_extension_targets"] = cycle.get("full_extension_targets") or {"available": False}
+    # Stages 1-2 of the industry gate read the conservative box; the caller
+    # switches this to the full extensions in stages 3-4.
+    result["active_target_tier"] = "rollover_target_box"
+    result["outcome_validated"] = False
     return result
+
+
+TARGET_TIER_BY_STAGE = {
+    "stage_1_macro_compression": "rollover_target_box",
+    "stage_2_btc_majors_lead": "rollover_target_box",
+    "stage_3_alt_index_breakout": "full_extension_targets",
+    "stage_4_alt_season_expansion": "full_extension_targets",
+}
+
+
+def apply_macro_regime(confluence: dict[str, Any], regime: dict[str, Any] | None) -> dict[str, Any]:
+    """Attach the industry gate to one coin's top-down read. Returns ``confluence``.
+
+    The gate chooses which target tier is the active expectation. With no
+    regime, or a tier the coin has no levels for, the conservative box stays.
+    """
+    if not isinstance(confluence, dict) or not confluence.get("available"):
+        return confluence
+    stage = (regime or {}).get("liquidity_rotation_stage")
+    gate = (regime or {}).get("macro_regime_gate")
+    tier = TARGET_TIER_BY_STAGE.get(stage, "rollover_target_box")
+    if not (confluence.get(tier) or {}).get("available"):
+        tier = "rollover_target_box"
+    confluence["macro_regime_gate"] = gate if stage else None
+    confluence["liquidity_rotation_stage"] = stage
+    confluence["active_target_tier"] = tier
+    return confluence
 
 
 def _money(price: Any) -> str:

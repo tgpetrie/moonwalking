@@ -13410,7 +13410,9 @@ def get_chart_read(symbol):
     elif horizon == "cycle":
         import chart_reader
         try:
-            history = chart_reader.fetch_multi_year_daily_candles(product_id)
+            history = chart_reader.fetch_multi_year_daily_candles(
+                product_id, years=chart_reader.CYCLE_HISTORY_YEARS
+            )
         except (requests.RequestException, ValueError, OSError, sqlite3.Error):
             logging.exception("[ChartRead] multi-year history unavailable for %s", sym)
             return jsonify({"error": f"Multi-year history unavailable for {sym}"}), 503
@@ -13471,7 +13473,9 @@ def get_chart_read(symbol):
                 wave_1h = chart_reader.build_wave_analysis(hourly, "1h", as_of_ts=now)
             else:
                 hourly = history
-                daily = chart_reader.fetch_multi_year_daily_candles(product_id)
+                daily = chart_reader.fetch_multi_year_daily_candles(
+                    product_id, years=chart_reader.CYCLE_HISTORY_YEARS
+                )
                 cycle = chart_structure.multi_year_context(daily)
                 result["multi_year_context"] = cycle
                 wave_1h = result["wave_analysis"]
@@ -13485,6 +13489,17 @@ def get_chart_read(symbol):
         except (requests.RequestException, ValueError, OSError, sqlite3.Error):
             logging.warning("[ChartRead] top-down history unavailable for %s", sym, exc_info=True)
             result["top_down_confluence"] = {"available": False, "reason": "history_unavailable"}
+        # The industry gate picks which target tier is the active expectation.
+        try:
+            regime = _macro_regime_for_chart_read()
+        except Exception:
+            logging.exception("[ChartRead] industry regime unavailable for %s", sym)
+            regime = {"available": False, "reason": "unavailable"}
+        chart_structure.apply_macro_regime(
+            result["top_down_confluence"], regime if regime.get("available") else None
+        )
+        if horizon == "cycle":
+            result["macro_industry_regime"] = regime
 
     try:
         from catalyst_sentiment import get_service, structure_sentiment_posture
@@ -13628,6 +13643,189 @@ def get_structure_posture():
             "outcome_validated": False,
         }
     )
+
+
+# Industry liquidity gate and multi-coin cycle scanner. Display context only:
+# nothing below is read by the alert pipeline.
+MACRO_SCAN_TTL_SECONDS = 1800
+MACRO_SCAN_MAX_PRODUCTS = 40
+MACRO_SCAN_MAX_REQUESTED = 30
+MACRO_SCAN_TOP_LIQUID = 12
+MACRO_SCAN_WORKERS = 3
+_MACRO_SCAN_LOCK = threading.Lock()
+_MACRO_SCAN_STATE = {
+    "payload": None,
+    "computed_at": 0.0,
+    "day": None,
+    "products": (),
+    "running": False,
+}
+
+
+def _macro_scan_inline():
+    """Compute in the request instead of a worker thread (tests, or by env)."""
+    return (
+        os.environ.get("MW_MACRO_SCAN_SYNC") == "1"
+        or "PYTEST_CURRENT_TEST" in os.environ
+    )
+
+
+def _macro_scan_universe(symbols=()):
+    """Products to scan: majors and index members, then the caller's symbols,
+    then coins already in the cycle cache, then the most liquid USD products."""
+    import chart_reader
+    import macro_industry_scanner
+
+    core = list(macro_industry_scanner.MAJORS) + list(
+        macro_industry_scanner.ALT_INDEX_MEMBERS
+    )
+    extra = [f"{sym}-USD" for sym in symbols]
+    try:
+        extra += chart_reader.cached_cycle_products()
+    except Exception:
+        logging.debug("[MacroScan] cycle cache listing failed", exc_info=True)
+    try:
+        volumes = latest_quote_volume_by_product(int(time.time())) or {}
+        liquid = sorted(
+            (pid for pid in volumes if str(pid).endswith("-USD")),
+            key=lambda pid: -float(volumes[pid].get("quote_volume_usd") or 0.0),
+        )
+        extra += liquid[:MACRO_SCAN_TOP_LIQUID]
+    except Exception:
+        logging.debug("[MacroScan] liquidity snapshot unavailable", exc_info=True)
+    products = []
+    for product in core + extra:
+        product = str(product).upper()
+        if re.fullmatch(r"[A-Z0-9]{1,15}-USD", product) and product not in products:
+            products.append(product)
+    return products[: max(MACRO_SCAN_MAX_PRODUCTS, len(core))]
+
+
+def _macro_cycle_scan_compute(products):
+    """Load each product's cached daily history and run the scan."""
+    import chart_reader
+    import macro_industry_scanner
+
+    def load(product):
+        try:
+            return product, chart_reader.fetch_multi_year_daily_candles(
+                product, years=chart_reader.CYCLE_HISTORY_YEARS
+            )
+        except Exception as exc:
+            logging.debug(f"[MacroScan] history unavailable for {product}: {exc}")
+            return product, None
+
+    with ThreadPoolExecutor(max_workers=MACRO_SCAN_WORKERS) as pool:
+        loaded = list(pool.map(load, products))
+    histories = {product: candles for product, candles in loaded if candles}
+    payload = macro_industry_scanner.scan_universe_cycles(histories)
+    payload.update(
+        status="ready",
+        computed_at=time.time(),
+        requested=len(products),
+        unavailable=[product for product, candles in loaded if not candles],
+        ttl_seconds=MACRO_SCAN_TTL_SECONDS,
+    )
+    return payload
+
+
+def _macro_scan_refresh(products):
+    try:
+        payload = _macro_cycle_scan_compute(products)
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE.update(
+                payload=payload,
+                computed_at=payload["computed_at"],
+                day=int(payload["computed_at"] // 86400),
+                products=tuple(products),
+            )
+    except Exception:
+        logging.exception("[MacroScan] scan failed")
+    finally:
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["running"] = False
+
+
+def _macro_scan_snapshot(symbols=(), *, allow_inline=True):
+    """Latest scan payload (or ``None``), refreshing it when stale.
+
+    Daily bars only change at the UTC day boundary, so a scan is reused for
+    ``MACRO_SCAN_TTL_SECONDS`` within a day. A refresh runs on a worker thread
+    and the previous payload keeps being served meanwhile.
+    """
+    now = time.time()
+    with _MACRO_SCAN_LOCK:
+        state = dict(_MACRO_SCAN_STATE)
+    wanted = [f"{sym}-USD" for sym in symbols]
+    fresh = (
+        state["payload"] is not None
+        and state["day"] == int(now // 86400)
+        and now - state["computed_at"] < MACRO_SCAN_TTL_SECONDS
+        and all(product in state["products"] for product in wanted)
+    )
+    if fresh or state["running"]:
+        return state["payload"]
+    inline = _macro_scan_inline()
+    if inline and not allow_inline:
+        return state["payload"]
+    with _MACRO_SCAN_LOCK:
+        if _MACRO_SCAN_STATE["running"]:
+            return _MACRO_SCAN_STATE["payload"]
+        _MACRO_SCAN_STATE["running"] = True
+    products = _macro_scan_universe(symbols)
+    if inline:
+        _macro_scan_refresh(products)
+        with _MACRO_SCAN_LOCK:
+            return _MACRO_SCAN_STATE["payload"]
+    threading.Thread(
+        target=_macro_scan_refresh,
+        args=(products,),
+        name="macro-cycle-scan",
+        daemon=True,
+    ).start()
+    return state["payload"]
+
+
+def _macro_regime_for_chart_read():
+    """The cached industry regime for a chart read. Never computes in the request."""
+    payload = _macro_scan_snapshot(allow_inline=False)
+    if not payload:
+        return {"available": False, "reason": "warming"}
+    regime = dict(payload.get("industry") or {"available": False})
+    regime["as_of"] = payload.get("computed_at")
+    return regime
+
+
+@app.route("/api/macro-cycle-scan")
+def get_macro_cycle_scan():
+    """Industry liquidity stage, breadth and the four cycle buckets.
+
+    ``?symbols=RENDER,FET`` adds the caller's watchlist to the scanned
+    universe. The first call after a restart returns ``status: "warming"``
+    while daily histories load; poll again for the result.
+    """
+    symbols = []
+    for raw in str(request.args.get("symbols") or "").split(","):
+        sym = raw.strip().upper().removesuffix("-USD")
+        if _STRUCTURE_SYMBOL_RE.match(sym) and sym not in symbols:
+            symbols.append(sym)
+    symbols = symbols[:MACRO_SCAN_MAX_REQUESTED]
+    payload = _macro_scan_snapshot(symbols)
+    if not payload:
+        return jsonify(
+            {
+                "status": "warming",
+                "industry": {"available": False, "reason": "warming"},
+                "breadth": None,
+                "buckets": {},
+                "coins": [],
+                "blocks_alerts": False,
+                "outcome_validated": False,
+            }
+        )
+    with _MACRO_SCAN_LOCK:
+        refreshing = _MACRO_SCAN_STATE["running"]
+    return jsonify({**payload, "status": "refreshing" if refreshing else "ready"})
 
 
 @app.route("/api/recommendations")

@@ -84,7 +84,7 @@ def test_chart_includes_paper_ticket_only_for_owner(client, monkeypatch):
     candles = [[1_700_000_000 + i * 3600, 90, 110, 100, 105, 10] for i in range(60)]
     monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *args, **kwargs: candles[::-1])
     import chart_reader
-    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: [])
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: [])
     import catalyst_sentiment
 
     class Unavailable:

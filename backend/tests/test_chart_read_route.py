@@ -19,7 +19,7 @@ def offline_catalyst(monkeypatch):
             return {"trending": {"status": "unavailable"}}
 
     monkeypatch.setattr(catalyst_sentiment, "get_service", lambda: Unavailable())
-    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: [])
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: [])
 
 
 def test_chart_read_route_forwards_event_context(monkeypatch):
@@ -216,7 +216,7 @@ def test_chart_read_route_defaults_to_the_swing_horizon(monkeypatch):
 
 def test_cycle_route_uses_daily_and_weekly_history(monkeypatch):
     history = _history(count=120, step=86400)
-    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: history)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: history)
     with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=cycle"):
         response = backend_app.get_chart_read("SOL")
     assert response.status_code == 200
@@ -235,7 +235,7 @@ def test_swing_and_cycle_expose_top_down_context(monkeypatch, horizon):
     hourly = _history()
     daily = [[1_600_041_600 + i * 86400, 50, 200, 100, 100, 10] for i in range(400)][::-1]
     monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: hourly)
-    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: daily)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: daily)
     with backend_app.app.test_request_context(f"/api/chart-read/SOL?horizon={horizon}"):
         body = backend_app.get_chart_read("SOL").get_json()
     assert body["top_down_confluence"]["available"] is True
@@ -387,3 +387,241 @@ def test_structure_posture_survives_a_read_failure(monkeypatch):
     assert response.status_code == 200
     assert response.get_json()["postures"] == {}
     backend_app._STRUCTURE_POSTURE_CACHE.clear()
+
+
+# ─── cycle read: momentum stack, targets and the industry gate ────────────────
+
+
+@pytest.fixture
+def macro_scan_state():
+    """An empty industry scan cache before and after the test."""
+
+    def reset():
+        backend_app._MACRO_SCAN_STATE.update(
+            payload=None, computed_at=0.0, day=None, products=(), running=False
+        )
+
+    reset()
+    yield backend_app._MACRO_SCAN_STATE
+    reset()
+
+
+def _hourly_near(price):
+    """The 1h test history rescaled so its last close sits near ``price``."""
+    scale = price / 104.0
+    return [[ts, lo * scale, hi * scale, o * scale, c * scale, v] for ts, lo, hi, o, c, v in _history()]
+
+
+def _cycle_read(monkeypatch, daily, horizon="cycle", asked=None):
+    def fetch(product, years=3):
+        if asked is not None:
+            asked.append((product, years))
+        return daily[::-1]  # newest first, like the loader
+
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", fetch)
+    monkeypatch.setattr(
+        backend_app, "_fetch_coinbase_candles", lambda *a, **k: _hourly_near(daily[-1][4])
+    )
+    with backend_app.app.test_request_context(f"/api/chart-read/THETA?horizon={horizon}"):
+        response = backend_app.get_chart_read("THETA")
+    assert response.status_code == 200
+    return response.get_json()
+
+
+def test_cycle_route_returns_the_momentum_stack_and_both_target_tiers(
+    monkeypatch, cycle_fixture, macro_scan_state
+):
+    asked = []
+    body = _cycle_read(monkeypatch, cycle_fixture("theta_wxy_confluence_fixture"), asked=asked)
+    # Four years are loaded; the range is read from the trailing three.
+    assert asked == [("THETA-USD", chart_reader.CYCLE_HISTORY_YEARS)]
+    assert chart_reader.CYCLE_HISTORY_YEARS == 4
+
+    cycle = body["multi_year_context"]
+    assert cycle["candle_count"] == 1096
+    assert set(cycle["rsi_regimes"]) == {"1d", "1w", "1m"}
+    assert cycle["rsi_regimes"]["1w"]["regime"] == "oversold_compression"
+    assert {"weekly_stoch_rsi_k", "weekly_stoch_rsi_d", "direction"} <= set(cycle["weekly_stoch_rsi"])
+    assert "monthly_bearish_streak" in cycle["monthly_cycle_exhaustion"]
+    assert {"daily_macd_kiss", "weekly_macd_bullish_cross", "macro_bullish_divergence"} <= set(
+        cycle["macd_signals"]
+    )
+    assert {"sma_50w", "sma_100w", "sma_200w"} <= set(cycle["weekly_sma_ladder"])
+    assert cycle["flash_wick_filter"]["applied"] is True
+    assert cycle["raw_cycle_low"]["price"] < cycle["cycle_low"]["price"]
+    assert cycle["weekly_wave_analysis"]["timeframe"] == "1w"
+
+    top = body["top_down_confluence"]
+    assert top["at_multi_year_support"] is True
+    assert top["cycle_pattern"]["kind"] == "wxy_terminal_sweep"
+    assert top["low_confirmation_pivot"]["message"] == "Break above $1.07 signals cycle low is in"
+    assert top["accumulation_invalidation_stop"]["stop_price"] < cycle["cycle_low"]["price"]
+    assert top["accumulation_invalidation_stop"]["stop_distance_pct"] > 0
+    assert len(top["fib_confluence_clusters"]) == 1
+    assert top["rollover_target_box"]["available"] is True
+    assert top["full_extension_targets"]["available"] is True
+
+    # No industry scan yet: the conservative tier stays active and nothing is invented.
+    assert body["macro_industry_regime"] == {"available": False, "reason": "warming"}
+    assert top["active_target_tier"] == "rollover_target_box"
+    assert top["macro_regime_gate"] is None
+    assert macro_scan_state["running"] is False
+
+
+def test_cycle_route_applies_the_cached_industry_gate(monkeypatch, cycle_fixture, macro_scan_state):
+    macro_scan_state.update(
+        payload={
+            "industry": {
+                "available": True,
+                "liquidity_rotation_stage": "stage_3_alt_index_breakout",
+                "stage_label": "Stage 3 · Alt index breakout",
+                "macro_regime_gate": "risk_on_aligned",
+                "active_target_tier": "full_extension_targets",
+            },
+            "computed_at": 1234.5,
+        },
+        computed_at=1234.5,
+    )
+    daily = cycle_fixture("theta_wxy_confluence_fixture")
+    body = _cycle_read(monkeypatch, daily)
+    assert body["macro_industry_regime"]["liquidity_rotation_stage"] == "stage_3_alt_index_breakout"
+    assert body["macro_industry_regime"]["as_of"] == 1234.5
+    top = body["top_down_confluence"]
+    assert top["macro_regime_gate"] == "risk_on_aligned"
+    assert top["liquidity_rotation_stage"] == "stage_3_alt_index_breakout"
+    assert top["active_target_tier"] == "full_extension_targets"
+
+    # The swing read carries the gate on its top-down block, not the full regime.
+    swing = _cycle_read(monkeypatch, daily, horizon="swing")
+    assert "macro_industry_regime" not in swing
+    assert swing["top_down_confluence"]["active_target_tier"] == "full_extension_targets"
+
+
+def _scan(url):
+    with backend_app.app.test_request_context(url):
+        response = backend_app.get_macro_cycle_scan()
+    assert response.status_code == 200
+    return response.get_json()
+
+
+def test_macro_cycle_scan_route_reads_the_universe_and_caches_it(
+    monkeypatch, cycle_fixture, daily_series, macro_scan_state
+):
+    up = daily_series(10, [(1461, 60)])
+    histories = {
+        "BTC-USD": up,
+        "ETH-USD": up,
+        "RENDER-USD": cycle_fixture("render_cycle_fixture"),
+        "FET-USD": cycle_fixture("fet_channel_fixture"),
+        "THETA-USD": cycle_fixture("theta_wxy_confluence_fixture"),
+    }
+    universes, loads = [], []
+
+    def universe(symbols=()):
+        universes.append(list(symbols))
+        return list(histories) + [f"{sym}-USD" for sym in symbols if f"{sym}-USD" not in histories]
+
+    def fetch(product, years=3):
+        loads.append((product, years))
+        if product not in histories:
+            raise ValueError("unknown product")
+        return histories[product][::-1]
+
+    monkeypatch.setattr(backend_app, "_macro_scan_universe", universe)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", fetch)
+
+    body = _scan("/api/macro-cycle-scan?symbols=render,FET-USD,bad!sym,render")
+    assert universes == [["RENDER", "FET"]]
+    assert body["status"] == "ready" and body["blocks_alerts"] is False
+    assert body["industry"]["liquidity_rotation_stage"] == "stage_2_btc_majors_lead"
+    assert body["industry"]["macro_regime_gate"] == "neutral_chop"
+    assert [row["symbol"] for row in body["buckets"]["deep_accumulation_exhaustion"]][0] == "RENDER"
+    assert sorted(row["symbol"] for row in body["coins"]) == ["BTC", "ETH", "FET", "RENDER", "THETA"]
+    assert body["breadth"]["coins"] == 5 and body["requested"] == 5 and body["unavailable"] == []
+    assert {years for _product, years in loads} == {4}
+
+    # A second call inside the TTL is served from the cache.
+    count = len(loads)
+    again = _scan("/api/macro-cycle-scan?symbols=RENDER")
+    assert again["computed_at"] == body["computed_at"] and len(loads) == count
+
+    # A symbol the last scan did not cover triggers a new one; a coin with no
+    # history is listed, not dropped silently.
+    wider = _scan("/api/macro-cycle-scan?symbols=NOPE")
+    assert universes[-1] == ["NOPE"] and len(loads) > count
+    assert wider["unavailable"] == ["NOPE-USD"] and wider["requested"] == 6
+
+
+def test_macro_cycle_scan_route_reports_warming_while_a_worker_loads(monkeypatch, macro_scan_state):
+    started = []
+
+    class Worker:
+        def __init__(self, target=None, args=(), **kwargs):
+            self.target, self.args = target, args
+
+        def start(self):
+            started.append(self)
+
+    monkeypatch.setattr(backend_app, "_macro_scan_inline", lambda: False)
+    monkeypatch.setattr(backend_app, "_macro_scan_universe", lambda symbols=(): ["BTC-USD"])
+    # The stub only covers the route's own worker: the scan's thread pool needs
+    # the real class back before the captured target runs below.
+    with monkeypatch.context() as patch:
+        patch.setattr(backend_app.threading, "Thread", Worker)
+        first = _scan("/api/macro-cycle-scan")
+        assert first["status"] == "warming" and first["coins"] == [] and first["buckets"] == {}
+        assert first["industry"] == {"available": False, "reason": "warming"}
+        assert len(started) == 1 and macro_scan_state["running"] is True
+        # A second request while the worker runs does not start another.
+        assert _scan("/api/macro-cycle-scan")["status"] == "warming" and len(started) == 1
+
+    # When the worker finishes, the result is served and the flag clears.
+    monkeypatch.setattr(
+        chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: []
+    )
+    started[0].target(*started[0].args)
+    assert macro_scan_state["running"] is False
+    done = _scan("/api/macro-cycle-scan")
+    assert done["status"] == "ready" and done["unavailable"] == ["BTC-USD"]
+    assert done["industry"]["available"] is False
+
+
+def test_macro_scan_universe_orders_core_requested_cached_then_liquid(monkeypatch):
+    import macro_industry_scanner
+
+    monkeypatch.setattr(chart_reader, "cached_cycle_products", lambda: ["ZRX-USD", "BTC-USD"])
+    monkeypatch.setattr(
+        backend_app,
+        "latest_quote_volume_by_product",
+        lambda now: {
+            "AAA-USD": {"quote_volume_usd": 5.0},
+            "BBB-USD": {"quote_volume_usd": 50.0},
+            "CCC-USDC": {"quote_volume_usd": 500.0},
+            "RENDER-USD": {"quote_volume_usd": 1.0},
+        },
+    )
+    products = backend_app._macro_scan_universe(["RENDER", "FET"])
+    core = list(macro_industry_scanner.MAJORS) + list(macro_industry_scanner.ALT_INDEX_MEMBERS)
+    assert products[: len(core)] == core
+    assert products[len(core):] == ["RENDER-USD", "FET-USD", "ZRX-USD", "BBB-USD", "AAA-USD"]
+    assert len(products) == len(set(products)) <= backend_app.MACRO_SCAN_MAX_PRODUCTS
+
+
+def test_cached_cycle_products_lists_what_the_loader_already_has(monkeypatch, tmp_path):
+    import sqlite3
+
+    path = tmp_path / "history.sqlite"
+    monkeypatch.setenv("MW_CYCLE_HISTORY_DB", str(path))
+    assert chart_reader.cached_cycle_products() == []
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "CREATE TABLE cycle_history (product TEXT, years INTEGER, day_end INTEGER, "
+            "candles TEXT NOT NULL, PRIMARY KEY(product, years))"
+        )
+        conn.executemany(
+            "INSERT INTO cycle_history VALUES (?, ?, ?, '[]')",
+            [("FET-USD", 4, 100), ("RENDER-USD", 4, 200), ("OLD-USD", 3, 300)],
+        )
+    conn.close()
+    assert chart_reader.cached_cycle_products() == ["RENDER-USD", "FET-USD"]
+    assert chart_reader.cached_cycle_products(years=3) == ["OLD-USD"]
