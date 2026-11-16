@@ -1,5 +1,58 @@
 # Resume Moonwalking from anywhere
 
+## Cycle read and Industry Pulse UI · November 16
+
+A separate lane from the instant-radar research below. Branch:
+`claude/elliott-abc-v2-reclaim-20261115`.
+
+| Item | State |
+|---|---|
+| Backend | `aa59e330`: `cycle_analysis.py`, `macro_industry_scanner.py`, `GET /api/macro-cycle-scan`, and the `cycle` horizon on `GET /api/chart-read/<symbol>` |
+| Frontend | `d74f5fe3`: Industry Pulse panel on the home board and the Cycle section in Chart Read |
+| Checks | `npm --prefix frontend test -- --run`: 44 files, 545 tests pass. `npm --prefix frontend run build` passes. Backend tests were not rerun for the frontend commit |
+| Browser check | Both surfaces rendered at desktop and phone width against payloads produced by the real `scan_universe_cycles`, `multi_year_context` and `top_down_confluence` functions on the three backend cycle fixtures, served by a throwaway local mock. Warming to ready was exercised |
+| Not done | No run against a live backend that serves these endpoints. Not deployed. The always-on collector on port 5003 runs the `Moonwalking-Runtime` worktree, which may not have `aa59e330` |
+
+What the frontend adds:
+
+- `frontend/src/api.js`: `API_ENDPOINTS.macroCycleScan(symbols)`,
+  `fetchMacroCycleScan(symbols)` and `normalizeScanSymbols`. The watchlist is
+  sent as `?symbols=`, sorted and capped at the server's 30.
+- `frontend/src/hooks/useMacroCycleScan.js`: polls every 12 seconds while the
+  server answers `warming` or `refreshing`, every 10 minutes once `ready`, and
+  keeps the last good scan after a failed request.
+- `frontend/src/components/IndustryPulse.jsx`, mounted in `DashboardShell.jsx`
+  under Live Strength: stage 1–4 with the gate chip, the three breadth shares,
+  and the four buckets as a filter. A ranked coin opens the coin modal.
+- `frontend/src/components/CycleReadSection.jsx`, rendered by
+  `ChartReadPanel.jsx` when `data.horizon === "cycle"`: gate badge, 1D/1W/1M
+  RSI regimes, 1W StochRSI, the monthly bear streak, the 50W/100W/200W SMA
+  ladder, confirmation pivot, invalidation stop, Fibonacci clusters and the
+  two target tiers with the active one marked.
+- Styles: `frontend/src/styles/industry-pulse.css` (dense board preset) and
+  `frontend/src/styles/cycle-read.css` (comfortable preset), both on the
+  tokens in `docs/DESIGN_SYSTEM.md`.
+
+Decisions worth knowing before changing this:
+
+- Every chip is a status colour (`--status-ok`, `--caution`, `--danger`,
+  muted). Amber and violet stay reserved for price direction.
+- The exhaustion badge is labelled "Multi-year exhaustion" and shows the
+  streak against the backend's `streak_threshold` (18 months). It is not
+  labelled "2-year", because the threshold is 18.
+- The pivot line "Break above … signals cycle low is in" appears only when the
+  backend sent it, which it does only at multi-year support.
+- A value the backend did not send renders as a dash, "no read", "warming" or
+  a named reason. A missing 200W average says how many weekly bars it needs.
+- Both surfaces state that the read is context only and not outcome-tested.
+  Neither filters, ranks or delays a board row.
+- The design reference is `docs/DESIGN_SYSTEM.md`. There is no
+  `docs/ai/DESIGN_SYSTEM.md`.
+
+Next action: run the board against a dev backend on this branch (not port
+5003) and confirm the first-load `warming` answer fills in, the watchlist
+symbols join the scan, and a real coin's Cycle view reads sensibly.
+
 ## Board continuation research · November 13
 
 The [fresh replication](https://github.com/tgpetrie/moonwalking/blob/7bd275748e1b9ee5758835337843a2dc1fe2a64e/docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md)
