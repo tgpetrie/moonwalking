@@ -107,9 +107,30 @@ Not built yet: audit task states (queued, working, awaiting review, verified)
 and a record of the changes and checks behind each fix. Today the audit agent
 only lists work, so the page says so instead of implying progress tracking.
 
-The page has no control that runs agents, edits code or trades. Run agents with
-`scripts/run_local_agents.py`; the page refreshes every 30 seconds while
-visible, or on demand with Refresh.
+Run agents with `scripts/run_local_agents.py`; the page refreshes every 30 seconds
+while visible, or on demand with Refresh. The configured portfolio owner can
+also review Cycle Strategist proposals and change its autonomy settings. Cycle
+Strategist observations and run details can contain holding-derived evidence,
+so public observation and status responses omit those details.
+
+Approving or rejecting an entry or exit only records the decision in the agent
+ledger. Repeating the same decision returns the saved record; a later opposite
+decision or a decision on a simulated order returns a conflict. Approved,
+rejected and simulated proposals retain their original evidence.
+
+In Mode A, all new proposals wait for a decision. In Mode B, entries still wait;
+only dry-run exits can simulate an order. The pause, UTC-day cap and proposal
+state are checked together when a simulation is recorded. Both fills and stop
+arming require a fresh two-sided book, enough bid size, and prices within the
+spread and reference limits. Auto-arming is a simulation record; it does not
+place or monitor a stop. The local CLI currently supplies no quotes, so Mode B
+exits in ordinary CLI runs are blocked by the quote guard.
+
+Run Flask and the CLI with matching `MW_AGENT_OBSERVATIONS_DB` and
+`MW_SMART_ALERTS_DB` values to see CLI proposals and alert history in the UI.
+The runner reads database defaults from the same checkout's `backend/.env`
+and accepts `--db-path` for the agent ledger. Only a fresh, ready HTTP macro scan
+is used for decisions.
 
 The audit agent parses one specific layout (`## B. Ranked UX problems` with
 `### P0`/`### P1`/`### P2`, `## C. Exact recommended changes` table, `## E.

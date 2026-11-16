@@ -72,6 +72,7 @@ def coinbase_client(
                 "product_id": "BTC-USD",
                 "time": "1970-01-01T00:00:01.011Z",
                 "bids": [{"price": "45000", "size": "0.25"}],
+                "asks": [{"price": "45010", "size": "0.20"}],
             }
         }
 
@@ -91,6 +92,7 @@ def test_pilot_follows_short_fill_pages_and_allocates_decimal_cost(monkeypatch):
         "observed_at_ms": 1120,
         "exchange_time_ms": 1011,
         "bid_usd": Decimal("45000"),
+        "ask_usd": Decimal("45010"),
         "bid_size": Decimal("0.25"),
     }
 

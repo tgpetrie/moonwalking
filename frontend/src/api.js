@@ -278,10 +278,10 @@ export function fetchAgentProposals({ status, symbol, limit } = {}) {
 
 /** Records approval only; the backend never places an order on approval. */
 export const approveAgentProposal = (id) =>
-  ownerRequest(proposalPath(id, "approve"), { method: "POST" });
+  ownerRequest(proposalPath(id, "approve"), { method: "POST", body: {} });
 
 export const rejectAgentProposal = (id) =>
-  ownerRequest(proposalPath(id, "reject"), { method: "POST" });
+  ownerRequest(proposalPath(id, "reject"), { method: "POST", body: {} });
 
 export const fetchAgentAutonomy = () => ownerRequest("/api/agents/autonomy");
 

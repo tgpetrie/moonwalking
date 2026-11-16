@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from contextlib import closing, contextmanager
 import json
 import os
 from pathlib import Path
 import sqlite3
 import time
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .contracts import AgentObservation
 
@@ -24,9 +25,9 @@ DEFAULT_AUTONOMY_SETTINGS = {
 }
 MAX_DAILY_ORDER_CAP = 20
 # Proposal states an operator or the strategist can no longer change.
-TERMINAL_PROPOSAL_STATUSES = frozenset(
-    {"rejected", "auto_executed_dry_run", "auto_armed_dry_run"}
-)
+AUTO_ORDER_STATUSES = ("auto_executed_dry_run", "auto_armed_dry_run")
+OPEN_PROPOSAL_STATUSES = frozenset({"pending_approval", "blocked_by_guard"})
+PRIVATE_AGENT = "cycle_strategist"
 
 
 class AgentStore:
@@ -43,8 +44,15 @@ class AgentStore:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @contextmanager
+    def _connection(self, *, write_lock: bool = False):
+        with closing(self._connect()) as conn, conn:
+            if write_lock:
+                conn.execute("BEGIN IMMEDIATE")
+            yield conn
+
     def ensure_db(self) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute(
                 """
@@ -129,7 +137,7 @@ class AgentStore:
 
     def begin_run(self, agent: str, *, model_version: str | None = None) -> int:
         started_ts = int(time.time())
-        with self._connect() as conn:
+        with self._connection() as conn:
             cur = conn.execute(
                 """
                 INSERT INTO agent_runs(agent, started_ts, status, model_version)
@@ -147,7 +155,7 @@ class AgentStore:
         observation_count: int = 0,
         error: str | None = None,
     ) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 UPDATE agent_runs
@@ -186,7 +194,7 @@ class AgentStore:
             )
         if not rows:
             return 0
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executemany(
                 """
                 INSERT INTO agent_observations(
@@ -205,10 +213,14 @@ class AgentStore:
         limit: int = 100,
         agent: str | None = None,
         symbol: str | None = None,
+        include_cycle_strategist: bool = True,
     ) -> list[dict]:
         limit = min(max(int(limit), 1), 250)
         filters = []
         params: list[object] = []
+        if not include_cycle_strategist:
+            filters.append("agent != ?")
+            params.append(PRIVATE_AGENT)
         if agent:
             filters.append("agent = ?")
             params.append(agent)
@@ -216,7 +228,7 @@ class AgentStore:
             filters.append("symbol = ?")
             params.append(symbol.upper().split("-")[0])
         where = f"WHERE {' AND '.join(filters)}" if filters else ""
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 f"""
                 SELECT *
@@ -229,27 +241,33 @@ class AgentStore:
             ).fetchall()
         return [self._row_to_observation(row) for row in rows]
 
-    def status(self) -> dict:
-        with self._connect() as conn:
+    def status(self, *, include_cycle_strategist: bool = True) -> dict:
+        where = "" if include_cycle_strategist else "WHERE agent != ?"
+        params = () if include_cycle_strategist else (PRIVATE_AGENT,)
+        with self._connection() as conn:
             total_observations = conn.execute(
-                "SELECT COUNT(*) FROM agent_observations"
+                f"SELECT COUNT(*) FROM agent_observations {where}", params
             ).fetchone()[0]
             last_run = conn.execute(
-                """
+                f"""
                 SELECT *
                 FROM agent_runs
+                {where}
                 ORDER BY started_ts DESC, id DESC
                 LIMIT 1
-                """
+                """,
+                params,
             ).fetchone()
             agents = conn.execute(
-                """
+                f"""
                 SELECT agent, MAX(started_ts) AS last_started_ts,
                        SUM(observation_count) AS observation_count
                 FROM agent_runs
+                {where}
                 GROUP BY agent
                 ORDER BY agent
-                """
+                """,
+                params,
             ).fetchall()
         return {
             "db_path": str(self.db_path),
@@ -268,6 +286,7 @@ class AgentStore:
         known_agents: Iterable[str] = (),
         *,
         now: int | None = None,
+        include_cycle_strategist: bool = True,
     ) -> list[dict]:
         """One row per agent: latest run, derived state, and that run's findings.
 
@@ -284,7 +303,8 @@ class AgentStore:
                           is the normal resting state
         """
         now = int(now if now is not None else time.time())
-        with self._connect() as conn:
+        known_agents = tuple(known_agents)
+        with self._connection() as conn:
             seen = [
                 row[0]
                 for row in conn.execute(
@@ -294,6 +314,10 @@ class AgentStore:
             names = list(dict.fromkeys([*known_agents, *seen]))
             summaries = []
             for name in names:
+                if name == PRIVATE_AGENT and not include_cycle_strategist:
+                    if name in known_agents:
+                        summaries.append(self._summarize(name, None, 0, {}, now))
+                    continue
                 latest = conn.execute(
                     """
                     SELECT * FROM agent_runs WHERE agent = ?
@@ -357,10 +381,14 @@ class AgentStore:
     # ─── autonomy settings ────────────────────────────────────────────────
 
     def get_autonomy_settings(self) -> dict:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM agent_autonomy_settings WHERE id = 1"
-            ).fetchone()
+        with self._connection() as conn:
+            return self._get_autonomy_settings(conn)
+
+    @staticmethod
+    def _get_autonomy_settings(conn: sqlite3.Connection) -> dict:
+        row = conn.execute(
+            "SELECT * FROM agent_autonomy_settings WHERE id = 1"
+        ).fetchone()
         if row is None:
             return {**DEFAULT_AUTONOMY_SETTINGS, "updated_ts": None}
         return {
@@ -375,19 +403,20 @@ class AgentStore:
         unknown = set(changes) - set(DEFAULT_AUTONOMY_SETTINGS)
         if unknown:
             raise ValueError(f"unknown autonomy settings: {sorted(unknown)}")
-        settings = {**self.get_autonomy_settings(), **changes}
-        if settings["autonomy_mode"] not in AUTONOMY_MODES:
-            raise ValueError(f"invalid autonomy_mode: {settings['autonomy_mode']}")
-        if settings["execution_mode"] not in EXECUTION_MODES:
-            raise ValueError(f"invalid execution_mode: {settings['execution_mode']}")
-        if not isinstance(settings["emergency_pause"], bool):
-            raise ValueError("emergency_pause must be a boolean")
-        cap = settings["daily_order_cap"]
-        if type(cap) is not int or not 0 <= cap <= MAX_DAILY_ORDER_CAP:
-            raise ValueError(
-                f"daily_order_cap must be an integer from 0 to {MAX_DAILY_ORDER_CAP}"
-            )
-        with self._connect() as conn:
+        with self._connection(write_lock=True) as conn:
+            settings = {**self._get_autonomy_settings(conn), **changes}
+            if settings["autonomy_mode"] not in AUTONOMY_MODES:
+                raise ValueError(f"invalid autonomy_mode: {settings['autonomy_mode']}")
+            if settings["execution_mode"] not in EXECUTION_MODES:
+                raise ValueError(f"invalid execution_mode: {settings['execution_mode']}")
+            if type(settings["emergency_pause"]) is not bool:
+                raise ValueError("emergency_pause must be a boolean")
+            cap = settings["daily_order_cap"]
+            if type(cap) is not int or not 0 <= cap <= MAX_DAILY_ORDER_CAP:
+                raise ValueError(
+                    f"daily_order_cap must be an integer from 0 to {MAX_DAILY_ORDER_CAP}"
+                )
+            updated_ts = int(time.time())
             conn.execute(
                 """
                 INSERT INTO agent_autonomy_settings(
@@ -407,19 +436,50 @@ class AgentStore:
                     settings["execution_mode"],
                     int(settings["emergency_pause"]),
                     cap,
-                    int(time.time()),
+                    updated_ts,
                 ),
             )
-        return self.get_autonomy_settings()
+            return {**settings, "updated_ts": updated_ts}
 
     # ─── trade proposals ──────────────────────────────────────────────────
 
     def get_proposal(self, proposal_id: str) -> dict | None:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM trade_proposals WHERE proposal_id = ?", (proposal_id,)
-            ).fetchone()
+        with self._connection() as conn:
+            return self._get_proposal(conn, proposal_id)
+
+    def _get_proposal(self, conn: sqlite3.Connection, proposal_id: str) -> dict | None:
+        row = conn.execute(
+            "SELECT * FROM trade_proposals WHERE proposal_id = ?", (proposal_id,)
+        ).fetchone()
         return self._row_to_proposal(row) if row else None
+
+    def route_proposal(
+        self,
+        proposal: dict,
+        route: Callable[[dict, int, int], tuple[str, dict | None]],
+        *,
+        clock: Callable[[], float] = time.time,
+    ) -> tuple[dict, dict]:
+        """Check current policy and commit one proposal under the same write lock.
+
+        The route callback must be a pure dry-run decision; it cannot do I/O.
+        Operator decisions, execution records and UTC-day counts are serialized
+        across processes using this ledger.
+        """
+        with self._connection(write_lock=True) as conn:
+            now = clock()
+            settings = self._get_autonomy_settings(conn)
+            existing = self._get_proposal(conn, proposal["proposal_id"])
+            if existing and existing["status"] not in OPEN_PROPOSAL_STATUSES:
+                return existing, settings
+            day_start = int(now // 86_400) * 86_400
+            status, execution = route(
+                settings, self._count_auto_orders(conn, day_start, day_start + 86_400), int(now * 1000)
+            )
+            record = self._save_proposal(
+                conn, {**proposal, "status": status}, execution, int(now), None
+            )
+            return record, settings
 
     def save_proposal(
         self,
@@ -429,56 +489,57 @@ class AgentStore:
         execution: dict | None = None,
         now: int | None = None,
     ) -> dict:
-        """Insert a proposal, or refresh one that is still open.
-
-        A proposal the operator rejected or the strategist already executed is
-        left exactly as it is, so a repeat run cannot act on it twice.
-        """
-        now = int(now if now is not None else time.time())
-        existing = self.get_proposal(proposal["proposal_id"])
-        if existing and existing["status"] in TERMINAL_PROPOSAL_STATUSES:
-            return existing
-        if existing and existing["status"] == "approved":
-            # An operator approval stands; a later run only refreshes evidence.
-            proposal = {**proposal, "status": "approved"}
-            execution = existing.get("execution")
-        executed_ts = now if proposal["status"] in TERMINAL_PROPOSAL_STATUSES else None
-        with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO trade_proposals(
-                    proposal_id, run_id, agent, action, side, symbol, product_id,
-                    status, created_ts, updated_ts, executed_ts, proposal_json,
-                    execution_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(proposal_id) DO UPDATE SET
-                    run_id = excluded.run_id,
-                    status = excluded.status,
-                    updated_ts = excluded.updated_ts,
-                    executed_ts = excluded.executed_ts,
-                    proposal_json = excluded.proposal_json,
-                    execution_json = excluded.execution_json
-                """,
-                (
-                    proposal["proposal_id"],
-                    run_id,
-                    proposal["agent"],
-                    proposal["action"],
-                    proposal["side"],
-                    proposal["symbol"],
-                    proposal["product_id"],
-                    proposal["status"],
-                    now,
-                    now,
-                    executed_ts,
-                    json.dumps(proposal, sort_keys=True, default=str),
-                    json.dumps(execution, sort_keys=True, default=str)
-                    if execution is not None
-                    else None,
-                ),
+        """Insert or refresh a proposal awaiting an operator or a guard recheck."""
+        with self._connection(write_lock=True) as conn:
+            existing = self._get_proposal(conn, proposal["proposal_id"])
+            if existing and existing["status"] not in OPEN_PROPOSAL_STATUSES:
+                return existing
+            if proposal["status"] not in OPEN_PROPOSAL_STATUSES:
+                raise ValueError("closed proposals must go through the decision or routing path")
+            return self._save_proposal(
+                conn, proposal, execution, int(now if now is not None else time.time()), run_id
             )
-        return self.get_proposal(proposal["proposal_id"])  # type: ignore[return-value]
+
+    def _save_proposal(
+        self, conn: sqlite3.Connection, proposal: dict,
+        execution: dict | None, now: int, run_id: int | None,
+    ) -> dict:
+        executed_ts = now if proposal["status"] in AUTO_ORDER_STATUSES else None
+        conn.execute(
+            """
+            INSERT INTO trade_proposals(
+                proposal_id, run_id, agent, action, side, symbol, product_id,
+                status, created_ts, updated_ts, executed_ts, proposal_json,
+                execution_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(proposal_id) DO UPDATE SET
+                run_id = excluded.run_id,
+                status = excluded.status,
+                updated_ts = excluded.updated_ts,
+                executed_ts = excluded.executed_ts,
+                proposal_json = excluded.proposal_json,
+                execution_json = excluded.execution_json
+            """,
+            (
+                proposal["proposal_id"],
+                run_id,
+                proposal["agent"],
+                proposal["action"],
+                proposal["side"],
+                proposal["symbol"],
+                proposal["product_id"],
+                proposal["status"],
+                now,
+                now,
+                executed_ts,
+                json.dumps(proposal, sort_keys=True, default=str, allow_nan=False),
+                json.dumps(execution, sort_keys=True, default=str, allow_nan=False)
+                if execution is not None
+                else None,
+            ),
+        )
+        return self._get_proposal(conn, proposal["proposal_id"])
 
     def list_proposals(
         self, *, status: str | None = None, symbol: str | None = None, limit: int = 100
@@ -492,7 +553,7 @@ class AgentStore:
             filters.append("symbol = ?")
             params.append(symbol.upper().split("-")[0])
         where = f"WHERE {' AND '.join(filters)}" if filters else ""
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 f"""
                 SELECT * FROM trade_proposals {where}
@@ -504,34 +565,42 @@ class AgentStore:
         return [self._row_to_proposal(row) for row in rows]
 
     def decide_proposal(self, proposal_id: str, decision: str) -> dict:
-        """Record an operator decision. Approval never executes anything."""
+        """Record approval/rejection without placing an order; repeats are no-ops."""
         status = {"approve": "approved", "reject": "rejected"}.get(decision)
         if status is None:
             raise ValueError("decision must be 'approve' or 'reject'")
-        existing = self.get_proposal(proposal_id)
-        if existing is None:
-            raise KeyError(proposal_id)
-        if existing["status"] not in {"pending_approval", "blocked_by_guard"}:
-            raise ValueError(f"proposal is already {existing['status']}")
-        with self._connect() as conn:
+        with self._connection(write_lock=True) as conn:
+            existing = self._get_proposal(conn, proposal_id)
+            if existing is None:
+                raise KeyError(proposal_id)
+            if existing["status"] == status:
+                return existing
+            if existing["status"] not in OPEN_PROPOSAL_STATUSES:
+                raise ValueError(f"proposal is already {existing['status']}")
             conn.execute(
-                "UPDATE trade_proposals SET status = ?, updated_ts = ? "
-                "WHERE proposal_id = ?",
+                "UPDATE trade_proposals SET status = ?, updated_ts = ? WHERE proposal_id = ?",
                 (status, int(time.time()), proposal_id),
             )
-        return self.get_proposal(proposal_id)  # type: ignore[return-value]
+            return self._get_proposal(conn, proposal_id)
+
+    @staticmethod
+    def _count_auto_orders(
+        conn: sqlite3.Connection, since_ts: int, until_ts: int | None = None
+    ) -> int:
+        return int(
+            conn.execute(
+                """
+                SELECT COUNT(*) FROM trade_proposals
+                WHERE status IN (?, ?) AND executed_ts >= ?
+                AND (? IS NULL OR executed_ts < ?)
+                """,
+                (*AUTO_ORDER_STATUSES, since_ts, until_ts, until_ts),
+            ).fetchone()[0]
+        )
 
     def count_auto_orders_since(self, since_ts: int) -> int:
-        with self._connect() as conn:
-            return int(
-                conn.execute(
-                    """
-                    SELECT COUNT(*) FROM trade_proposals
-                    WHERE executed_ts IS NOT NULL AND executed_ts >= ?
-                    """,
-                    (int(since_ts),),
-                ).fetchone()[0]
-            )
+        with self._connection() as conn:
+            return self._count_auto_orders(conn, int(since_ts))
 
     @staticmethod
     def _row_to_proposal(row: sqlite3.Row) -> dict:

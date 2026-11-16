@@ -192,21 +192,6 @@ const renderIntelMessage = (message) => {
   return parts;
 };
 
-const spotUrl = (token, symbol) => {
-  const productId =
-    token?.product_id ||
-    token?.symbol ||
-    token?.ticker ||
-    (symbol ? `${symbol}-USD` : null);
-  return coinbaseSpotUrl({ product_id: productId, symbol });
-};
-
-const getAlertTradeUrl = (log) => {
-  const u = log?.url;
-  if (typeof u === "string" && u.startsWith("http") && !/^https?:\/\/(?:www\.)?coinbase\.com(?:\/|$)/i.test(u)) return u;
-  return coinbaseSpotUrl(log);
-};
-
 export default function AnomalyStream({ data = {}, volumeData = [] }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [logs, setLogs] = useState([
@@ -279,7 +264,6 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       if (nowMs - lastFired < 5 * 60 * 1000) continue;
 
       const volRounded = Math.floor(pct);
-      const url = spotUrl(token, symbol);
       newLogs.push({
         id: `vol-${symbol}-${nowMs}`,
         ts: nowMs,
@@ -288,7 +272,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         label: "VOLUME",
         chipTone: "sent",
         symbol,
-        url,
+        product_id: token?.product_id,
         prefix: "",
         body: `Vol +${volRounded}% above average`,
         vol_change_pct: volRounded,
@@ -323,10 +307,6 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
 
       const norm = normalizeAlert(a);
       const symbol = safeSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
-      const url = a.trade_url || spotUrl(
-        { product_id: norm.product_id || a.product_id || (symbol ? `${symbol}-USD` : null) },
-        symbol
-      );
       const extracted = extractAlertPct(a);
       const type = deriveAlertType({
         type: a?.type ?? norm?.type,
@@ -353,7 +333,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         time: timeStr,
         source: "alert",
         symbol,
-        url,
+        product_id: norm.product_id || a.product_id,
         prefix: "",
         body: msg || "",
         type: norm?.type || a?.type || type,
@@ -402,7 +382,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         aria-live="polite"
       >
         {visibleLogs.map((log) => {
-          const tradeUrl = getAlertTradeUrl(log);
+          const tradeUrl = coinbaseSpotUrl(log);
           const isClickable = Boolean(tradeUrl);
           const { label, chipTone } = classifyLog(log);
           const chipClass = `bh-intel-chip bh-intel-chip--${chipTone}`;

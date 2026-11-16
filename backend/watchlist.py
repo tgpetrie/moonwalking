@@ -492,6 +492,12 @@ def auth_signup():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
+    # Owner authority depends on this address. Public signup does not verify
+    # control of an inbox, so only pre-enrolled accounts can use it.
+    owner_email = _normalize_email(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL"))
+    if owner_email and email == owner_email:
+        return jsonify({"error": "Email is already registered"}), 409
+
     with _DB_LOCK:
         conn = _db_connect()
         try:

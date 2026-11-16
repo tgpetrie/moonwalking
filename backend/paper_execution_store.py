@@ -23,36 +23,36 @@ def _connect():
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, timeout=10)
     conn.row_factory = sqlite3.Row
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS paper_execution_modes (
-            owner_id INTEGER PRIMARY KEY,
-            mode TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS paper_execution_tickets (
-            id TEXT PRIMARY KEY,
-            owner_id INTEGER NOT NULL,
-            product_id TEXT NOT NULL,
-            created_ts INTEGER NOT NULL,
-            ticket_json TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS paper_execution_owner
-        ON paper_execution_tickets(owner_id, created_ts DESC);
-        CREATE TABLE IF NOT EXISTS paper_execution_positions (
-            ticket_id TEXT PRIMARY KEY,
-            owner_id INTEGER NOT NULL,
-            product_id TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            entry_price REAL NOT NULL,
-            risk_usd REAL NOT NULL,
-            opened_ts INTEGER NOT NULL,
-            closed_ts INTEGER,
-            exit_price REAL,
-            realized_r REAL
-        );
-        """
-    )
     try:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS paper_execution_modes (
+                owner_id INTEGER PRIMARY KEY,
+                mode TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS paper_execution_tickets (
+                id TEXT PRIMARY KEY,
+                owner_id INTEGER NOT NULL,
+                product_id TEXT NOT NULL,
+                created_ts INTEGER NOT NULL,
+                ticket_json TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS paper_execution_owner
+            ON paper_execution_tickets(owner_id, created_ts DESC);
+            CREATE TABLE IF NOT EXISTS paper_execution_positions (
+                ticket_id TEXT PRIMARY KEY,
+                owner_id INTEGER NOT NULL,
+                product_id TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                entry_price REAL NOT NULL,
+                risk_usd REAL NOT NULL,
+                opened_ts INTEGER NOT NULL,
+                closed_ts INTEGER,
+                exit_price REAL,
+                realized_r REAL
+            );
+            """
+        )
         with conn:
             yield conn
     finally:

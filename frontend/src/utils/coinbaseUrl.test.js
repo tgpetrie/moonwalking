@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import coinbaseSpotUrl, { getCoinbaseAdvancedSpotUrl } from "./coinbaseUrl";
+import coinbaseSpotUrl, { getCoinbaseAdvancedSpotUrl, getExternalAlertSourceUrl } from "./coinbaseUrl";
 
 describe("getCoinbaseAdvancedSpotUrl", () => {
   it.each([
@@ -31,4 +31,22 @@ describe("getCoinbaseAdvancedSpotUrl", () => {
     "does not invent a trade destination for %j",
     (coin) => expect(getCoinbaseAdvancedSpotUrl(coin)).toBeNull(),
   );
+});
+
+
+describe("getExternalAlertSourceUrl", () => {
+  it("preserves a legitimate news link", () => {
+    const url = "https://example.com/story?coin=SOL";
+    expect(getExternalAlertSourceUrl(url)).toBe(url);
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,test",
+    "https://www.coinbase.com?tracking=true",
+    "https://coinbase.com./advanced-trade/spot/BTC",
+    "https://coinbase.com@other.example/story",
+  ])("does not use %s as a news destination", (value) => {
+    expect(getExternalAlertSourceUrl(value)).toBeNull();
+  });
 });

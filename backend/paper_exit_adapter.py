@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, DecimalException
 import json
+import os
 from pathlib import Path
 import re
 import time
@@ -191,12 +192,20 @@ def poll_top_of_book(client, product_id, *, now_ms=_now_ms):
         if book["product_id"] != product_id:
             raise ValueError("book product differs from the request")
         bid = book["bids"][0]
-        return {
+        quote = {
             "observed_at_ms": observed,
             "exchange_time_ms": _epoch_ms(_timestamp(book["time"])),
             "bid_usd": _number(bid, "price"),
             "bid_size": _number(bid, "size", allow_zero=True),
         }
+        asks = book.get("asks")
+        if isinstance(asks, list) and asks:
+            try:
+                quote["ask_usd"] = _number(asks[0], "price")
+            except ValueError:
+                # The offline replay uses bids; the strategist requires both sides.
+                pass
+        return quote
     except (
         CoinbaseRequestError,
         KeyError,
@@ -308,7 +317,10 @@ def main():
         if _now_ms() >= start_ms:
             raise ValueError("position and fee verification missed the declared start")
         spec["quotes"] = collect_quotes(client, spec)
-        with output.open("x", encoding="utf-8") as tape:
+        # Restrict new captures to the operator on POSIX; on Windows the
+        # file inherits the target directory's ACL.
+        fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as tape:
             json.dump(spec, tape, default=str, indent=2)
             tape.write("\n")
         print(output)

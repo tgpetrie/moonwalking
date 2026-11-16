@@ -16,5 +16,18 @@ export function getCoinbaseAdvancedSpotUrl(coin) {
   return null;
 }
 
+// News/source navigation is separate from the generated Coinbase Trade link.
+export function getExternalAlertSourceUrl(value) {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
+    if (["www.coinbase.com", "coinbase.com"].includes(url.hostname.replace(/\.$/, ""))) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 export const coinbaseSpotUrl = getCoinbaseAdvancedSpotUrl;
 export default coinbaseSpotUrl;

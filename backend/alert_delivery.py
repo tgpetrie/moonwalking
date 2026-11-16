@@ -73,8 +73,9 @@ class AlertDeliveryDispatcher:
         )
         self._lock = threading.Lock()
         self._running = False
+        self._in_flight: dict[str, tuple[bool, str]] = {}
         self._sent_ids: dict[str, float] = {}
-        self._last_by_symbol: dict[str, tuple[float, str]] = {}
+        self._last_by_symbol: dict[tuple[bool, str], tuple[float, str]] = {}
         self._sent_ring: deque[float] = deque(maxlen=500)
         self._last_error: str | None = None
         self._last_sent_at: float | None = None
@@ -121,7 +122,13 @@ class AlertDeliveryDispatcher:
             daemon=True,
             name="mw-alert-delivery",
         )
-        thread.start()
+        try:
+            thread.start()
+        except RuntimeError as exc:
+            with self._lock:
+                self._running = False
+                self._last_error = f"worker:{type(exc).__name__}"
+            return False
         return True
 
     def _run(self, events: list[dict[str, Any]]) -> None:
@@ -147,19 +154,11 @@ class AlertDeliveryDispatcher:
         if not channels:
             return 0
 
-        with self._lock:
-            while self._sent_ring and now - self._sent_ring[0] >= 3600:
-                self._sent_ring.popleft()
-            if len(self._sent_ring) >= self.max_per_hour:
-                return 0
-
         delivered = 0
         ordered = sorted(
             events, key=lambda event: int(event.get("confidence") or 0), reverse=True
         )
         for event in ordered:
-            if len(self._sent_ring) >= self.max_per_hour:
-                break
             event_id = str(event.get("id") or "")
             symbol = str(event.get("symbol") or event.get("product_id") or "").upper()
             state = str(event.get("primary_state") or "")
@@ -171,40 +170,56 @@ class AlertDeliveryDispatcher:
                 or event_age > self.max_event_age_seconds
             ):
                 continue
-            if event_id in self._sent_ids:
-                continue
-            last_symbol = self._last_by_symbol.get(symbol)
-            is_risk_flip = (
-                state == "Reversal Risk" and last_symbol and last_symbol[1] != state
-            )
-            if (
-                last_symbol
-                and (now - last_symbol[0]) < self.cooldown_seconds
-                and not is_risk_flip
-            ):
-                continue
+            cooldown_key = (event.get("is_test") is True, symbol)
+            with self._lock:
+                # Concurrent sends can complete in a different order from their timestamps.
+                self._sent_ring = deque(
+                    (ts for ts in self._sent_ring if now - ts < 3600), maxlen=500
+                )
+                if len(self._sent_ring) + len(self._in_flight) >= self.max_per_hour:
+                    break
+                if (
+                    event_id in self._sent_ids
+                    or event_id in self._in_flight
+                    or cooldown_key in self._in_flight.values()
+                ):
+                    continue
+                last_symbol = self._last_by_symbol.get(cooldown_key)
+                is_risk_flip = (
+                    state == "Reversal Risk" and last_symbol and last_symbol[1] != state
+                )
+                if (
+                    last_symbol
+                    and (now - last_symbol[0]) < self.cooldown_seconds
+                    and not is_risk_flip
+                ):
+                    continue
+                self._in_flight[event_id] = cooldown_key
 
             successes = 0
-            for channel_name, sender in channels:
-                try:
-                    sender(event)
-                    successes += 1
-                except Exception as exc:
-                    logging.warning(
-                        "Alert delivery channel %s failed: %s",
-                        channel_name,
-                        type(exc).__name__,
-                    )
-                    with self._lock:
-                        self._last_error = f"{channel_name}:{type(exc).__name__}"
-            if successes:
-                delivered += 1
+            try:
+                for channel_name, sender in channels:
+                    try:
+                        sender(event)
+                        successes += 1
+                    except Exception as exc:
+                        logging.warning(
+                            "Alert delivery channel %s failed: %s",
+                            channel_name,
+                            type(exc).__name__,
+                        )
+                        with self._lock:
+                            self._last_error = f"{channel_name}:{type(exc).__name__}"
+            finally:
                 with self._lock:
-                    self._sent_ids[event_id] = now
-                    self._last_by_symbol[symbol] = (now, state)
-                    self._sent_ring.append(now)
-                    self._last_sent_at = now
-                    self._last_error = None
+                    self._in_flight.pop(event_id, None)
+                    if successes:
+                        delivered += 1
+                        self._sent_ids[event_id] = now
+                        self._last_by_symbol[cooldown_key] = (now, state)
+                        self._sent_ring.append(now)
+                        self._last_sent_at = max(self._last_sent_at or now, now)
+                        self._last_error = None
         return delivered
 
     def _send_email(self, event: dict[str, Any]) -> None:

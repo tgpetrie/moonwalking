@@ -1,6 +1,20 @@
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
+from email.header import decode_header, make_header
+import json
+from threading import Event
+
 import pytest
 
-from smart_alerts import DEFAULT_RULES, PREDICATES, SmartAlertEngine, in_quiet_hours
+from alert_delivery import AlertDeliveryDispatcher
+from macro_industry_scanner import scan_universe_cycles
+from smart_alerts import (
+    DEFAULT_RULES,
+    PREDICATES,
+    DuplicateRuleName,
+    SmartAlertEngine,
+    in_quiet_hours,
+)
 
 NOW = 1_800_000_000.0
 
@@ -183,3 +197,218 @@ def test_in_quiet_hours_wraps_midnight():
     window = {"start_hour": 22, "end_hour": 6}
     assert in_quiet_hours(window, 23) and in_quiet_hours(window, 5)
     assert not in_quiet_hours(window, 6) and not in_quiet_hours(None, 3)
+
+
+def test_all_predicates_evaluate_real_cycle_rows(engine, cycle_fixture):
+    _only(engine)
+    render = cycle_fixture("render_cycle_fixture")
+    fet = cycle_fixture("fet_channel_fixture")
+    theta = cycle_fixture("theta_wxy_confluence_fixture")
+    scan = scan_universe_cycles({
+        "BTC-USD": render,
+        "ETH-USD": render,
+        "SOL-USD": render,
+        "LINK-USD": theta,
+        "AAVE-USD": fet,
+        "RENDER-USD": render,
+        "FET-USD": fet,
+        "THETA-USD": theta,
+    })
+    cases = [
+        ("liquidity_rotation_stage", 1, "MARKET"),
+        ("cycle_bucket", "deep_accumulation_exhaustion", "RENDER"),
+        ("rsi_regime", {"timeframe": "1m", "regime": "oversold_compression"}, "RENDER"),
+        ("rsi_regime", {"timeframe": "1d", "regime": "growth_expansion"}, "THETA"),
+        ("weekly_stoch_rsi_turn", "oversold_turn_up", "FET"),
+        ("daily_macd_kiss", True, "RENDER"),
+        ("weekly_macd_cross", False, "RENDER"),
+        ("fib_zone_hit", "at_multi_year_support", "THETA"),
+        ("confirmation_pivot_break", False, "RENDER"),
+        ("stop_proximity_pct", {"max": 1}, "RENDER"),
+        ("price_above", 1.5, "RENDER"),
+        ("price_below", 0.7, "FET"),
+    ]
+    expected = set()
+    for predicate, value, symbol in cases:
+        rule = engine.create_rule({
+            "name": f"{predicate} {symbol}",
+            "scope": "market" if symbol == "MARKET" else "symbols",
+            "symbols": [] if symbol == "MARKET" else [symbol],
+            "conditions": [{"predicate": predicate, "value": value}],
+        })
+        expected.add((rule["id"], symbol))
+    fired = engine.evaluate(scan, positions=[{"symbol": "RENDER", "stop_price": 1.71}], now=NOW)
+    assert {predicate for predicate, _value, _symbol in cases} == set(PREDICATES)
+    assert {(alert["rule_id"], alert["symbol"]) for alert in fired} == expected
+    assert len(engine.history()) == len(expected)
+
+
+@pytest.mark.parametrize("predicate, value", [
+    ("rsi_regime", {"timeframe": [], "regime": "growth_expansion"}),
+    ("rsi_regime", {"timeframe": "4h", "regime": "growth_expansion"}),
+    ("liquidity_rotation_stage", {"min": 5}),
+    ("liquidity_rotation_stage", {"min": 3, "max": 2}),
+    ("stop_proximity_pct", {"max": "invalid"}),
+    ("stop_proximity_pct", {}),
+    ("fib_zone_hit", {"low": 2, "high": 1}),
+    ("price_above", float("inf")),
+    ("price_below", True),
+    ("weekly_macd_cross", "false"),
+])
+def test_rule_rejects_unusable_condition_values(engine, predicate, value):
+    with pytest.raises(ValueError, match=f"invalid value for {predicate}"):
+        engine.create_rule({"name": "invalid", "conditions": [{"predicate": predicate, "value": value}]})
+
+
+def test_invalid_legacy_rule_does_not_block_valid_rules(engine):
+    _only(engine)
+    rule = engine.create_rule({
+        "name": "legacy",
+        "conditions": [{"predicate": "rsi_regime", "value": "growth_expansion"}],
+    })
+    payload = {key: value for key, value in rule.items() if key not in {"id", "seeded"}}
+    payload["conditions"][0]["value"] = {"timeframe": [], "regime": "growth_expansion"}
+    with closing(engine._connect()) as conn, conn:
+        conn.execute(
+            "UPDATE smart_alert_rules SET rule_json = ? WHERE id = ?",
+            (json.dumps(payload), rule["id"]),
+        )
+    engine.create_rule({"name": "valid", "conditions": [{"predicate": "price_above", "value": 1}]})
+    (fired,) = engine.evaluate(_scan(_row("SOL", 2)), now=NOW)
+    assert fired["rule_name"] == "valid"
+    assert engine.set_enabled(rule["id"], False)["enabled"] is False
+
+
+@pytest.mark.parametrize("predicate, field", [
+    ("daily_macd_kiss", "daily_macd_kiss"),
+    ("weekly_macd_cross", "weekly_macd_bullish_cross"),
+    ("confirmation_pivot_break", "breaking_confirmation_pivot"),
+])
+def test_negative_predicate_needs_observed_false(predicate, field):
+    assert PREDICATES[predicate]({field: False}, False)
+    assert not PREDICATES[predicate]({field: None}, False)
+    assert not PREDICATES[predicate]({}, False)
+
+
+def test_create_rule_conflict_preserves_existing_rule_and_delete_preserves_history(engine):
+    _only(engine)
+    payload = {"name": "one", "conditions": [{"predicate": "price_above", "value": 1}]}
+    rule = engine.create_rule(payload)
+    with pytest.raises(DuplicateRuleName):
+        engine.create_rule({**payload, "enabled": False})
+    assert engine.get_rule(rule["id"])["enabled"] is True
+    engine.evaluate(_scan(_row("SOL", 2)), now=NOW)
+    assert engine.delete_rule(rule["id"])
+    assert engine.history(symbol="SOL")[0]["rule_name"] == "one"
+
+
+def test_concurrent_runners_share_cooldown_before_network_io(tmp_path):
+    started = Event()
+    release = Event()
+    pushes = []
+
+    def post(_url, body, _headers):
+        pushes.append(body)
+        if len(pushes) == 1:
+            started.set()
+            assert release.wait(5)
+
+    kwargs = {"ntfy_url": "https://ntfy.example/topic", "http_post": post, "seed_defaults": False}
+    one = SmartAlertEngine(tmp_path / "shared.sqlite", **kwargs)
+    two = SmartAlertEngine(tmp_path / "shared.sqlite", **kwargs)
+    one.create_rule({
+        "name": "wake",
+        "urgency": "wake_up",
+        "conditions": [{"predicate": "price_above", "value": 1}],
+    })
+    scan = _scan(_row("SOL", 2))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(one.evaluate, scan, now=NOW)
+        try:
+            assert started.wait(5)
+            assert two.evaluate(scan, now=NOW) == []
+        finally:
+            release.set()
+        (alert,) = first.result()
+    assert len(pushes) == 1
+    assert one.history() == [alert]
+    assert len(two.evaluate(_scan(_row("ETH", 3)), now=NOW)) == 1
+
+
+def test_quiet_hour_action_cooldown_does_not_delay_later_delivery(tmp_path):
+    pushes = []
+    engine = SmartAlertEngine(
+        tmp_path / "quiet.sqlite",
+        seed_defaults=False,
+        ntfy_url="https://ntfy.example/topic",
+        http_post=lambda *args: pushes.append(args),
+        local_hour=lambda ts: 2 if ts < NOW + 3 else 10,
+        default_quiet_hours={"start_hour": 22, "end_hour": 6},
+    )
+    for urgency in ("action_queue", "watch"):
+        engine.create_rule({
+            "name": urgency,
+            "urgency": urgency,
+            "conditions": [{"predicate": "price_above", "value": 1}],
+        })
+    scan = _scan(_row("SOL", 2))
+    quiet_rows = {row["urgency"]: row for row in engine.evaluate(scan, now=NOW)}
+    assert quiet_rows["action_queue"]["suppressed_reason"] == "quiet_hours"
+    assert quiet_rows["watch"]["suppressed_reason"] is None
+    assert not pushes
+    assert engine.evaluate(scan, now=NOW + 1) == []
+    (after_quiet,) = engine.evaluate(scan, now=NOW + 3)
+    assert after_quiet["delivered"] == {"ntfy": "sent"}
+    assert len(pushes) == 1
+
+
+def test_test_alert_never_resets_cooldown_for_even_a_real_test_symbol(engine, monkeypatch):
+    monkeypatch.setenv("MW_ALERT_NOTIFY_ENABLED", "1")
+    monkeypatch.setenv("MW_DISCORD_WEBHOOK_URL", "https://example.invalid/webhook")
+    monkeypatch.setenv("MW_NOTIFY_MAX_PER_HOUR", "6")
+    monkeypatch.setenv("MW_NOTIFY_SYMBOL_COOLDOWN_SECONDS", "900")
+    dispatcher = AlertDeliveryDispatcher()
+    sent = []
+    monkeypatch.setattr(dispatcher, "_send_discord", lambda event: sent.append(event))
+    engine.dispatcher = dispatcher
+    _only(engine)
+    rule = engine.create_rule({
+        "name": "Test symbol is traded",
+        "urgency": "wake_up",
+        "conditions": [{"predicate": "price_above", "value": 1}],
+    })
+    test = engine.send_test(rule_id=rule["id"], now=NOW)
+    scan = _scan(_row("TEST", 2))
+    (real,) = engine.evaluate(scan, now=NOW + 1)
+    assert test["evidence"] == {"test": True}
+    assert real["evidence"]["price"] == 2
+    assert test["delivered"]["dispatcher"] == real["delivered"]["dispatcher"] == 1
+    assert [event["is_test"] for event in sent] == [True, False]
+    assert engine.evaluate(scan, now=NOW + 2) == []
+
+
+def test_unicode_ntfy_title_and_dispatcher_failure_keep_history(engine, pushes, monkeypatch):
+    class UnavailableDispatcher:
+        def dispatch(self, *_args, **_kwargs):
+            raise OSError("unavailable channel")
+
+    engine.dispatcher = UnavailableDispatcher()
+    title = "Wake · 波"
+    rule = engine.create_rule({
+        "name": title,
+        "urgency": "wake_up",
+        "conditions": [{"predicate": "price_above", "value": 1}],
+    })
+    alert = engine.send_test(rule_id=rule["id"], now=NOW)
+    encoded = pushes[-1][2]["Title"]
+    assert encoded.isascii()
+    assert str(make_header(decode_header(encoded))) == f"Moonwalking: {title}"
+    assert alert["delivered"] == {"ntfy": "sent", "dispatcher": "failed:OSError"}
+
+    def broken_ntfy(*_args):
+        raise RuntimeError("unavailable topic")
+
+    monkeypatch.setattr(engine, "http_post", broken_ntfy)
+    (fired,) = engine.evaluate(_scan(_row("SOL", 2)), now=NOW + 1)
+    assert fired["delivered"] == {"ntfy": "failed:RuntimeError", "dispatcher": "failed:OSError"}
+    assert engine.history()[:2] == [fired, alert]

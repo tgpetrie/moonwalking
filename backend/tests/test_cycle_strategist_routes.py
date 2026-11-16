@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app as backend_app
 import paper_execution_store
 import watchlist
+from agents.contracts import AgentObservation
 from agents.cycle_context import build_cycle_context, evaluate_smart_alerts
 from agents.cycle_strategist import CycleStrategistAgent
 from agents.runner import run_once
@@ -72,9 +73,13 @@ def _seed_proposals():
 )
 def test_routes_are_owner_only(client, monkeypatch, method, path):
     monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
-    assert getattr(client, method)(path, json={}).status_code == 401
+    anonymous = getattr(client, method)(path, json={})
+    assert anonymous.status_code == 401
+    assert "no-store" in anonymous.headers["Cache-Control"]
     monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: {"id": 2, "email": "x@example.test"})
-    assert getattr(client, method)(path, json={}).status_code == 403
+    forbidden = getattr(client, method)(path, json={})
+    assert forbidden.status_code == 403
+    assert "no-store" in forbidden.headers["Cache-Control"]
 
 
 def test_list_approve_and_reject_proposals(client):
@@ -85,18 +90,26 @@ def test_list_approve_and_reject_proposals(client):
     assert {p["action"] for p in body["proposals"]} == {"TRIM_TO_USDC", "BREAKOUT_ENTRY"}
     assert client.get("/api/agents/proposals?symbol=SOL").json["proposals"][0]["symbol"] == "SOL"
 
-    trim_id = seeded["TRIM_TO_USDC"]["proposal_id"]
-    approved = client.post(f"/api/agents/proposals/{trim_id}/approve").json
-    assert approved["proposal"]["status"] == "approved"
-    assert approved["proposal"]["execution"] is None  # approval never executes
-    assert client.post(f"/api/agents/proposals/{trim_id}/reject").status_code == 409
-
     entry_id = seeded["BREAKOUT_ENTRY"]["proposal_id"]
-    assert client.post(f"/api/agents/proposals/{entry_id}/reject").json["proposal"]["status"] == "rejected"
-    assert client.post("/api/agents/proposals/ffffffffffffffff/approve").status_code == 404
-    assert client.post("/api/agents/proposals/not-an-id/approve").status_code == 400
-    assert client.post(f"/api/agents/proposals/{entry_id}/execute").status_code == 404
-    assert client.get("/api/agents/proposals?status=Bad!").status_code == 400
+    trim_id = seeded["TRIM_TO_USDC"]["proposal_id"]
+    for proposal_id in (trim_id, entry_id):
+        url = f"/api/agents/proposals/{proposal_id}/approve"
+        cross_origin = client.post(url, headers={"Origin": "https://other.example.test"})
+        assert cross_origin.status_code == 415
+        assert "Access-Control-Allow-Origin" not in cross_origin.headers
+        assert AgentStore().get_proposal(proposal_id)["status"] == "pending_approval"
+        first = client.post(url, json={})
+        assert first.status_code == 200
+        approved = first.json["proposal"]
+        assert approved["status"] == "approved"
+        assert approved["execution"] is None
+        assert client.post(url, json={}).json["proposal"] == approved
+        assert client.post(f"/api/agents/proposals/{proposal_id}/reject", json={}).status_code == 409
+
+    assert client.post("/api/agents/proposals/ffffffffffffffff/approve", json={}).status_code == 404
+    assert client.post("/api/agents/proposals/not-an-id/approve", json={}).status_code == 400
+    assert client.post(f"/api/agents/proposals/{entry_id}/execute", json={}).status_code == 404
+    assert client.get("/api/agents/proposals?status=unknown").status_code == 400
 
 
 def test_autonomy_settings_round_trip_and_validation(client):
@@ -145,7 +158,7 @@ def test_smart_alert_rule_crud(client):
     edited = client.patch(f"/api/smart-alerts/rules/{rule_id}", json={"urgency": "wake_up", "name": "RENDER wake"}).json["rule"]
     assert edited["urgency"] == "wake_up" and edited["name"] == "RENDER wake" and edited["enabled"] is False
     assert client.patch(f"/api/smart-alerts/rules/{rule_id}", json={"urgency": "loud"}).status_code == 400
-    assert client.patch(f"/api/smart-alerts/rules/{rule_id}", json={"name": DEFAULT_RULES[0]["name"]}).status_code == 400
+    assert client.patch(f"/api/smart-alerts/rules/{rule_id}", json={"name": DEFAULT_RULES[0]["name"]}).status_code == 409
     assert client.patch("/api/smart-alerts/rules/9999", json={"enabled": True}).status_code == 404
 
     assert client.delete(f"/api/smart-alerts/rules/{rule_id}").json["deleted"] == rule_id
@@ -170,6 +183,74 @@ def test_smart_alert_test_fire_is_recorded_and_delivered(client, monkeypatch):
     assert client.post("/api/smart-alerts/test", json={"rule_id": "1"}).status_code == 400
     history = client.get("/api/smart-alerts/history").json["history"]
     assert history[0]["symbol"] == "TEST" and history[0]["evidence"] == {"test": True}
+
+
+@pytest.mark.parametrize(
+    "method,path,payload,expected",
+    [
+        ("get", "/api/agents/proposals?limit=251", None, 400),
+        ("get", "/api/smart-alerts/history?limit=0", None, 400),
+        ("get", "/api/smart-alerts/history?limit=501", None, 400),
+        ("post", "/api/agents/autonomy", [], 400),
+        ("post", "/api/smart-alerts/rules", ["bad"], 400),
+        ("post", "/api/smart-alerts/test", {"urgency": []}, 400),
+        ("post", "/api/smart-alerts/test", {"rule_id": 2**63}, 400),
+        ("post", "/api/smart-alerts/test", {"urgency": "watch", "rule_id": 1}, 400),
+        ("patch", f"/api/smart-alerts/rules/{2**63}", {"enabled": True}, 404),
+        ("delete", f"/api/smart-alerts/rules/{2**63}", None, 404),
+        ("head", "/api/smart-alerts/rules", None, 200),
+    ],
+)
+def test_owner_route_validation_and_caching(client, method, path, payload, expected):
+    result = getattr(client, method)(path, json=payload)
+    assert result.status_code == expected
+    assert "no-store" in result.headers["Cache-Control"]
+
+
+def test_invalid_json_has_no_store_and_leaves_settings_unchanged(client):
+    result = client.post(
+        "/api/agents/autonomy", data='{"emergency_pause":', content_type="application/json"
+    )
+    assert result.status_code == 400
+    assert "no-store" in result.headers["Cache-Control"]
+    assert client.get("/api/agents/autonomy").json["autonomy"]["emergency_pause"] is False
+
+
+def test_public_observations_and_status_exclude_strategist(client, monkeypatch):
+    store = AgentStore()
+    for agent in ("tape_scout", "cycle_strategist"):
+        run_id = store.begin_run(agent, model_version="test")
+        store.record_observations(
+            run_id, [AgentObservation(agent=agent, kind="test", summary="test", symbol="SOL")]
+        )
+        store.finish_run(run_id, status="ok", observation_count=1)
+
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
+    recent = client.get("/api/agents/observations?limit=1").json["observations"]
+    assert [row["agent"] for row in recent] == ["tape_scout"]
+    assert client.get("/api/agents/observations?agent=cycle_strategist").json["observations"] == []
+    status = client.get("/api/agents/status").json
+    assert status["total_observations"] == 1
+    assert status["last_run"]["agent"] == "tape_scout"
+    assert "cycle_strategist" not in {row["agent"] for row in status["agents"]}
+    catalog = next(row for row in status["agent_summaries"] if row["agent"] == "cycle_strategist")
+    assert catalog["latest_run"] is None and catalog["latest_findings_by_severity"] == {}
+
+
+def test_public_signup_cannot_claim_configured_owner(monkeypatch, tmp_path):
+    monkeypatch.setenv("COINBASE_PORTFOLIO_OWNER_EMAIL", "  Owner@Example.Test ")
+    monkeypatch.setattr(watchlist, "_WATCHLIST_DB_PATH", tmp_path / "watchlists.sqlite")
+    monkeypatch.setattr(backend_app, "_mw_ensure_background_started", lambda: None)
+    monkeypatch.setitem(backend_app.app.config, "TESTING", True)
+    client = backend_app.app.test_client()
+    result = client.post("/api/auth/signup", json={
+        "name": "Someone",
+        "email": "OWNER@example.test",
+        "password": "a password long enough",
+    })
+    assert result.status_code == 409
+    assert client.get("/api/auth/session").json["authenticated"] is False
+    assert client.get("/api/agents/proposals").status_code == 401
 
 
 def test_test_alert_does_not_reset_a_real_cooldown(tmp_path):

@@ -23,6 +23,8 @@ COINBASE_API_KEY_NAME=organizations/.../apiKeys/...
 COINBASE_API_KEY_SECRET=<encrypted Railway secret>
 ```
 
+For first enrollment, create and verify the owner account on a backend accessible only to you before setting the owner email. Public signup rejects the configured owner address. Provision a strong SECRET_KEY before exposing the backend.
+
 Create a portfolio-specific Coinbase CDP API key with View only. Do not enable Trade, Transfer, or Withdrawal for Stage 1. Never paste the private key into chat, commit it, or expose it through a `VITE_` variable.
 
 The backend uses Coinbase App JWT authentication and scopes all account data to the portfolio attached to that key.

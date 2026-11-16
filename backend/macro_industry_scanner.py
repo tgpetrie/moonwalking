@@ -13,8 +13,7 @@ in multi-year daily candles keyed by Coinbase product id.
 - ``scan_universe_cycles`` reads every coin supplied, measures breadth across
   them and sorts them into four cycle buckets.
 
-Display context only. The stages, the gate and the buckets are rules of
-thumb; none of them is outcome-validated and none feeds an alert.
+The stages, gate and buckets are descriptive and have not been outcome tested.
 """
 
 from __future__ import annotations
@@ -102,7 +101,7 @@ def _clean(candles: list[list[Any]] | None) -> dict[int, tuple[float, ...]]:
             continue
         if not all(math.isfinite(v) for v in (ts, low, high, open_, close, volume)):
             continue
-        if low <= 0 or volume < 0 or not low <= min(open_, close) <= max(open_, close) <= high:
+        if not 0 <= ts < 253402214400 or ts % DAY or low <= 0 or volume < 0 or not low <= min(open_, close) <= max(open_, close) <= high:
             continue
         out[int(ts)] = (ts, low, high, open_, close, volume)
     return out
@@ -124,7 +123,7 @@ def build_alt_index(
     without a jump. The index open, high and low are the same average applied
     to each member's open, high and low against its prior close.
     """
-    wanted = [m for m in (members or ALT_INDEX_MEMBERS) if m not in MAJORS]
+    wanted = [m for m in (ALT_INDEX_MEMBERS if members is None else members) if m not in MAJORS]
     series = {m: _clean(histories.get(m)) for m in wanted}
     series = {m: bars for m, bars in series.items() if len(bars) >= 2}
     if len(series) < ALT_INDEX_MIN_MEMBERS and members is None:
@@ -145,30 +144,31 @@ def build_alt_index(
     first = last - (window_days - 1) * DAY
     days = sorted({ts for bars in series.values() for ts in bars if ts >= first})
     level, candles, smallest = 100.0, [], None
+    contributing = set()
     for ts in days:
-        moves = []
-        for bars in series.values():
+        moves = {}
+        for member, bars in series.items():
             bar, prior = bars.get(ts), bars.get(ts - DAY)
             if bar is None or prior is None:
                 continue
             base = prior[4]
-            moves.append(
-                (
-                    math.log(bar[1] / base),
-                    math.log(bar[2] / base),
-                    math.log(bar[3] / base),
-                    math.log(bar[4] / base),
-                    bar[4] * bar[5],
-                )
+            log_base = math.log(base)
+            moves[member] = (
+                math.log(bar[1]) - log_base,
+                math.log(bar[2]) - log_base,
+                math.log(bar[3]) - log_base,
+                math.log(bar[4]) - log_base,
+                bar[4] * bar[5],
             )
         if len(moves) < ALT_INDEX_MIN_MEMBERS:
             continue
         count = len(moves)
+        contributing.update(moves)
         smallest = count if smallest is None else min(smallest, count)
         low, high, open_, close = (
-            level * math.exp(sum(m[k] for m in moves) / count) for k in range(4)
+            level * math.exp(sum(m[k] for m in moves.values()) / count) for k in range(4)
         )
-        candles.append([float(ts), low, high, open_, close, sum(m[4] for m in moves)])
+        candles.append([float(ts), low, high, open_, close, sum(m[4] for m in moves.values())])
         level = close
     if len(candles) < 2:
         return {
@@ -180,8 +180,8 @@ def build_alt_index(
     return {
         "available": True,
         "name": ALT_INDEX_NAME,
-        "members": sorted(series),
-        "member_count": len(series),
+        "members": sorted(contributing),
+        "member_count": len(contributing),
         "min_members_on_a_day": smallest,
         "candles": candles,
         "bars": len(candles),
@@ -213,22 +213,23 @@ def _lead(context: dict[str, Any] | None) -> dict[str, Any]:
 
     above_50, above_100 = above("sma_50w"), above("sma_100w")
     macd_up = bool((context.get("macd_signals") or {}).get("weekly_macd_above_signal"))
-    expanding = weekly is not None and weekly > 60 and above_50 is not False
+    weekly_regime = (regimes.get("1w") or {}).get("regime")
+    expanding = weekly_regime == "growth_expansion" and above_50 is not False
     return {
         "available": weekly is not None,
         "weekly_rsi": weekly,
-        "weekly_rsi_regime": (regimes.get("1w") or {}).get("regime"),
+        "weekly_rsi_regime": weekly_regime,
         "monthly_rsi": monthly,
         "above_50w_sma": above_50,
         "above_100w_sma": above_100,
         "weekly_macd_above_signal": macd_up,
-        "compressed": weekly is not None and weekly < 40,
+        "compressed": weekly_regime == "oversold_compression",
         "expanding": bool(expanding),
         "breaking_out": bool(expanding or (above_50 and macd_up)),
         "strong_expansion": bool(
             expanding
-            and (monthly is None or monthly > 50)
-            and above_100 is not False
+            and monthly is not None and monthly > 50
+            and above_50 is True and above_100 is True
         ),
         "pct_from_cycle_high": context.get("pct_from_cycle_high"),
     }
@@ -255,7 +256,9 @@ def _stage(btc: dict[str, Any], eth: dict[str, Any], alt: dict[str, Any]) -> tup
 def _gate(stage: str, btc: dict[str, Any], breadth: dict[str, Any] | None) -> tuple[str, str]:
     above = ((breadth or {}).get("pct_above_50w_sma") or {}).get("pct")
     if stage in {"stage_3_alt_index_breakout", "stage_4_alt_season_expansion"}:
-        if above is not None and above < BREADTH_ALIGNED_MIN_PCT:
+        if above is None:
+            return "neutral_chop", "The index has broken out, but breadth is unavailable."
+        if above < BREADTH_ALIGNED_MIN_PCT:
             return "neutral_chop", (
                 f"The index has broken out, but only {above:.0f}% of scanned coins "
                 "are above their 50-week average."
@@ -268,8 +271,7 @@ def _gate(stage: str, btc: dict[str, Any], breadth: dict[str, Any] | None) -> tu
     )
     if weak_btc:
         return "risk_off_headwind", (
-            "BTC is below its 50-week average with weak weekly momentum, which "
-            "works against altcoin recoveries."
+            "BTC weekly momentum is weak, which works against altcoin recoveries."
         )
     return "neutral_chop", "No expansion yet, and BTC is not breaking down."
 
@@ -331,6 +333,7 @@ def _bucket(context: dict[str, Any], top: dict[str, Any], lead: dict[str, Any]) 
     if (
         breakout.get("broken")
         and breakout.get("recent")
+        and breakout.get("holding_above")
         and drawdown.get("available")
         and (recovered is None or recovered < BREAKOUT_MAX_RECOVERED_PCT)
     ):
@@ -364,7 +367,7 @@ def _bucket(context: dict[str, Any], top: dict[str, Any], lead: dict[str, Any]) 
 
 
 def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any]:
-    """One coin's cycle read, flattened for a scanner row."""
+    """One coin's scan summary and the structured evidence used downstream."""
     structure = _structure()
     symbol = str(product_id).upper().removesuffix("-USD")
     context = structure.multi_year_context(candles)
@@ -397,13 +400,24 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
         "bucket_label": BUCKETS.get(bucket),
         "score": round(score, 2),
         "weekly_rsi": lead.get("weekly_rsi"),
+        "multi_year_context": {
+            key: context[key]
+            for key in (
+                "rsi_regimes",
+                "weekly_stoch_rsi",
+                "weekly_sma_ladder",
+                "monthly_cycle_exhaustion",
+                "macd_signals",
+                "daily_structure",
+            )
+            if key in context
+        },
         "weekly_rsi_regime": lead.get("weekly_rsi_regime"),
         "monthly_rsi": lead.get("monthly_rsi"),
         "weekly_stoch_direction": stoch.get("direction"),
         "monthly_bearish_streak": exhaustion.get("monthly_bearish_streak"),
-        "multi_year_oversold_exhaustion": bool(
-            exhaustion.get("multi_year_oversold_exhaustion")
-        ),
+        "multi_year_oversold_exhaustion": exhaustion.get("multi_year_oversold_exhaustion")
+        if exhaustion.get("available") and exhaustion.get("histogram_shrinking") is not None else None,
         "above_50w_sma": lead.get("above_50w_sma"),
         "pct_from_cycle_high": context.get("pct_from_cycle_high"),
         "at_multi_year_support": bool(top.get("at_multi_year_support")),
@@ -416,16 +430,17 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
         if pivot
         else None,
         "breaking_confirmation_pivot": bool(
-            breakout.get("broken") and breakout.get("recent")
-        ),
+            breakout.get("broken") and breakout.get("recent") and breakout.get("holding_above")
+        ) if breakout.get("pivot_price") is not None else None,
         "accumulation_invalidation_stop": {
             "stop_price": stop["stop_price"],
             "stop_distance_pct": stop["stop_distance_pct"],
         }
         if stop
         else None,
-        "daily_macd_kiss": bool(signals.get("daily_macd_kiss")),
-        "weekly_macd_bullish_cross": bool(signals.get("weekly_macd_bullish_cross")),
+        "daily_macd_kiss": signals.get("daily_macd_kiss") if (signals.get("1d") or {}).get("histogram") is not None else None,
+        "daily_bullish_divergence": signals.get("daily_bullish_divergence"),
+        "weekly_macd_bullish_cross": signals.get("weekly_macd_bullish_cross") if (signals.get("1w") or {}).get("previous_histogram") is not None else None,
         "macro_bullish_divergence": bool(signals.get("macro_bullish_divergence")),
         "rollover_target_box": {"low": box["low"], "high": box["high"]}
         if box.get("available")
@@ -455,13 +470,17 @@ def universe_breadth(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "pct_monthly_exhausted": _share(
             usable,
-            lambda r: r.get("monthly_bearish_streak") is not None,
+            lambda r: r.get("monthly_bearish_streak") is not None
+            and r.get("multi_year_oversold_exhaustion") is not None,
             lambda r: r.get("multi_year_oversold_exhaustion"),
         ),
         "pct_weekly_rsi_above_60": _share(
             usable,
             lambda r: r.get("weekly_rsi") is not None,
-            lambda r: r["weekly_rsi"] > 60,
+            lambda r: (
+                r["weekly_rsi_regime"] == "growth_expansion"
+                if "weekly_rsi_regime" in r else r["weekly_rsi"] > 60
+            ),
         ),
         "pct_above_50w_sma": _share(
             usable,
@@ -469,7 +488,8 @@ def universe_breadth(rows: list[dict[str, Any]]) -> dict[str, Any]:
             lambda r: r["above_50w_sma"],
         ),
         "pct_breaking_confirmation_pivot": _share(
-            usable, lambda r: True, lambda r: r.get("breaking_confirmation_pivot")
+            usable, lambda r: r.get("breaking_confirmation_pivot") is not None,
+            lambda r: r["breaking_confirmation_pivot"],
         ),
         "coins": len(usable),
     }
@@ -479,8 +499,9 @@ def scan_universe_cycles(
     histories: dict[str, list[list[Any]]],
     *,
     members: tuple[str, ...] | list[str] | None = None,
+    breadth_products: set[str] | frozenset[str] | None = None,
 ) -> dict[str, Any]:
-    """Read every coin supplied, measure breadth and rank the cycle buckets."""
+    """Rank all rows; optionally constrain industry gate breadth to a fixed universe."""
     rows = []
     for product_id in sorted(histories):
         try:
@@ -496,8 +517,11 @@ def scan_universe_cycles(
                 }
             )
     breadth = universe_breadth(rows)
+    gate_breadth = breadth if breadth_products is None else universe_breadth(
+        [row for row in rows if row["product_id"] in breadth_products]
+    )
     try:
-        regime = macro_industry_regime(histories, breadth, members=members)
+        regime = macro_industry_regime(histories, gate_breadth, members=members)
     except Exception:
         logging.exception("[MacroScan] industry regime failed")
         regime = {"available": False, "reason": "regime_failed"}

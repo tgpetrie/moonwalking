@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useData } from "../context/DataContext";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
-import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { coinbaseSpotUrl, getExternalAlertSourceUrl } from "../utils/coinbaseUrl";
 import { getMarketPressure } from "../utils/marketPressure";
 import { stripLeadingSymbol } from "../utils/alertText";
 import { normalizeEventType } from "../utils/alerts_normalize.js";
@@ -830,10 +830,7 @@ function SignalRow({
   const volText = shouldShowVolPct(volPct) ? `Vol ${volPct > 0 ? "+" : ""}${volPct.toFixed(0)}%` : "";
 
   const tradeUrl = coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
-  const sourceUrl = a?.url;
-  const url = sourceUrl && !/^https?:\/\/(?:www\.)?coinbase\.com(?:\/|$)/i.test(sourceUrl)
-    ? sourceUrl
-    : tradeUrl;
+  const url = getExternalAlertSourceUrl(a?.url) || tradeUrl;
   const cls = tabKeyForAlert(a);
 
   // Determine direction for color coding

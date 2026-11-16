@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SignalRow, freshnessFromStale } from "./AlertsTab";
+import AnomalyStream from "./AnomalyStream.jsx";
 import SmartAlertRulesPanel, { buildConditionValue } from "./SmartAlertRulesPanel.jsx";
 
 // AlertsTab imports contexts that SignalRow doesn't use — mock so the module loads cleanly
@@ -56,6 +57,12 @@ describe("SignalRow – primary text", () => {
     expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("keeps an intelligence log Trade link on Coinbase when the feed supplies an alternate URL", async () => {
+    render(<AnomalyStream data={{ alerts: [{ ...base, symbol: "RENDER", trade_url: "https://example.com/trade" }] }} />);
+    const link = await screen.findByRole("link", { name: "RENDER" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
   });
 
   it("shows interpretation summary when support_level is production", () => {
@@ -331,7 +338,7 @@ describe("SmartAlertRulesPanel", () => {
     match: "all",
   };
 
-  function mockSmartAlerts() {
+  function mockSmartAlerts({ delivery = { dispatcher: 1 }, createError } = {}) {
     let rules = [seeded];
     let history = [{ id: 9, rule_id: 1, symbol: "MARKET", urgency: "wake_up", fired_ts: 1_800_000_000, message: "Stage 3 breakout" }];
     const calls = [];
@@ -349,6 +356,7 @@ describe("SmartAlertRulesPanel", () => {
         rules = rules.filter((r) => r.id !== Number(ruleMatch[1]));
         payload.deleted = Number(ruleMatch[1]);
       } else if (path === "/api/smart-alerts/rules" && method === "POST") {
+        if (createError) return Promise.resolve({ ok: false, status: 409, json: async () => ({ error: createError }) });
         payload.rule = { id: 2, enabled: true, symbols: [], match: "all", ...body };
         rules = [...rules, payload.rule];
       } else if (path === "/api/smart-alerts/rules") {
@@ -356,7 +364,7 @@ describe("SmartAlertRulesPanel", () => {
       } else if (path.startsWith("/api/smart-alerts/history")) {
         payload.history = history;
       } else if (path === "/api/smart-alerts/test") {
-        payload.alert = { id: 10, rule_id: 0, symbol: "TEST", urgency: body.urgency, fired_ts: 1_800_000_100, message: "Test Alert" };
+        payload.alert = { id: 10, rule_id: 0, symbol: "TEST", urgency: body.urgency, fired_ts: 1_800_000_100, message: "Test Alert", delivered: delivery };
         history = [payload.alert, ...history];
       }
       return Promise.resolve({ ok: true, status: method === "POST" ? 201 : 200, json: async () => payload });
@@ -384,7 +392,7 @@ describe("SmartAlertRulesPanel", () => {
     expect(within(rule).getByText("Wake-up")).toBeInTheDocument();
     expect(within(rule).getByText("liquidity_rotation_stage ≥ 3")).toBeInTheDocument();
     expect(screen.getByText("Stage 3 breakout")).toBeInTheDocument();
-    expect(screen.getByText(/No ntfy push URL is set/)).toBeInTheDocument();
+    expect(screen.getByText(/No ntfy push destination is configured/)).toBeInTheDocument();
   });
 
   it("toggles, deletes, creates rules and fires a test alert", async () => {
@@ -430,6 +438,22 @@ describe("SmartAlertRulesPanel", () => {
       { path: "/api/smart-alerts/test", method: "POST", body: { urgency: "action_queue" } },
       { path: "/api/smart-alerts/rules/1", method: "DELETE", body: undefined },
     ]);
+  });
+
+  it("keeps the rule form available after a rejected edit and reports a failed test delivery", async () => {
+    mockSmartAlerts({ delivery: { ntfy: "failed:Timeout" }, createError: "Rule name exists." });
+    await openPanel();
+    const form = screen.getByRole("form", { name: "New smart alert rule" });
+    const name = within(form).getByRole("textbox", { name: "Name" });
+    fireEvent.change(name, { target: { value: "Duplicate" } });
+    fireEvent.change(within(form).getByRole("textbox", { name: "Value" }), { target: { value: "9.5" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Add rule" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Rule name exists.");
+    expect(name).toHaveValue("Duplicate");
+
+    fireEvent.click(screen.getByRole("button", { name: "Send test alert" }));
+    expect(await screen.findByText("Test alert recorded. Delivery failed.")).toBeInTheDocument();
+    expect(screen.getByText("TEST")).toBeInTheDocument();
   });
 
   it("explains owner-only access", async () => {

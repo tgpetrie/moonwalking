@@ -52,7 +52,12 @@ export function buildConditionValue(predicate, raw) {
 
 function describeCondition({ predicate, value }) {
   if (value === undefined || value === null || value === true) return predicate;
+  if (Array.isArray(value)) return predicate + ": " + value.join(", ");
   if (typeof value === "object") {
+    if (value.regime) {
+      const regimes = Array.isArray(value.regime) ? value.regime.join(", ") : value.regime;
+      return (value.timeframe || "1w").toUpperCase() + " " + predicate + ": " + regimes;
+    }
     const parts = [];
     if (value.min !== undefined) parts.push(`≥ ${value.min}`);
     if (value.max !== undefined) parts.push(`≤ ${value.max}`);
@@ -76,11 +81,14 @@ export default function SmartAlertRulesPanel() {
   const [ntfyConfigured, setNtfyConfigured] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [testUrgency, setTestUrgency] = useState("wake_up");
+  const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError("");
+    setLoaded(false);
     try {
       const [rulePayload, historyPayload] = await Promise.all([
         fetchSmartAlertRules(),
@@ -92,7 +100,7 @@ export default function SmartAlertRulesPanel() {
       setHistory(Array.isArray(historyPayload.history) ? historyPayload.history : []);
       setError("");
     } catch (cause) {
-      setError(cause.status === 401 || cause.status === 403
+      setLoadError(cause.status === 401 || cause.status === 403
         ? "Smart alert rules are available to the configured portfolio owner."
         : cause.message || "Smart alert rules are unavailable.");
     } finally {
@@ -103,9 +111,9 @@ export default function SmartAlertRulesPanel() {
   const run = async (action, successNotice) => {
     setBusy(true);
     try {
-      await action();
+      const result = await action();
       setError("");
-      setNotice(successNotice || "");
+      setNotice(result || successNotice || "");
     } catch (cause) {
       setError(cause.message);
       setNotice("");
@@ -147,7 +155,13 @@ export default function SmartAlertRulesPanel() {
   const fireTest = () => run(async () => {
     const { alert } = await sendSmartAlertTest({ urgency: testUrgency });
     if (alert) setHistory((rows) => [alert, ...rows].slice(0, 25));
-  }, "Test alert sent.");
+    const { ntfy, dispatcher } = alert?.delivered || {};
+    const sent = ntfy === "sent" || (typeof dispatcher === "number" && dispatcher > 0);
+    const failed = [ntfy, dispatcher].some((status) => typeof status === "string" && status.startsWith("failed"));
+    if (sent) return failed ? "Test alert sent. A delivery channel failed." : "Test alert sent.";
+    if (failed) return "Test alert recorded. Delivery failed.";
+    return testUrgency === "watch" ? "Test alert recorded." : "Test alert recorded. No delivery was reported.";
+  });
 
   return (
     <details className="mw-panel bh-smart-alerts" onToggle={(e) => { if (e.currentTarget.open && !loaded) load(); }}>
@@ -155,10 +169,16 @@ export default function SmartAlertRulesPanel() {
         <div><h3>Smart Wake-Up Rules &amp; History</h3><span>Cycle rules checked on every agent pass</span></div>
       </summary>
       {!loaded ? <p className="bh-smart-alerts__note">Loading rules…</p> : null}
+      {loadError ? (
+        <div>
+          <p className="bh-smart-alerts__error" role="alert">{loadError}</p>
+          <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={load}>Retry</button>
+        </div>
+      ) : null}
       {error ? <p className="bh-smart-alerts__error" role="alert">{error}</p> : null}
       {notice ? <p className="bh-smart-alerts__note" role="status">{notice}</p> : null}
-      {loaded && !error && ntfyConfigured === false ? (
-        <p className="bh-smart-alerts__note">No ntfy push URL is set (MW_NTFY_URL); alerts are recorded and sent through the existing alert channels only.</p>
+      {loaded && !loadError && ntfyConfigured === false ? (
+        <p className="bh-smart-alerts__note">No ntfy push destination is configured.</p>
       ) : null}
 
       {loaded && rules.length ? (
@@ -186,9 +206,9 @@ export default function SmartAlertRulesPanel() {
             </li>
           ))}
         </ul>
-      ) : loaded && !error ? <p className="bh-smart-alerts__note">No rules yet.</p> : null}
+      ) : loaded && !loadError ? <p className="bh-smart-alerts__note">No rules yet.</p> : null}
 
-      {loaded && !error ? (
+      {loaded && !loadError ? (
         <>
           <form className="bh-smart-alerts__form" aria-label="New smart alert rule" onSubmit={create}>
             <label><span>Name</span>

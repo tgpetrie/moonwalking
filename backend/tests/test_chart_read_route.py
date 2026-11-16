@@ -215,7 +215,7 @@ def test_chart_read_route_defaults_to_the_swing_horizon(monkeypatch):
 
 
 def test_cycle_route_uses_daily_and_weekly_history(monkeypatch):
-    history = _history(count=120, step=86400)
+    history = _history(count=120, step=86400, t0=1_699_920_000)
     monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: history)
     with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=cycle"):
         response = backend_app.get_chart_read("SOL")
@@ -398,7 +398,8 @@ def macro_scan_state():
 
     def reset():
         backend_app._MACRO_SCAN_STATE.update(
-            payload=None, computed_at=0.0, day=None, products=(), running=False
+            payload=None, computed_at=0.0, day=None, products=(), running=False,
+            supplements={}, supplement_day=None, retry_after=0.0,
         )
 
     reset()
@@ -457,7 +458,7 @@ def test_cycle_route_returns_the_momentum_stack_and_both_target_tiers(
     assert top["low_confirmation_pivot"]["message"] == "Break above $1.07 signals cycle low is in"
     assert top["accumulation_invalidation_stop"]["stop_price"] < cycle["cycle_low"]["price"]
     assert top["accumulation_invalidation_stop"]["stop_distance_pct"] > 0
-    assert len(top["fib_confluence_clusters"]) == 1
+    assert len(top["fib_confluence_clusters"]) == 2
     assert top["rollover_target_box"]["available"] is True
     assert top["full_extension_targets"]["available"] is True
 
@@ -504,52 +505,51 @@ def _scan(url):
     return response.get_json()
 
 
-def test_macro_cycle_scan_route_reads_the_universe_and_caches_it(
+def test_macro_cycle_scan_keeps_request_supplements_out_of_other_responses(
     monkeypatch, cycle_fixture, daily_series, macro_scan_state
 ):
     up = daily_series(10, [(1461, 60)])
     histories = {
         "BTC-USD": up,
         "ETH-USD": up,
+        "SOL-USD": cycle_fixture("render_cycle_fixture"),
+        "ADA-USD": cycle_fixture("fet_channel_fixture"),
+        "XRP-USD": cycle_fixture("theta_wxy_confluence_fixture"),
         "RENDER-USD": cycle_fixture("render_cycle_fixture"),
         "FET-USD": cycle_fixture("fet_channel_fixture"),
-        "THETA-USD": cycle_fixture("theta_wxy_confluence_fixture"),
     }
-    universes, loads = [], []
-
-    def universe(symbols=()):
-        universes.append(list(symbols))
-        return list(histories) + [f"{sym}-USD" for sym in symbols if f"{sym}-USD" not in histories]
+    base = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "XRP-USD"]
+    loads = []
 
     def fetch(product, years=3):
         loads.append((product, years))
-        if product not in histories:
-            raise ValueError("unknown product")
-        return histories[product][::-1]
+        return histories.get(product, [])[::-1]
 
-    monkeypatch.setattr(backend_app, "_macro_scan_universe", universe)
+    monkeypatch.setattr(backend_app, "_macro_scan_universe", lambda: base)
+    monkeypatch.setattr(backend_app, "_macro_scan_known_products", lambda: {*histories, "EMPTY-USD"})
     monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", fetch)
 
-    body = _scan("/api/macro-cycle-scan?symbols=render,FET-USD,bad!sym,render")
-    assert universes == [["RENDER", "FET"]]
-    assert body["status"] == "ready" and body["blocks_alerts"] is False
-    assert body["industry"]["liquidity_rotation_stage"] == "stage_2_btc_majors_lead"
-    assert body["industry"]["macro_regime_gate"] == "neutral_chop"
-    assert [row["symbol"] for row in body["buckets"]["deep_accumulation_exhaustion"]][0] == "RENDER"
-    assert sorted(row["symbol"] for row in body["coins"]) == ["BTC", "ETH", "FET", "RENDER", "THETA"]
-    assert body["breadth"]["coins"] == 5 and body["requested"] == 5 and body["unavailable"] == []
+    first = _scan("/api/macro-cycle-scan?symbols=render,FET-USD,bad!sym,render")
+    assert first["status"] == "ready" and first["blocks_alerts"] is False
+    assert first["industry"]["liquidity_rotation_stage"] == "stage_2_btc_majors_lead"
+    assert first["industry"]["macro_regime_gate"] == "neutral_chop"
+    assert sorted(row["symbol"] for row in first["coins"]) == ["ADA", "BTC", "ETH", "FET", "RENDER", "SOL", "XRP"]
+    assert first["breadth"]["coins"] == 7 and first["requested"] == 7 and first["unavailable"] == []
     assert {years for _product, years in loads} == {4}
 
-    # A second call inside the TTL is served from the cache.
     count = len(loads)
-    again = _scan("/api/macro-cycle-scan?symbols=RENDER")
-    assert again["computed_at"] == body["computed_at"] and len(loads) == count
+    second = _scan("/api/macro-cycle-scan?symbols=RENDER,NOPE")
+    assert second["computed_at"] == first["computed_at"] and len(loads) == count
+    assert second["unavailable"] == ["NOPE-USD"]
+    assert "FET-USD" not in {row["product_id"] for row in second["coins"]}
+    assert first["industry"] == second["industry"]
 
-    # A symbol the last scan did not cover triggers a new one; a coin with no
-    # history is listed, not dropped silently.
-    wider = _scan("/api/macro-cycle-scan?symbols=NOPE")
-    assert universes[-1] == ["NOPE"] and len(loads) > count
-    assert wider["unavailable"] == ["NOPE-USD"] and wider["requested"] == 6
+    baseline = _scan("/api/macro-cycle-scan")
+    assert {row["product_id"] for row in baseline["coins"]} == set(base)
+    assert len(loads) == count
+    for _ in range(2):
+        assert _scan("/api/macro-cycle-scan?symbols=EMPTY")["unavailable"] == ["EMPTY-USD"]
+    assert loads.count(("EMPTY-USD", 4)) == 1
 
 
 def test_macro_cycle_scan_route_reports_warming_while_a_worker_loads(monkeypatch, macro_scan_state):
@@ -586,10 +586,9 @@ def test_macro_cycle_scan_route_reports_warming_while_a_worker_loads(monkeypatch
     assert done["industry"]["available"] is False
 
 
-def test_macro_scan_universe_orders_core_requested_cached_then_liquid(monkeypatch):
+def test_macro_scan_universe_uses_core_then_liquid(monkeypatch):
     import macro_industry_scanner
 
-    monkeypatch.setattr(chart_reader, "cached_cycle_products", lambda: ["ZRX-USD", "BTC-USD"])
     monkeypatch.setattr(
         backend_app,
         "latest_quote_volume_by_product",
@@ -600,10 +599,10 @@ def test_macro_scan_universe_orders_core_requested_cached_then_liquid(monkeypatc
             "RENDER-USD": {"quote_volume_usd": 1.0},
         },
     )
-    products = backend_app._macro_scan_universe(["RENDER", "FET"])
+    products = backend_app._macro_scan_universe()
     core = list(macro_industry_scanner.MAJORS) + list(macro_industry_scanner.ALT_INDEX_MEMBERS)
     assert products[: len(core)] == core
-    assert products[len(core):] == ["RENDER-USD", "FET-USD", "ZRX-USD", "BBB-USD", "AAA-USD"]
+    assert products[len(core):] == ["BBB-USD", "AAA-USD", "RENDER-USD"]
     assert len(products) == len(set(products)) <= backend_app.MACRO_SCAN_MAX_PRODUCTS
 
 

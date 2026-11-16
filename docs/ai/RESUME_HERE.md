@@ -1,5 +1,10 @@
 # Resume Moonwalking from anywhere
 
+For the November 16 cycle lane, continue from
+`codex/cycle-strategist-audit-20261116` and the
+[audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md). The audit verified the
+Flask scan, runner and owner routes as one pipeline without starting a server.
+
 ## Cycle strategist routes, runner context and control UI · November 16
 
 Branch `claude/elliott-abc-v2-reclaim-20261115`, built on `475a981`, which

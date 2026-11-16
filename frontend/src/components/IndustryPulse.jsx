@@ -23,7 +23,7 @@ export const CYCLE_BUCKETS = [
 ];
 
 export const BREADTH_METRICS = [
-  { key: "pct_monthly_exhausted", label: "1M Exhausted", detail: "Share of scanned coins in a monthly bear streak of 18+ months with the monthly MACD histogram shrinking" },
+  { key: "pct_monthly_exhausted", label: "1M Exhausted", detail: "Share of scanned coins in a monthly bear streak of 18+ months with the negative monthly MACD histogram shrinking" },
   { key: "pct_weekly_rsi_above_60", label: "1W RSI > 60", detail: "Share of scanned coins with weekly RSI above 60" },
   { key: "pct_above_50w_sma", label: "Above 50W SMA", detail: "Share of scanned coins trading above their 50-week average" },
 ];
@@ -221,7 +221,7 @@ export function IndustryPulseView({ scan, loading = false, error = null, onInfo 
       )}
 
       <p className="bh-pulse__foot">
-        Context only · rules of thumb, not tested against outcomes · does not feed alerts
+        Context only · rules of thumb, not tested against outcomes · does not block board alerts
         {finite(scan.scanned) ? ` · ${scan.scanned} coins read` : ""}
         {skipped ? ` · ${skipped} skipped (too little history)` : ""}
         {finite(members) ? ` · alt index: equal-weight proxy of ${members} coins, not market-cap weighted` : ""}

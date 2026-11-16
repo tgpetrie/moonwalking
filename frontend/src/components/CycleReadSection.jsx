@@ -125,8 +125,8 @@ function ExhaustionTile({ exhaustion }) {
   const exhausted = Boolean(ready && exhaustion.multi_year_oversold_exhaustion);
   let note = null;
   if (ready && exhaustion.histogram_shrinking === null) note = 'Monthly MACD is still warming up';
-  else if (ready && exhaustion.histogram_shrinking) note = 'Monthly MACD histogram is shrinking';
-  else if (ready) note = 'Monthly MACD histogram is not shrinking';
+  else if (ready && exhaustion.histogram_shrinking) note = 'Negative monthly MACD histogram is shrinking';
+  else if (ready) note = 'No shrinking negative monthly MACD histogram';
   return (
     <div className="cycle-read__tile" data-testid="cycle-exhaustion" data-exhausted={exhausted ? 'true' : 'false'}>
       <span className="cycle-read__label">1M bear streak</span>

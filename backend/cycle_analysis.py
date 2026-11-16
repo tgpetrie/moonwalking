@@ -21,6 +21,7 @@ Everything here is descriptive. None of it is outcome-validated.
 from __future__ import annotations
 
 import math
+from calendar import monthrange
 from datetime import datetime, timezone
 from statistics import median
 from typing import Any
@@ -82,8 +83,6 @@ DIVERGENCE_MIN_RSI_GAIN = 1.0
 
 RETRACEMENT_RATIOS = (0.236, 0.309, 0.382, 0.5, 0.618, 0.702, 0.786, 0.886)
 EXTENSION_RATIOS = (1.272, 1.618, 2.618, 3.618, 4.236)
-CLUSTER_RETRACEMENTS = (0.309, 0.5, 0.702, 0.786)
-CLUSTER_EXTENSIONS = (1.618, 2.618, 3.618, 4.236)
 CLUSTER_TOLERANCE = 0.06
 ROLLOVER_RATIOS = (0.618, 0.702, 0.786)
 FULL_EXTENSION_RATIOS = (1.618, 2.618, 3.618, 4.236)
@@ -131,42 +130,50 @@ def _merge(start: float, bars: list[Row]) -> Row:
 # ─── resampling ───────────────────────────────────────────────────────────────
 
 
-def weekly_bars(rows: list[Row], *, min_days: int = 4) -> list[Row]:
-    """Closed Monday–Sunday UTC weeks; the week still forming is left out."""
-    if not rows:
-        return []
-    closed_until = rows[-1][0] + DAY
+def _complete_period(start: int, length: int, bars: list[Row]) -> bool:
+    return len(bars) == length and all(
+        bar[0] == start + offset * DAY for offset, bar in enumerate(bars)
+    )
+
+
+def weekly_bars(rows: list[Row]) -> list[Row]:
+    """Aggregate exactly seven closed daily candles per Monday–Sunday UTC week."""
     groups: dict[int, list[Row]] = {}
     for row in rows:
         start = int((row[0] + 3 * DAY) // (7 * DAY)) * 7 * DAY - 3 * DAY
         groups.setdefault(start, []).append(row)
-    out = []
-    for start in sorted(groups):
-        if start + 7 * DAY > closed_until or len(groups[start]) < min_days:
-            continue
-        out.append(_merge(start, groups[start]))
-    return out
+    return [
+        _merge(start, bars)
+        for start, bars in sorted(groups.items())
+        if _complete_period(start, 7, bars)
+    ]
 
 
-def monthly_bars(rows: list[Row], *, min_days: int = 20) -> list[Row]:
-    """Closed UTC calendar months; the month still forming is left out."""
-    if not rows:
-        return []
-    closed_until = rows[-1][0] + DAY
+def monthly_bars(rows: list[Row]) -> list[Row]:
+    """Aggregate only UTC months with every closed daily candle present."""
     groups: dict[tuple[int, int], list[Row]] = {}
     for row in rows:
         stamp = datetime.fromtimestamp(row[0], timezone.utc)
         groups.setdefault((stamp.year, stamp.month), []).append(row)
     out = []
-    for year, month in sorted(groups):
-        start = datetime(year, month, 1, tzinfo=timezone.utc).timestamp()
-        following = datetime(
-            year + (month == 12), month % 12 + 1, 1, tzinfo=timezone.utc
-        ).timestamp()
-        if following > closed_until or len(groups[(year, month)]) < min_days:
-            continue
-        out.append(_merge(start, groups[(year, month)]))
+    for (year, month), bars in sorted(groups.items()):
+        start = int(datetime(year, month, 1, tzinfo=timezone.utc).timestamp())
+        if _complete_period(start, monthrange(year, month)[1], bars):
+            out.append(_merge(start, bars))
     return out
+
+
+def _contiguous_tail(rows: list[Row], interval) -> list[Row]:
+    """Keep missing periods from counting as neighboring indicator bars."""
+    for i in range(len(rows) - 1, 0, -1):
+        if rows[i][0] - rows[i - 1][0] != interval(rows[i - 1][0]):
+            return rows[i:]
+    return rows
+
+
+def _month_seconds(timestamp: float) -> int:
+    stamp = datetime.fromtimestamp(timestamp, timezone.utc)
+    return monthrange(stamp.year, stamp.month)[1] * DAY
 
 
 # ─── indicators ───────────────────────────────────────────────────────────────
@@ -378,8 +385,7 @@ def _daily_kiss(closes: list[float]) -> bool:
     if scale <= 0:
         return False
     return (
-        hist[-2] < 0  # the line was under its signal on the prior bar
-        and hist[-1] > hist[-2]  # and is closing the gap
+        hist[-2] < hist[-1] <= 0  # closes the gap without crossing above
         and line[-1] > line[-2]  # while curling up
         and abs(hist[-1]) <= MACD_KISS_TOLERANCE * scale
     )
@@ -411,13 +417,13 @@ def _near(series: list[float | None], index: int) -> float | None:
     return min(window) if window else None
 
 
-def _bullish_divergence(weeks: list[Row]) -> dict[str, Any] | None:
-    """A lower or equal weekly low on a higher momentum low, or ``None``."""
-    count = len(weeks)
+def _bullish_divergence(bars: list[Row], timeframe: str = "1w") -> dict[str, Any] | None:
+    """A lower or retested low on a higher momentum low, or ``None``."""
+    count = len(bars)
     if count < RSI_PERIOD + DIVERGENCE_MIN_SEPARATION + DIVERGENCE_RECENT:
         return None
-    lows = [w[1] for w in weeks]
-    closes = [w[4] for w in weeks]
+    lows = [w[1] for w in bars]
+    closes = [w[4] for w in bars]
     rsi = wilder_rsi(closes)
     _line, _signal, hist = macd(closes)
     second = min(range(count - DIVERGENCE_RECENT, count), key=lambda i: (lows[i], -i))
@@ -429,7 +435,7 @@ def _bullish_divergence(weeks: list[Row]) -> dict[str, Any] | None:
     # The earlier low has to be a swing low, not a point on the way down.
     if lows[first] > min(lows[max(0, first - 2) : first + 3]):
         return None
-    bounce = max(w[2] for w in weeks[first + 1 : second])
+    bounce = max(w[2] for w in bars[first + 1 : second])
     if bounce < max(lows[first], lows[second]) * (1.0 + DIVERGENCE_MIN_BOUNCE):
         return None
     if lows[second] > lows[first] * (1.0 + DIVERGENCE_RETEST_TOLERANCE):
@@ -450,10 +456,10 @@ def _bullish_divergence(weeks: list[Row]) -> dict[str, Any] | None:
     if not (by_rsi or by_hist):
         return None
     return {
-        "timeframe": "1w",
+        "timeframe": timeframe,
         "kind": "lower_low" if lows[second] < lows[first] else "double_bottom_retest",
-        "first_low": {"price": lows[first], "timestamp": weeks[first][0]},
-        "second_low": {"price": lows[second], "timestamp": weeks[second][0]},
+        "first_low": {"price": lows[first], "timestamp": bars[first][0]},
+        "second_low": {"price": lows[second], "timestamp": bars[second][0]},
         "price_change_pct": _round((lows[second] / lows[first] - 1.0) * 100.0),
         "rsi": {"first": _round(rsi_first), "second": _round(rsi_second)},
         "macd_histogram": {"first": hist_first, "second": hist_second},
@@ -480,7 +486,7 @@ def _monthly_exhaustion(months: list[Row]) -> dict[str, Any]:
         streak += 1
     last = hist[-1] if hist else None
     prior = hist[-2] if len(hist) >= 2 else None
-    shrinking = None if last is None or prior is None else bool(last > prior)
+    shrinking = None if last is None or prior is None else bool(prior < last < 0)
     out: dict[str, Any] = {
         "available": bool(months) and rsi[-1] is not None,
         "monthly_bearish_streak": streak,
@@ -535,12 +541,15 @@ def _sma_ladder(weeks: list[Row], price: float | None) -> dict[str, Any]:
 
 
 def momentum_stack(rows: list[Row]) -> dict[str, Any]:
-    """RSI regimes, weekly StochRSI, MACD signals, monthly streak and SMAs."""
-    weeks, months = weekly_bars(rows), monthly_bars(rows)
+    """Momentum from consecutive closed bars, with gaps treated as warmup."""
+    weeks = _contiguous_tail(weekly_bars(rows), lambda _: 7 * DAY)
+    months = _contiguous_tail(monthly_bars(rows), _month_seconds)
+    rows = _contiguous_tail(rows, lambda _: DAY)
     daily_closes = [r[4] for r in rows]
     weekly_closes = [w[4] for w in weeks]
     monthly_closes = [m[4] for m in months]
     divergence = _bullish_divergence(weeks)
+    daily_divergence = _bullish_divergence(rows, "1d")
     return {
         "rsi_regimes": {
             "1d": _rsi_block(daily_closes, "1d"),
@@ -551,6 +560,8 @@ def momentum_stack(rows: list[Row]) -> dict[str, Any]:
         "monthly_cycle_exhaustion": _monthly_exhaustion(months),
         "macd_signals": {
             "daily_macd_kiss": _daily_kiss(daily_closes),
+            "daily_bullish_divergence": daily_divergence is not None,
+            "daily_divergence": daily_divergence,
             **_weekly_cross(weekly_closes),
             "macro_bullish_divergence": divergence is not None,
             "divergence": divergence,
@@ -596,9 +607,12 @@ def flash_filtered_extremes(
         return lows, highs, info
     limit = FLASH_WICK_MULTIPLE * typical
     events = []
-    for i, (ts, low, high, open_, close, _volume) in enumerate(rows):
+    for i in range(1, len(rows) - 1):
+        ts, low, high, open_, close, _volume = rows[i]
+        beside = (rows[i - 1], rows[i + 1])
+        if beside[0][0] != ts - DAY or beside[1][0] != ts + DAY:
+            continue  # can't confirm isolation at either boundary or across a gap
         body_low, body_high = min(open_, close), max(open_, close)
-        beside = [rows[j] for j in (i - 1, i + 1) if 0 <= j < len(rows)]
         down = math.log(body_low / low)
         if down > limit and all(n[1] > math.sqrt(low * body_low) for n in beside):
             lows[i] = body_low
@@ -769,8 +783,8 @@ def fib_structure(rows: list[Row]) -> dict[str, Any]:
         )
 
     clusters = []
-    for r in CLUSTER_RETRACEMENTS:
-        for e in CLUSTER_EXTENSIONS:
+    for r in RETRACEMENT_RATIOS:
+        for e in EXTENSION_RATIOS:
             a, b = retracements[str(r)], extensions[str(e)]
             spread = max(a, b) / min(a, b) - 1.0
             if spread > CLUSTER_TOLERANCE:
@@ -841,9 +855,18 @@ def daily_structure(rows: list[Row]) -> dict[str, Any]:
     low_i = min(range(start, count), key=lambda i: (rows[i][1], -i))
     low = rows[low_i][1]
     pivots = _pivots(rows)
-    recent_highs = [p for p in pivots if p.kind == "high" and p.index >= start]
+    recent = [p for p in pivots if p.index >= start]
+    try:
+        from chart_structure import swing_history
+    except ImportError:
+        from backend.chart_structure import swing_history
+    floor = swing_history(
+        [{"ts": p.ts, "price": p.price, "kind": p.kind} for p in recent], price
+    ).get("floor")
+    recent_highs = [p for p in recent if p.kind == "high"]
     out: dict[str, Any] = {
         "structural_low": {"price": low, "timestamp": rows[low_i][0]},
+        "higher_low_floor": floor["points"][-1]["price"] if floor else None,
         "bars_since_structural_low": count - 1 - low_i,
         "low_confirmation_pivot": None,
         "confirmation_breakout": {"broken": False},
@@ -862,6 +885,7 @@ def daily_structure(rows: list[Row]) -> dict[str, Any]:
     before_low = [p for p in recent_highs if p.index < low_i]
     if before_low:
         gate = before_low[-1]
+        out["confirmation_breakout"].update(pivot_price=gate.price, pivot_timestamp=gate.ts)
         broke = next(
             (i for i in range(low_i + 1, count) if rows[i][4] > gate.price), None
         )
@@ -872,7 +896,8 @@ def daily_structure(rows: list[Row]) -> dict[str, Any]:
                 "pivot_timestamp": gate.ts,
                 "broke_at": rows[broke][0],
                 "bars_since_break": count - 1 - broke,
-                "recent": count - 1 - broke <= BREAKOUT_RECENT_DAYS,
+                "recent": rows[-1][0] - rows[broke][0] <= BREAKOUT_RECENT_DAYS * DAY,
+                "holding_above": price > gate.price,
             }
         # Swing lows between the highest recent swing high and the structural
         # low: three or more is the stair-step a finishing leg usually shows.

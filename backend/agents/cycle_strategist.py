@@ -31,6 +31,12 @@ import time
 from typing import Any, Callable, Mapping
 
 from .contracts import AgentObservation, json_safe
+from .cycle_context import (
+    _finite as _num,
+    normalize_positions,
+    normalize_watchlist,
+    usable_cycle_scan,
+)
 from .store import AgentStore
 
 
@@ -56,18 +62,6 @@ SEVERITY = {
     ACCUMULATE_SUPPORT: "watch",
     BREAKOUT_ENTRY: "watch",
 }
-
-
-def _num(value: Any) -> float | None:
-    try:
-        out = float(value)
-    except (TypeError, ValueError):
-        return None
-    return out if out == out and abs(out) != float("inf") else None
-
-
-def _symbol(value: Any) -> str | None:
-    return str(value).upper().split("-")[0] if value else None
 
 
 def _round(value: float | None, digits: int = 2) -> float | None:
@@ -110,33 +104,28 @@ def proposal_id(action: str, symbol: str, now_ts: float) -> str:
 
 def _scan_from_context(context: Mapping[str, Any]) -> dict[str, Any] | None:
     scan = context.get("cycle_scan")
-    if isinstance(scan, dict):
-        return scan
+    if scan is not None:
+        return scan if usable_cycle_scan(scan, now=_num(context.get("now_ts"))) else None
     histories = context.get("cycle_histories")
     if isinstance(histories, dict) and histories:
         try:
             from macro_industry_scanner import scan_universe_cycles
         except ImportError:
             from backend.macro_industry_scanner import scan_universe_cycles
-        return scan_universe_cycles(histories)
+        scan = scan_universe_cycles(histories)
+        return scan if usable_cycle_scan(scan) else None
     return None
 
 
-def _multi_year(context: Mapping[str, Any], symbol: str) -> dict[str, Any]:
+def _multi_year(context: Mapping[str, Any], row: dict, symbol: str) -> dict[str, Any]:
+    scan_fields = row.get("multi_year_context")
+    scan_fields = scan_fields if isinstance(scan_fields, dict) else {}
     supplied = context.get("multi_year_contexts")
     if isinstance(supplied, dict):
         found = supplied.get(symbol) or supplied.get(f"{symbol}-USD")
         if isinstance(found, dict):
-            return found
-    histories = context.get("cycle_histories")
-    candles = histories.get(f"{symbol}-USD") if isinstance(histories, dict) else None
-    if candles:
-        try:
-            from chart_structure import multi_year_context
-        except ImportError:
-            from backend.chart_structure import multi_year_context
-        return multi_year_context(candles)
-    return {}
+            return {**scan_fields, **found}
+    return scan_fields
 
 
 def daily_higher_low_floor(candles: list[list[Any]] | None) -> float | None:
@@ -159,31 +148,28 @@ def daily_higher_low_floor(candles: list[list[Any]] | None) -> float | None:
     return _num(floor["points"][-1]["price"])
 
 
-def _floor_for(context: Mapping[str, Any], position: Mapping[str, Any], symbol: str):
+def _floor_for(context: Mapping[str, Any], position: Mapping[str, Any], symbol: str, multi_year: dict):
     explicit = _num(position.get("higher_low_floor"))
-    if explicit is not None:
+    if explicit is not None and explicit > 0:
         return explicit
     floors = context.get("higher_low_floors")
     if isinstance(floors, dict):
         value = _num(floors.get(symbol))
-        if value is not None:
+        if value is not None and value > 0:
             return value
+    daily = multi_year.get("daily_structure")
+    if isinstance(daily, dict):
+        floor = _num(daily.get("higher_low_floor"))
+        if floor is not None and floor > 0:
+            return floor
     histories = context.get("cycle_histories")
-    if isinstance(histories, dict):
+    if isinstance(histories, dict) and "daily_structure" not in multi_year:
         return daily_higher_low_floor(histories.get(f"{symbol}-USD"))
     return None
 
 
 def _positions(context: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
-    held: dict[str, dict[str, Any]] = {}
-    for row in context.get("positions") or []:
-        if not isinstance(row, dict):
-            continue
-        symbol = _symbol(row.get("symbol") or row.get("product_id"))
-        quantity = _num(row.get("quantity"))
-        if symbol and quantity and quantity > 0:
-            held[symbol] = {**row, "symbol": symbol, "quantity": quantity}
-    return held
+    return {row["symbol"]: row for row in normalize_positions(context.get("positions"))}
 
 
 # ─── rules ───────────────────────────────────────────────────────────────────
@@ -195,7 +181,7 @@ def _overhead_sma(ladder: Mapping[str, Any], price: float) -> dict[str, Any] | N
         if value is None or value <= 0:
             continue
         gap = (value / price - 1.0) * 100.0
-        if -SMA_TOUCH_PCT <= gap <= SMA_TOUCH_PCT:
+        if 0 <= gap <= SMA_TOUCH_PCT:
             return {"key": f"sma_{period}w", "value": value, "gap_pct": _round(gap)}
     return None
 
@@ -207,7 +193,7 @@ def evaluate_trim(row, multi_year, stage, price) -> TradeProposal | None:
     trim = None
     box = row.get("rollover_target_box") or multi_year.get("rollover_target_box") or {}
     low, high = _num(box.get("low")), _num(box.get("high"))
-    if low is not None and high is not None and high > low and low <= price <= high:
+    if low is not None and high is not None and 0 < low < high and low <= price <= high:
         depth = (price - low) / (high - low)
         trim = TRIM_MIN_PCT + (TRIM_MAX_PCT - TRIM_MIN_PCT) * depth
         reasons.append("Price is inside the 0.618-0.786 rollover target box.")
@@ -232,61 +218,70 @@ def evaluate_trim(row, multi_year, stage, price) -> TradeProposal | None:
     )
 
 
-def evaluate_protective_stop(row, floor, price) -> TradeProposal | None:
+def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
-    stop_price = _num(stop.get("stop_price"))
-    distance = _num(stop.get("stop_distance_pct"))
-    if floor is not None and price < floor:
-        return TradeProposal(
-            action=PROTECTIVE_STOP,
-            symbol=row["symbol"],
-            side="sell",
-            reference_price=price,
-            trim_pct=100.0,
-            stop_price=floor,
-            reasons=["Price closed below the daily higher-low floor."],
-            evidence={"trigger": "higher_low_floor_breached", "floor": floor},
-        )
-    if stop_price is not None and distance is not None and distance <= STOP_APPROACH_PCT:
-        return TradeProposal(
-            action=PROTECTIVE_STOP,
-            symbol=row["symbol"],
-            side="sell",
-            reference_price=price,
-            trim_pct=100.0,
-            stop_price=stop_price,
-            reasons=[
-                f"Price is {distance:.2f}% above the accumulation invalidation stop."
-            ],
-            evidence={
-                "trigger": "invalidation_stop_near",
-                "stop_distance_pct": distance,
-                "floor": floor,
-            },
-        )
-    return None
+    stop_price = _num(position_stop)
+    position_guard = stop_price is not None and stop_price > 0
+    if not position_guard:
+        stop_price = _num(stop.get("stop_price"))
+    if floor is not None and price < floor and (stop_price is None or floor >= stop_price):
+        trigger, level = "higher_low_floor_breached", floor
+        message = "Price closed below the daily higher-low floor."
+    elif stop_price is not None and 0 < stop_price and price <= stop_price:
+        trigger, level = "invalidation_stop_breached", stop_price
+        detail = "the position stop" if position_guard else "the accumulation invalidation stop"
+        message = f"Price closed at or below {detail}."
+    elif stop_price is not None and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
+        trigger, level = "invalidation_stop_near", stop_price
+        detail = "the position stop" if position_guard else "the accumulation invalidation stop"
+        distance = (price - stop_price) / price * 100
+        message = f"Price is {distance:.2f}% above {detail}."
+    else:
+        return None
+    return TradeProposal(
+        action=PROTECTIVE_STOP,
+        symbol=row["symbol"],
+        side="sell",
+        reference_price=price,
+        trim_pct=100.0,
+        stop_price=level,
+        reasons=[message],
+        evidence={
+            "trigger": trigger,
+            "stop_distance_pct": _round((price - level) / price * 100),
+            "floor": floor,
+        },
+    )
 
 
 def evaluate_accumulate(row, price) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
-    distance = _num(stop.get("stop_distance_pct"))
-    streak = int(row.get("monthly_bearish_streak") or 0)
+    stop_price = _num(stop.get("stop_price"))
+    streak = _num(row.get("monthly_bearish_streak"))
+    daily_divergence = row.get("daily_bullish_divergence")
+    macro_divergence = row.get("macro_bullish_divergence")
     if not (
         row.get("bucket") == "deep_accumulation_exhaustion"
-        and streak >= ACCUMULATION_MIN_STREAK
+        and row.get("multi_year_oversold_exhaustion") is True
+        and streak is not None and streak.is_integer() and streak >= ACCUMULATION_MIN_STREAK
         and row.get("weekly_stoch_direction") == "oversold_turn_up"
-        and (row.get("daily_macd_kiss") or row.get("macro_bullish_divergence"))
-        and distance is not None
-        and 0 < distance <= ACCUMULATION_MAX_STOP_PCT
+        and (row.get("daily_macd_kiss") or daily_divergence or macro_divergence)
+        and stop_price is not None and price * (1 - ACCUMULATION_MAX_STOP_PCT / 100) <= stop_price < price
     ):
         return None
-    momentum = "daily MACD kiss" if row.get("daily_macd_kiss") else "bullish divergence"
+    streak = int(streak)
+    distance = (price - stop_price) / price * 100
+    momentum = (
+        "daily MACD kiss" if row.get("daily_macd_kiss")
+        else "daily bullish divergence" if daily_divergence
+        else "macro bullish divergence"
+    )
     return TradeProposal(
         action=ACCUMULATE_SUPPORT,
         symbol=row["symbol"],
         side="buy",
         reference_price=price,
-        stop_price=_num(stop.get("stop_price")),
+        stop_price=stop_price,
         reasons=[
             f"{streak} bearish months with weekly StochRSI turning up under 25.",
             f"Momentum confirmation: {momentum}.",
@@ -294,7 +289,8 @@ def evaluate_accumulate(row, price) -> TradeProposal | None:
         ],
         evidence={
             "monthly_bearish_streak": streak,
-            "stop_distance_pct": distance,
+            "stop_distance_pct": _round(distance),
+            "daily_bullish_divergence": bool(daily_divergence),
             "daily_macd_kiss": bool(row.get("daily_macd_kiss")),
             "macro_bullish_divergence": bool(row.get("macro_bullish_divergence")),
         },
@@ -305,7 +301,9 @@ def evaluate_breakout(row, price) -> TradeProposal | None:
     rsi = _num(row.get("weekly_rsi"))
     if not (row.get("breaking_confirmation_pivot") and rsi is not None):
         return None
-    if rsi <= BREAKOUT_MIN_WEEKLY_RSI:
+    regime = row.get("weekly_rsi_regime")
+    expanding = regime == "growth_expansion" if regime is not None else rsi > BREAKOUT_MIN_WEEKLY_RSI
+    if not expanding:
         return None
     stop = row.get("accumulation_invalidation_stop") or {}
     return TradeProposal(
@@ -326,73 +324,117 @@ def evaluate_breakout(row, price) -> TradeProposal | None:
 
 
 class GuardedDryRunExitExecutor:
-    """Simulates exits against a top-of-book quote; never contacts an exchange.
-
-    Quotes use the ``paper_exit_adapter.poll_top_of_book`` shape:
-    ``observed_at_ms``, ``bid_usd``, optional ``bid_size`` and
-    ``exchange_time_ms``, or ``quote_status: UNAVAILABLE``.
-    """
+    """Model a sell using a recent, uncrossed two-sided book. Never submits orders."""
 
     def __init__(
         self,
         *,
         max_quote_age_ms: int = 15_000,
         max_quote_deviation_pct: float = 2.0,
+        max_spread_pct: float = 1.0,
         slippage_bps: float = 10.0,
     ):
-        self.max_quote_age_ms = max_quote_age_ms
-        self.max_quote_deviation_pct = max_quote_deviation_pct
-        self.slippage_bps = slippage_bps
+        age = _num(max_quote_age_ms)
+        deviation, spread, slippage = map(_num, (max_quote_deviation_pct, max_spread_pct, slippage_bps))
+        if (
+            age is None or age <= 0 or deviation is None or not 0 <= deviation <= 100
+            or spread is None or not 0 <= spread <= 100
+            or slippage is None or not 0 <= slippage < 10_000
+        ):
+            raise ValueError("invalid dry-run guard parameters")
+        self.max_quote_age_ms = age
+        self.max_quote_deviation_pct = deviation
+        self.max_spread_pct = spread
+        self.slippage_bps = slippage
 
     def quote_guard(self, quote, reference_price, quantity, now_ms) -> list[str]:
-        if not isinstance(quote, dict) or quote.get("quote_status") == "UNAVAILABLE":
+        if not isinstance(quote, dict) or quote.get("quote_status") not in (None, "AVAILABLE"):
             return ["quote_unavailable"]
         bid = _num(quote.get("bid_usd"))
+        ask = _num(quote.get("ask_usd"))
         observed = _num(quote.get("observed_at_ms"))
+        exchange = _num(quote.get("exchange_time_ms"))
+        now = _num(now_ms)
         reasons = []
         if bid is None or bid <= 0:
             reasons.append("quote_missing_bid")
-        if observed is None or now_ms - observed > self.max_quote_age_ms:
+        if ask is None or ask <= 0:
+            reasons.append("quote_missing_ask")
+        if bid is not None and bid > 0 and ask is not None and ask > 0:
+            if ask < bid:
+                reasons.append("quote_crossed_book")
+            elif (ask - bid) / (bid + (ask - bid) / 2) * 100 > self.max_spread_pct:
+                reasons.append("quote_spread_too_wide")
+        if observed is None or now is None or not 0 <= now - observed <= self.max_quote_age_ms:
             reasons.append("quote_stale")
-        exchange = _num(quote.get("exchange_time_ms"))
-        if exchange is not None and now_ms - exchange > self.max_quote_age_ms:
+        if exchange is None:
+            reasons.append("quote_missing_exchange_timestamp")
+        elif now is None or observed is None or exchange > observed or not 0 <= now - exchange <= self.max_quote_age_ms:
             reasons.append("exchange_book_stale")
-        if bid and reference_price:
-            gap = abs(bid / reference_price - 1.0) * 100.0
-            if gap > self.max_quote_deviation_pct:
-                reasons.append("quote_deviates_from_reference")
+        reference = _num(reference_price)
+        if reference is None or reference <= 0:
+            reasons.append("invalid_reference_price")
+        elif bid is not None and bid > 0 and abs(bid / reference - 1.0) * 100 > self.max_quote_deviation_pct:
+            reasons.append("quote_deviates_from_reference")
+        quantity = _num(quantity)
         size = _num(quote.get("bid_size"))
-        if size is not None and quantity and size < quantity:
+        if quantity is None or quantity <= 0:
+            reasons.append("invalid_exit_quantity")
+        if size is None:
+            reasons.append("quote_missing_bid_size")
+        elif quantity is not None and size < quantity:
             reasons.append("insufficient_top_of_book_size")
         return reasons
 
     def execute(self, proposal: TradeProposal, position, quote, now_ms) -> dict:
-        quantity = position["quantity"] * (proposal.trim_pct or 0.0) / 100.0
-        breached = proposal.evidence.get("trigger") == "higher_low_floor_breached"
-        if proposal.action == PROTECTIVE_STOP and not breached:
-            # Price is still above the stop: arm it rather than sell now.
-            return {
-                "status": "auto_armed_dry_run",
-                "dry_run": True,
-                "order_submitted": False,
-                "order_type": "stop_limit_stop_limit_gtc",
-                "stop_price": proposal.stop_price,
-                "base_size": _round(quantity, 8),
-            }
+        def blocked(*reasons):
+            return {"status": "blocked_by_guard", "block_reasons": list(reasons)}
+
+        if proposal.action not in EXIT_ACTIONS or proposal.side != "sell":
+            return blocked("exit_only")
+        held_quantity = _num(position.get("quantity"))
+        trim = _num(proposal.trim_pct)
+        if held_quantity is None or held_quantity <= 0 or trim is None or not 0 < trim <= 100:
+            return blocked("invalid_exit_quantity")
+        quantity = held_quantity * (trim / 100)
+        if isinstance(quote, dict) and quote.get("product_id") not in (None, proposal.product_id):
+            return blocked("quote_product_mismatch")
         blocks = self.quote_guard(quote, proposal.reference_price, quantity, now_ms)
         if blocks:
-            return {"status": "blocked_by_guard", "block_reasons": blocks}
+            return blocked(*blocks)
         bid = float(quote["bid_usd"])
+        if proposal.action == PROTECTIVE_STOP:
+            stop = _num(proposal.stop_price)
+            if stop is None or stop <= 0:
+                return blocked("invalid_stop_price")
+            if proposal.evidence.get("trigger") == "invalidation_stop_near":
+                if bid <= stop:
+                    return blocked("quote_at_or_below_stop")
+                return {
+                    "status": "auto_armed_dry_run",
+                    "dry_run": True,
+                    "order_submitted": False,
+                    "order_type": "stop_limit_stop_limit_gtc",
+                    "stop_price": stop,
+                    "base_size": quantity,
+                }
+            if proposal.evidence.get("trigger") not in {
+                "higher_low_floor_breached", "invalidation_stop_breached"
+            } or bid > stop:
+                return blocked("quote_does_not_confirm_stop_breach")
         fill = bid * (1.0 - self.slippage_bps / 10_000.0)
+        proceeds = _num(fill * quantity)
+        if proceeds is None or fill <= 0 or proceeds <= 0:
+            return blocked("invalid_fill")
         return {
             "status": "auto_executed_dry_run",
             "dry_run": True,
             "order_submitted": False,
             "order_type": "simulated_sell_at_bid",
-            "base_size": _round(quantity, 8),
+            "base_size": quantity,
             "bid_usd": bid,
-            "fill_price": _round(fill, 8),
-            "proceeds_usd": _round(fill * quantity, 2),
+            "fill_price": fill,
+            "proceeds_usd": _round(proceeds, 2),
             "slippage_bps": self.slippage_bps,
             "quote_observed_at_ms": quote.get("observed_at_ms"),
         }
@@ -427,30 +469,37 @@ class CycleStrategistAgent:
         scan = _scan_from_context(context)
         if not scan:
             return []
-        stage = (scan.get("industry") or {}).get("liquidity_rotation_stage")
-        rows = {
-            _symbol(row.get("symbol")): row
-            for row in scan.get("coins") or []
-            if isinstance(row, dict) and row.get("available")
-        }
+        industry = scan.get("industry")
+        stage = industry.get("liquidity_rotation_stage") if isinstance(industry, dict) else None
+        rows = {}
+        for row in scan["coins"]:
+            if not isinstance(row, dict) or row.get("available") is not True:
+                continue
+            symbols = normalize_watchlist([row.get("symbol") or row.get("product_id")])
+            if symbols:
+                rows[symbols[0]] = {**row, "symbol": symbols[0]}
         held = _positions(context)
-        watch = {_symbol(s) for s in context.get("watchlist") or [] if _symbol(s)}
+        watch = set(normalize_watchlist(context.get("watchlist")))
         proposals: list[TradeProposal] = []
+        defended = set()
         for symbol in sorted(held):
             row = rows.get(symbol)
             price = _num(row.get("price")) if row else None
             if not row or price is None or price <= 0:
                 continue
+            position = held[symbol]
+            multi_year = _multi_year(context, row, symbol)
             stop = evaluate_protective_stop(
-                row, _floor_for(context, held[symbol], symbol), price
+                row, _floor_for(context, position, symbol, multi_year), price, position.get("stop_price")
             )
             if stop:
                 proposals.append(stop)
-                continue  # defend first; a broken floor is no time to trim
-            trim = evaluate_trim(row, _multi_year(context, symbol), stage, price)
+                defended.add(symbol)
+                continue  # defend first; a stop is no time to trim or add
+            trim = evaluate_trim(row, multi_year, stage, price)
             if trim:
                 proposals.append(trim)
-        for symbol in sorted(watch | set(held)):
+        for symbol in sorted((watch | set(held)) - defended):
             row = rows.get(symbol)
             price = _num(row.get("price")) if row else None
             if not row or price is None or price <= 0:
@@ -462,7 +511,7 @@ class CycleStrategistAgent:
         return proposals
 
     def _route(self, proposal, settings, held, quotes, now_ms, orders_today):
-        if proposal.action in ENTRY_ACTIONS:
+        if proposal.action not in EXIT_ACTIONS or proposal.side != "sell":
             return "pending_approval", None
         if settings["autonomy_mode"] != "auto_protect_exits":
             return "pending_approval", None
@@ -479,36 +528,26 @@ class CycleStrategistAgent:
 
     def run(self, context: dict | None) -> list[AgentObservation]:
         context = context or {}
-        now = float(context.get("now_ts") or self.clock())
-        proposals = self.evaluate(context)
+        supplied_now = _num(context.get("now_ts"))
+        clock = self.clock if supplied_now is None else lambda: supplied_now
+        now = clock()
+        proposals = self.evaluate({**context, "now_ts": now})
         self.last_proposals = []
         if not proposals:
             return []
         store = self.store or AgentStore()
-        settings = store.get_autonomy_settings()
         held = _positions(context)
         quotes = context.get("quotes") if isinstance(context.get("quotes"), dict) else {}
-        day_start = int(now // 86_400 * 86_400)
-        now_ms = int(now * 1000)
         observations = []
         for proposal in proposals:
             proposal.proposal_id = proposal_id(proposal.action, proposal.symbol, now)
-            existing = store.get_proposal(proposal.proposal_id)
-            if existing and existing["status"] not in {"pending_approval", "blocked_by_guard"}:
-                saved = store.save_proposal(proposal.to_record(), now=int(now))
-            else:
-                status, execution = self._route(
-                    proposal,
-                    settings,
-                    held,
-                    quotes,
-                    now_ms,
-                    store.count_auto_orders_since(day_start),
-                )
-                proposal.status = status
-                saved = store.save_proposal(
-                    proposal.to_record(), execution=execution, now=int(now)
-                )
+            saved, settings = store.route_proposal(
+                proposal.to_record(),
+                lambda settings, count, decision_ms: self._route(
+                    proposal, settings, held, quotes, decision_ms, count
+                ),
+                clock=clock,
+            )
             self.last_proposals.append(saved)
             observations.append(
                 AgentObservation(
@@ -520,10 +559,10 @@ class CycleStrategistAgent:
                     evidence={
                         "proposal_id": saved["proposal_id"],
                         "status": saved["status"],
-                        "reasons": proposal.reasons,
-                        "trim_pct": proposal.trim_pct,
-                        "stop_price": proposal.stop_price,
-                        "reference_price": proposal.reference_price,
+                        "reasons": saved["reasons"],
+                        "trim_pct": saved.get("trim_pct"),
+                        "stop_price": saved.get("stop_price"),
+                        "reference_price": saved["reference_price"],
                         "execution": saved.get("execution"),
                         "autonomy": {
                             k: settings[k]

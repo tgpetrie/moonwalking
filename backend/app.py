@@ -10,6 +10,7 @@ except Exception:  # python-dotenv is optional; env vars can still come from the
 
 from flask import Flask, jsonify
 import os
+import secrets
 import argparse
 import socket
 import subprocess
@@ -839,7 +840,9 @@ if not _secret_key:
             "SECRET_KEY environment variable must be set in production "
             "(it signs user session cookies)."
         )
-    _secret_key = "dev-only-insecure-secret"  # pragma: allowlist secret
+    # A dev listener may still be reachable on the LAN. Never sign sessions
+    # with a key that can be read from this repository.
+    _secret_key = secrets.token_hex(32)
 app.config["SECRET_KEY"] = _secret_key
 
 # Session cookie policy: both dev (Vite proxy) and production (Vercel
@@ -11827,12 +11830,14 @@ def get_agents_status():
         payload = {
             "status": "live",
             "generated_ts": now,
-            **store.status(),
+            **store.status(include_cycle_strategist=False),
             # Per-agent view for the Agents page; includes agents that have
             # never run here so they are listed rather than silently missing.
             "agent_summaries": [
                 {**summary, **describe(summary["agent"])}
-                for summary in store.agent_summaries(known, now=now)
+                for summary in store.agent_summaries(
+                    known, now=now, include_cycle_strategist=False
+                )
             ],
             "local_llm": {
                 "enabled": llm_config.enabled,
@@ -11864,7 +11869,9 @@ def get_agent_observations():
         symbol = request.args.get("symbol") or None
         if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
             return jsonify({"status": "error", "error": "Invalid symbol."}), 400
-        rows = AgentStore().latest(limit=limit, agent=agent, symbol=symbol)
+        rows = AgentStore().latest(
+            limit=limit, agent=agent, symbol=symbol, include_cycle_strategist=False
+        )
         response = jsonify({"status": "live", "observations": rows})
         response.headers["Cache-Control"] = "private, no-store"
         return response
@@ -11875,14 +11882,41 @@ def get_agent_observations():
 # ─── Cycle Strategist proposals & autonomy (owner-only, dry-run) ─────────────
 
 _PROPOSAL_ID_RE = re.compile(r"[0-9a-f]{16}")
-_PROPOSAL_STATUS_RE = re.compile(r"[a-z_]{1,40}")
+_PROPOSAL_STATUSES = {
+    "pending_approval", "approved", "rejected", "blocked_by_guard",
+    "auto_executed_dry_run", "auto_armed_dry_run",
+}
+_MAX_SQLITE_ID = 2**63 - 1
+
+
+@app.after_request
+def _prevent_cycle_control_caching(response):
+    path = request.path
+    if (
+        path in {"/api/agents/proposals", "/api/agents/autonomy", "/api/smart-alerts"}
+        or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _request_limit(maximum):
+    raw = request.args.get("limit", "100")
+    if re.fullmatch(r"[0-9]{1,3}", raw):
+        parsed = int(raw)
+        if 1 <= parsed <= maximum:
+            return parsed
+    return None
 
 
 def _owner_json_body():
     """(payload, None) for a JSON object body, else (None, error response)."""
     if not request.is_json:
         return None, (jsonify({"error": "A JSON request is required."}), 415)
-    payload = request.get_json(silent=True)
+    try:
+        payload = request.get_json(silent=True)
+    except (RecursionError, ValueError):
+        payload = None
     if not isinstance(payload, dict):
         return None, (jsonify({"error": "A JSON object is required."}), 400)
     return payload, None
@@ -11904,14 +11938,13 @@ def get_agent_proposals():
 
     status = request.args.get("status") or None
     symbol = request.args.get("symbol") or None
-    if status and not _PROPOSAL_STATUS_RE.fullmatch(status):
+    if status and status not in _PROPOSAL_STATUSES:
         return jsonify({"error": "Invalid status."}), 400
     if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
         return jsonify({"error": "Invalid symbol."}), 400
-    try:
-        limit = int(request.args.get("limit", "100"))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid limit."}), 400
+    limit = _request_limit(250)
+    if limit is None:
+        return jsonify({"error": "Limit must be an integer from 1 to 250."}), 400
     store = AgentStore()
     return _private_json({
         "status": "live",
@@ -11933,6 +11966,11 @@ def decide_agent_proposal(proposal_id, decision):
         return jsonify({"error": "Decision must be approve or reject."}), 404
     if not _PROPOSAL_ID_RE.fullmatch(proposal_id):
         return jsonify({"error": "Invalid proposal ID."}), 400
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if payload:
+        return jsonify({"error": "Expected an empty JSON object."}), 400
     store = AgentStore()
     try:
         proposal = store.decide_proposal(proposal_id, decision)
@@ -11967,7 +12005,7 @@ def agent_autonomy_settings():
             return error
         try:
             store.set_autonomy_settings(**payload)
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
             return jsonify({"error": str(exc)}), 400
     return _private_json({
         "status": "live",
@@ -11991,7 +12029,7 @@ def smart_alert_rules():
     if error:
         return error
     engine = _smart_alert_engine()
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         from smart_alerts import PREDICATES, SCOPES, URGENCIES
 
         return _private_json({
@@ -12005,20 +12043,27 @@ def smart_alert_rules():
     payload, error = _owner_json_body()
     if error:
         return error
-    if any(rule.get("name") == str(payload.get("name") or "").strip() for rule in engine.list_rules()):
-        return jsonify({"error": "A rule with that name already exists."}), 409
+    from smart_alerts import DuplicateRuleName
+
     try:
-        rule = engine.upsert_rule(payload)
-    except (ValueError, TypeError, AttributeError) as exc:
+        rule = engine.create_rule(payload)
+    except DuplicateRuleName as exc:
+        return jsonify({"error": str(exc)}), 409
+    except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return _private_json({"status": "live", "rule": rule}, 201)
 
 
-@app.route("/api/smart-alerts/rules/<int:rule_id>", methods=["PATCH", "DELETE"])
+@app.route("/api/smart-alerts/rules/<rule_id>", methods=["PATCH", "DELETE"])
 def smart_alert_rule(rule_id):
     user, error = _require_portfolio_owner()
     if error:
         return error
+    from smart_alerts import DuplicateRuleName
+
+    if not re.fullmatch(r"[1-9][0-9]{0,18}", rule_id) or int(rule_id) > _MAX_SQLITE_ID:
+        return jsonify({"error": "Invalid rule ID."}), 404
+    rule_id = int(rule_id)
     engine = _smart_alert_engine()
     if request.method == "DELETE":
         if not engine.delete_rule(rule_id):
@@ -12036,7 +12081,9 @@ def smart_alert_rule(rule_id):
             rule = engine.update_rule(rule_id, payload)
     except KeyError:
         return jsonify({"error": "Rule not found."}), 404
-    except (ValueError, TypeError, AttributeError) as exc:
+    except DuplicateRuleName as exc:
+        return jsonify({"error": str(exc)}), 409
+    except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return _private_json({"status": "live", "rule": rule})
 
@@ -12049,10 +12096,9 @@ def smart_alert_history():
     symbol = request.args.get("symbol") or None
     if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
         return jsonify({"error": "Invalid symbol."}), 400
-    try:
-        limit = int(request.args.get("limit", "100"))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid limit."}), 400
+    limit = _request_limit(500)
+    if limit is None:
+        return jsonify({"error": "Limit must be an integer from 1 to 500."}), 400
     return _private_json({
         "status": "live",
         "history": _smart_alert_engine().history(limit=limit, symbol=symbol),
@@ -12068,9 +12114,11 @@ def smart_alert_test():
     payload, error = _owner_json_body()
     if error:
         return error
+    if set(payload) - {"urgency", "rule_id"} or {"urgency", "rule_id"} <= payload.keys():
+        return jsonify({"error": "Provide either urgency or rule_id."}), 400
     rule_id = payload.get("rule_id")
-    if rule_id is not None and (type(rule_id) is not int or rule_id < 1):
-        return jsonify({"error": "rule_id must be a positive integer."}), 400
+    if "rule_id" in payload and (type(rule_id) is not int or not 1 <= rule_id <= _MAX_SQLITE_ID):
+        return jsonify({"error": "rule_id must be a positive SQLite integer."}), 400
     try:
         fired = _smart_alert_engine().send_test(
             urgency=payload.get("urgency", "wake_up"), rule_id=rule_id
@@ -13855,13 +13903,13 @@ def get_structure_posture():
     )
 
 
-# Industry liquidity gate and multi-coin cycle scanner. Display context only:
-# nothing below is read by the alert pipeline.
+# Industry liquidity gate and multi-coin cycle scanner.
 MACRO_SCAN_TTL_SECONDS = 1800
 MACRO_SCAN_MAX_PRODUCTS = 40
 MACRO_SCAN_MAX_REQUESTED = 30
 MACRO_SCAN_TOP_LIQUID = 12
 MACRO_SCAN_WORKERS = 3
+MACRO_SCAN_EXTRA_BATCH = 6
 _MACRO_SCAN_LOCK = threading.Lock()
 _MACRO_SCAN_STATE = {
     "payload": None,
@@ -13869,6 +13917,9 @@ _MACRO_SCAN_STATE = {
     "day": None,
     "products": (),
     "running": False,
+    "supplements": {},
+    "supplement_day": None,
+    "retry_after": 0.0,
 }
 
 
@@ -13880,120 +13931,163 @@ def _macro_scan_inline():
     )
 
 
-def _macro_scan_universe(symbols=()):
-    """Products to scan: majors and index members, then the caller's symbols,
-    then coins already in the cycle cache, then the most liquid USD products."""
-    import chart_reader
+def _macro_scan_universe():
+    """Stable public universe from the core assets and observed liquidity."""
     import macro_industry_scanner
 
-    core = list(macro_industry_scanner.MAJORS) + list(
-        macro_industry_scanner.ALT_INDEX_MEMBERS
-    )
-    extra = [f"{sym}-USD" for sym in symbols]
-    try:
-        extra += chart_reader.cached_cycle_products()
-    except Exception:
-        logging.debug("[MacroScan] cycle cache listing failed", exc_info=True)
+    core = (*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS)
+    liquid = []
     try:
         volumes = latest_quote_volume_by_product(int(time.time())) or {}
         liquid = sorted(
-            (pid for pid in volumes if str(pid).endswith("-USD")),
-            key=lambda pid: -float(volumes[pid].get("quote_volume_usd") or 0.0),
-        )
-        extra += liquid[:MACRO_SCAN_TOP_LIQUID]
+            (pid for pid in volumes if re.fullmatch(r"[A-Z0-9]{1,15}-USD", pid)),
+            key=lambda pid: (-float(volumes[pid].get("quote_volume_usd") or 0.0), pid),
+        )[:MACRO_SCAN_TOP_LIQUID]
     except Exception:
         logging.debug("[MacroScan] liquidity snapshot unavailable", exc_info=True)
-    products = []
-    for product in core + extra:
-        product = str(product).upper()
-        if re.fullmatch(r"[A-Z0-9]{1,15}-USD", product) and product not in products:
-            products.append(product)
-    return products[: max(MACRO_SCAN_MAX_PRODUCTS, len(core))]
+    return list(dict.fromkeys((*core, *liquid)))[:MACRO_SCAN_MAX_PRODUCTS]
+
+
+def _macro_scan_known_products():
+    # Use products already verified by the board. Never resolve an arbitrary
+    # caller-supplied ticker by making a history request.
+    return PRODUCT_IDS or set()
+
+
+def _macro_scan_load(product):
+    import chart_reader
+
+    try:
+        return chart_reader.fetch_multi_year_daily_candles(
+            product, years=chart_reader.CYCLE_HISTORY_YEARS
+        )
+    except Exception as exc:
+        logging.debug("[MacroScan] history unavailable for %s: %s", product, exc)
+        return None
 
 
 def _macro_cycle_scan_compute(products):
-    """Load each product's cached daily history and run the scan."""
-    import chart_reader
-    import macro_industry_scanner
-
-    def load(product):
-        try:
-            return product, chart_reader.fetch_multi_year_daily_candles(
-                product, years=chart_reader.CYCLE_HISTORY_YEARS
-            )
-        except Exception as exc:
-            logging.debug(f"[MacroScan] history unavailable for {product}: {exc}")
-            return product, None
+    """Load each product's closed daily history and run the stable scan."""
+    import macro_industry_scanner as scanner
 
     with ThreadPoolExecutor(max_workers=MACRO_SCAN_WORKERS) as pool:
-        loaded = list(pool.map(load, products))
-    histories = {product: candles for product, candles in loaded if candles}
-    payload = macro_industry_scanner.scan_universe_cycles(histories)
+        histories = dict(zip(products, pool.map(_macro_scan_load, products)))
+    payload = scanner.scan_universe_cycles(
+        {product: candles for product, candles in histories.items() if candles},
+        members=scanner.ALT_INDEX_MEMBERS,
+        breadth_products=frozenset((*scanner.MAJORS, *scanner.ALT_INDEX_MEMBERS)),
+    )
     payload.update(
         status="ready",
         computed_at=time.time(),
         requested=len(products),
-        unavailable=[product for product, candles in loaded if not candles],
+        unavailable=[product for product, candles in histories.items() if not candles],
         ttl_seconds=MACRO_SCAN_TTL_SECONDS,
     )
     return payload
 
 
-def _macro_scan_refresh(products):
+def _macro_scan_day(now):
+    return int(now // 86400)
+
+
+def _macro_scan_is_fresh(state, now):
+    return (
+        state["payload"] is not None
+        and state["day"] == _macro_scan_day(now)
+        and now - state["computed_at"] < MACRO_SCAN_TTL_SECONDS
+    )
+
+
+def _macro_scan_extra_row(product):
+    import macro_industry_scanner as scanner
+
+    candles = _macro_scan_load(product)
+    if candles:
+        try:
+            return scanner.cycle_row(product, candles)
+        except Exception:
+            logging.exception("[MacroScan] supplemental cycle read failed for %s", product)
+    return None
+
+
+def _macro_scan_refresh(wanted, refresh_base, day):
     try:
-        payload = _macro_cycle_scan_compute(products)
+        if refresh_base:
+            products = _macro_scan_universe()
+            if any(product not in products for product in wanted) and not _macro_scan_known_products():
+                # A fresh process may not have run the board's product loader.
+                # Warm metadata at most once per baseline refresh.
+                _load_product_ids(timeout=3)
+            payload = _macro_cycle_scan_compute(products)
+            with _MACRO_SCAN_LOCK:
+                _MACRO_SCAN_STATE.update(
+                    payload=payload, computed_at=payload["computed_at"],
+                    day=day, products=tuple(products),
+                )
         with _MACRO_SCAN_LOCK:
-            _MACRO_SCAN_STATE.update(
-                payload=payload,
-                computed_at=payload["computed_at"],
-                day=int(payload["computed_at"] // 86400),
-                products=tuple(products),
-            )
+            extras = _macro_scan_missing(wanted, _MACRO_SCAN_STATE, day)
+        if extras:
+            # Distinct verified products get one attempt per UTC day. Limit
+            # the size of a batch so a public caller can't monopolize refresh.
+            batch = extras[:MACRO_SCAN_EXTRA_BATCH]
+            with ThreadPoolExecutor(max_workers=MACRO_SCAN_WORKERS) as pool:
+                rows = dict(zip(batch, pool.map(_macro_scan_extra_row, batch)))
+            with _MACRO_SCAN_LOCK:
+                if _MACRO_SCAN_STATE["supplement_day"] != day:
+                    _MACRO_SCAN_STATE.update(supplements={}, supplement_day=day)
+                _MACRO_SCAN_STATE["supplements"].update(rows)
     except Exception:
         logging.exception("[MacroScan] scan failed")
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["retry_after"] = time.monotonic() + 12
     finally:
         with _MACRO_SCAN_LOCK:
             _MACRO_SCAN_STATE["running"] = False
 
 
-def _macro_scan_snapshot(symbols=(), *, allow_inline=True):
-    """Latest scan payload (or ``None``), refreshing it when stale.
+def _macro_scan_missing(wanted, state, day):
+    known = _macro_scan_known_products()
+    supplements = state["supplements"] if state["supplement_day"] == day else {}
+    return [
+        product for product in wanted
+        if product in known and product not in state["products"] and product not in supplements
+    ]
 
-    Daily bars only change at the UTC day boundary, so a scan is reused for
-    ``MACRO_SCAN_TTL_SECONDS`` within a day. A refresh runs on a worker thread
-    and the previous payload keeps being served meanwhile.
-    """
+
+def _macro_scan_snapshot(wanted=(), *, allow_inline=True):
+    """Read the stable snapshot and schedule a bounded refresh if necessary."""
     now = time.time()
-    with _MACRO_SCAN_LOCK:
-        state = dict(_MACRO_SCAN_STATE)
-    wanted = [f"{sym}-USD" for sym in symbols]
-    fresh = (
-        state["payload"] is not None
-        and state["day"] == int(now // 86400)
-        and now - state["computed_at"] < MACRO_SCAN_TTL_SECONDS
-        and all(product in state["products"] for product in wanted)
-    )
-    if fresh or state["running"]:
-        return state["payload"]
+    day = _macro_scan_day(now)
     inline = _macro_scan_inline()
-    if inline and not allow_inline:
-        return state["payload"]
     with _MACRO_SCAN_LOCK:
-        if _MACRO_SCAN_STATE["running"]:
-            return _MACRO_SCAN_STATE["payload"]
-        _MACRO_SCAN_STATE["running"] = True
-    products = _macro_scan_universe(symbols)
+        state = _MACRO_SCAN_STATE
+        prior = state["payload"]
+        refresh_base = not _macro_scan_is_fresh(state, now)
+        if (
+            (inline and not allow_inline)
+            or state["running"]
+            or (state["retry_after"] and time.monotonic() < state["retry_after"])
+            or (not refresh_base and not _macro_scan_missing(wanted, state, day))
+        ):
+            return prior
+        state["running"] = True
     if inline:
-        _macro_scan_refresh(products)
+        _macro_scan_refresh(wanted, refresh_base, day)
         with _MACRO_SCAN_LOCK:
             return _MACRO_SCAN_STATE["payload"]
-    threading.Thread(
-        target=_macro_scan_refresh,
-        args=(products,),
-        name="macro-cycle-scan",
-        daemon=True,
-    ).start()
-    return state["payload"]
+    try:
+        threading.Thread(
+            target=_macro_scan_refresh,
+            args=(wanted, refresh_base, day),
+            name="macro-cycle-scan",
+            daemon=True,
+        ).start()
+    except Exception:
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["running"] = False
+        logging.exception("[MacroScan] worker could not start")
+    return prior
 
 
 def _macro_regime_for_chart_read():
@@ -14006,21 +14100,78 @@ def _macro_regime_for_chart_read():
     return regime
 
 
+def _macro_scan_response(payload, wanted):
+    import macro_industry_scanner as scanner
+
+    now = time.time()
+    day = _macro_scan_day(now)
+    with _MACRO_SCAN_LOCK:
+        state = _MACRO_SCAN_STATE
+        extra_products = [product for product in wanted if product not in state["products"]]
+        extra_rows = {
+            product: state["supplements"][product]
+            for product in extra_products
+            if state["supplement_day"] == day and product in state["supplements"]
+        }
+        pending = _macro_scan_missing(wanted, state, day)
+        refreshing = not _macro_scan_is_fresh(state, now) or bool(pending)
+        payload = state["payload"] or payload
+
+    if not extra_products:
+        return {**payload, "status": "refreshing" if refreshing else "ready"}
+
+    industry = payload["industry"]
+    stage_tier = industry.get("active_target_tier")
+    additions = []
+    for row in extra_rows.values():
+        if row is None:
+            continue
+        row = dict(row)
+        tiers = row.pop("_tiers", None) or {}
+        if row.get("available"):
+            row["macro_regime_gate"] = industry.get("macro_regime_gate")
+            if stage_tier and tiers.get(stage_tier):
+                row["active_target_tier"] = stage_tier
+        additions.append(row)
+    if additions:
+        coins = sorted([*payload["coins"], *additions], key=lambda row: row["product_id"])
+        breadth = scanner.universe_breadth(coins)
+        buckets = {
+            name: sorted(
+                (row for row in coins if row.get("bucket") == name),
+                key=lambda row: (-row["score"], row["symbol"]),
+            )
+            for name in scanner.BUCKETS
+        }
+        payload = {
+            **payload, "coins": coins, "breadth": breadth, "buckets": buckets,
+            "scanned": breadth["coins"],
+            "skipped": [row["symbol"] for row in coins if not row.get("available")],
+        }
+    return {
+        **payload,
+        "status": "refreshing" if refreshing else "ready",
+        "requested": payload["requested"] + len(extra_products),
+        "unavailable": [
+            *payload["unavailable"],
+            *(product for product in extra_products if product not in pending and extra_rows.get(product) is None),
+        ],
+        "pending": pending,
+    }
+
+
 @app.route("/api/macro-cycle-scan")
 def get_macro_cycle_scan():
-    """Industry liquidity stage, breadth and the four cycle buckets.
-
-    ``?symbols=RENDER,FET`` adds the caller's watchlist to the scanned
-    universe. The first call after a restart returns ``status: "warming"``
-    while daily histories load; poll again for the result.
-    """
+    """Industry stage, breadth and buckets, plus requested verified symbols."""
     symbols = []
     for raw in str(request.args.get("symbols") or "").split(","):
         sym = raw.strip().upper().removesuffix("-USD")
-        if _STRUCTURE_SYMBOL_RE.match(sym) and sym not in symbols:
+        if _STRUCTURE_SYMBOL_RE.fullmatch(sym) and sym not in symbols:
             symbols.append(sym)
-    symbols = symbols[:MACRO_SCAN_MAX_REQUESTED]
-    payload = _macro_scan_snapshot(symbols)
+            if len(symbols) >= MACRO_SCAN_MAX_REQUESTED:
+                break
+    wanted = [f"{symbol}-USD" for symbol in symbols]
+    payload = _macro_scan_snapshot(wanted)
     if not payload:
         return jsonify(
             {
@@ -14033,9 +14184,7 @@ def get_macro_cycle_scan():
                 "outcome_validated": False,
             }
         )
-    with _MACRO_SCAN_LOCK:
-        refreshing = _MACRO_SCAN_STATE["running"]
-    return jsonify({**payload, "status": "refreshing" if refreshing else "ready"})
+    return jsonify(_macro_scan_response(payload, wanted))
 
 
 @app.route("/api/recommendations")

@@ -154,7 +154,7 @@ describe("industry pulse summary", () => {
     render(<IndustryPulseView scan={scan()} />);
     const text = screen.getByTestId("industry-pulse").textContent;
     expect(text).toContain("not tested against outcomes");
-    expect(text).toContain("does not feed alerts");
+    expect(text).toContain("does not block board alerts");
     expect(text).toContain("8 coins read");
     expect(text).toContain("1 skipped");
     expect(text).toContain("equal-weight proxy of 7 coins");

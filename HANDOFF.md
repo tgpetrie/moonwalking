@@ -1,5 +1,13 @@
 # Moonwalking / BHABIT Handoff
 
+## Cycle Strategist red-team audit — 2026-11-16
+
+`codex/cycle-strategist-audit-20261116` audits and repairs the cycle lane
+from `de09b26` through `c4b2199`. The
+[audit scorecard](docs/ai/CYCLE_STRATEGIST_AUDIT_20261116.md) records behavior,
+security fixes, verification, and isolated Flask integration evidence.
+The existing servers on 5003, 5004, 5173 and 5174 were left running.
+
 ## Coinbase Trade destinations — 2026-11-16
 
 The shared `getCoinbaseAdvancedSpotUrl` helper normalizes coin identities to

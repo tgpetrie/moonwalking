@@ -51,6 +51,7 @@ const price = (value) => {
 function ProposalRow({ proposal, busy, onDecide }) {
   const symbol = String(proposal.symbol || "").toUpperCase();
   const status = proposal.status || "pending_approval";
+  const tradeUrl = getCoinbaseAdvancedSpotUrl(proposal);
   const blockReasons = Array.isArray(proposal.execution?.block_reasons) ? proposal.execution.block_reasons : [];
   return (
     <li className="mw-finding mw-proposal" aria-label={`${symbol} ${ACTION_LABEL[proposal.action] || proposal.action}`}>
@@ -71,10 +72,10 @@ function ProposalRow({ proposal, busy, onDecide }) {
       ) : null}
       {blockReasons.length ? <p className="mw-agents-note">Guard: {blockReasons.join(", ").replaceAll("_", " ")}</p> : null}
       <div className="mw-proposal__actions">
-        {symbol ? (
+        {tradeUrl ? (
           <a
             className="mw-button mw-button--ghost mw-button--sm"
-            href={getCoinbaseAdvancedSpotUrl(symbol)}
+            href={tradeUrl}
             target="_blank"
             rel="noopener noreferrer"
           >

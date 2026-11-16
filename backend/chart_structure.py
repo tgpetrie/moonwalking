@@ -111,7 +111,8 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
     The range, the Fibonacci grids, the historical shelves and the structure
     are read from the trailing ``cycle_analysis.CYCLE_WINDOW_DAYS`` bars. The
     daily, weekly and monthly indicators warm up on every bar supplied, so
-    passing a longer history only steadies them.
+    passing a longer history only steadies them. Inputs must be closed UTC
+    daily candles, as provided by the cycle history loader.
 
     The cycle low and high skip single-bar flash wicks; the raw extremes are
     reported next to them.
@@ -125,13 +126,18 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
         if any(value is None for value in values):
             continue
         ts, low, high, opening, close, volume = values
-        if low <= 0 or volume < 0 or not low <= min(opening, close) <= max(opening, close) <= high:
+        if (
+            not 0 <= ts < 253402214400 or ts % analysis.DAY
+            or low <= 0 or volume < 0
+            or not low <= min(opening, close) <= max(opening, close) <= high
+        ):
             continue
         by_ts[ts] = tuple(values)
     if not by_ts:
         return {"available": False, "reason": "no_daily_history"}
     history = [by_ts[ts] for ts in sorted(by_ts)]
-    rows = history[-analysis.CYCLE_WINDOW_DAYS:]
+    window_start = history[-1][0] - (analysis.CYCLE_WINDOW_DAYS - 1) * analysis.DAY
+    rows = [bar for bar in history if bar[0] >= window_start]
     grids = analysis.fib_structure(rows)
     index, filtered = grids.pop("_index"), grids.pop("_rows")
     low = (grids["cycle_low"]["timestamp"], grids["cycle_low"]["price"])

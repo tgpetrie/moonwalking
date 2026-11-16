@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "../context/DataContext";
 
-import { getCoinbaseAdvancedSpotUrl } from "../utils/coinbaseUrl";
+import { getCoinbaseAdvancedSpotUrl, getExternalAlertSourceUrl } from "../utils/coinbaseUrl";
 
 function toNum(v) {
   if (v == null) return null;
@@ -257,10 +257,8 @@ export default function TopBannerScroll(props) {
             doubled.map((it, i) => {
               const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
               const isAlert = it.kind === "alert";
-              const href =
-                isAlert && it.href && !/^https?:\/\/(?:www\.)?coinbase\.com(?:\/|$)/i.test(it.href)
-                  ? it.href
-                  : getCoinbaseAdvancedSpotUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
+              const sourceUrl = isAlert ? getExternalAlertSourceUrl(it.href) : null;
+              const href = sourceUrl || getCoinbaseAdvancedSpotUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
 
               return (
                 <a

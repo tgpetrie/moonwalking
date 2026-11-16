@@ -1,6 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Event
+
 import pytest
 
 from agents.catalog import AGENT_CATALOG
+from agents.cycle_context import build_cycle_context
 from agents.cycle_strategist import (
     ACCUMULATE_SUPPORT,
     BREAKOUT_ENTRY,
@@ -24,8 +28,15 @@ def _scan(*rows, stage="stage_1_macro_compression"):
     return {"industry": {"available": True, "liquidity_rotation_stage": stage}, "coins": list(rows)}
 
 
-def _quote(bid, size=1_000.0, age_ms=1_000):
-    return {"observed_at_ms": NOW_MS - age_ms, "bid_usd": bid, "bid_size": size}
+def _quote(bid, size=1_000.0, age_ms=1_000, **changes):
+    return {
+        "observed_at_ms": NOW_MS - age_ms,
+        "exchange_time_ms": NOW_MS - age_ms - 100,
+        "bid_usd": bid,
+        "ask_usd": bid * 1.001,
+        "bid_size": size,
+        **changes,
+    }
 
 
 @pytest.fixture
@@ -72,7 +83,10 @@ def test_trim_at_overhead_weekly_sma_and_only_in_stage_1_or_2(store):
 
 
 def test_protective_stop_on_floor_breach_preempts_trim(store):
-    row = _row("SOL", 140.0, rollover_target_box={"low": 130.0, "high": 160.0})
+    row = _row(
+        "SOL", 140.0, rollover_target_box={"low": 130.0, "high": 160.0},
+        breaking_confirmation_pivot=True, weekly_rsi=65.0,
+    )
     positions = [{"symbol": "SOL", "quantity": 10, "higher_low_floor": 145.0}]
     agent, obs = _run(store, {"cycle_scan": _scan(row), "positions": positions})
     (proposal,) = agent.last_proposals
@@ -91,6 +105,7 @@ def _accumulation_row(**overrides):
     base = dict(
         bucket="deep_accumulation_exhaustion",
         monthly_bearish_streak=19,
+        multi_year_oversold_exhaustion=True,
         weekly_stoch_direction="oversold_turn_up",
         daily_macd_kiss=True,
         accumulation_invalidation_stop={"stop_price": 0.92, "stop_distance_pct": 8.0},
@@ -104,6 +119,9 @@ def test_accumulate_support_requires_every_condition(store):
     assert agent.last_proposals[0]["side"] == "buy"
     for override in (
         {"monthly_bearish_streak": 17},
+        {"multi_year_oversold_exhaustion": False},
+        {"monthly_bearish_streak": "bad"},
+        {"accumulation_invalidation_stop": {"stop_price": 0.89999, "stop_distance_pct": 10.0}},
         {"weekly_stoch_direction": "bullish_expansion"},
         {"daily_macd_kiss": False},
         {"accumulation_invalidation_stop": {"stop_price": 0.85, "stop_distance_pct": 12.0}},
@@ -111,7 +129,7 @@ def test_accumulate_support_requires_every_condition(store):
         assert CycleStrategistAgent(store).evaluate(
             {"cycle_scan": _scan(_accumulation_row(**override)), "watchlist": ["LINK"]}
         ) == [], override
-    divergence = _accumulation_row(daily_macd_kiss=False, macro_bullish_divergence=True)
+    divergence = _accumulation_row(daily_macd_kiss=False, daily_bullish_divergence=True)
     assert CycleStrategistAgent(store).evaluate({"cycle_scan": _scan(divergence), "watchlist": ["LINK"]})
 
 
@@ -184,6 +202,16 @@ def test_daily_order_cap_blocks_auto_exits(store):
         (None, "quote_unavailable"),
         ({"observed_at_ms": NOW_MS, "quote_status": "UNAVAILABLE"}, "quote_unavailable"),
         (_quote(174.8, age_ms=60_000), "quote_stale"),
+        (_quote(174.8, age_ms=-1_000), "quote_stale"),
+        (_quote(174.8, exchange_time_ms=None), "quote_missing_exchange_timestamp"),
+        (_quote(174.8, exchange_time_ms=NOW_MS - 30_000), "exchange_book_stale"),
+        (_quote(174.8, exchange_time_ms=NOW_MS), "exchange_book_stale"),
+        (_quote(174.8, ask_usd=None), "quote_missing_ask"),
+        (_quote(174.8, ask_usd=174), "quote_crossed_book"),
+        (_quote(174.8, ask_usd=180), "quote_spread_too_wide"),
+        (_quote(174.8, size=None), "quote_missing_bid_size"),
+        (_quote(174.8, size=float("nan")), "quote_missing_bid_size"),
+        (_quote(174.8, product_id="AVAX-USD"), "quote_product_mismatch"),
         (_quote(160.0), "quote_deviates_from_reference"),
         (_quote(174.8, size=1.0), "insufficient_top_of_book_size"),
     ],
@@ -203,15 +231,20 @@ def test_protective_stop_near_invalidation_is_armed_not_sold():
     store_agent = CycleStrategistAgent()
     row = _row("ADA", 1.0, accumulation_invalidation_stop={"stop_price": 0.975, "stop_distance_pct": 2.5})
     (proposal,) = store_agent.evaluate({"cycle_scan": _scan(row), "positions": [{"symbol": "ADA", "quantity": 100}]})
-    result = executor.execute(proposal, {"quantity": 100.0}, None, NOW_MS)
+    assert executor.execute(proposal, {"quantity": 100.0}, None, NOW_MS)["status"] == "blocked_by_guard"
+    result = executor.execute(proposal, {"quantity": 100.0}, _quote(1.0), NOW_MS)
     assert result["status"] == "auto_armed_dry_run"
+    bad_bid = executor.execute(proposal, {"quantity": 100.0}, _quote(0.97), NOW_MS)
+    assert bad_bid["status"] == "blocked_by_guard"
     assert result["stop_price"] == 0.975
 
 
 def test_operator_decisions_stick_across_runs(store):
     agent, _ = _run(store, _mixed_context())
     trim = _by_action(agent)[TRIM_TO_USDC]
-    assert store.decide_proposal(trim["proposal_id"], "reject")["status"] == "rejected"
+    rejected = store.decide_proposal(trim["proposal_id"], "reject")
+    assert rejected["status"] == "rejected"
+    assert rejected == store.decide_proposal(trim["proposal_id"], "reject")
     agent, _ = _run(store, _mixed_context())
     assert _by_action(agent)[TRIM_TO_USDC]["status"] == "rejected"
     with pytest.raises(ValueError):
@@ -238,3 +271,157 @@ def test_runner_binds_store_and_records_observations(store):
 def test_no_scan_means_no_proposals(store):
     agent, obs = _run(store, {"positions": [{"symbol": "SOL", "quantity": 1}]})
     assert obs == [] and agent.last_proposals == []
+
+
+
+def test_real_scan_shape_uses_nested_ladder_and_floor_and_position_stop(store):
+    scan = _scan(
+        _row("ETH", 3000, multi_year_context={"weekly_sma_ladder": {"sma_50w": 3040}}),
+        _row("ADA", 1.0, multi_year_context={"daily_structure": {"higher_low_floor": 1.05}}),
+        _row("SOL", 170, rollover_target_box={"low": 150, "high": 200}),
+    )
+    context = build_cycle_context(scan, positions=[
+        {"product_id": "ETH-USD", "quantity": "1"},
+        {"symbol": "ADA", "quantity": 100},
+        {"symbol": "SOL", "quantity": 4, "stop_price": 173},
+    ])
+    agent, _ = _run(store, context)
+    by_symbol = {p["symbol"]: p for p in agent.last_proposals}
+    assert by_symbol["ETH"]["action"] == TRIM_TO_USDC
+    assert by_symbol["ADA"]["evidence"]["trigger"] == "higher_low_floor_breached"
+    assert by_symbol["SOL"]["evidence"]["trigger"] == "invalidation_stop_breached"
+
+
+def test_below_price_average_is_not_overhead_resistance(store):
+    row = _row("ETH", 3000, multi_year_context={"weekly_sma_ladder": {"sma_50w": 2990}})
+    context = build_cycle_context(_scan(row), positions=[{"symbol": "ETH", "quantity": 1}])
+    assert _run(store, context)[1] == []
+
+
+def test_breakout_uses_unrounded_rsi_regime(store):
+    row = _row("AVAX", 30, weekly_rsi=60.0, weekly_rsi_regime="growth_expansion", breaking_confirmation_pivot=True)
+    context = build_cycle_context(_scan(row), watchlist=["AVAX"])
+    assert _run(store, context)[0].last_proposals[0]["action"] == BREAKOUT_ENTRY
+
+
+@pytest.mark.parametrize(
+    "status,computed_at,ready",
+    [("warming", NOW - 1, False), ("refreshing", NOW - 1, False),
+     ("ready", NOW + 1, False), ("ready", NOW - 1801, False),
+     ("ready", NOW - 1, True)],
+)
+def test_context_requires_ready_and_fresh_http_scan(status, computed_at, ready):
+    http_scan = {**_scan(_row("ETH", 3000)), "status": status, "computed_at": computed_at, "ttl_seconds": 1800}
+    assert (build_cycle_context(http_scan, now=NOW)["cycle_scan"] is not None) is ready
+
+
+def test_mode_b_never_simulates_accumulation_even_with_a_quote(store):
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits", daily_order_cap=20)
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(_accumulation_row()),
+        "watchlist": ["LINK"],
+        "quotes": {"LINK-USD": _quote(1)},
+    })
+    assert _by_action(agent)[ACCUMULATE_SUPPORT]["status"] == "pending_approval"
+    assert store.count_auto_orders_since(0) == 0
+
+
+def test_approval_is_idempotent_and_preserves_the_reviewed_evidence(store):
+    agent, _ = _run(store, _mixed_context())
+    before = _by_action(agent)[TRIM_TO_USDC]
+    proposal_id = before["proposal_id"]
+    approved = store.decide_proposal(proposal_id, "approve")
+    assert approved["status"] == "approved"
+    assert approved["execution"] is None and approved["executed_ts"] is None
+    assert store.decide_proposal(proposal_id, "approve") == approved
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    revised = _mixed_context()
+    revised["cycle_scan"]["coins"][0]["price"] += 2
+    agent, _ = _run(store, revised)
+    assert _by_action(agent)[TRIM_TO_USDC] == approved
+    assert store.count_auto_orders_since(0) == 0
+
+
+def test_simultaneous_proposal_decisions_cannot_overwrite_each_other(store):
+    seed, _ = _run(store, _mixed_context())
+    id_ = _by_action(seed)[TRIM_TO_USDC]["proposal_id"]
+    start = Barrier(2)
+    other_store = AgentStore(store.db_path)
+
+    def decide(ledger, decision):
+        start.wait(timeout=5)
+        try:
+            return ledger.decide_proposal(id_, decision)["status"]
+        except ValueError:
+            return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        approve = pool.submit(decide, store, "approve")
+        reject = pool.submit(decide, other_store, "reject")
+        results = (approve.result(timeout=5), reject.result(timeout=5))
+    assert results.count("conflict") == 1
+    assert store.get_proposal(id_)["status"] in results
+    assert store.count_auto_orders_since(0) == 0
+
+
+def test_parallel_inflight_exits_share_daily_cap(store):
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits", daily_order_cap=1)
+    other_store = AgentStore(store.db_path)
+    first_started, second_started, finish_first = Event(), Event(), Event()
+
+    class SlowDryRun(GuardedDryRunExitExecutor):
+        def execute(self, *args):
+            first_started.set()
+            assert finish_first.wait(timeout=5)
+            return super().execute(*args)
+
+    def run_symbol(symbol, agent, started=None):
+        if started:
+            started.set()
+        agent.run({
+            "now_ts": NOW,
+            "cycle_scan": _scan(_row(symbol, 175, rollover_target_box={"low": 150, "high": 200})),
+            "positions": [{"symbol": symbol, "quantity": 10}],
+            "quotes": {f"{symbol}-USD": _quote(175)},
+        })
+        return agent.last_proposals[0]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(run_symbol, "SOL", CycleStrategistAgent(store, executor=SlowDryRun()))
+        try:
+            assert first_started.wait(timeout=5)
+            second = pool.submit(run_symbol, "AVAX", CycleStrategistAgent(other_store), second_started)
+            assert second_started.wait(timeout=5)
+        finally:
+            finish_first.set()
+        assert first.result(timeout=5)["status"] == "auto_executed_dry_run"
+        assert second.result(timeout=5)["execution"]["block_reasons"] == ["daily_order_cap_reached"]
+    assert store.count_auto_orders_since(0) == 1
+
+
+
+def test_runner_observes_pause_committed_between_proposals(store, monkeypatch):
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    other_store = AgentStore(store.db_path)
+    route = store.route_proposal
+
+    def pause_after_first(*args, **kwargs):
+        result = route(*args, **kwargs)
+        if result[0]["status"] == "auto_executed_dry_run":
+            other_store.set_autonomy_settings(emergency_pause=True)
+        return result
+
+    monkeypatch.setattr(store, "route_proposal", pause_after_first)
+    symbols = ("SOL", "AVAX")
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(*(
+            _row(symbol, 175, rollover_target_box={"low": 150, "high": 200})
+            for symbol in symbols
+        )),
+        "positions": [{"symbol": symbol, "quantity": 10} for symbol in symbols],
+        "quotes": {f"{symbol}-USD": _quote(175) for symbol in symbols},
+    })
+    by_symbol = {p["symbol"]: p for p in agent.last_proposals}
+    assert by_symbol["AVAX"]["status"] == "auto_executed_dry_run"
+    assert by_symbol["SOL"]["execution"] == {"held_reason": "emergency_pause"}
+    assert store.count_auto_orders_since(0) == 1

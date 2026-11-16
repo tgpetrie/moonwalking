@@ -150,7 +150,7 @@ def test_stage_three_when_the_alt_index_breaks_out_below_its_100_week_average(sh
     assert regime["macro_regime_gate"] == "risk_on_aligned"
     assert regime["active_target_tier"] == "full_extension_targets"
     assert [row["symbol"] for row in scan["buckets"]["low_confirmation_breakout"]] == ["A", "B", "C"]
-    assert scan["breadth"]["pct_breaking_confirmation_pivot"] == {"pct": 60.0, "count": 3, "of": 5}
+    assert scan["breadth"]["pct_breaking_confirmation_pivot"] == {"pct": 100.0, "count": 3, "of": 3}
 
 
 def test_stage_four_when_the_alt_index_is_in_full_expansion(shapes):
@@ -174,7 +174,7 @@ def test_gate_downgrades_a_breakout_that_breadth_does_not_confirm():
     broad = {"pct_above_50w_sma": {"pct": 60.0, "count": 6, "of": 10}}
     assert mis._gate("stage_3_alt_index_breakout", btc, narrow)[0] == "neutral_chop"
     assert mis._gate("stage_3_alt_index_breakout", btc, broad)[0] == "risk_on_aligned"
-    assert mis._gate("stage_4_alt_season_expansion", btc, None)[0] == "risk_on_aligned"
+    assert mis._gate("stage_4_alt_season_expansion", btc, None)[0] == "neutral_chop"
     assert mis._gate("stage_2_btc_majors_lead", btc, broad)[0] == "neutral_chop"
     assert mis._gate("stage_1_macro_compression", btc, broad)[0] == "neutral_chop"
     weak = {"compressed": False, "above_50w_sma": False, "weekly_macd_above_signal": False}
@@ -213,7 +213,7 @@ def test_each_fixture_lands_in_deep_accumulation_with_its_own_signals(shapes):
 
     theta = mis.cycle_row("THETA-USD", shapes["theta"])
     assert theta["bucket"] == "deep_accumulation_exhaustion"
-    assert theta["fib_confluence_clusters"] == 1
+    assert theta["fib_confluence_clusters"] == 2
     assert theta["rollover_target_box"]["low"] < theta["rollover_target_box"]["high"]
     # The streak, the exhaustion flag and the MACD kiss rank RENDER first.
     assert render["score"] > fet["score"] and render["score"] > theta["score"]
@@ -256,8 +256,8 @@ def test_breadth_counts_only_the_coins_each_measure_could_read():
          "weekly_rsi": 65.0, "above_50w_sma": True, "breaking_confirmation_pivot": True},
         {"available": True, "monthly_bearish_streak": 3, "multi_year_oversold_exhaustion": False,
          "weekly_rsi": 61.0, "above_50w_sma": None, "breaking_confirmation_pivot": False},
-        {"available": True, "monthly_bearish_streak": None, "multi_year_oversold_exhaustion": False,
-         "weekly_rsi": None, "above_50w_sma": None, "breaking_confirmation_pivot": False},
+        {"available": True, "monthly_bearish_streak": None, "multi_year_oversold_exhaustion": None,
+         "weekly_rsi": None, "above_50w_sma": None, "breaking_confirmation_pivot": None},
         {"available": False},
     ]
     breadth = mis.universe_breadth(rows)
@@ -265,7 +265,7 @@ def test_breadth_counts_only_the_coins_each_measure_could_read():
     assert breadth["pct_monthly_exhausted"] == {"pct": 33.3, "count": 1, "of": 3}
     assert breadth["pct_weekly_rsi_above_60"] == {"pct": 66.7, "count": 2, "of": 3}
     assert breadth["pct_above_50w_sma"] == {"pct": 50.0, "count": 1, "of": 2}
-    assert breadth["pct_breaking_confirmation_pivot"] == {"pct": 25.0, "count": 1, "of": 4}
+    assert breadth["pct_breaking_confirmation_pivot"] == {"pct": 33.3, "count": 1, "of": 3}
     assert mis.universe_breadth([])["pct_above_50w_sma"] == {"pct": None, "count": 0, "of": 0}
 
 
@@ -304,3 +304,30 @@ def test_scan_survives_one_unreadable_series(shapes, monkeypatch):
     scan = mis.scan_universe_cycles({"BAD-USD": shapes["up"], "UP-USD": shapes["up"]})
     assert scan["skipped"] == ["BAD"] and scan["scanned"] == 1
     assert scan["coins"][0]["reason"] == "read_failed"
+
+
+def test_public_symbols_do_not_change_fixed_industry_breadth(shapes):
+    histories = {
+        "BTC-USD": shapes["up"],
+        "ETH-USD": shapes["up"],
+        "AAA-USD": shapes["up"],
+        "BBB-USD": shapes["up"],
+        "CCC-USD": shapes["up"],
+    }
+    members = ("AAA-USD", "BBB-USD", "CCC-USD")
+    base = mis.scan_universe_cycles(histories, members=members, breadth_products=set(histories))
+    more = mis.scan_universe_cycles(
+        {**histories, "OTHER-USD": shapes["down"]},
+        members=members,
+        breadth_products=set(histories),
+    )
+    assert more["industry"] == base["industry"]
+    assert more["breadth"]["pct_above_50w_sma"] == {"pct": 83.3, "count": 5, "of": 6}
+
+
+def test_short_macro_history_cannot_claim_stage_four(daily_series):
+    up = daily_series(10, [(450, 60)])
+    histories = {f"{s}-USD": up for s in ("BTC", "AAA", "BBB", "CCC")}
+    result = mis.scan_universe_cycles(histories)["industry"]
+    assert result["stage_number"] == 3
+    assert result["components"]["ALT_INDEX_3Y"]["above_100w_sma"] is None

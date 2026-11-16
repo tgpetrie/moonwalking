@@ -39,7 +39,9 @@ def run_once(
     smart_alert_engine: object | None = None,
 ) -> dict:
     store = store or AgentStore()
-    active_agents = list(agents or [factory() for factory in DEFAULT_AGENT_FACTORIES])
+    active_agents = (
+        [factory() for factory in DEFAULT_AGENT_FACTORIES] if agents is None else list(agents)
+    )
     runs = []
     total_observations = 0
     for agent in active_agents:

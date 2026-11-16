@@ -674,10 +674,58 @@ def test_weekly_and_monthly_bars_leave_out_the_forming_period():
     assert ca.weekly_bars([]) == [] and ca.monthly_bars([]) == []
 
 
+def test_missing_daily_buckets_do_not_count_as_complete_periods():
+    day = ca.DAY
+    monday = 4 * day
+    days = [(monday + i * day, 9, 12, 10, 11, 1) for i in range(21) if i != 10]
+    weeks = ca.weekly_bars(days)
+    assert [w[0] for w in weeks] == [monday, monday + 14 * day]
+    assert ca.momentum_stack(days)["timeframe_bars"]["1w"] == 1
+
+    # February 1972 has 29 days. Removing one interior day leaves no month.
+    february = 761 * day
+    leap_month = [(february + i * day, 9, 12, 10, 11, 1) for i in range(29)]
+    assert ca.monthly_bars(leap_month)[0][5] == 29
+    assert ca.monthly_bars(leap_month[:14] + leap_month[15:]) == []
+
+
+@pytest.mark.parametrize(("previous", "latest", "shrinking"), [
+    (-0.2, -0.1, True),
+    (-0.2, 0.0, False),
+    (-0.2, 0.1, False),
+    (0.1, 0.2, False),
+    (-0.1, -0.2, False),
+])
+def test_monthly_exhaustion_requires_a_shrinking_negative_histogram(
+    daily_series, monkeypatch, previous, latest, shrinking
+):
+    months = ca.monthly_bars(daily_series(100, [(1461, 5)]))
+
+    def macd(closes):
+        n = len(closes)
+        return [-1.0] * n, [None] * n, [None] * (n - 2) + [previous, latest]
+
+    monkeypatch.setattr(ca, "macd", macd)
+    result = ca._monthly_exhaustion(months)
+    assert result["monthly_bearish_streak"] >= 18
+    assert result["histogram_shrinking"] is shrinking
+    assert result["multi_year_oversold_exhaustion"] is shrinking
+
+
+def test_flash_wick_requires_two_adjacent_closed_bars():
+    rows = [(i * ca.DAY, 99, 101, 100, 100, 1) for i in range(100)]
+    rows[-2] = (*rows[-2][:1], 5, *rows[-2][2:])
+    timestamp = rows[-2][0]
+    _, _, complete = ca.flash_filtered_extremes(rows)
+    _, _, at_cutoff = ca.flash_filtered_extremes(rows[:-1])
+    assert any(wick["timestamp"] == timestamp for wick in complete["filtered"])
+    assert at_cutoff["filtered"] == []
+
+
 def test_render_fixture_is_a_three_leg_decline_with_monthly_exhaustion_and_a_macd_kiss(cycle_fixture):
     context = cs.multi_year_context(cycle_fixture("render_cycle_fixture"))
     assert context["candle_count"] == 1096 and context["is_multi_year"] is True
-    assert context["timeframe_bars"] == {"1d": 1096, "1w": 157, "1m": 35}
+    assert context["timeframe_bars"] == {"1d": 1096, "1w": 156, "1m": 35}
 
     # 5-3-5: two lows separated by one rally, the second lower.
     structure = context["corrective_structure"]
@@ -738,7 +786,7 @@ def test_fet_fixture_is_a_channel_double_bottom_with_a_weekly_turn_and_a_tight_s
     assert ladder["sma_100w"] == pytest.approx(sum(weekly_closes[-100:]) / 100)
     assert ladder["overhead_resistance"] == ["sma_50w", "sma_100w"]
     assert ladder["reclaimed_support"] == []
-    # Three years is 157 closed weeks: the 200-week average is reported as
+    # This three-year fixture has 156 closed weeks: the 200-week average is reported as
     # unavailable, never estimated from fewer bars.
     assert ladder["sma_200w"] is None
     assert ladder["levels"][2] == {
@@ -819,8 +867,10 @@ def test_theta_fixture_filters_the_flash_wick_and_finds_the_dual_grid_cluster(cy
         )
 
     clusters = context["fib_confluence_clusters"]
-    assert [(c["retracement_ratio"], c["extension_ratio"]) for c in clusters] == [(0.786, 1.618)]
-    cluster = clusters[0]
+    assert [(c["retracement_ratio"], c["extension_ratio"]) for c in clusters] == [
+        (0.618, 1.272), (0.786, 1.618)
+    ]
+    cluster = clusters[-1]
     assert cluster["spread_pct"] < 6 and cluster["conviction"] == "high"
     assert cluster["low"] <= cluster["mid"] <= cluster["high"]
     assert cluster["position"] == "above_price" and 0 < cluster["score"] <= 1
@@ -858,14 +908,24 @@ def test_without_the_wick_filter_the_theta_grid_would_move(cycle_fixture):
 
 
 def test_fib_clusters_need_the_two_grids_within_six_percent(daily_series):
-    # The same decline with a smaller Wave X rally: its 1.618 extension lands
-    # well below the 0.786 retracement, so there is no cluster.
     legs = [(210, 0.9), (120, 3.7), (240, 1.06), (150, 1.3), (346, 0.76), (30, 0.8)]
     context = cs.multi_year_context(daily_series(0.92, legs))
     assert context["secondary_wave_x_high"]["kind"] == "wave_x"
-    assert context["fib_confluence_clusters"] == []
-    assert context["full_extension_targets"]["available"] is True
-    assert not any(t["confluence"] for t in context["full_extension_targets"]["targets"])
+    macro = context["drawdown_log_retracements"]
+    extended = context["secondary_log_extensions"]
+    expected = {
+        (r, e)
+        for r, retracement in macro.items()
+        for e, extension in extended.items()
+        if max(retracement, extension) / min(retracement, extension) <= 1.06
+    }
+    actual = {
+        (str(c["retracement_ratio"]), str(c["extension_ratio"]))
+        for c in context["fib_confluence_clusters"]
+    }
+    assert 0 < len(expected) < len(macro) * len(extended)
+    assert actual == expected
+    assert ("0.786", "1.618") not in actual
 
 
 def test_targets_are_unavailable_without_a_macro_drawdown(daily_series):
