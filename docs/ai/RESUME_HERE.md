@@ -1,5 +1,27 @@
 # Resume Moonwalking from anywhere
 
+## Cycle strategist routes, runner context and control UI · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, built on `475a981`, which
+followed the strategist and smart-alert engines in `08e3adf`. Everything stays
+paper or dry-run. Approving a proposal records the decision only and executes
+nothing. In `live_guarded` mode, automatic exits are blocked with
+`live_order_route_unavailable`.
+
+| Item | State |
+|---|---|
+| Routes (`backend/app.py`, owner-gated, `no-store`) | `GET /api/agents/proposals`, `POST /api/agents/proposals/<id>/approve\|reject`, `GET/POST /api/agents/autonomy`, `GET/POST /api/smart-alerts/rules`, `PATCH/DELETE /api/smart-alerts/rules/<id>`, `GET /api/smart-alerts/history`, `POST /api/smart-alerts/test` |
+| Engine additions | `SmartAlertEngine.get_rule`, `update_rule` and `send_test`. A test send records history under symbol `TEST` and does not reset the cooldowns of real alerts. `paper_execution_store.list_open_positions(owner_id)` |
+| Runner context | `backend/agents/cycle_context.py` (`build_cycle_context`, `evaluate_smart_alerts`). `run_once(..., smart_alert_engine=)` returns `result["smart_alerts"]`. `scripts/run_local_agents.py` fetches `/api/macro-cycle-scan` and has four new flags: `--watchlist`, `--positions-file`, `--paper-owner-id` and `--no-smart-alerts`. While the scan is warming, the cycle agents and smart alerts skip the pass |
+| Frontend | `CycleStrategistDeck.jsx` on the Agents page: an autonomy deck (Mode A/B, Dry-Run/Live Guarded, Emergency Pause, Daily Order Cap) and a proposal queue with a Trade link and Approve/Reject. `SmartAlertRulesPanel.jsx` in the full Alerts tab: rules list, create form, enable toggle, delete, test alert and history |
+| Checks | Backend: 296 passed in the agent/alert/paper/strategist test files, including 18 new route tests. Frontend: 582 passed in 45 files. `npm --prefix frontend run build` passes. The offline runner smoke run against an unreachable API exited 0 |
+| Not done | No browser check of the new deck or panel against a live backend. Not deployed |
+
+Next action: open the Agents page and the Alerts tab against the dev backend on
+port 5004 as the portfolio owner. Seed one rule and send a test alert, then
+run `scripts/run_local_agents.py --api-base http://127.0.0.1:5004 --watchlist
+SOL,AVAX` after the cycle scan reports `ready`.
+
 ## Cycle read and Industry Pulse UI · November 16
 
 A separate lane from the instant-radar research below. Branch:

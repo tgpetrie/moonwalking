@@ -11,6 +11,7 @@ import {
   buildPriorityItems,
 } from "../utils/priorityEngine.js";
 import { RowInfo, RowStar } from "./tables/RowActions.jsx";
+import SmartAlertRulesPanel from "./SmartAlertRulesPanel.jsx";
 import "../styles/alerts-tab.css";
 
 const TYPE_LABEL = {
@@ -1545,6 +1546,8 @@ export default function AlertsTab({
               recentCount={effectiveRecentAlerts.length}
             />
           ) : null}
+
+          {!compact && !forcedCoin ? <SmartAlertRulesPanel /> : null}
         </div>
       </div>
     </div>

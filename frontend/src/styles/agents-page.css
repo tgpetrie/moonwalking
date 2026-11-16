@@ -352,3 +352,47 @@
     justify-items: start;
   }
 }
+
+/* ---- Cycle Strategist deck & proposal queue ---- */
+.mw-autonomy-deck__cap {
+  width: 64px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2);
+  background: rgba(4, 4, 8, 0.6);
+  color: var(--white-92);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-proposal__levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0 0;
+}
+
+.mw-proposal__levels > div {
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.mw-proposal__levels dt {
+  color: var(--text-muted);
+}
+
+.mw-proposal__levels dd {
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--white-92);
+}
+
+.mw-proposal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

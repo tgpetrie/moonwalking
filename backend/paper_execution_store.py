@@ -134,6 +134,29 @@ def risk_metrics(owner_id):
         return _risk_metrics(conn, owner_id, time.time())
 
 
+def list_open_positions(owner_id):
+    """Open paper positions, oldest first, as ``{symbol, product_id, quantity, ...}``."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT ticket_id, product_id, quantity, entry_price, opened_ts "
+            "FROM paper_execution_positions WHERE owner_id=? AND closed_ts IS NULL "
+            "ORDER BY opened_ts, ticket_id",
+            (owner_id,),
+        ).fetchall()
+    return [
+        {
+            "symbol": row["product_id"].split("-")[0],
+            "product_id": row["product_id"],
+            "quantity": row["quantity"],
+            "entry_price": row["entry_price"],
+            "ticket_id": row["ticket_id"],
+            "opened_ts": row["opened_ts"],
+            "source": "paper",
+        }
+        for row in rows
+    ]
+
+
 def stage_evaluated_ticket(owner_id, evaluator):
     """Evaluate and reserve an autonomous ticket under one write lock."""
     with _connect() as conn:

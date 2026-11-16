@@ -11872,6 +11872,216 @@ def get_agent_observations():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+# ─── Cycle Strategist proposals & autonomy (owner-only, dry-run) ─────────────
+
+_PROPOSAL_ID_RE = re.compile(r"[0-9a-f]{16}")
+_PROPOSAL_STATUS_RE = re.compile(r"[a-z_]{1,40}")
+
+
+def _owner_json_body():
+    """(payload, None) for a JSON object body, else (None, error response)."""
+    if not request.is_json:
+        return None, (jsonify({"error": "A JSON request is required."}), 415)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return None, (jsonify({"error": "A JSON object is required."}), 400)
+    return payload, None
+
+
+def _private_json(payload, status=200):
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response, status
+
+
+@app.get("/api/agents/proposals")
+def get_agent_proposals():
+    """Cycle Strategist trade proposals plus the current autonomy settings."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    status = request.args.get("status") or None
+    symbol = request.args.get("symbol") or None
+    if status and not _PROPOSAL_STATUS_RE.fullmatch(status):
+        return jsonify({"error": "Invalid status."}), 400
+    if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+        return jsonify({"error": "Invalid symbol."}), 400
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid limit."}), 400
+    store = AgentStore()
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
+        "autonomy": store.get_autonomy_settings(),
+    })
+
+
+@app.post("/api/agents/proposals/<proposal_id>/<decision>")
+def decide_agent_proposal(proposal_id, decision):
+    """Record an operator decision. Approval never places an order."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    if decision not in {"approve", "reject"}:
+        return jsonify({"error": "Decision must be approve or reject."}), 404
+    if not _PROPOSAL_ID_RE.fullmatch(proposal_id):
+        return jsonify({"error": "Invalid proposal ID."}), 400
+    store = AgentStore()
+    try:
+        proposal = store.decide_proposal(proposal_id, decision)
+    except KeyError:
+        return jsonify({"error": "Proposal not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "proposal": proposal,
+        "autonomy": store.get_autonomy_settings(),
+    })
+
+
+@app.route("/api/agents/autonomy", methods=["GET", "POST"])
+def agent_autonomy_settings():
+    """Read or update the Cycle Strategist autonomy settings.
+
+    ``live_guarded`` is stored but cannot route an order: no live route exists,
+    so automatic exits stay blocked in that mode.
+    """
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    store = AgentStore()
+    if request.method == "POST":
+        payload, error = _owner_json_body()
+        if error:
+            return error
+        try:
+            store.set_autonomy_settings(**payload)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "autonomy": store.get_autonomy_settings(),
+    })
+
+
+# ─── Smart wake-up alert rules (owner-only) ──────────────────────────────────
+
+
+def _smart_alert_engine():
+    from smart_alerts import SmartAlertEngine
+
+    return SmartAlertEngine(dispatcher=alert_delivery_dispatcher)
+
+
+@app.route("/api/smart-alerts/rules", methods=["GET", "POST"])
+def smart_alert_rules():
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    engine = _smart_alert_engine()
+    if request.method == "GET":
+        from smart_alerts import PREDICATES, SCOPES, URGENCIES
+
+        return _private_json({
+            "status": "live",
+            "rules": engine.list_rules(),
+            "predicates": sorted(PREDICATES),
+            "urgencies": list(URGENCIES),
+            "scopes": list(SCOPES),
+            "ntfy_configured": bool(engine.ntfy_url),
+        })
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if any(rule.get("name") == str(payload.get("name") or "").strip() for rule in engine.list_rules()):
+        return jsonify({"error": "A rule with that name already exists."}), 409
+    try:
+        rule = engine.upsert_rule(payload)
+    except (ValueError, TypeError, AttributeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "rule": rule}, 201)
+
+
+@app.route("/api/smart-alerts/rules/<int:rule_id>", methods=["PATCH", "DELETE"])
+def smart_alert_rule(rule_id):
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    engine = _smart_alert_engine()
+    if request.method == "DELETE":
+        if not engine.delete_rule(rule_id):
+            return jsonify({"error": "Rule not found."}), 404
+        return _private_json({"status": "live", "deleted": rule_id})
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    try:
+        if set(payload) == {"enabled"}:
+            if not isinstance(payload["enabled"], bool):
+                raise ValueError("enabled must be a boolean")
+            rule = engine.set_enabled(rule_id, payload["enabled"])
+        else:
+            rule = engine.update_rule(rule_id, payload)
+    except KeyError:
+        return jsonify({"error": "Rule not found."}), 404
+    except (ValueError, TypeError, AttributeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "rule": rule})
+
+
+@app.get("/api/smart-alerts/history")
+def smart_alert_history():
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    symbol = request.args.get("symbol") or None
+    if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+        return jsonify({"error": "Invalid symbol."}), 400
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid limit."}), 400
+    return _private_json({
+        "status": "live",
+        "history": _smart_alert_engine().history(limit=limit, symbol=symbol),
+    })
+
+
+@app.post("/api/smart-alerts/test")
+def smart_alert_test():
+    """Send one test alert through the configured channels."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    rule_id = payload.get("rule_id")
+    if rule_id is not None and (type(rule_id) is not int or rule_id < 1):
+        return jsonify({"error": "rule_id must be a positive integer."}), 400
+    try:
+        fired = _smart_alert_engine().send_test(
+            urgency=payload.get("urgency", "wake_up"), rule_id=rule_id
+        )
+    except KeyError:
+        return jsonify({"error": "Rule not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "alert": fired})
+
+
 @app.route("/api/execution-agent/mode", methods=["GET", "POST"])
 def execution_agent_mode():
     """Owner-only paper mode; never changes exchange permissions."""

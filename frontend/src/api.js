@@ -245,6 +245,76 @@ export async function fetchMacroCycleScan(symbols = [], fetchOptions = {}) {
   return payload;
 }
 
+// --- Owner-only agent controls (credentialed, never cached) ---
+
+async function ownerRequest(path, { method = "GET", body } = {}) {
+  const init = { method, credentials: "include", cache: "no-store" };
+  if (body !== undefined) {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(`${getBackendBase()}${path}`, init);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || payload?.status !== "live") {
+    const error = new Error(payload?.error || `Request failed (${res.status})`);
+    error.status = res.status;
+    throw error;
+  }
+  return payload;
+}
+
+const proposalPath = (id, decision) =>
+  `/api/agents/proposals/${encodeURIComponent(id)}/${decision}`;
+
+/** GET /api/agents/proposals → { proposals, autonomy }. Dry-run only. */
+export function fetchAgentProposals({ status, symbol, limit } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (symbol) params.set("symbol", symbol);
+  if (limit) params.set("limit", String(limit));
+  const query = params.toString();
+  return ownerRequest(`/api/agents/proposals${query ? `?${query}` : ""}`);
+}
+
+/** Records approval only; the backend never places an order on approval. */
+export const approveAgentProposal = (id) =>
+  ownerRequest(proposalPath(id, "approve"), { method: "POST" });
+
+export const rejectAgentProposal = (id) =>
+  ownerRequest(proposalPath(id, "reject"), { method: "POST" });
+
+export const fetchAgentAutonomy = () => ownerRequest("/api/agents/autonomy");
+
+/** changes: any of autonomy_mode, execution_mode, emergency_pause, daily_order_cap. */
+export const updateAgentAutonomy = (changes) =>
+  ownerRequest("/api/agents/autonomy", { method: "POST", body: changes });
+
+export const fetchSmartAlertRules = () => ownerRequest("/api/smart-alerts/rules");
+
+export const createSmartAlertRule = (rule) =>
+  ownerRequest("/api/smart-alerts/rules", { method: "POST", body: rule });
+
+export const updateSmartAlertRule = (ruleId, changes) =>
+  ownerRequest(`/api/smart-alerts/rules/${Number(ruleId)}`, { method: "PATCH", body: changes });
+
+export const deleteSmartAlertRule = (ruleId) =>
+  ownerRequest(`/api/smart-alerts/rules/${Number(ruleId)}`, { method: "DELETE" });
+
+export function fetchSmartAlertHistory({ limit, symbol } = {}) {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  if (symbol) params.set("symbol", symbol);
+  const query = params.toString();
+  return ownerRequest(`/api/smart-alerts/history${query ? `?${query}` : ""}`);
+}
+
+/** Fires one test alert immediately (ignores quiet hours and cooldowns). */
+export const sendSmartAlertTest = ({ urgency = "wake_up", ruleId } = {}) =>
+  ownerRequest("/api/smart-alerts/test", {
+    method: "POST",
+    body: ruleId ? { rule_id: Number(ruleId) } : { urgency },
+  });
+
 // --- Local Storage Watchlist Functions ---
 const WATCHLIST_KEY = 'crypto_watchlist';
 

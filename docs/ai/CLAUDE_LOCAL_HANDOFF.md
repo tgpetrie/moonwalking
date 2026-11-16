@@ -44,6 +44,20 @@ This lane lives on `claude/elliott-abc-v2-reclaim-20261115`, pushed to
 - Details, decisions and the next action are at the top of
   [RESUME_HERE.md](RESUME_HERE.md).
 
+## Cycle strategist routes and control UI · November 16
+
+Built on `claude/elliott-abc-v2-reclaim-20261115` after `475a981`, in the
+`Moonwalking-FableRadarReview-20261113` checkout under `C:\Users\tgpet\Projects`.
+
+- Owner-gated routes for strategist proposals, autonomy settings and
+  smart-alert rules, history and test sends.
+- Runner context wiring, and a strategist deck and smart wake-up rules panel
+  in the frontend.
+- Everything is dry-run or paper. Approving a proposal executes nothing.
+- 296 backend tests, 582 frontend tests and the frontend build pass. It has
+  not been checked in a browser against a live backend.
+- Details and the next action are at the top of [RESUME_HERE.md](RESUME_HERE.md).
+
 ## Resume safely
 
 Read `AGENTS.md`, `CLAUDE.md`, `docs/ai/AI_INDEX.md`, the top of `HANDOFF.md`, and

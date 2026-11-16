@@ -221,6 +221,131 @@ describe("AgentsPage", () => {
     await screen.findByText("No agent has run on this machine yet");
     expect(screen.queryByRole("button", { name: /run|fix|apply|buy|sell|trade|order/i })).not.toBeInTheDocument();
   });
+
+  describe("Cycle Strategist deck", () => {
+    const proposal = (extra = {}) => ({
+      proposal_id: "0123456789abcdef",
+      action: "TRIM_TO_USDC",
+      symbol: "RENDER",
+      side: "sell",
+      status: "pending_approval",
+      reference_price: 9.42,
+      stop_price: null,
+      trim_pct: 37.5,
+      reasons: ["Inside the 0.618–0.786 rollover box"],
+      execution: null,
+      ...extra,
+    });
+
+    function mockDeck({ proposals = [proposal()], autonomy } = {}) {
+      let settings = autonomy || {
+        autonomy_mode: "approval_queue",
+        execution_mode: "dry_run",
+        emergency_pause: false,
+        daily_order_cap: 3,
+      };
+      let rows = proposals;
+      const calls = [];
+      vi.stubGlobal("fetch", vi.fn((url, options = {}) => {
+        const path = String(url);
+        const body = options.body ? JSON.parse(options.body) : undefined;
+        calls.push({ path, method: options.method || "GET", body });
+        let payload;
+        if (path.startsWith("/api/agents/autonomy")) {
+          settings = { ...settings, ...body };
+          payload = { status: "live", autonomy: settings };
+        } else if (/\/api\/agents\/proposals\/[^/]+\/(approve|reject)$/.test(path)) {
+          const decision = path.endsWith("approve") ? "approved" : "rejected";
+          rows = rows.map((row) => ({ ...row, status: decision }));
+          payload = { status: "live", proposal: rows[0], autonomy: settings };
+        } else if (path.startsWith("/api/agents/proposals")) {
+          payload = { status: "live", proposals: rows, autonomy: settings };
+        } else if (path.includes("/api/agents/status")) {
+          payload = statusPayload(NEVER);
+        } else payload = { status: "live", observations: [] };
+        return Promise.resolve({ ok: true, status: 200, json: async () => payload });
+      }));
+      return calls;
+    }
+
+    it("lists proposals with a canonical Coinbase trade link and records approval", async () => {
+      const calls = mockDeck();
+      render(<AgentsPage />);
+      const queue = await screen.findByRole("region", { name: "Trade proposal queue" });
+      const row = await within(queue).findByRole("listitem", { name: "RENDER Trim to USDC" });
+      expect(within(row).getByText("37.5%")).toBeInTheDocument();
+      expect(within(row).getByText("Pending approval")).toBeInTheDocument();
+      const trade = within(row).getByRole("link", { name: "Trade" });
+      expect(trade).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+      expect(trade).toHaveAttribute("target", "_blank");
+      expect(trade).toHaveAttribute("rel", "noopener noreferrer");
+
+      fireEvent.click(within(row).getByRole("button", { name: "Approve" }));
+      expect(await within(row).findByText("Approved")).toBeInTheDocument();
+      expect(within(row).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+      expect(calls.some((c) => c.method === "POST" && c.path === "/api/agents/proposals/0123456789abcdef/approve")).toBe(true);
+    });
+
+    it("rejects a proposal and shows guard block reasons", async () => {
+      const calls = mockDeck({
+        proposals: [proposal({ status: "blocked_by_guard", execution: { block_reasons: ["daily_order_cap_reached"] } })],
+      });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "RENDER Trim to USDC" });
+      expect(within(row).getByText("Guard: daily order cap reached")).toBeInTheDocument();
+      fireEvent.click(within(row).getByRole("button", { name: "Reject" }));
+      expect(await within(row).findByText("Rejected")).toBeInTheDocument();
+      expect(calls.some((c) => c.path.endsWith("/reject"))).toBe(true);
+    });
+
+    it("switches autonomy mode, execution mode, pause and daily cap", async () => {
+      const calls = mockDeck({ proposals: [] });
+      render(<AgentsPage />);
+      const deck = await screen.findByRole("region", { name: "Autonomy control deck" });
+      const modeB = await within(deck).findByRole("button", { name: "Mode B · Auto-Protect Exits" });
+      expect(within(deck).getByRole("button", { name: "Mode A · Approval Queue" })).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.click(modeB);
+      expect(await within(deck).findByText(/Mode B: trims and protective stops/)).toBeInTheDocument();
+      expect(modeB).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.click(within(deck).getByRole("button", { name: "Live Guarded" }));
+      expect(await within(deck).findByText(/no live order route yet/)).toBeInTheDocument();
+
+      fireEvent.click(within(deck).getByRole("checkbox", { name: /emergency pause/i }));
+      expect(await within(deck).findByText("Paused")).toBeInTheDocument();
+
+      const cap = within(deck).getByRole("spinbutton", { name: "Daily order cap" });
+      const saveCap = within(deck).getByRole("button", { name: "Save cap" });
+      fireEvent.change(cap, { target: { value: "25" } });
+      expect(saveCap).toBeDisabled();
+      fireEvent.change(cap, { target: { value: "5" } });
+      fireEvent.click(saveCap);
+      await within(deck).findByDisplayValue("5");
+
+      const posts = calls.filter((c) => c.method === "POST").map((c) => c.body);
+      expect(posts).toEqual([
+        { autonomy_mode: "auto_protect_exits" },
+        { execution_mode: "live_guarded" },
+        { emergency_pause: true },
+        { daily_order_cap: 5 },
+      ]);
+      expect(screen.getByText(/No proposals yet/)).toBeInTheDocument();
+    });
+
+    it("explains owner-only access instead of crashing", async () => {
+      vi.stubGlobal("fetch", vi.fn((url) => {
+        const path = String(url);
+        if (path.startsWith("/api/agents/proposals")) {
+          return Promise.resolve({ ok: false, status: 403, json: async () => ({ error: "Forbidden" }) });
+        }
+        const payload = path.includes("/api/agents/status") ? statusPayload(NEVER) : { status: "live", observations: [] };
+        return Promise.resolve({ ok: true, status: 200, json: async () => payload });
+      }));
+      render(<AgentsPage />);
+      expect(await screen.findByText("Strategist controls are available to the configured portfolio owner.")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("ago", () => {

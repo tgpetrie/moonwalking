@@ -419,6 +419,104 @@ class SmartAlertEngine:
             ).fetchone()
         return self._rule(row)
 
+    def get_rule(self, rule_id: int) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM smart_alert_rules WHERE id = ?", (int(rule_id),)
+            ).fetchone()
+        return self._rule(row) if row else None
+
+    def update_rule(self, rule_id: int, changes: Mapping[str, Any]) -> dict:
+        """Merge ``changes`` into an existing rule, re-validating the result."""
+        existing = self.get_rule(rule_id)
+        if existing is None:
+            raise KeyError(rule_id)
+        merged = {
+            key: value
+            for key, value in {**existing, **dict(changes)}.items()
+            if key not in {"id", "seeded"}
+        }
+        clean = validate_rule(merged)
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    UPDATE smart_alert_rules
+                    SET name = ?, enabled = ?, urgency = ?, scope = ?, rule_json = ?,
+                        updated_ts = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        clean["name"],
+                        int(clean["enabled"]),
+                        clean["urgency"],
+                        clean["scope"],
+                        json.dumps(clean, sort_keys=True),
+                        int(time.time()),
+                        int(rule_id),
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("a rule with that name already exists") from exc
+        return self.get_rule(rule_id)  # type: ignore[return-value]
+
+    def send_test(
+        self,
+        *,
+        urgency: str = "wake_up",
+        rule_id: int | None = None,
+        now: float | None = None,
+    ) -> dict:
+        """Deliver a one-off test alert, ignoring quiet hours and cooldowns.
+
+        Recorded in history under the symbol ``TEST`` so it can never reset a
+        real coin's cooldown.
+        """
+        if rule_id is not None:
+            rule = self.get_rule(rule_id)
+            if rule is None:
+                raise KeyError(rule_id)
+        else:
+            if urgency not in URGENCIES:
+                raise ValueError(f"invalid urgency: {urgency}")
+            rule = {"id": 0, "name": "Test Alert", "urgency": urgency}
+        now = float(now if now is not None else time.time())
+        message = f"TEST · {rule['name']} · delivery check"
+        delivered: dict[str, Any] = {}
+        if rule["urgency"] != "watch":
+            delivered = self._deliver(rule, "TEST", message, now)
+        with self._connect() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO smart_alert_history(
+                    rule_id, rule_name, symbol, urgency, fired_ts, message,
+                    evidence_json, delivered_json, suppressed_reason
+                )
+                VALUES (?, ?, 'TEST', ?, ?, ?, ?, ?, NULL)
+                """,
+                (
+                    rule["id"],
+                    rule["name"],
+                    rule["urgency"],
+                    int(now),
+                    message,
+                    json.dumps({"test": True}),
+                    json.dumps(delivered, sort_keys=True),
+                ),
+            )
+        return {
+            "id": cur.lastrowid,
+            "rule_id": rule["id"],
+            "rule_name": rule["name"],
+            "symbol": "TEST",
+            "urgency": rule["urgency"],
+            "fired_ts": int(now),
+            "message": message,
+            "evidence": {"test": True},
+            "delivered": delivered,
+            "suppressed_reason": None,
+        }
+
     def delete_rule(self, rule_id: int) -> bool:
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM smart_alert_rules WHERE id = ?", (int(rule_id),))

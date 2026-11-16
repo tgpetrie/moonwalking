@@ -1338,3 +1338,135 @@
 .bh-event-read-wrap .bh-event-read {
   margin-top: 4px;
 }
+
+/* ---- Smart wake-up rules & history (owner-only) ---- */
+.bh-smart-alerts {
+  margin-top: var(--space-4, 16px);
+}
+
+.bh-smart-alerts > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.bh-smart-alerts > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bh-smart-alerts__note,
+.bh-smart-alerts__conditions,
+.bh-smart-alerts__scope {
+  color: var(--text-muted);
+  font-size: var(--text-sm, 0.8125rem);
+}
+
+.bh-smart-alerts__error {
+  color: var(--danger);
+  font-size: var(--text-sm, 0.8125rem);
+}
+
+.bh-smart-alerts__rules,
+.bh-smart-alerts__history {
+  list-style: none;
+  margin: var(--space-3, 12px) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2, 8px);
+}
+
+.bh-smart-alerts__rules > li {
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2, 6px);
+}
+
+.bh-smart-alerts__rules > li.is-disabled {
+  opacity: 0.55;
+}
+
+.bh-smart-alerts__line,
+.bh-smart-alerts__actions,
+.bh-smart-alerts__history > li,
+.bh-smart-alerts__test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.bh-smart-alerts__conditions {
+  margin: var(--space-1, 4px) 0;
+  font-family: var(--font-mono, monospace);
+}
+
+.bh-smart-alerts__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2, 8px) var(--space-3, 12px);
+  margin: var(--space-3, 12px) 0;
+}
+
+.bh-smart-alerts__form label,
+.bh-smart-alerts__test label {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-2xs, 0.6875rem);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--label-tracking-compact, 0.04em);
+}
+
+.bh-smart-alerts__form input,
+.bh-smart-alerts__form select,
+.bh-smart-alerts__test select {
+  min-height: 30px;
+  padding: 0 var(--space-2, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2, 6px);
+  background: rgba(4, 4, 8, 0.6);
+  color: var(--white-92, #ebebeb);
+  font: inherit;
+  text-transform: none;
+}
+
+.bh-smart-alerts__subhead {
+  margin: var(--space-3, 12px) 0 0;
+  font-size: var(--text-sm, 0.8125rem);
+}
+
+.bh-smart-alerts__symbol {
+  font-weight: 700;
+  color: var(--white-92, #ebebeb);
+}
+
+.bh-smart-alerts__history time {
+  margin-left: auto;
+  color: var(--text-faint, var(--text-muted));
+  font-family: var(--font-numeric, inherit);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs, 0.6875rem);
+}
+
+/* Urgency is operator priority, not price direction. */
+.bh-smart-alerts__chip {
+  display: inline-flex;
+  padding: 2px var(--space-2, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--r-2, 6px);
+  font-size: var(--text-2xs, 0.6875rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--white-92, #ebebeb);
+}
+
+.bh-smart-alerts__chip.is-wake_up {
+  color: var(--danger);
+  border-color: rgba(255, 159, 180, 0.34);
+}
+
+.bh-smart-alerts__chip.is-action_queue {
+  color: var(--caution);
+  border-color: rgba(255, 179, 71, 0.32);
+}

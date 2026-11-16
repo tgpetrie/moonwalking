@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from .audit_triage import AuditTriageAgent
+from .cycle_context import evaluate_smart_alerts
 from .cycle_strategist import CycleStrategistAgent
 from .data_quality import DataQualityAgent
 from .development_efficiency import DevelopmentEfficiencyAgent
@@ -35,6 +36,7 @@ def run_once(
     *,
     store: AgentStore | None = None,
     agents: Iterable[object] | None = None,
+    smart_alert_engine: object | None = None,
 ) -> dict:
     store = store or AgentStore()
     active_agents = list(agents or [factory() for factory in DEFAULT_AGENT_FACTORIES])
@@ -56,4 +58,16 @@ def run_once(
         except Exception as exc:
             store.finish_run(run_id, status="error", error=str(exc), observation_count=0)
             runs.append({"agent": name, "status": "error", "error": str(exc)[:300]})
-    return {"status": "ok", "runs": runs, "observation_count": total_observations}
+    result = {"status": "ok", "runs": runs, "observation_count": total_observations}
+    if smart_alert_engine is not None:
+        # Alerts read the same cycle scan as the strategist, after it has run.
+        try:
+            alerts = evaluate_smart_alerts(context or {}, smart_alert_engine)
+            result["smart_alerts"] = {
+                "status": alerts["status"],
+                "fired": len(alerts["fired"]),
+                "reason": alerts.get("reason"),
+            }
+        except Exception as exc:
+            result["smart_alerts"] = {"status": "error", "error": str(exc)[:300]}
+    return result
