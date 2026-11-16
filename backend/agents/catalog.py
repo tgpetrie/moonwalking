@@ -55,6 +55,14 @@ AGENT_CATALOG: dict[str, dict[str, str]] = {
         "label": "Sentiment Scout",
         "purpose": "Reports source-backed catalyst and chart sentiment context.",
     },
+    "cycle_strategist": {
+        "label": "Cycle Strategist",
+        "purpose": (
+            "Turns the multi-year cycle scan into trim, protective-stop and "
+            "entry proposals. Entries always wait for approval; exits can run "
+            "as guarded dry-runs. It never submits exchange orders."
+        ),
+    },
 }
 
 

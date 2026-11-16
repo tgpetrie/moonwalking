@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from .audit_triage import AuditTriageAgent
+from .cycle_strategist import CycleStrategistAgent
 from .data_quality import DataQualityAgent
 from .development_efficiency import DevelopmentEfficiencyAgent
 from .portfolio_watch import PortfolioWatchAgent
@@ -25,6 +26,7 @@ DEFAULT_AGENT_FACTORIES = (
     DevelopmentEfficiencyAgent,
     CoinbaseExecutionAgent,
     CatalystSentimentAgent,
+    CycleStrategistAgent,
 )
 
 
@@ -40,6 +42,10 @@ def run_once(
     total_observations = 0
     for agent in active_agents:
         name = getattr(agent, "name", agent.__class__.__name__)
+        bind_store = getattr(agent, "bind_store", None)
+        if callable(bind_store):
+            # Agents that persist state (e.g. trade proposals) share the run's ledger.
+            bind_store(store)
         run_id = store.begin_run(name, model_version=getattr(agent, "model_version", None))
         try:
             observations = list(agent.run(context or {}))

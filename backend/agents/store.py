@@ -14,6 +14,20 @@ DEFAULT_DB_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "agent_observations.sqlite"
 )
 
+AUTONOMY_MODES = ("approval_queue", "auto_protect_exits")
+EXECUTION_MODES = ("dry_run", "live_guarded")
+DEFAULT_AUTONOMY_SETTINGS = {
+    "autonomy_mode": "approval_queue",
+    "execution_mode": "dry_run",
+    "emergency_pause": False,
+    "daily_order_cap": 3,
+}
+MAX_DAILY_ORDER_CAP = 20
+# Proposal states an operator or the strategist can no longer change.
+TERMINAL_PROPOSAL_STATUSES = frozenset(
+    {"rejected", "auto_executed_dry_run", "auto_armed_dry_run"}
+)
+
 
 class AgentStore:
     """SQLite ledger for local agent runs and observations."""
@@ -76,6 +90,41 @@ class AgentStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS ix_agent_runs_agent "
                 "ON agent_runs(agent, started_ts DESC)"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_autonomy_settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    autonomy_mode TEXT NOT NULL,
+                    execution_mode TEXT NOT NULL,
+                    emergency_pause INTEGER NOT NULL,
+                    daily_order_cap INTEGER NOT NULL,
+                    updated_ts INTEGER NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trade_proposals (
+                    proposal_id TEXT PRIMARY KEY,
+                    run_id INTEGER,
+                    agent TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    product_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_ts INTEGER NOT NULL,
+                    updated_ts INTEGER NOT NULL,
+                    executed_ts INTEGER,
+                    proposal_json TEXT NOT NULL,
+                    execution_json TEXT
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS ix_trade_proposals_status "
+                "ON trade_proposals(status, updated_ts DESC)"
             )
 
     def begin_run(self, agent: str, *, model_version: str | None = None) -> int:
@@ -304,6 +353,200 @@ class AgentStore:
             "latest_run": run,
             "latest_findings_by_severity": by_severity,
         }
+
+    # ─── autonomy settings ────────────────────────────────────────────────
+
+    def get_autonomy_settings(self) -> dict:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM agent_autonomy_settings WHERE id = 1"
+            ).fetchone()
+        if row is None:
+            return {**DEFAULT_AUTONOMY_SETTINGS, "updated_ts": None}
+        return {
+            "autonomy_mode": row["autonomy_mode"],
+            "execution_mode": row["execution_mode"],
+            "emergency_pause": bool(row["emergency_pause"]),
+            "daily_order_cap": int(row["daily_order_cap"]),
+            "updated_ts": int(row["updated_ts"]),
+        }
+
+    def set_autonomy_settings(self, **changes) -> dict:
+        unknown = set(changes) - set(DEFAULT_AUTONOMY_SETTINGS)
+        if unknown:
+            raise ValueError(f"unknown autonomy settings: {sorted(unknown)}")
+        settings = {**self.get_autonomy_settings(), **changes}
+        if settings["autonomy_mode"] not in AUTONOMY_MODES:
+            raise ValueError(f"invalid autonomy_mode: {settings['autonomy_mode']}")
+        if settings["execution_mode"] not in EXECUTION_MODES:
+            raise ValueError(f"invalid execution_mode: {settings['execution_mode']}")
+        if not isinstance(settings["emergency_pause"], bool):
+            raise ValueError("emergency_pause must be a boolean")
+        cap = settings["daily_order_cap"]
+        if type(cap) is not int or not 0 <= cap <= MAX_DAILY_ORDER_CAP:
+            raise ValueError(
+                f"daily_order_cap must be an integer from 0 to {MAX_DAILY_ORDER_CAP}"
+            )
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_autonomy_settings(
+                    id, autonomy_mode, execution_mode, emergency_pause,
+                    daily_order_cap, updated_ts
+                )
+                VALUES (1, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    autonomy_mode = excluded.autonomy_mode,
+                    execution_mode = excluded.execution_mode,
+                    emergency_pause = excluded.emergency_pause,
+                    daily_order_cap = excluded.daily_order_cap,
+                    updated_ts = excluded.updated_ts
+                """,
+                (
+                    settings["autonomy_mode"],
+                    settings["execution_mode"],
+                    int(settings["emergency_pause"]),
+                    cap,
+                    int(time.time()),
+                ),
+            )
+        return self.get_autonomy_settings()
+
+    # ─── trade proposals ──────────────────────────────────────────────────
+
+    def get_proposal(self, proposal_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM trade_proposals WHERE proposal_id = ?", (proposal_id,)
+            ).fetchone()
+        return self._row_to_proposal(row) if row else None
+
+    def save_proposal(
+        self,
+        proposal: dict,
+        *,
+        run_id: int | None = None,
+        execution: dict | None = None,
+        now: int | None = None,
+    ) -> dict:
+        """Insert a proposal, or refresh one that is still open.
+
+        A proposal the operator rejected or the strategist already executed is
+        left exactly as it is, so a repeat run cannot act on it twice.
+        """
+        now = int(now if now is not None else time.time())
+        existing = self.get_proposal(proposal["proposal_id"])
+        if existing and existing["status"] in TERMINAL_PROPOSAL_STATUSES:
+            return existing
+        if existing and existing["status"] == "approved":
+            # An operator approval stands; a later run only refreshes evidence.
+            proposal = {**proposal, "status": "approved"}
+            execution = existing.get("execution")
+        executed_ts = now if proposal["status"] in TERMINAL_PROPOSAL_STATUSES else None
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO trade_proposals(
+                    proposal_id, run_id, agent, action, side, symbol, product_id,
+                    status, created_ts, updated_ts, executed_ts, proposal_json,
+                    execution_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(proposal_id) DO UPDATE SET
+                    run_id = excluded.run_id,
+                    status = excluded.status,
+                    updated_ts = excluded.updated_ts,
+                    executed_ts = excluded.executed_ts,
+                    proposal_json = excluded.proposal_json,
+                    execution_json = excluded.execution_json
+                """,
+                (
+                    proposal["proposal_id"],
+                    run_id,
+                    proposal["agent"],
+                    proposal["action"],
+                    proposal["side"],
+                    proposal["symbol"],
+                    proposal["product_id"],
+                    proposal["status"],
+                    now,
+                    now,
+                    executed_ts,
+                    json.dumps(proposal, sort_keys=True, default=str),
+                    json.dumps(execution, sort_keys=True, default=str)
+                    if execution is not None
+                    else None,
+                ),
+            )
+        return self.get_proposal(proposal["proposal_id"])  # type: ignore[return-value]
+
+    def list_proposals(
+        self, *, status: str | None = None, symbol: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        limit = min(max(int(limit), 1), 250)
+        filters, params = [], []
+        if status:
+            filters.append("status = ?")
+            params.append(status)
+        if symbol:
+            filters.append("symbol = ?")
+            params.append(symbol.upper().split("-")[0])
+        where = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT * FROM trade_proposals {where}
+                ORDER BY updated_ts DESC, proposal_id
+                LIMIT ?
+                """,
+                (*params, limit),
+            ).fetchall()
+        return [self._row_to_proposal(row) for row in rows]
+
+    def decide_proposal(self, proposal_id: str, decision: str) -> dict:
+        """Record an operator decision. Approval never executes anything."""
+        status = {"approve": "approved", "reject": "rejected"}.get(decision)
+        if status is None:
+            raise ValueError("decision must be 'approve' or 'reject'")
+        existing = self.get_proposal(proposal_id)
+        if existing is None:
+            raise KeyError(proposal_id)
+        if existing["status"] not in {"pending_approval", "blocked_by_guard"}:
+            raise ValueError(f"proposal is already {existing['status']}")
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE trade_proposals SET status = ?, updated_ts = ? "
+                "WHERE proposal_id = ?",
+                (status, int(time.time()), proposal_id),
+            )
+        return self.get_proposal(proposal_id)  # type: ignore[return-value]
+
+    def count_auto_orders_since(self, since_ts: int) -> int:
+        with self._connect() as conn:
+            return int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) FROM trade_proposals
+                    WHERE executed_ts IS NOT NULL AND executed_ts >= ?
+                    """,
+                    (int(since_ts),),
+                ).fetchone()[0]
+            )
+
+    @staticmethod
+    def _row_to_proposal(row: sqlite3.Row) -> dict:
+        item = json.loads(row["proposal_json"])
+        item.update(
+            status=row["status"],
+            run_id=row["run_id"],
+            created_ts=row["created_ts"],
+            updated_ts=row["updated_ts"],
+            executed_ts=row["executed_ts"],
+            execution=json.loads(row["execution_json"])
+            if row["execution_json"]
+            else None,
+        )
+        return item
 
     @staticmethod
     def _row_to_observation(row: sqlite3.Row) -> dict:
