@@ -1,22 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "../hooks/useData";
 
-const COINBASE_ORIGIN = "https://www.coinbase.com";
-
-function toAdvancedTradeUrl(item) {
-  const rawPair = item?.product_id || item?.productId || item?.pair || item?.symbol;
-  if (!rawPair) return null;
-
-  const rawSymbol = item?.symbol ?? null;
-  const symbol = rawSymbol ? String(rawSymbol).replace(/-.*$/, "").toUpperCase().trim() : null;
-
-  let pair = String(rawPair).toUpperCase().trim();
-  if (!pair) return null;
-  if (!pair.includes("-")) pair = `${pair}-USD`;
-  if (!pair.endsWith("-USD") && symbol) pair = `${symbol}-USD`;
-
-  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(pair)}`;
-}
+import { getCoinbaseAdvancedSpotUrl } from "../utils/coinbaseUrl";
 
 function toNum(v) {
   if (v == null) return null;
@@ -299,7 +284,7 @@ export function VolumeBannerScroll({
             const resolvedPct = pct ?? fallbackPct;
             const stateClass =
               resolvedPct == null ? "is-flat" : resolvedPct >= 0 ? "is-gain" : "is-loss";
-            const url = toAdvancedTradeUrl({ product_id: it.product_id, symbol: it.symbol });
+            const url = getCoinbaseAdvancedSpotUrl({ product_id: it.product_id, symbol: it.symbol });
             const pctLabel = fmtPct(resolvedPct);
 
             const chip = (
@@ -334,7 +319,7 @@ export function VolumeBannerScroll({
                 data-side={stateClass === "is-gain" ? "gainer" : stateClass === "is-loss" ? "loser" : "flat"}
                 href={url}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 onClick={(e) => {
                   if (!url) e.preventDefault();
                 }}

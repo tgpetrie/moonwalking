@@ -256,15 +256,6 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     }
   };
 
-  const buildCoinbaseUrl = (symbol) => {
-    if (!symbol) return "#";
-    let pair = symbol;
-    if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
-      pair = `${pair}-USD`;
-    }
-    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
-  };
-
   // Loading skeleton state
   if (isLoading && !hasData) {
     return (

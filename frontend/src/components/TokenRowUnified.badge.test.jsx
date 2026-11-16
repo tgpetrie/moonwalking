@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TokenRowUnified } from "./TokenRowUnified.jsx";
 
 /**
@@ -29,6 +29,24 @@ function renderRow(token, side = "gainer") {
 }
 
 describe("TokenRowUnified live-rank badge", () => {
+  it.each(["RENDER", "RENDER-USD", "RENDER/USDC"])(
+    "links the dashboard/watchlist Trade action to %s USD spot without opening the modal",
+    (symbol) => {
+      let bubbled = false;
+      const { container } = render(
+        <div onClick={() => { bubbled = true; }}>
+          <TokenRowUnified token={{ ...confirmedToken, symbol }} side="gainer" rank={1} />
+        </div>,
+      );
+      const link = container.querySelector('a[aria-label="Open Coinbase Advanced Trade"]');
+      expect(link.getAttribute("href")).toBe("https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+      fireEvent.click(link);
+      expect(bubbled).toBe(false);
+    },
+  );
+
   it("shows the narrowed 'Tape confirmed' label", () => {
     renderRow(confirmedToken);
     expect(screen.getByText("Tape confirmed")).toBeTruthy();

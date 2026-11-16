@@ -1,5 +1,20 @@
 # Moonwalking / BHABIT Handoff
 
+## Coinbase Trade destinations — 2026-11-16
+
+The shared `getCoinbaseAdvancedSpotUrl` helper normalizes coin identities to
+uppercase `<BASE>-USD` Advanced Spot URLs. The compatibility export
+`coinbaseSpotUrl` delegates to it; backend trade URL overrides are ignored.
+Dashboard/watchlist actions use new-tab links, and banners, coin modals,
+alerts and legacy Coinbase trade links share the same normalizer. External
+news/source links keep their destinations. Industry Pulse and Agents open
+coin details rather than defining separate Trade controls.
+
+Verification includes helper normalization, RENDER modal/dashboard/watchlist
+href assertions, the full frontend suite and the production build. A live
+page audit found 181 Coinbase trade links with correct USD destinations,
+`target="_blank"` and `rel="noopener noreferrer"`. No servers were started.
+
 ## Batched source follow-up — 2026-11-08
 
 **`c9d79be`** enables the explicit `batched-256` research profile. The

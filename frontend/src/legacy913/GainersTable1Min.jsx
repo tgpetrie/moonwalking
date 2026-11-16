@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import { tickerFromSymbol } from '../utils/format';
@@ -305,7 +306,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       )}
       <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
   {visibleData.slice(0, rowsToShow).map((item, idx) => {
-        const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
+        const coinbaseUrl = getCoinbaseAdvancedSpotUrl(item);
         // Check if symbol is in watchlist (handle both string and object formats)
         const isInWatchlist = watchlist.some(watchlistItem => 
           typeof watchlistItem === 'string' ? watchlistItem === item.symbol : watchlistItem.symbol === item.symbol

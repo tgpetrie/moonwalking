@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 
 /**
  * SymbolPanel
@@ -52,11 +53,7 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
     }
   }, [sym, tab, ta, news, social, loadingTA, loadingNews, loadingSocial]);
 
-  const cbUrl = useMemo(() => {
-    // Coinbase Advanced Trade spot page (common pattern)
-    const pair = `${sym.toLowerCase()}-usd`;
-    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
-  }, [sym]);
+  const cbUrl = useMemo(() => getCoinbaseAdvancedSpotUrl(sym), [sym]);
 
   if (!sym) return null;
 
@@ -86,7 +83,7 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
             <a
               href={cbUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="hidden md:inline-flex px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-sm"
             >
               Open in Coinbase ↗
@@ -122,7 +119,7 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
             <a
               href={cbUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="md:hidden ml-auto px-3 py-1.5 rounded-lg bg-zinc-200 text-zinc-900 text-sm"
             >
               Coinbase ↗

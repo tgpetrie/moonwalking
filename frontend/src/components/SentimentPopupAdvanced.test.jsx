@@ -14,7 +14,6 @@ vi.mock("../utils/coinHistoryCache", async (importOriginal) => ({
   getCoinEvents: vi.fn(() => []),
 }));
 vi.mock("../utils/marketPressure", () => ({ getMarketPressure: vi.fn() }));
-vi.mock("../utils/coinbaseUrl", () => ({ coinbaseSpotUrl: vi.fn() }));
 vi.mock("./CoinPositioning.jsx", () => ({ default: () => null }));
 vi.mock("./AlertsTab", () => ({ default: () => null }));
 vi.mock("./ChartReadPanel.jsx", () => ({ default: () => null }));
@@ -179,6 +178,16 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
     vi.mocked(useData).mockReset();
     vi.mocked(useData).mockReturnValue({});
     vi.mocked(fetchData).mockReset();
+  });
+
+  it("opens RENDER's exact USD spot page from the modal Trade link", () => {
+    vi.mocked(useData).mockReturnValue({});
+    vi.mocked(fetchData).mockResolvedValue(null);
+    render(<SentimentPopupAdvanced isOpen onClose={vi.fn()} symbol="RENDER" />);
+    const link = screen.getByRole("link", { name: "Trade RENDER on Coinbase Advanced" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("keeps Reversal Risk negative when positive 3m tape activates bullish fallbacks", async () => {

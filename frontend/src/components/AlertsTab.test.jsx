@@ -44,6 +44,19 @@ const productionInterp = {
 // ---------------------------------------------------------------------------
 
 describe("SignalRow – primary text", () => {
+  it("uses the coin's USD spot page for Trade, even when the signal has a source URL", () => {
+    render(
+      <SignalRow
+        a={{ ...base, symbol: "RENDER-USDC", url: "https://example.com/news" }}
+        nowMs={NOW_MS}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Open Coinbase Advanced Trade" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   it("shows interpretation summary when support_level is production", () => {
     render(<SignalRow a={{ ...base, interpretation: productionInterp }} nowMs={NOW_MS} />);
     expect(screen.getByText(/Price broke out.*confirmed multi-window momentum/)).toBeInTheDocument();

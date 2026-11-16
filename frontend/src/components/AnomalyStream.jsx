@@ -203,12 +203,8 @@ const spotUrl = (token, symbol) => {
 
 const getAlertTradeUrl = (log) => {
   const u = log?.url;
-  if (typeof u === "string" && u.startsWith("http")) return u;
-
-  const pid = (log?.product_id || log?.symbol || "").toString().trim().toUpperCase();
-  if (!pid) return null;
-  const productId = pid.includes("-") ? pid : `${pid}-USD`;
-  return `https://www.coinbase.com/advanced-trade/spot/${encodeURIComponent(productId)}`;
+  if (typeof u === "string" && u.startsWith("http") && !/^https?:\/\/(?:www\.)?coinbase\.com(?:\/|$)/i.test(u)) return u;
+  return coinbaseSpotUrl(log);
 };
 
 export default function AnomalyStream({ data = {}, volumeData = [] }) {
@@ -423,13 +419,13 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
                 if (!isClickable) return;
                 const target = e.target;
                 if (target && target.closest && target.closest("a")) return;
-                window.open(tradeUrl, "_blank", "noreferrer");
+                window.open(tradeUrl, "_blank", "noopener,noreferrer");
               }}
               onKeyDown={(e) => {
                 if (!isClickable) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  window.open(tradeUrl, "_blank", "noreferrer");
+                  window.open(tradeUrl, "_blank", "noopener,noreferrer");
                 }
               }}
             >
@@ -439,7 +435,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
                 {showPrefix ? <span className="bh-intel-prefix">{log.prefix}</span> : null}{" "}
                 {log.symbol ? (
                   tradeUrl ? (
-                    <a className="bh-intel-sym" href={tradeUrl} target="_blank" rel="noreferrer">
+                    <a className="bh-intel-sym" href={tradeUrl} target="_blank" rel="noopener noreferrer">
                       {log.symbol}
                     </a>
                   ) : (

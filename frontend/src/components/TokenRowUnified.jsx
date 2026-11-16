@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
-import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { deriveRowCue } from "../utils/rowCue.js";
 import { getMoveStatus, getMoveStatusLabel } from "../utils/moveStatus.js";
 
@@ -143,14 +142,6 @@ export function TokenRowUnified({
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("openInfo", { detail: normalized }));
     }
-  };
-
-  const url = coinbaseSpotUrl(token || {});
-
-  const openTrading = () => {
-    if (!url) return;
-    if (window.getSelection?.().toString()) return;
-    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const dataSide =
@@ -310,7 +301,7 @@ export function TokenRowUnified({
         <RowActions
           starred={Boolean(isWatchlisted)}
           onToggleStar={handleToggleStar}
-          onInfoClick={openTrading}
+          coin={token}
         />
       </CellTag>
     </>

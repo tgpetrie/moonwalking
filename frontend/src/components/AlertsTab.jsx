@@ -828,25 +828,15 @@ function SignalRow({
   const pctText = pct == null ? "" : `${pct > 0 ? "+" : ""}${pct.toFixed(Math.abs(pct) < 5 ? 3 : 2)}%`;
   const volText = shouldShowVolPct(volPct) ? `Vol ${volPct > 0 ? "+" : ""}${volPct.toFixed(0)}%` : "";
 
-  const url = a?.url || a?.trade_url || coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
+  const tradeUrl = coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
+  const sourceUrl = a?.url;
+  const url = sourceUrl && !/^https?:\/\/(?:www\.)?coinbase\.com(?:\/|$)/i.test(sourceUrl)
+    ? sourceUrl
+    : tradeUrl;
   const cls = tabKeyForAlert(a);
-  const sentimentSymbol = sentimentSymbolForAlert(a) || sym;
 
   // Determine direction for color coding
   const direction = pct == null ? "neutral" : pct > 0 ? "up" : "down";
-  const handleInfoClick = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    if (!sentimentSymbol) return;
-    if (typeof onOpenCoinSentiment === "function") {
-      onOpenCoinSentiment(sentimentSymbol, { source: "alerts_center", alert: a });
-    }
-    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
-      window.dispatchEvent(new CustomEvent("openInfo", { detail: sentimentSymbol }));
-    }
-  };
 
   const handleToggleStar = () => {
     if (typeof onToggleWatchlist !== "function") return;
@@ -971,7 +961,7 @@ function SignalRow({
       <div className="bh-signal-row-right">
         <div className="bh-row-actions row-actions--stack">
           <RowStar starred={Boolean(isWatchlisted)} onToggleStar={handleToggleStar} />
-          <RowInfo onInfoClick={() => handleInfoClick()} />
+          <RowInfo tradeUrl={tradeUrl} />
         </div>
         <div className="bh-alert-time">
           <div className="bh-alert-time-abs">{absTs || "\u2014"}</div>
