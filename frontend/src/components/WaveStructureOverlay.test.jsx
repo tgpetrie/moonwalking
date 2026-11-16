@@ -273,16 +273,18 @@ describe("chart read panel in plain English", () => {
 });
 
 describe("chart read horizon switcher", () => {
-  it("offers short-term, swing and macro and reports the choice", () => {
+  it("offers short-term, swing, macro and cycle and reports the choice", () => {
     const onHorizonChange = vi.fn();
     render(<ChartReadPanel data={read({ horizon: "swing" })} horizon="swing" onHorizonChange={onHorizonChange} />);
     const group = screen.getByTestId("chart-read-horizons");
     const buttons = within(group).getAllByRole("button");
-    expect(buttons.map((b) => b.textContent)).toEqual(["Short-term", "Swing", "Macro"]);
-    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
+    expect(buttons.map((b) => b.textContent)).toEqual(["Short-term", "Swing", "Macro", "Cycle (Multi-Year)"]);
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false", "false"]);
     expect(screen.getByTestId("chart-read-horizon-detail").textContent).toBe("1-hour candles · ~12 days");
     fireEvent.click(buttons[2]);
     expect(onHorizonChange).toHaveBeenCalledWith("macro");
+    fireEvent.click(buttons[3]);
+    expect(onHorizonChange).toHaveBeenCalledWith("cycle");
   });
 
   it("uses the horizon list the server sends", () => {

@@ -10,16 +10,98 @@ returned descending by time from the API. Pass raw; this module sorts ascending.
 from __future__ import annotations
 
 import logging
+import json
+import math
+import os
+from pathlib import Path
+import re
+import sqlite3
+import time
+from contextlib import closing
+from datetime import datetime, timezone
 from typing import Any
 
-__all__ = ["analyze_candles", "build_wave_analysis"]
+import requests
 
-_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
+__all__ = ["analyze_candles", "build_wave_analysis", "fetch_multi_year_daily_candles", "aggregate_weekly_candles"]
+
+_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400, "1w": 604800}
 # Higher timeframe used for the wave read's trend check, built from the same candles.
-_HIGHER_TIMEFRAME = {"1m": "15m", "5m": "1h", "15m": "4h", "1h": "4h", "4h": "1d"}
+_HIGHER_TIMEFRAME = {"1m": "15m", "5m": "1h", "15m": "4h", "1h": "4h", "4h": "1d", "1d": "1w"}
 # Candles sent with the wave read: the whole window the swings were read from,
 # so earlier higher lows and lower highs can be drawn, not just the last count.
 _WAVE_CHART_BARS = 300
+
+
+def fetch_multi_year_daily_candles(product_id: str, years: int = 3) -> list[list[float]]:
+    """Fetch complete daily Coinbase bars, caching a completed UTC day's history."""
+    product = str(product_id or "").upper()
+    if not re.fullmatch(r"[A-Z0-9]{1,15}-USD", product):
+        raise ValueError("Invalid Coinbase product ID")
+    if isinstance(years, bool) or not isinstance(years, int) or not 1 <= years <= 4:
+        raise ValueError("years must be an integer between 1 and 4")
+    end = int(time.time() // 86400) * 86400
+    start = end - math.ceil(years * 365.25) * 86400
+    path = Path(os.environ.get("MW_CYCLE_HISTORY_DB") or Path(__file__).resolve().parent / "data" / "cycle_history.sqlite")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path, timeout=10)) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS cycle_history (product TEXT, years INTEGER, day_end INTEGER, candles TEXT NOT NULL, PRIMARY KEY(product, years))")
+        hit = conn.execute("SELECT candles FROM cycle_history WHERE product=? AND years=? AND day_end=?", (product, years, end)).fetchone()
+        if hit:
+            return json.loads(hit[0])
+
+    collected = {}
+    cursor = end
+    while cursor > start:
+        begin = max(start, cursor - 300 * 86400)
+        params = {
+            "granularity": 86400,
+            "start": datetime.fromtimestamp(begin, timezone.utc).isoformat(),
+            "end": datetime.fromtimestamp(cursor - 1, timezone.utc).isoformat(),
+        }
+        response = requests.get(
+            f"https://api.exchange.coinbase.com/products/{product}/candles",
+            params=params, timeout=15,
+        )
+        response.raise_for_status()
+        page = response.json()
+        if not isinstance(page, list):
+            raise ValueError("Coinbase returned an invalid candle page")
+        for row in page:
+            if not isinstance(row, list) or len(row) < 6:
+                raise ValueError("Coinbase returned a malformed daily candle")
+            try:
+                bar = [float(value) for value in row[:6]]
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Coinbase returned a malformed daily candle") from exc
+            ts, low, high, opening, close, volume = bar
+            if not all(math.isfinite(value) for value in bar) or ts % 86400 or low <= 0 or volume < 0 or not low <= min(opening, close) <= max(opening, close) <= high:
+                raise ValueError("Coinbase returned an invalid daily candle")
+            if begin <= ts < cursor:
+                collected[int(ts)] = bar
+        cursor = begin
+    candles = [collected[ts] for ts in sorted(collected, reverse=True)]
+    with closing(sqlite3.connect(path, timeout=10)) as conn, conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO cycle_history VALUES (?, ?, ?, ?)",
+            (product, years, end, json.dumps(candles, allow_nan=False)),
+        )
+    return candles
+
+
+def aggregate_weekly_candles(daily: list[list[Any]] | None) -> list[list[float]]:
+    """Aggregate complete Monday–Sunday UTC weeks; omit weeks with missing days."""
+    rows = _normalize_candles(daily or [])
+    groups: dict[int, list[tuple]] = {}
+    for row in rows:
+        start = int((row[0] + 3 * 86400) // 604800) * 604800 - 3 * 86400
+        groups.setdefault(start, []).append(row)
+    result = []
+    for start, week in sorted(groups.items()):
+        if [row[0] for row in week] != [start + day * 86400 for day in range(7)]:
+            continue
+        result.append([float(start), min(r[1] for r in week), max(r[2] for r in week), week[0][3], week[-1][4], sum(r[5] for r in week)])
+    return result
 
 
 # ─── normalise ────────────────────────────────────────────────────────────────
@@ -505,7 +587,7 @@ def build_wave_analysis(
         higher_name = _HIGHER_TIMEFRAME.get(timeframe)
         if higher_tf_candles is None:
             if higher_name:
-                higher_tf_candles = resample_candles(candles, _SECONDS[higher_name])
+                higher_tf_candles = aggregate_weekly_candles(candles) if timeframe == "1d" else resample_candles(candles, _SECONDS[higher_name])
         elif not higher_tf_candles:
             higher_name = None  # the caller supplied no higher-timeframe bars
         result = dict(
@@ -521,7 +603,7 @@ def build_wave_analysis(
         result["short_headline"] = short_headline(result)
         if result.get("available"):
             result["chart"] = {
-                "candles": candles[-_WAVE_CHART_BARS:],
+                "candles": candles if timeframe == "1d" else candles[-_WAVE_CHART_BARS:],
                 "granularity_seconds": step,
             }
         return result

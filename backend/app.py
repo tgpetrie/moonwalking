@@ -20,6 +20,7 @@ from flask_talisman import Talisman
 from flask_cors import CORS
 import random
 import requests
+import sqlite3
 import time
 import copy
 import threading
@@ -11871,6 +11872,124 @@ def get_agent_observations():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.route("/api/execution-agent/mode", methods=["GET", "POST"])
+def execution_agent_mode():
+    """Owner-only paper mode; never changes exchange permissions."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    import paper_execution_store
+
+    if request.method == "POST":
+        if not request.is_json:
+            return jsonify({"error": "A JSON request is required."}), 415
+        payload = request.get_json()
+        if not isinstance(payload, dict):
+            return jsonify({"error": "A JSON object is required."}), 400
+        try:
+            paper_execution_store.set_mode(user["id"], payload.get("mode"))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+    response = jsonify({
+        "status": "live",
+        "mode": paper_execution_store.get_mode(user["id"]),
+        "paper": True,
+    })
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/api/execution-agent/tickets", methods=["GET", "POST"])
+def execution_agent_tickets():
+    """List, preview, stage, or approve local paper tickets only."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    import paper_execution_store
+    from coinbase_execution_agent import CoinbaseExecutionAgent
+
+    if request.method == "GET":
+        product_id = str(request.args.get("product_id") or "").upper()
+        if product_id and not re.fullmatch(r"[A-Z0-9]{1,15}-USD", product_id):
+            return jsonify({"error": "Invalid product_id."}), 400
+        response = jsonify({
+            "status": "live",
+            "paper": True,
+            "tickets": paper_execution_store.list_tickets(user["id"], product_id or None),
+        })
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    if not request.is_json:
+        return jsonify({"error": "A JSON request is required."}), 415
+    payload = request.get_json()
+    if not isinstance(payload, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+    action = payload.get("action")
+    try:
+        if action == "approve":
+            if not isinstance(payload.get("ticket_id"), str) or not payload["ticket_id"]:
+                raise ValueError("A paper ticket ID is required.")
+            ticket = paper_execution_store.approve_ticket(user["id"], payload.get("ticket_id"))
+        elif action in {"preview", "stage"}:
+            intent = payload.get("ticket")
+            if not isinstance(intent, dict):
+                raise ValueError("A paper ticket is required.")
+            intent = dict(intent)
+            if not re.fullmatch(r"[A-Z0-9]{1,15}-USD", str(intent.get("product_id") or "")):
+                raise ValueError("Invalid product_id.")
+            # A caller cannot lower the circuit-breaker notional independently
+            # of the actual order size and price.
+            intent.pop("notional_usd", None)
+            # A browser-provided flag is not evidence of an actual holding.
+            intent.pop("held_position", None)
+            intent["position_held"] = False
+            mode = paper_execution_store.get_mode(user["id"])
+            if mode == "guardian" and intent.get("side") == "sell":
+                from portfolio_mode import get_portfolio_service, PortfolioModeError
+
+                try:
+                    snapshot = get_portfolio_service().snapshot()
+                except PortfolioModeError as exc:
+                    logging.warning("[PaperExecution] held position unavailable: %s", exc)
+                else:
+                    size = intent.get("base_size") or intent.get("size")
+                    if isinstance(size, (int, float)) and not isinstance(size, bool) and math.isfinite(size) and size > 0 and snapshot.get("status") == "live":
+                        intent["position_held"] = any(
+                            holding.get("product_id") == intent["product_id"]
+                            and not holding.get("is_cash")
+                            and isinstance(holding.get("available_quantity"), (int, float))
+                            and holding["available_quantity"] >= size
+                            for holding in snapshot.get("holdings") or []
+                        )
+            entry = intent.get("entry_price")
+            stop = intent.get("stop_limit_price")
+            target = intent.get("target_price")
+            if intent.get("side") == "buy" and all(
+                isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                for value in (entry, stop, target)
+            ) and 0 < stop < entry < target:
+                intent["rr_planned"] = round((target - entry) / (entry - stop), 2)
+            else:
+                intent.pop("rr_planned", None)
+            context = {
+                "mode": mode,
+                "trade_intents": [intent],
+            }
+            observations = CoinbaseExecutionAgent().run(context)
+            ticket = dict(observations[0].evidence["ticket"])
+            if action == "stage":
+                ticket = paper_execution_store.stage_ticket(user["id"], ticket)
+        else:
+            raise ValueError("Action must be preview, stage, or approve.")
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except (ValueError, TypeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    response = jsonify({"status": "live", "paper": True, "ticket": ticket})
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 _ICON_BATCH_SYMBOL_LIMIT = 250
 _ICON_BATCH_RESOLVE_CAP = 8  # bounded synchronous CoinGecko lookups per request
 
@@ -13257,6 +13376,14 @@ def get_chart_read(symbol):
             higher = resample_candles(_closed_candles(hourly, 3600, now), 14400)
         except Exception as exc:
             logging.debug(f"[ChartRead] 4h trend bars unavailable for {sym}: {exc}")
+    elif horizon == "cycle":
+        import chart_reader
+        try:
+            history = chart_reader.fetch_multi_year_daily_candles(product_id)
+        except (requests.RequestException, ValueError, OSError, sqlite3.Error):
+            logging.exception("[ChartRead] multi-year history unavailable for %s", sym)
+            return jsonify({"error": f"Multi-year history unavailable for {sym}"}), 503
+        higher = chart_reader.aggregate_weekly_candles(history)
     elif horizon == "macro":
         hourly, higher = fetch_both(
             lambda: _fetch_coinbase_candle_history(product_id, 3600, pages=3),
@@ -13297,8 +13424,56 @@ def get_chart_read(symbol):
         )
     result["horizon"] = horizon
     result["horizons"] = chart_structure.horizon_list()
+    if horizon == "cycle":
+        result["multi_year_context"] = chart_structure.multi_year_context(history)
+        result["multi_year_context"]["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
+            higher, "1w", [], as_of_ts=now
+        )
 
-    return jsonify(result)
+    try:
+        from catalyst_sentiment import get_service, structure_sentiment_posture
+
+        service = get_service()
+        summary = service.symbol(sym)
+        sources = service.source_health()
+        relevant = {name: state for name, state in sources.items() if name != "fear_greed"}
+        fresh = any(source.get("status") == "ok" for source in relevant.values())
+        complete = bool(relevant) and all(source.get("status") == "ok" for source in relevant.values())
+        structure = {"reads": {"1h": result["wave_analysis"]}} if horizon == "swing" else {}
+        posture = structure_sentiment_posture(summary, structure=structure) if fresh else None
+        if posture and posture["key"] == "quiet" and not complete:
+            posture = None
+        result["catalyst_sentiment"] = {
+            "status": "live" if complete else "partial" if fresh else "unavailable",
+            "summary": summary if fresh else None,
+            "posture": posture,
+            "sources": sources,
+        }
+    except Exception:
+        logging.exception("[ChartRead] catalyst context unavailable for %s", sym)
+        result["catalyst_sentiment"] = {"status": "unavailable", "posture": None}
+
+    user, owner_error = _require_portfolio_owner()
+    if not owner_error:
+        import paper_execution_store
+
+        tickets = paper_execution_store.list_tickets(user["id"], product_id)
+        result["paper_order_ticket"] = tickets[0] if tickets else None
+        if not tickets and horizon == "swing":
+            from coinbase_execution_agent import CoinbaseExecutionAgent
+
+            observations = CoinbaseExecutionAgent().run({
+                "product_id": product_id,
+                "symbol": sym,
+                "wave_analysis": result["wave_analysis"],
+                "mode": paper_execution_store.get_mode(user["id"]),
+                "sentiment_posture": result["catalyst_sentiment"].get("posture"),
+            })
+            if observations:
+                result["paper_order_ticket"] = observations[0].evidence["ticket"]
+    response = jsonify(result)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 # Structure posture for board rows. Display context only: nothing below is read

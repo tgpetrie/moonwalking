@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBackendBase } from "../config/api.js";
+import PaperExecutionControls from "../components/PaperExecutionControls.jsx";
 import "../styles/agents-page.css";
 
 // Read-only view of the local agent ledger (/api/agents/*). Nothing on this
@@ -244,6 +245,8 @@ export default function AgentsPage() {
           </button>
         </div>
       </section>
+
+      <PaperExecutionControls />
 
       <section className="mw-stat-grid mw-agents-stats" aria-label="Agent summary">
         <article className="mw-panel mw-stat-card"><span>Agents</span><strong>{summaries.length}</strong><small>{ranCount} have run here</small></article>

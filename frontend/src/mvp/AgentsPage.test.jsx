@@ -63,6 +63,27 @@ const NEVER = [
 ];
 
 describe("AgentsPage", () => {
+  it("updates the paper mode and approves a staged paper ticket", async () => {
+    vi.stubGlobal("fetch", vi.fn((url, options = {}) => {
+      let body;
+      if (String(url).includes("/api/execution-agent/mode")) {
+        body = { status: "live", mode: options.method === "POST" ? JSON.parse(options.body).mode : "advisory" };
+      } else if (String(url).includes("/api/execution-agent/tickets")) {
+        const ticket = { id: "ticket-1", product_id: "BTC-USD", status: options.method === "POST" ? "approved_paper" : "staged_for_approval", entry_price: 100, stop_trigger_price: 95, stop_limit_price: 94, target_price: 115, notional_usd: 100, rr_planned: 2.5 };
+        body = options.method === "POST" ? { status: "live", ticket } : { status: "live", tickets: [ticket] };
+      } else {
+        body = String(url).includes("/api/agents/status") ? statusPayload(NEVER) : { status: "live", observations: [] };
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => body });
+    }));
+    render(<AgentsPage />);
+    const mode = await screen.findByRole("combobox", { name: "Execution mode" });
+    fireEvent.change(mode, { target: { value: "guardian" } });
+    expect(await screen.findByDisplayValue("Guardian")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Approve (Paper)" }));
+    expect(await screen.findByText(/approved_paper/)).toBeInTheDocument();
+    expect(screen.getByText(/No Coinbase orders are submitted/)).toBeInTheDocument();
+  });
   it("says the ledger is unavailable when the backend can't be reached", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("connect ECONNREFUSED"))));
     render(<AgentsPage />);

@@ -113,10 +113,28 @@ const LEAN_COLOR = { positive: '#45ffb3', negative: '#ff6b6b', caution: '#f1b43a
 export default function CoinHeaderStrip(props) {
   const strip = buildCoinStrip(props);
   const { tape } = strip;
+  const catalyst = props.catalystPosture;
+  const cyclePosition = props.multiYearContext?.cycle_range_position_pct;
+  const cycleText = Number.isFinite(cyclePosition) && props.multiYearContext?.is_multi_year
+    ? `Cycle range: ${Math.round(cyclePosition)}% (${cyclePosition <= 30 ? 'near multi-year support' : cyclePosition >= 85 ? 'testing multi-year resistance' : 'within multi-year range'})`
+    : null;
+  const catalystLabels = {
+    catalyst_dip_reclaim: 'Catalyst + Dip Reclaim',
+    stealth_strength: 'Stealth Flow',
+    crowded_euphoria_top: 'Crowded Top Risk',
+    negative_catalyst_risk: 'Headline Risk',
+    trending_attention: catalyst?.trending_rank ? `Trending #${catalyst.trending_rank}` : 'Trending attention',
+  };
   return (
     <section className={`cp-strip cp-strip--${tape.tone}`} data-testid="coin-strip" aria-label="Coin summary">
       <div className="cp-strip__top">
         <h2 className="cp-strip__headline" data-testid="coin-strip-headline" data-source={strip.source}>{strip.headline}</h2>
+        {catalystLabels[catalyst?.key] ? (
+          <span className="cp-strip__tape" title={catalyst.detail || ''} data-testid="catalyst-posture">
+            {catalystLabels[catalyst.key]}
+          </span>
+        ) : null}
+        {cycleText ? <span className="cp-strip__tape" data-testid="cycle-range">{cycleText}</span> : null}
         <div className={`cp-strip__tape cp-strip__tape--${tape.tone}`} data-testid="coin-strip-tape" title={tape.title}>
           {tape.label ? <strong className="cp-strip__posture">{tape.label}</strong> : null}
           <span>{tape.rank}</span>

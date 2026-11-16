@@ -20,6 +20,7 @@ Wording is descriptive. Nothing in this module is outcome-validated.
 from __future__ import annotations
 
 import logging
+import math
 from statistics import median
 from typing import Any
 
@@ -62,6 +63,14 @@ HORIZONS: dict[str, dict[str, Any]] = {
         "span": "~1 month",
         "detail": "4-hour candles · ~1 month",
     },
+    "cycle": {
+        "key": "cycle",
+        "label": "Cycle",
+        "timeframe": "1d",
+        "higher_timeframe": "1w",
+        "span": "1–3+ years",
+        "detail": "Daily candles · multi-year history",
+    },
 }
 DEFAULT_HORIZON = "swing"
 
@@ -82,7 +91,64 @@ _SWING_LABEL = {
 
 
 def horizon_list() -> list[dict[str, Any]]:
-    return [dict(HORIZONS[key]) for key in ("short", "swing", "macro")]
+    return [dict(HORIZONS[key]) for key in ("short", "swing", "macro", "cycle")]
+
+
+def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
+    """Describe the observed daily range and repeated 2%-wide high/low shelves."""
+    rows = []
+    for bar in candles or []:
+        if not isinstance(bar, (list, tuple)) or len(bar) < 6:
+            continue
+        values = [_num(value) for value in bar[:6]]
+        if any(value is None for value in values):
+            continue
+        ts, low, high, opening, close, volume = values
+        if low <= 0 or volume < 0 or not low <= min(opening, close) <= max(opening, close) <= high:
+            continue
+        rows.append(values)
+    if not rows:
+        return {"available": False, "reason": "no_daily_history"}
+    rows.sort(key=lambda row: row[0])
+    low = min(rows, key=lambda row: row[1])
+    high = max(rows, key=lambda row: row[2])
+    price = rows[-1][4]
+    span = high[2] - low[1]
+    groups: dict[tuple[str, int], list] = {}
+    for row in rows:
+        for kind, value in (("support", row[1]), ("resistance", row[2])):
+            bucket = math.floor(math.log(value) / math.log(1.02))
+            groups.setdefault((kind, bucket), []).append((value, row[5]))
+    zones = []
+    for (kind, _), points in groups.items():
+        if len(points) < 3:
+            continue
+        zones.append({
+            "kind": kind,
+            "low": min(point[0] for point in points),
+            "high": max(point[0] for point in points),
+            "touches": len(points),
+            "volume": round(sum(point[1] for point in points), 8),
+        })
+    zones.sort(key=lambda zone: (-zone["touches"], -zone["volume"], zone["low"]))
+    expected_days = int((rows[-1][0] - rows[0][0]) / 86400) + 1
+    return {
+        "available": True,
+        "cycle_high": {"price": high[2], "timestamp": high[0]},
+        "cycle_low": {"price": low[1], "timestamp": low[0]},
+        "current_price": price,
+        "pct_from_cycle_high": round((price / high[2] - 1) * 100, 2),
+        "cycle_range_position_pct": round((price - low[1]) / span * 100, 2) if span else None,
+        "macro_fib_levels": {str(ratio): high[2] - span * ratio for ratio in (0.236, 0.382, 0.5, 0.618, 0.786)},
+        "major_historical_zones": zones[:6],
+        "zone_method": "daily highs/lows grouped into 2% price bands; at least three daily touches; sorted by touches then base volume",
+        "candle_count": len(rows),
+        "coverage_days": expected_days,
+        "missing_days": max(0, expected_days - len(rows)),
+        "is_multi_year": len(rows) >= 365 and expected_days - len(rows) <= expected_days * 0.1,
+        "first_timestamp": rows[0][0],
+        "last_timestamp": rows[-1][0],
+    }
 
 
 def _money(price: Any) -> str:

@@ -42,6 +42,16 @@ const ranking = { live_rank: 62, universe_size: 107, live_score: 49 };
 const neutralLean = { label: "NEUTRAL", tone: "neutral", note: "No clear fast lean right now." };
 
 describe("coin header strip", () => {
+  it("shows meaningful catalyst and cycle context, but not quiet", () => {
+    const { rerender } = render(<CoinHeaderStrip catalystPosture={{ key: "trending_attention", trending_rank: 3 }} multiYearContext={{ cycle_range_position_pct: 28, is_multi_year: true }} />);
+    expect(screen.getByTestId("catalyst-posture")).toHaveTextContent("Trending #3");
+    expect(screen.getByTestId("cycle-range")).toHaveTextContent("28% (near multi-year support)");
+    rerender(<CoinHeaderStrip catalystPosture={{ key: "quiet" }} multiYearContext={{ cycle_range_position_pct: 94, is_multi_year: true }} />);
+    expect(screen.queryByTestId("catalyst-posture")).toBeNull();
+    expect(screen.getByTestId("cycle-range")).toHaveTextContent("94% (testing multi-year resistance)");
+    rerender(<CoinHeaderStrip multiYearContext={{ cycle_range_position_pct: 28, is_multi_year: false }} />);
+    expect(screen.queryByTestId("cycle-range")).toBeNull();
+  });
   it("leads with the chart read and puts the action levels in one row", () => {
     render(<CoinHeaderStrip wave={wave()} plan={plan} posture={waitPosture} earlyRead={neutralLean} liveRanking={ranking} />);
 

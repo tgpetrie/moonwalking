@@ -5,6 +5,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import chart_reader
 import app as backend_app
+import catalyst_sentiment
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def offline_catalyst(monkeypatch):
+    class Unavailable:
+        def symbol(self, symbol):
+            return {}
+
+        def source_health(self):
+            return {"trending": {"status": "unavailable"}}
+
+    monkeypatch.setattr(catalyst_sentiment, "get_service", lambda: Unavailable())
 
 
 def test_chart_read_route_forwards_event_context(monkeypatch):
@@ -193,10 +207,26 @@ def test_chart_read_route_defaults_to_the_swing_horizon(monkeypatch):
         with backend_app.app.test_request_context(url):
             body = backend_app.get_chart_read("SOL").get_json()
         assert body["horizon"] == "swing" and body["timeframe"] == "1h"
-        assert [h["key"] for h in body["horizons"]] == ["short", "swing", "macro"]
+        assert [h["key"] for h in body["horizons"]] == ["short", "swing", "macro", "cycle"]
         wave = body["wave_analysis"]
         assert wave["story"]["steps"] and "swings" in wave["swing_history"]
         assert len(wave["swing_history"]["swings"]) == len(wave["pivots"])
+
+
+def test_cycle_route_uses_daily_and_weekly_history(monkeypatch):
+    history = _history(count=120, step=86400)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: history)
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=cycle"):
+        response = backend_app.get_chart_read("SOL")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["horizon"] == "cycle"
+    assert body["wave_analysis"]["timeframe"] == "1d"
+    assert body["multi_year_context"]["candle_count"] == 120
+    assert body["multi_year_context"]["weekly_wave_analysis"]["timeframe"] == "1w"
+    assert body["catalyst_sentiment"]["status"] == "unavailable"
+    assert body["catalyst_sentiment"]["posture"] is None
+    assert "paper_order_ticket" not in body
 
 
 def test_short_horizon_reads_15m_candles_with_a_4h_trend_check(monkeypatch):

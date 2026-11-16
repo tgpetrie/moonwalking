@@ -9,6 +9,13 @@ from .portfolio_watch import PortfolioWatchAgent
 from .store import AgentStore
 from .tape_scout import TapeScoutAgent
 
+try:
+    from ..coinbase_execution_agent import CoinbaseExecutionAgent
+    from ..catalyst_sentiment import CatalystSentimentAgent
+except ImportError:
+    from coinbase_execution_agent import CoinbaseExecutionAgent
+    from catalyst_sentiment import CatalystSentimentAgent
+
 
 DEFAULT_AGENT_FACTORIES = (
     DataQualityAgent,
@@ -16,6 +23,8 @@ DEFAULT_AGENT_FACTORIES = (
     TapeScoutAgent,
     PortfolioWatchAgent,
     DevelopmentEfficiencyAgent,
+    CoinbaseExecutionAgent,
+    CatalystSentimentAgent,
 )
 
 

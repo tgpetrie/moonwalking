@@ -103,6 +103,65 @@ def story_text(story):
     return " ".join(parts).lower()
 
 
+def test_cycle_context_math_and_historical_shelves():
+    candles = [
+        [86400 * i, 50 if i == 0 else 60, 200 if i == 2 else 120, 100, 92, 10 + i]
+        for i in range(5)
+    ]
+    context = cs.multi_year_context(candles)
+    assert context["cycle_low"] == {"price": 50, "timestamp": 0}
+    assert context["cycle_high"] == {"price": 200, "timestamp": 172800}
+    assert context["pct_from_cycle_high"] == -54
+    assert context["cycle_range_position_pct"] == 28
+    assert context["macro_fib_levels"]["0.5"] == 125
+    assert any(z["kind"] == "support" and z["touches"] == 4 for z in context["major_historical_zones"])
+    assert context["missing_days"] == 0
+    assert cs.multi_year_context([])["available"] is False
+
+
+def test_cycle_weekly_bars_require_complete_monday_weeks():
+    from chart_reader import aggregate_weekly_candles
+
+    monday = 4 * 86400
+    days = [[monday + i * 86400, 9, 12, 10, 11, i + 1] for i in range(8)]
+    assert aggregate_weekly_candles(days) == [[float(monday), 9, 12, 10, 11, 28]]
+    assert aggregate_weekly_candles(days[:3] + days[4:]) == []
+
+
+def test_cycle_loader_pages_caches_and_excludes_forming_day(monkeypatch, tmp_path):
+    from datetime import datetime
+    import chart_reader
+
+    now = 20000 * 86400 + 100
+    monkeypatch.setattr(chart_reader.time, "time", lambda: now)
+    monkeypatch.setenv("MW_CYCLE_HISTORY_DB", str(tmp_path / "history.sqlite"))
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.bars
+
+    def fake_get(url, *, params, timeout):
+        begin = datetime.fromisoformat(params["start"]).timestamp()
+        end = datetime.fromisoformat(params["end"]).timestamp()
+        assert end - begin < 300 * 86400
+        calls.append((begin, end))
+        response = Response()
+        response.bars = [[begin, 9, 12, 10, 11, 1]]
+        return response
+
+    monkeypatch.setattr(chart_reader.requests, "get", fake_get)
+    first = chart_reader.fetch_multi_year_daily_candles("BTC-USD")
+    assert len(calls) == 4
+    assert len(first) == 4 and first == sorted(first, reverse=True)
+    assert first[0][0] < now - 100
+    assert chart_reader.fetch_multi_year_daily_candles("BTC-USD") == first
+    assert len(calls) == 4
+
+
 # ─── swing history ────────────────────────────────────────────────────────────
 
 
@@ -311,10 +370,10 @@ def test_wave_read_carries_history_for_every_confirmed_swing():
 # ─── horizons ─────────────────────────────────────────────────────────────────
 
 
-def test_horizons_cover_short_swing_and_macro():
+def test_horizons_cover_short_swing_macro_and_cycle():
     keys = [h["key"] for h in cs.horizon_list()]
-    assert keys == ["short", "swing", "macro"]
-    assert [h["timeframe"] for h in cs.horizon_list()] == ["15m", "1h", "4h"]
+    assert keys == ["short", "swing", "macro", "cycle"]
+    assert [h["timeframe"] for h in cs.horizon_list()] == ["15m", "1h", "4h", "1d"]
     assert cs.DEFAULT_HORIZON == "swing"
     cs.horizon_list()[0]["label"] = "changed"
     assert cs.HORIZONS["short"]["label"] == "Short-term"

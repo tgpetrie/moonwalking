@@ -33,11 +33,33 @@ Advanced Trade fills can reconstruct the weighted cost of quantities covered by 
 
 ## Deliberate omissions
 
-Stage 1 does not contain order creation, order preview, paper trading, automated trading, transfer, withdrawal, or direct action links from notifications. Protection levels, targets, and historical probabilities stay in `NOT ENOUGH PROOF` until the comparable-event store has an adequate asset-specific sample.
+Stage 1 does not contain live order creation, exchange-side order previews,
+automated trading, transfer, withdrawal, or direct action links from notifications.
+Protection levels, targets, and historical probabilities stay in `NOT ENOUGH
+PROOF` until the comparable-event store has an adequate asset-specific sample.
+
+The separate owner-only paper execution controls store local modes and paper
+tickets in SQLite (`MW_PAPER_EXECUTION_DB` can override the default location).
+Their Coinbase-shaped payloads are generated locally and never sent to Coinbase.
+Guardian only auto-approves defenses whose size is covered by a fresh owner
+portfolio snapshot; browser-provided holding flags are not verification.
+Autonomous paper tickets are blocked when
+position count, realized R, or sentiment posture is unavailable. The paper API
+does not yet supply those trusted risk inputs, so its autonomous previews remain
+blocked rather than assuming safe defaults.
+
+The Cycle chart reads up to three years of closed daily public Coinbase candles
+and complete Monday–Sunday UTC weekly aggregates. History is cached locally
+through the current UTC day (`MW_CYCLE_HISTORY_DB` overrides its location).
+Range levels use the latest closed daily price. Fib levels are retracements
+down from the observed high, and historical shelves group daily highs and lows
+into 2% price bands with at least three touches, ranked by touches and volume.
+Coverage and missing-day counts describe the actual observed window; short
+listing histories are not labeled multi-year.
 
 ## Later stages
 
-1. Record portfolio-aware alerts and paper plans.
+1. Connect verified portfolio-aware risk inputs and record paper plans.
 2. Grade paper outcomes and expose calibrated ranges only when samples are adequate.
 3. Add Coinbase order preview with explicit in-app confirmation.
 4. Consider capped auto-trading only in a separate funded portfolio with a kill switch and complete audit trail.

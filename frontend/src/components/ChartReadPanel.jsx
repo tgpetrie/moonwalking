@@ -26,6 +26,7 @@ export const CHART_HORIZONS = [
   { key: 'short', label: 'Short-term', detail: '15-minute candles · ~3 days' },
   { key: 'swing', label: 'Swing', detail: '1-hour candles · ~12 days' },
   { key: 'macro', label: 'Macro', detail: '4-hour candles · ~1 month' },
+  { key: 'cycle', label: 'Cycle (Multi-Year)', detail: 'Daily candles · multi-year history' },
 ];
 
 function Chip({ label, color, children }) {
@@ -71,7 +72,7 @@ function HorizonSwitcher({ horizons, horizon, onChange, busy }) {
         {list.map((h) => (
           <button key={h.key} type="button" className={`mini-toggle-btn ${active.key === h.key ? 'active' : ''}`}
             aria-pressed={active.key === h.key} title={h.detail} onClick={() => onChange(h.key)}>
-            {h.label}
+            {h.key === 'cycle' ? 'Cycle (Multi-Year)' : h.label}
           </button>
         ))}
       </div>

@@ -17,6 +17,7 @@ import { tokenIconUrl } from '../utils/tokenIcon.js';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
 import CoinHeaderStrip from './CoinHeaderStrip.jsx';
+import PaperExecutionControls from './PaperExecutionControls.jsx';
 import RiskLevelsChart from './RiskLevelsChart.jsx';
 import '../styles/sentiment-popup-advanced.css';
 
@@ -1260,6 +1261,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol, chartEventContext, chartHorizon]);
 
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) return undefined;
+    let cancelled = false;
+    const endpoint = API_ENDPOINTS.chartRead
+      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext, 'cycle')
+      : `/api/chart-read/${encodeURIComponent(coinSymbol)}?horizon=cycle`;
+    fetchData(endpoint)
+      .then((data) => { if (!cancelled) setChartReads((reads) => ({ ...reads, cycle: data })); })
+      .catch((error) => { if (!cancelled) console.warn('Cycle chart unavailable:', error); });
+    return () => { cancelled = true; };
+  }, [isOpen, coinSymbol, chartEventContext]);
+
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
       setCoinInsights(null);
@@ -2407,10 +2420,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     wave={swingChartRead?.wave_analysis}
                     plan={riskLevels?.plan}
                     posture={simpleCoinRead}
+                    multiYearContext={chartReads.cycle?.multi_year_context}
+                    catalystPosture={swingChartRead?.catalyst_sentiment?.posture ? {
+                      ...swingChartRead.catalyst_sentiment.posture,
+                      trending_rank: swingChartRead.catalyst_sentiment.summary?.trending_rank,
+                    } : null}
                     earlyRead={earlyRead}
                     liveRanking={coinLiveRanking}
                     chartLoading={chartReadLoading && !swingChartRead}
                     formatPlanPrice={formatPlanPrice}
+                  />
+                  <PaperExecutionControls
+                    productId={`${coinSymbol}-USD`}
+                    preview={swingChartRead?.paper_order_ticket ? {
+                      ...swingChartRead.paper_order_ticket,
+                      multi_year_context: chartReads.cycle?.multi_year_context,
+                    } : null}
                   />
 
                   {alertBanner ? (

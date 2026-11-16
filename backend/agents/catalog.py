@@ -44,6 +44,17 @@ AGENT_CATALOG: dict[str, dict[str, str]] = {
             "handoffs between models and people stay clean."
         ),
     },
+    "coinbase_execution": {
+        "label": "Coinbase Trade Intent",
+        "purpose": (
+            "Builds staged or circuit-breaker-gated Coinbase order previews. "
+            "It never submits live orders."
+        ),
+    },
+    "sentiment_scout": {
+        "label": "Sentiment Scout",
+        "purpose": "Reports source-backed catalyst and chart sentiment context.",
+    },
 }
 
 
