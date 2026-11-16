@@ -1,9 +1,54 @@
 # Resume Moonwalking from anywhere
 
 For the November 16 cycle lane, continue from
-`codex/cycle-strategist-audit-20261116` and the
-[audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md). The audit verified the
-Flask scan, runner and owner routes as one pipeline without starting a server.
+`claude/elliott-abc-v2-reclaim-20261115`. Phase 2 (below) is built on the
+audited commit `464e7f3`, which is also the tip of
+`codex/cycle-strategist-audit-20261116`. The
+[audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
+it verified; Phase 2 has not had that red-team pass.
+
+## Cycle strategist Phase 2: reload ladder, sizing, rotation, live quotes · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `e4ac08d`
+on top of `464e7f3`. Everything is still paper or dry-run: no route or agent
+can submit an exchange order, and approving a proposal only records the
+decision.
+
+| Item | State |
+|---|---|
+| Reload ladder (`cycle_strategist.build_reload_plan`) | Every `TRIM_TO_USDC` carries `reload_plan`: freed USDC (`trim quantity × reference price`) split 25/35/40 across up to three support levels under the trim price and above the invalidation stop. Level preference: the 0.618/0.702/0.786 log-Fib support levels, then the daily higher-low floor, then Fib cluster midpoints. With fewer than three levels the weights are renormalised; with none the plan is `available: false`. It reports `projected_reloaded_coins`, `net_coin_gain_qty`, `net_coin_gain_pct` (growth of the whole held stack) and `reloaded_vs_trimmed_pct`. Fees and slippage are not included |
+| `RELOAD_ACCUMULATE` | Fires when price is at or under an unspent rung of an active plan, above that plan's invalidation, with weekly StochRSI `oversold_turn_up` or a daily MACD kiss. A plan is active once its trim is `approved` or `auto_executed_dry_run` (`AgentStore.active_reload_plans`). Approving a reload spends the rungs it names; rejecting leaves them open. A coin with an open ladder is evaluated even when it is no longer held or watched |
+| R:R and sizing | `ACCUMULATE_SUPPORT`, `BREAKOUT_ENTRY` and `RELOAD_ACCUMULATE` need `reward_to_risk_ratio >= 2.0` against the midpoint of the active target tier; entries that fail are dropped and listed in `agent.last_skipped`. The stop is the scanner's invalidation stop, else the daily higher-low floor. `sizing` holds `risk_budget_pct` (base 1.0% × 0.5 in Stage 1, 0.75 in Stage 2, 1.0 in Stages 3–4; 0.5 when the stage is unknown), `suggested_notional_usd` and `suggested_quantity`. One entry is capped at 25% of equity |
+| Portfolio heat | Open risk across held coins is the loss if each stop is hit; a coin with no stop under its price counts at 10%. New entries share the headroom under `max_open_risk_pct` (default 5.0) and are sized down to zero when it is used up. Equity is `portfolio_equity_usd` when supplied, otherwise the marked value of held coins, which leaves out cash and overstates heat |
+| `ROTATE_TO_LEADER` | A held coin under its 50-week average with weekly RSI under 45, no daily or macro bullish divergence, not at multi-year support and not in the deep-accumulation bucket, paired with the best of the top three `deep_accumulation_exhaustion` or `low_confirmation_breakout` coins whose R:R is at least 3.0. It proposes moving 25% of the laggard. It has a buy leg, so it always waits for approval, in Mode B too |
+| Scanner rows (`macro_industry_scanner.cycle_row`) | New public keys the strategist reads: `support_levels`, `fib_cluster_mids`, `cycle_low`, `full_extension_targets` (`low`/`high`) |
+| Live quotes (`cycle_context.fetch_top_of_book`, `fetch_live_quotes`) | Public Coinbase Exchange `GET /products/<BASE>-USD/book?level=1`, no key. `scripts/run_local_agents.py` passes the fetcher in the context and the strategist calls it straight before routing, only for exits Mode B will simulate (`auto_protect_exits` + `dry_run`, not paused). `--no-live-quotes` turns it off. New flags: `--equity-usd`, `--base-risk-pct`, `--max-open-risk-pct` |
+| Guard change | `GuardedDryRunExitExecutor(max_clock_skew_ms=2000)`. A live check on this PC showed Coinbase's book time between 58 ms behind and 678 ms ahead of local receipt; the audited rule (`exchange > observed` is stale) refused every live book. Books more than 2 s ahead are still refused, and `max_clock_skew_ms=0` restores the strict rule |
+| Routes | `GET /api/agents/proposals` also returns `reload_plans` (open ladders, filterable with `symbol`). No new route |
+| Frontend | `CycleStrategistDeck.jsx`: `R:R` badge, Target, `Suggested Size` and Risk, heat-cap and funding notes, `Reload Plan (+X% Extra Coins)` with the rung table on trims, reload and rotation cards (rotation has a Coinbase spot link per leg), and an Open Reload Ladders panel |
+| Checks | Backend, from `backend`: 1030 passed, 33 skipped, 1 failed. The failure is `test_realized_volatility.py::test_unavailable_is_distinguishable_from_low_volatility`, which passes on its own (4/4) and is not touched by Phase 2; it fails only in the full run. Frontend: 598 passed in 45 files; `npm --prefix frontend run build` passes |
+| Not done | No browser check of the new cards against a live backend. `scripts/run_local_agents.py --api-base http://127.0.0.1:5004 --watchlist BTC,SOL,AVAX,RENDER,FET,ATOM` ran once the scan was ready (19 coins): all agents finished with 0 proposals and no smart alerts, because no positions were passed and the watchlist coins in deep accumulation lacked the entry triggers. Not deployed |
+
+Things to know before relying on it:
+
+- The scan price is the last closed daily candle. The dry-run guard refuses a
+  quote whose bid is more than 2% from that reference, so on a day that has
+  moved more than 2% a Mode B exit stays `blocked_by_guard` with
+  `quote_deviates_from_reference`. That is the guard working, not a feed fault.
+- A trim made near the cycle low (the 50W/100W-average trigger) usually has no
+  support level between its stop and price, so its plan is unavailable.
+- Approval records intent only. A ladder opens when a trim is approved whether
+  or not the coins were actually sold on Coinbase.
+- The backend test run used the main checkout's virtualenv
+  (`C:\Users\tgpet\Projects\Moonwalking\.venv`); this worktree's `.venv` has no
+  pytest.
+- The rules are descriptive. Nothing here establishes trading performance.
+
+Next action: as the portfolio owner on the dev backend (port 5004, not 5003),
+run `scripts/run_local_agents.py --api-base http://127.0.0.1:5004
+--positions-file <file> --watchlist <symbols> --equity-usd <equity>` after the
+scan reports `ready`, then open the Agents page and check a trim's reload
+plan, an entry's R:R and size, and one Mode B dry-run exit with live quotes.
 
 ## Cycle strategist routes, runner context and control UI · November 16
 
