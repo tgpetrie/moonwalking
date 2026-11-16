@@ -58,6 +58,20 @@ Built on `claude/elliott-abc-v2-reclaim-20261115` after `475a981`, in the
   not been checked in a browser against a live backend.
 - Details and the next action are at the top of [RESUME_HERE.md](RESUME_HERE.md).
 
+## Cycle strategist Phase 2 · November 16
+
+Same branch and checkout, built on the audited commit `464e7f3`.
+
+- Each trim carries a 25/35/40 reload ladder with the projected coin gain;
+  `RELOAD_ACCUMULATE` and `ROTATE_TO_LEADER` are new proposal actions.
+- Entries need reward to risk of 2 or more and carry a stage-scaled size
+  inside a 5% open-risk cap.
+- `scripts/run_local_agents.py` fetches public Coinbase Exchange level-1 books
+  for Mode B dry-run exits (`--no-live-quotes` for offline runs).
+- Still paper and dry-run only. Not checked in a browser, not deployed.
+- Details, caveats and the next action are at the top of
+  [RESUME_HERE.md](RESUME_HERE.md).
+
 ## Resume safely
 
 Read `AGENTS.md`, `CLAUDE.md`, `docs/ai/AI_INDEX.md`, the top of `HANDOFF.md`, and

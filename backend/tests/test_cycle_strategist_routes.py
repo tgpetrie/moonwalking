@@ -28,7 +28,11 @@ def _scan(*rows, stage="stage_1_macro_compression"):
 
 SCAN = _scan(
     _row("SOL", 175.0, rollover_target_box={"low": 150.0, "high": 200.0}),
-    _row("AVAX", 30.0, breaking_confirmation_pivot=True, weekly_rsi=65.0),
+    _row(
+        "AVAX", 30.0, breaking_confirmation_pivot=True, weekly_rsi=65.0,
+        accumulation_invalidation_stop={"stop_price": 28.0},
+        rollover_target_box={"low": 40.0, "high": 50.0},
+    ),
 )
 
 
@@ -307,3 +311,134 @@ def test_open_paper_positions_feed_held_positions(client):
     rows = paper_execution_store.list_open_positions(1)
     assert [(r["symbol"], r["quantity"], r["source"]) for r in rows] == [("SOL", 2.5, "paper")]
     assert paper_execution_store.list_open_positions(2) == []
+
+
+# ─── Phase 2: reload plans, sizing and the new actions over HTTP ─────────────
+
+DAY = 86_400
+PHASE2_SOL = dict(
+    rollover_target_box={"low": 150.0, "high": 200.0},
+    support_levels={"0.618": 120.0, "0.702": 105.0, "0.786": 90.0},
+    cycle_low=60.0,
+)
+
+
+def _phase2_run(now, *rows, positions=(), watchlist=(), **context):
+    agent = CycleStrategistAgent(AgentStore())
+    agent.run({
+        "now_ts": now, "cycle_scan": _scan(*rows), "positions": list(positions),
+        "watchlist": list(watchlist), "portfolio_equity_usd": 10_000, **context,
+    })
+    return {p["action"]: p for p in agent.last_proposals}
+
+
+def test_proposals_expose_reload_plan_sizing_and_reward_to_risk(client):
+    seeded = _phase2_run(
+        NOW, _row("SOL", 175.0, **PHASE2_SOL), SCAN["coins"][1],
+        positions=[{"symbol": "SOL", "quantity": 10}], watchlist=["AVAX"],
+    )
+    body = client.get("/api/agents/proposals").json
+    by_action = {p["action"]: p for p in body["proposals"]}
+    plan = by_action["TRIM_TO_USDC"]["reload_plan"]
+    assert plan["freed_usdc"] == 656.25 and plan["net_coin_gain_pct"] == 27.21
+    assert [t["level"] for t in plan["tranches"]] == [120.0, 105.0, 90.0]
+    entry = by_action["BREAKOUT_ENTRY"]
+    assert entry["reward_to_risk_ratio"] == 7.5 and entry["target_price"] == 45.0
+    assert entry["sizing"]["suggested_notional_usd"] == 750.0
+    assert entry["sizing"]["risk_budget_pct"] == 0.5
+    # A pending trim has freed nothing, so no ladder is open yet.
+    assert body["reload_plans"] == []
+
+    trim_id = seeded["TRIM_TO_USDC"]["proposal_id"]
+    assert client.post(f"/api/agents/proposals/{trim_id}/approve", json={}).status_code == 200
+    (open_plan,) = client.get("/api/agents/proposals").json["reload_plans"]
+    assert open_plan["plan_id"] == trim_id and open_plan["symbol"] == "SOL"
+    assert open_plan["trim_status"] == "approved" and open_plan["remaining_usdc"] == 656.25
+    assert [t["filled"] for t in open_plan["tranches"]] == [False, False, False]
+    assert client.get("/api/agents/proposals?symbol=AVAX").json["reload_plans"] == []
+    assert len(client.get("/api/agents/proposals?symbol=sol-usd").json["reload_plans"]) == 1
+
+
+def test_reload_accumulate_round_trip_through_the_routes(client):
+    trim = _phase2_run(
+        NOW, _row("SOL", 175.0, **PHASE2_SOL), positions=[{"symbol": "SOL", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    client.post(f"/api/agents/proposals/{trim['proposal_id']}/approve", json={})
+
+    at_support = _row(
+        "SOL", 118.0, **PHASE2_SOL,
+        accumulation_invalidation_stop={"stop_price": 110.0},
+        weekly_stoch_direction="oversold_turn_up",
+    )
+    _phase2_run(NOW + DAY, at_support, positions=[{"symbol": "SOL", "quantity": 6.25}])
+    listed = client.get("/api/agents/proposals?status=pending_approval").json["proposals"]
+    (reload_,) = [p for p in listed if p["action"] == "RELOAD_ACCUMULATE"]
+    assert reload_["side"] == "buy" and reload_["product_id"] == "SOL-USD"
+    assert reload_["evidence"]["reload_fills"][0]["plan_id"] == trim["proposal_id"]
+    assert reload_["sizing"]["funded_usd"] == 164.06
+
+    path = f"/api/agents/proposals/{reload_['proposal_id']}"
+    rejected_first = client.post(f"{path}/reject", json={"note": "x"})
+    assert rejected_first.status_code == 400  # the body must be an empty object
+    approved = client.post(f"{path}/approve", json={}).json["proposal"]
+    assert approved["status"] == "approved" and approved["execution"] is None
+    (open_plan,) = client.get("/api/agents/proposals").json["reload_plans"]
+    assert [t["filled"] for t in open_plan["tranches"]] == [True, False, False]
+    assert open_plan["remaining_usdc"] == 492.19
+    assert AgentStore().count_auto_orders_since(0) == 0
+
+
+def test_rejected_reload_leaves_the_rung_open(client):
+    trim = _phase2_run(
+        NOW, _row("SOL", 175.0, **PHASE2_SOL), positions=[{"symbol": "SOL", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    client.post(f"/api/agents/proposals/{trim['proposal_id']}/approve", json={})
+    at_support = _row(
+        "SOL", 118.0, **PHASE2_SOL,
+        accumulation_invalidation_stop={"stop_price": 110.0}, daily_macd_kiss=True,
+    )
+    reload_ = _phase2_run(NOW + DAY, at_support)["RELOAD_ACCUMULATE"]
+    client.post(f"/api/agents/proposals/{reload_['proposal_id']}/reject", json={})
+    (open_plan,) = client.get("/api/agents/proposals").json["reload_plans"]
+    assert open_plan["remaining_usdc"] == 656.25
+    # The next day the same rung is proposed again under a new ID.
+    again = _phase2_run(NOW + 2 * DAY, at_support)["RELOAD_ACCUMULATE"]
+    assert again["proposal_id"] != reload_["proposal_id"] and again["status"] == "pending_approval"
+
+
+def test_rotate_to_leader_is_listed_and_decided_like_any_proposal(client):
+    AgentStore().set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    laggard = _row("DOT", 5.0, above_50w_sma=False, weekly_rsi=40.0, at_multi_year_support=False)
+    leader = _row(
+        "LINK", 1.0, bucket="deep_accumulation_exhaustion", score=30.0,
+        accumulation_invalidation_stop={"stop_price": 0.92},
+        rollover_target_box={"low": 1.4, "high": 1.8},
+    )
+    seeded = _phase2_run(NOW, laggard, leader, positions=[{"symbol": "DOT", "quantity": 100}])
+    assert set(seeded) == {"ROTATE_TO_LEADER"}
+    (rotation,) = client.get("/api/agents/proposals?symbol=DOT").json["proposals"]
+    assert rotation["status"] == "pending_approval"  # never auto-executed, even in Mode B
+    assert rotation["pair"]["buy_product_id"] == "LINK-USD"
+    assert rotation["pair"]["leader"]["reward_to_risk_ratio"] == 7.5
+    assert rotation["sizing"]["suggested_notional_usd"] == 125.0
+    approved = client.post(f"/api/agents/proposals/{rotation['proposal_id']}/approve", json={})
+    assert approved.json["proposal"]["status"] == "approved"
+    assert approved.json["proposal"]["execution"] is None
+    assert AgentStore().count_auto_orders_since(0) == 0
+
+
+def test_phase_two_evidence_stays_off_public_surfaces(client, monkeypatch):
+    store = AgentStore()
+    result = run_once(
+        {
+            "now_ts": NOW, "cycle_scan": _scan(_row("SOL", 175.0, **PHASE2_SOL)),
+            "positions": [{"symbol": "SOL", "quantity": 10}],
+        },
+        store=store, agents=[CycleStrategistAgent()],
+    )
+    assert result["runs"][0]["observations"] == 1
+    owner_view = store.latest(agent="cycle_strategist")[0]["evidence"]
+    assert owner_view["reload_plan"]["freed_usdc"] == 656.25
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
+    assert client.get("/api/agents/observations").json["observations"] == []
+    assert client.get("/api/agents/proposals").status_code == 401

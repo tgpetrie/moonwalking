@@ -11950,6 +11950,8 @@ def get_agent_proposals():
         "status": "live",
         "dry_run_only": True,
         "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
+        # Reload ladders from approved or dry-run executed trims that still hold USDC.
+        "reload_plans": store.active_reload_plans(symbol),
         "autonomy": store.get_autonomy_settings(),
     })
 

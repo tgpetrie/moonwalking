@@ -27,6 +27,8 @@ MAX_DAILY_ORDER_CAP = 20
 # Proposal states an operator or the strategist can no longer change.
 AUTO_ORDER_STATUSES = ("auto_executed_dry_run", "auto_armed_dry_run")
 OPEN_PROPOSAL_STATUSES = frozenset({"pending_approval", "blocked_by_guard"})
+# A trim in one of these states has freed USDC for its reload ladder.
+RELOAD_PLAN_ACTIVE_STATUSES = ("approved", "auto_executed_dry_run")
 PRIVATE_AGENT = "cycle_strategist"
 
 
@@ -582,6 +584,64 @@ class AgentStore:
                 (status, int(time.time()), proposal_id),
             )
             return self._get_proposal(conn, proposal_id)
+
+    def active_reload_plans(self, symbol: str | None = None) -> list[dict]:
+        """Reload ladders that still hold unspent USDC, oldest first.
+
+        A trim's plan becomes active once the trim is approved or executed in
+        dry run; a pending, blocked or rejected trim freed nothing. A rung is
+        spent when an approved ``RELOAD_ACCUMULATE`` proposal names it.
+        """
+        filters, params = "", []
+        if symbol:
+            filters, params = "AND symbol = ?", [symbol.upper().split("-")[0]]
+        with self._connection() as conn:
+            trims = conn.execute(
+                f"""
+                SELECT * FROM trade_proposals
+                WHERE action = 'TRIM_TO_USDC' AND status IN (?, ?) {filters}
+                ORDER BY created_ts, proposal_id
+                """,
+                (*RELOAD_PLAN_ACTIVE_STATUSES, *params),
+            ).fetchall()
+            reloads = conn.execute(
+                f"""
+                SELECT proposal_json FROM trade_proposals
+                WHERE action = 'RELOAD_ACCUMULATE' AND status = 'approved' {filters}
+                """,
+                params,
+            ).fetchall()
+        spent = set()
+        for row in reloads:
+            evidence = json.loads(row["proposal_json"]).get("evidence") or {}
+            for fill in evidence.get("reload_fills") or []:
+                if isinstance(fill, dict):
+                    spent.add((fill.get("plan_id"), fill.get("tranche")))
+        plans = []
+        for row in trims:
+            proposal = self._row_to_proposal(row)
+            plan = proposal.get("reload_plan")
+            if not isinstance(plan, dict) or not plan.get("available"):
+                continue
+            tranches = [
+                {**tranche, "filled": (proposal["proposal_id"], tranche.get("index")) in spent}
+                for tranche in plan.get("tranches") or []
+                if isinstance(tranche, dict)
+            ]
+            remaining = sum(t.get("usdc") or 0.0 for t in tranches if not t["filled"])
+            if remaining <= 0:
+                continue
+            plans.append({
+                **plan,
+                "plan_id": proposal["proposal_id"],
+                "symbol": proposal["symbol"],
+                "product_id": proposal["product_id"],
+                "trim_status": proposal["status"],
+                "created_ts": proposal["created_ts"],
+                "tranches": tranches,
+                "remaining_usdc": round(remaining, 2),
+            })
+        return plans
 
     @staticmethod
     def _count_auto_orders(

@@ -17,6 +17,7 @@ if str(BACKEND) not in sys.path:
 
 from agents.cycle_context import (  # noqa: E402
     build_cycle_context,
+    fetch_live_quotes,
     normalize_positions,
     normalize_watchlist,
 )
@@ -122,9 +123,40 @@ def main() -> int:
         action="store_true",
         help="Skip smart alert rule evaluation on this pass.",
     )
+    parser.add_argument(
+        "--no-live-quotes",
+        action="store_true",
+        help="Do not fetch Coinbase Exchange top-of-book quotes. Without them, "
+        "Mode B dry-run exits stay blocked by the quote guard (offline runs).",
+    )
+    parser.add_argument(
+        "--equity-usd",
+        type=float,
+        default=None,
+        help="Portfolio equity for position sizing and the heat cap. Defaults to "
+        "the marked value of the held positions, which leaves out cash.",
+    )
+    parser.add_argument(
+        "--base-risk-pct",
+        type=float,
+        default=None,
+        help="Equity risked per entry before the stage multiplier (default 1.0).",
+    )
+    parser.add_argument(
+        "--max-open-risk-pct",
+        type=float,
+        default=None,
+        help="Portfolio heat cap: open risk across held positions (default 5.0).",
+    )
     args = parser.parse_args()
     if args.paper_owner_id is not None and not 0 < args.paper_owner_id < 2**63:
         parser.error("--paper-owner-id must be a positive SQLite user ID")
+    if args.equity_usd is not None and not 0 < args.equity_usd < float("inf"):
+        parser.error("--equity-usd must be a positive number")
+    for flag in ("base_risk_pct", "max_open_risk_pct"):
+        value = getattr(args, flag)
+        if value is not None and not 0 < value <= 100:
+            parser.error(f"--{flag.replace('_', '-')} must be above 0 and at most 100")
 
     # Follow Flask's configured store paths without enabling notification channels.
     try:
@@ -157,15 +189,31 @@ def main() -> int:
         context["audit_markdown"] = audit_path.read_text(encoding="utf-8")
         context["audit_source_path"] = str(audit_path)
 
+    store = AgentStore(args.db_path)
     watchlist = split_symbols(args.watchlist or args.symbols)
+    # A coin with an open reload ladder is scanned even after it is fully sold.
+    reload_symbols = [plan["symbol"] for plan in store.active_reload_plans()]
     # When Flask caps the submitted list, prioritize held coins over watch-only coins.
-    scan_symbols = list(dict.fromkeys([*(row["symbol"] for row in positions), *watchlist]))
+    scan_symbols = list(dict.fromkeys(
+        [*(row["symbol"] for row in positions), *reload_symbols, *watchlist]
+    ))
     params = {"symbols": ",".join(scan_symbols)} if scan_symbols else None
     scan = fetch_json(f"{api_base}/api/macro-cycle-scan", timeout=60.0, params=params)
     # Unlike an in-process scan, a response from HTTP must carry freshness metadata.
     if scan is not None and scan.get("status") != "ready":
         scan = None
-    context.update(build_cycle_context(scan, positions=positions, watchlist=watchlist))
+    context.update(build_cycle_context(
+        scan,
+        positions=positions,
+        watchlist=watchlist,
+        # The strategist calls this for held coins it is about to exit in Mode B.
+        quote_fetcher=None if args.no_live_quotes else fetch_live_quotes,
+        risk={
+            "portfolio_equity_usd": args.equity_usd,
+            "base_risk_pct": args.base_risk_pct,
+            "max_open_risk_pct": args.max_open_risk_pct,
+        },
+    ))
     if context["cycle_scan"] is None:
         print("Cycle scan is warming, stale or unavailable; cycle agents skip this pass.")
 
@@ -175,7 +223,7 @@ def main() -> int:
         from smart_alerts import SmartAlertEngine
 
         engine = SmartAlertEngine(dispatcher=dispatcher)
-    result = run_once(context, store=AgentStore(args.db_path), smart_alert_engine=engine)
+    result = run_once(context, store=store, smart_alert_engine=engine)
     print(result)
     if any(run.get("status") == "error" for run in result.get("runs", [])):
         return 1

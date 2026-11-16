@@ -391,6 +391,12 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
     pivot = top.get("low_confirmation_pivot") or daily.get("low_confirmation_pivot")
     stop = top.get("accumulation_invalidation_stop")
     box = context.get("rollover_target_box") or {}
+    extension = context.get("full_extension_targets") or {}
+    extension_levels = [
+        value for value in (extension.get("levels") or {}).values()
+        if isinstance(value, (int, float)) and value > 0
+    ] if extension.get("available") else []
+    support = context.get("log_fib_retracements") or {}
     return {
         "symbol": symbol,
         "product_id": product_id,
@@ -446,6 +452,18 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
         if box.get("available")
         else None,
         "fib_confluence_clusters": len(context.get("fib_confluence_clusters") or []),
+        # Levels the strategist sizes against: the log-Fib support box under
+        # the cycle high, cluster midpoints, the cycle low and the far targets.
+        "support_levels": {
+            ratio: support[ratio] for ratio in ("0.618", "0.702", "0.786") if support.get(ratio)
+        } or None,
+        "fib_cluster_mids": [
+            cluster["mid"] for cluster in context.get("fib_confluence_clusters") or []
+        ],
+        "cycle_low": (context.get("cycle_low") or {}).get("price"),
+        "full_extension_targets": {"low": min(extension_levels), "high": max(extension_levels)}
+        if extension_levels
+        else None,
         "active_target_tier": top.get("active_target_tier"),
         "_tiers": {
             tier: bool((top.get(tier) or {}).get("available"))

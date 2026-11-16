@@ -58,9 +58,11 @@ AGENT_CATALOG: dict[str, dict[str, str]] = {
     "cycle_strategist": {
         "label": "Cycle Strategist",
         "purpose": (
-            "Turns the multi-year cycle scan into trim, protective-stop and "
-            "entry proposals. Entries always wait for approval; exits can run "
-            "as guarded dry-runs. It never submits exchange orders."
+            "Turns the multi-year cycle scan into trim, protective-stop, entry, "
+            "reload and rotation proposals, with a rebuy ladder on each trim "
+            "and a risk-sized entry. Entries, reloads and rotations always "
+            "wait for approval; trims and stops can run as guarded dry-runs. "
+            "It never submits exchange orders."
         ),
     },
 }

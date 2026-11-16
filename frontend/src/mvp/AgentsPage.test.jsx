@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AgentsPage, { ago } from "./AgentsPage.jsx";
 
@@ -237,7 +237,7 @@ describe("AgentsPage", () => {
       ...extra,
     });
 
-    function mockDeck({ proposals = [proposal()], autonomy } = {}) {
+    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [] } = {}) {
       let settings = autonomy || {
         autonomy_mode: "approval_queue",
         execution_mode: "dry_run",
@@ -259,7 +259,7 @@ describe("AgentsPage", () => {
           rows = rows.map((row) => ({ ...row, status: decision }));
           payload = { status: "live", proposal: rows[0], autonomy: settings };
         } else if (path.startsWith("/api/agents/proposals")) {
-          payload = { status: "live", proposals: rows, autonomy: settings };
+          payload = { status: "live", proposals: rows, reload_plans: reloadPlans, autonomy: settings };
         } else if (path.includes("/api/agents/status")) {
           payload = statusPayload(NEVER);
         } else payload = { status: "live", observations: [] };
@@ -331,6 +331,195 @@ describe("AgentsPage", () => {
         { daily_order_cap: 5 },
       ]);
       expect(screen.getByText(/No proposals yet/)).toBeInTheDocument();
+    });
+
+    const reloadPlan = (extra = {}) => ({
+      available: true,
+      reference_price: 175,
+      trim_quantity: 3.75,
+      freed_usdc: 656.25,
+      invalidation_stop: 58.8,
+      fresh_cash_usd: 0,
+      projected_reloaded_coins: 6.471354,
+      net_coin_gain_qty: 2.721354,
+      net_coin_gain_pct: 27.21,
+      tranches: [
+        { index: 1, weight_pct: 25, level: 120, usdc: 164.06, coins: 1.367188, basis: "log_fib_0.618" },
+        { index: 2, weight_pct: 35, level: 105, usdc: 229.69, coins: 2.1875, basis: "log_fib_0.702" },
+        { index: 3, weight_pct: 40, level: 90, usdc: 262.5, coins: 2.916667, basis: "daily_higher_low_floor" },
+      ],
+      ...extra,
+    });
+
+    const sizing = (extra = {}) => ({
+      base_risk_pct: 1,
+      stage_multiplier: 0.5,
+      risk_budget_pct: 0.5,
+      max_open_risk_pct: 5,
+      open_risk_pct: 0.3,
+      equity_basis: "supplied",
+      heat_capped: false,
+      position_capped: false,
+      suggested_notional_usd: 750,
+      suggested_quantity: 25,
+      risk_at_stop_usd: 50,
+      ...extra,
+    });
+
+    it("shows the reload plan with the extra coins a trim-and-rebuy would add", async () => {
+      mockDeck({ proposals: [proposal({ symbol: "SOL", reference_price: 175, reload_plan: reloadPlan() })] });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "SOL Trim to USDC" });
+      const plan = within(row).getByRole("region", { name: "SOL reload plan" });
+      expect(within(plan).getByRole("heading", { name: "Reload Plan (+27.21% Extra Coins)" })).toBeInTheDocument();
+      expect(within(plan).getByText(/Trim 3.75 SOL for \$656.25 USDC, rebuy 6.4714 SOL \(\+2.7214 SOL\) with \$0.00 fresh cash\./)).toBeInTheDocument();
+      const rungs = within(plan).getAllByRole("row").slice(1);
+      expect(rungs).toHaveLength(3);
+      expect(within(rungs[0]).getByRole("rowheader", { name: "1 · 25%" })).toBeInTheDocument();
+      expect(within(rungs[0]).getByText("120")).toBeInTheDocument();
+      expect(within(rungs[0]).getByText("$164.06")).toBeInTheDocument();
+      expect(within(rungs[0]).getByText("0.618 log-Fib support")).toBeInTheDocument();
+      expect(within(rungs[2]).getByText("Daily higher-low floor")).toBeInTheDocument();
+      expect(within(plan).getByText(/Invalid below 58.8\..*fees and slippage are not included/)).toBeInTheDocument();
+      // A trim has no entry size or reward-to-risk badge.
+      expect(within(row).queryByText(/^R:R/)).not.toBeInTheDocument();
+      expect(within(row).queryByText("Suggested Size")).not.toBeInTheDocument();
+    });
+
+    it("says when a trim has no reload ladder", async () => {
+      mockDeck({ proposals: [proposal({ reload_plan: { available: false, reason: "no_support_level_between_stop_and_price" } })] });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "RENDER Trim to USDC" });
+      expect(within(row).getByText(/No reload ladder: no support level sits between/)).toBeInTheDocument();
+      expect(within(row).queryByRole("region", { name: "RENDER reload plan" })).not.toBeInTheDocument();
+    });
+
+    it("shows the R:R badge, target and suggested size on an entry", async () => {
+      mockDeck({
+        proposals: [proposal({
+          action: "BREAKOUT_ENTRY", symbol: "AVAX", side: "buy", trim_pct: null,
+          reference_price: 30, stop_price: 28, target_price: 45,
+          reward_to_risk_ratio: 7.5, sizing: sizing(),
+        })],
+      });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "AVAX Breakout entry" });
+      expect(within(row).getByText("R:R 7.50")).toBeInTheDocument();
+      expect(within(row).getByText("Target").nextSibling).toHaveTextContent("45");
+      expect(within(row).getByText("Suggested Size").nextSibling).toHaveTextContent("$750.00 · 25 AVAX");
+      expect(within(row).getByText("Risk").nextSibling).toHaveTextContent("0.50% · $50.00 at stop · 0.5× stage");
+      expect(within(row).getByRole("link", { name: "Trade" })).toHaveAttribute(
+        "href", "https://www.coinbase.com/advanced-trade/spot/AVAX-USD"
+      );
+      expect(within(row).queryByText(/Heat cap/)).not.toBeInTheDocument();
+    });
+
+    it("explains a heat-capped size and a size that needs equity", async () => {
+      mockDeck({
+        proposals: [
+          proposal({
+            proposal_id: "aaaaaaaaaaaaaaaa", action: "BREAKOUT_ENTRY", symbol: "AVAX", side: "buy", trim_pct: null,
+            reward_to_risk_ratio: 7.5,
+            sizing: sizing({
+              heat_capped: true, open_risk_pct: 4.8, risk_budget_pct: 0.2, suggested_notional_usd: 300,
+              suggested_quantity: 10, risk_at_stop_usd: 20, equity_basis: "held_positions_mark",
+            }),
+          }),
+          proposal({
+            proposal_id: "bbbbbbbbbbbbbbbb", action: "ACCUMULATE_SUPPORT", symbol: "LINK", side: "buy", trim_pct: null,
+            reward_to_risk_ratio: 2,
+            sizing: sizing({ suggested_notional_usd: null, suggested_quantity: null, risk_at_stop_usd: null, equity_basis: null, note: "equity_unknown" }),
+          }),
+        ],
+      });
+      render(<AgentsPage />);
+      const capped = await screen.findByRole("listitem", { name: "AVAX Breakout entry" });
+      expect(within(capped).getByText(/Heat cap: open risk is 4.8% of the 5% limit, so the size is reduced\./)).toBeInTheDocument();
+      expect(within(capped).getByText(/cash is not counted/)).toBeInTheDocument();
+      const unsized = screen.getByRole("listitem", { name: "LINK Accumulate support" });
+      expect(within(unsized).getByText("R:R 2.00")).toBeInTheDocument();
+      expect(within(unsized).getByText("Suggested Size").nextSibling).toHaveTextContent("needs portfolio equity");
+    });
+
+    it("renders a reload card funded by freed USDC with a spot trade link", async () => {
+      mockDeck({
+        proposals: [proposal({
+          action: "RELOAD_ACCUMULATE", symbol: "SOL", side: "buy", trim_pct: null,
+          reference_price: 118, stop_price: 110, target_price: 175, reward_to_risk_ratio: 7.13,
+          reasons: ["Price has reached 1 unfilled reload rung(s) from an earlier trim."],
+          sizing: sizing({ suggested_notional_usd: 164.06, suggested_quantity: 1.39034, funded_usd: 164.06, risk_at_stop_usd: 11.12, risk_budget_pct: 0.111 }),
+        })],
+      });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "SOL Reload accumulate" });
+      expect(within(row).getByText("Reload accumulate")).toBeInTheDocument();
+      expect(within(row).getByText("R:R 7.13")).toBeInTheDocument();
+      expect(within(row).getByText("Suggested Size").nextSibling).toHaveTextContent("$164.06 · 1.3903 SOL");
+      expect(within(row).getByText(/Funded by \$164.06 already freed; no fresh cash\./)).toBeInTheDocument();
+      expect(within(row).getByRole("link", { name: "Trade" })).toHaveAttribute(
+        "href", "https://www.coinbase.com/advanced-trade/spot/SOL-USD"
+      );
+      expect(within(row).getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    });
+
+    it("renders a rotation card with a trade link for each leg", async () => {
+      mockDeck({
+        proposals: [proposal({
+          action: "ROTATE_TO_LEADER", symbol: "DOT", side: "sell", trim_pct: 25,
+          reference_price: 5, stop_price: null, target_price: 1.6, reward_to_risk_ratio: 7.5,
+          sizing: sizing({ suggested_notional_usd: 125, suggested_quantity: 125, funded_usd: 125, risk_at_stop_usd: 10, risk_budget_pct: 0.1 }),
+          pair: {
+            sell_symbol: "DOT", sell_product_id: "DOT-USD", buy_symbol: "LINK", buy_product_id: "LINK-USD",
+            freed_usd: 125,
+            leader: { symbol: "LINK", reference_price: 1, stop_price: 0.92, target_price: 1.6, reward_to_risk_ratio: 7.5 },
+          },
+        })],
+      });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "DOT Rotate to leader" });
+      expect(within(row).getByText("DOT → LINK")).toBeInTheDocument();
+      expect(within(row).getByText("R:R 7.50")).toBeInTheDocument();
+      expect(within(row).getByText("LINK stop").nextSibling).toHaveTextContent("0.9200");
+      expect(within(row).getByText("Suggested Size").nextSibling).toHaveTextContent("$125.00 · 125 LINK");
+      const sell = within(row).getByRole("link", { name: "Sell DOT" });
+      const buy = within(row).getByRole("link", { name: "Buy LINK" });
+      expect(sell).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/DOT-USD");
+      expect(buy).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/LINK-USD");
+      for (const link of [sell, buy]) {
+        expect(link).toHaveAttribute("target", "_blank");
+        expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      }
+      expect(within(row).queryByRole("link", { name: "Trade" })).not.toBeInTheDocument();
+    });
+
+    it("lists open reload ladders and marks spent rungs", async () => {
+      const open = reloadPlan({
+        plan_id: "0123456789abcdef", symbol: "SOL", product_id: "SOL-USD", trim_status: "approved", remaining_usdc: 492.19,
+      });
+      open.tranches = open.tranches.map((rung) => ({ ...rung, filled: rung.index === 1 }));
+      mockDeck({ proposals: [], reloadPlans: [open] });
+      render(<AgentsPage />);
+      const ladders = await screen.findByRole("region", { name: "Open reload ladders" });
+      const ladder = within(ladders).getByRole("listitem", { name: "SOL open reload ladder" });
+      expect(within(ladder).getByText("$492.19 unspent")).toBeInTheDocument();
+      expect(within(ladder).getByText("0.618 log-Fib support · spent")).toBeInTheDocument();
+      expect(within(ladder).getByRole("link", { name: "Trade" })).toHaveAttribute(
+        "href", "https://www.coinbase.com/advanced-trade/spot/SOL-USD"
+      );
+    });
+
+    it("has no ladders panel when nothing is open, and reloads it after a trim is approved", async () => {
+      const calls = mockDeck({ proposals: [proposal({ reload_plan: reloadPlan() })] });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "RENDER Trim to USDC" });
+      expect(screen.queryByRole("region", { name: "Open reload ladders" })).not.toBeInTheDocument();
+      const listsBefore = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;
+      fireEvent.click(within(row).getByRole("button", { name: "Approve" }));
+      expect(await within(row).findByText("Approved")).toBeInTheDocument();
+      await waitFor(() => {
+        const lists = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;
+        expect(lists).toBeGreaterThan(listsBefore);
+      });
     });
 
     it("explains owner-only access instead of crashing", async () => {

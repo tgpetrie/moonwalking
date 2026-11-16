@@ -7,13 +7,18 @@ local runner script and any backend caller hand agents identical context.
 
 from __future__ import annotations
 
+from datetime import datetime
 import math
 import re
 import time
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 
 MAX_SCAN_AGE_SECONDS = 1800
+EXCHANGE_BOOK_URL = "https://api.exchange.coinbase.com/products/{product_id}/book"
+QUOTE_TIMEOUT_SECONDS = 4.0
+MAX_QUOTE_PRODUCTS = 30
+RISK_KEYS = ("portfolio_equity_usd", "base_risk_pct", "max_open_risk_pct")
 _SYMBOL = re.compile(r"[A-Z0-9]{1,15}")
 
 
@@ -93,18 +98,116 @@ def normalize_watchlist(symbols: Iterable[Any] | None) -> list[str]:
     return out
 
 
+def _unavailable(product_id: str, reason: str) -> dict[str, Any]:
+    return {"product_id": product_id, "quote_status": "UNAVAILABLE", "reason": reason}
+
+
+def fetch_top_of_book(
+    product_id: str,
+    *,
+    http_get: Callable[..., Any] | None = None,
+    timeout: float = QUOTE_TIMEOUT_SECONDS,
+    now_ms: Callable[[], int] | None = None,
+) -> dict[str, Any]:
+    """One public, read-only level-1 book from Coinbase Exchange.
+
+    Returns the quote shape ``GuardedDryRunExitExecutor`` checks: both sides,
+    the bid size, the local receipt time and Coinbase's own book time. Any
+    failure returns ``quote_status: "UNAVAILABLE"`` with a reason and never
+    raises, so one bad product cannot stop an agent pass.
+    """
+    symbol = _symbol(product_id)
+    if not symbol or product_id != f"{symbol}-USD":
+        return _unavailable(str(product_id), "invalid_product")
+    if http_get is None:
+        import requests
+
+        http_get = requests.get
+    try:
+        response = http_get(
+            EXCHANGE_BOOK_URL.format(product_id=product_id),
+            params={"level": 1},
+            timeout=timeout,
+            headers={"User-Agent": "moonwalking-local-agents", "Accept": "application/json"},
+        )
+        observed = int(now_ms()) if now_ms else time.time_ns() // 1_000_000
+        response.raise_for_status()
+        book = response.json()
+    except Exception as exc:  # network, HTTP status or body decoding
+        return _unavailable(product_id, f"request_failed:{type(exc).__name__}")
+    if not isinstance(book, Mapping):
+        return _unavailable(product_id, "malformed_book")
+    if book.get("auction_mode"):
+        return _unavailable(product_id, "auction_mode")
+
+    def top(side: str) -> tuple[float | None, float | None]:
+        levels = book.get(side)
+        if not isinstance(levels, list) or not levels:
+            return None, None
+        level = levels[0]
+        if not isinstance(level, (list, tuple)) or len(level) < 2:
+            return None, None
+        return _positive(level[0]), _positive(level[1])
+
+    (bid, bid_size), (ask, ask_size) = top("bids"), top("asks")
+    exchange_ms = None
+    stamp = book.get("time")
+    if isinstance(stamp, str):
+        try:
+            parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            if parsed.tzinfo is not None:
+                exchange_ms = int(parsed.timestamp() * 1000)
+        except ValueError:
+            pass
+    return {
+        "product_id": product_id,
+        "quote_status": "AVAILABLE" if bid is not None and ask is not None else "UNAVAILABLE",
+        "source": "coinbase_exchange_book_level_1",
+        "observed_at_ms": observed,
+        "exchange_time_ms": exchange_ms,
+        "bid_usd": bid,
+        "bid_size": bid_size,
+        "ask_usd": ask,
+        "ask_size": ask_size,
+    }
+
+
+def fetch_live_quotes(
+    products: Iterable[Any],
+    *,
+    http_get: Callable[..., Any] | None = None,
+    timeout: float = QUOTE_TIMEOUT_SECONDS,
+    now_ms: Callable[[], int] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Level-1 quotes keyed by ``BASE-USD`` for up to ``MAX_QUOTE_PRODUCTS`` coins."""
+    quotes: dict[str, dict[str, Any]] = {}
+    for symbol in normalize_watchlist(products)[:MAX_QUOTE_PRODUCTS]:
+        product_id = f"{symbol}-USD"
+        quotes[product_id] = fetch_top_of_book(
+            product_id, http_get=http_get, timeout=timeout, now_ms=now_ms
+        )
+    return quotes
+
+
 def build_cycle_context(
     scan: Mapping[str, Any] | None,
     *,
     positions: Iterable[Mapping[str, Any]] | None = None,
     watchlist: Iterable[Any] | None = None,
     quotes: Mapping[str, Any] | None = None,
+    quote_fetcher: Callable[[list[str]], Mapping[str, Any]] | None = None,
+    risk: Mapping[str, Any] | None = None,
     now: float | None = None,
 ) -> dict[str, Any]:
     """Context keys read by ``CycleStrategistAgent`` and ``evaluate_smart_alerts``.
 
     A warming, refreshing or stale HTTP scan is passed as ``None`` so agents
     skip the pass, and structured per-coin evidence is preserved.
+
+    ``quote_fetcher`` (for example ``fetch_live_quotes``) is called by the
+    strategist for the exits it is about to simulate, so those quotes are
+    fresh at the guard. ``risk`` may carry ``portfolio_equity_usd``,
+    ``base_risk_pct`` and ``max_open_risk_pct``.
     """
     context: dict[str, Any] = {
         "cycle_scan": dict(scan) if usable_cycle_scan(scan, now=now) else None,
@@ -113,6 +216,12 @@ def build_cycle_context(
     }
     if isinstance(quotes, Mapping) and quotes:
         context["quotes"] = dict(quotes)
+    if callable(quote_fetcher):
+        context["quote_fetcher"] = quote_fetcher
+    for key in RISK_KEYS:
+        value = _positive((risk or {}).get(key))
+        if value is not None:
+            context[key] = value
     return context
 
 
