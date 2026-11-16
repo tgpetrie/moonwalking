@@ -3896,6 +3896,77 @@ html, body {
   background: rgba(174, 75, 245, 0.09);
 }
 
+/* Chart-structure context on gainer rows: a second line under the symbol,
+   in the space the price cell already uses for its previous-price line. */
+.bh-symbol-stack:has(.bh-structure) {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.bh-structure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  flex: 0 0 auto;
+  max-width: 11.5rem;
+  padding: 0.14rem 0.32rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-size: 0.52rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bh-structure::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.bh-structure--constructive {
+  color: rgba(126, 232, 190, 0.96);
+  border-color: rgba(69, 255, 179, 0.26);
+  background: rgba(69, 255, 179, 0.07);
+}
+
+.bh-structure--risk {
+  color: rgba(255, 150, 170, 0.98);
+  border-color: rgba(255, 107, 138, 0.32);
+  background: rgba(255, 107, 138, 0.08);
+}
+
+.bh-structure__full,
+.bh-structure__short {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The row sets a larger line-height; keep the pill as tall as .bh-live-rank. */
+  line-height: 1;
+}
+
+.bh-structure__short {
+  display: none;
+}
+
+/* Phone-width rows are a single tight line of text: use the short form. */
+@media (max-width: 639px) {
+  .bh-structure__full {
+    display: none;
+  }
+
+  .bh-structure__short {
+    display: inline;
+  }
+}
+
 .bh-symbol-cue {
   display: inline-flex;
   align-items: center;

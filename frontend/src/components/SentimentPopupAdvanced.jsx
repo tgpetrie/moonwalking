@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useMarketHeat } from '../hooks/useMarketHeat';
 import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
@@ -1158,9 +1158,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const [coinPositioning, setCoinPositioning] = useState(null);
   const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
 
-  const [chartRead, setChartRead] = useState(null);
+  // One chart read per time horizon, kept so switching back is instant.
+  const [chartHorizon, setChartHorizon] = useState('swing');
+  const [chartReads, setChartReads] = useState({});
   const [chartReadLoading, setChartReadLoading] = useState(false);
   const [chartReadError, setChartReadError] = useState(null);
+  const chartRead = chartReads[chartHorizon] || null;
+  // While another view loads, the panel keeps showing the last read (dimmed).
+  const lastChartReadRef = useRef(null);
+  if (chartRead) lastChartReadRef.current = chartRead;
+  const chartReadShown = chartRead || (chartReadLoading ? lastChartReadRef.current : null);
+  // Risk Levels draws on 1h candles, so it always uses the swing (1h) read.
+  const swingChartRead = chartReads.swing || null;
   const [chartDrawerOpen, setChartDrawerOpen] = useState(false);
 
   const [coinHistory, setCoinHistory] = useState(null);
@@ -1234,22 +1243,28 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   }, [isOpen, coinSymbol, coinLiveRanking]);
 
   useEffect(() => {
-    if (!isOpen || !coinSymbol) {
-      setChartRead(null);
-      setChartReadError(null);
-      return undefined;
-    }
+    // A different coin starts again from the default view with nothing cached.
+    setChartReads({});
+    lastChartReadRef.current = null;
+    setChartHorizon('swing');
+    setChartReadError(null);
+  }, [isOpen, coinSymbol, chartEventContext]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) return undefined;
     let cancelled = false;
     setChartReadLoading(true);
+    setChartReadError(null);
+    const horizon = chartHorizon;
     const endpoint = API_ENDPOINTS.chartRead
-      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext)
-      : `/api/chart-read/${encodeURIComponent(coinSymbol)}`;
+      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext, horizon)
+      : `/api/chart-read/${encodeURIComponent(coinSymbol)}${horizon === 'swing' ? '' : `?horizon=${horizon}`}`;
     fetchData(endpoint)
-      .then((d) => { if (!cancelled) { setChartRead(d); setChartReadError(null); } })
+      .then((d) => { if (!cancelled) setChartReads((reads) => ({ ...reads, [horizon]: d })); })
       .catch(() => { if (!cancelled) setChartReadError('unavailable'); })
       .finally(() => { if (!cancelled) setChartReadLoading(false); });
     return () => { cancelled = true; };
-  }, [isOpen, coinSymbol, chartEventContext]);
+  }, [isOpen, coinSymbol, chartEventContext, chartHorizon]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -2514,9 +2529,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     <div className="cp-evidence-drawer__body">
                       {chartEventContext ? (
                         <ChartReadPanel
-                          data={chartRead}
+                          data={chartReadShown}
                           loading={chartReadLoading}
                           error={chartReadError}
+                          horizon={chartHorizon}
+                          onHorizonChange={setChartHorizon}
                         />
                       ) : null}
                       <div className="section-header">
@@ -2549,9 +2566,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       </div>
                       {!chartEventContext ? (
                         <ChartReadPanel
-                          data={chartRead}
+                          data={chartReadShown}
                           loading={chartReadLoading}
                           error={chartReadError}
+                          horizon={chartHorizon}
+                          onHorizonChange={setChartHorizon}
                         />
                       ) : null}
                     </div>
@@ -2646,7 +2665,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                   data={riskLevels}
                   loading={riskLevelsLoading}
                   error={riskLevelsError}
-                  waveAnalysis={chartRead?.wave_analysis}
+                  waveAnalysis={swingChartRead?.wave_analysis}
                 />
               )}
             </section>

@@ -5,6 +5,7 @@ import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
+import { postureFor, useStructurePosture } from "../hooks/useStructurePosture.js";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
@@ -148,6 +149,8 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
 
   const orderedRows = useReorderCadence(gainers3m, sortByPct3mThenSymbol, REORDER_COMMIT_MS_3M);
   const visibleRows = isExpanded ? orderedRows.slice(0, MAX_EXPANDED) : orderedRows.slice(0, MAX_BASE);
+  // Chart-structure context for the rows on screen. Display only.
+  const structurePostures = useStructurePosture(visibleRows.map((row) => row?.symbol ?? row?.product_id));
 
   useEffect(() => {
     return () => {
@@ -281,6 +284,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
                     rankDelta={rankDelta}
+                    structurePosture={postureFor(structurePostures, token)}
                     pulseDelayMs={index * 18}
                     activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                     recentAlerts={typeof getRecentAlerts === "function" ? getRecentAlerts(token.symbol) : []}

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { postureFor, useStructurePosture } from "../hooks/useStructurePosture.js";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { baselineOrNull } from "../utils/num.js";
 import "./ui/skeleton.css";
@@ -441,6 +442,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     [displayRows, pulsePriceById, pulsePctById, rankById, rankMoveById]
   );
 
+  // Chart-structure context for the rows on screen. Display only. Called
+  // before the early returns below so the hook order never changes.
+  const structurePostures = useStructurePosture(displayRows.map((row) => row?.symbol ?? row?.product_id));
+
   const hasData = displayRows.length > 0;
 
   // Loading skeleton state
@@ -515,6 +520,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       pulsePrice={priceChanged}
                       pulsePct={pctChanged}
                       rankDelta={rankDelta}
+                      structurePosture={postureFor(structurePostures, token)}
                       pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                       activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                       recentAlerts={typeof getRecentAlerts === "function" ? getRecentAlerts(token.symbol) : []}
@@ -560,6 +566,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                         pulsePrice={priceChanged}
                         pulsePct={pctChanged}
                         rankDelta={rankDelta}
+                        structurePosture={postureFor(structurePostures, token)}
                         pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                         activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                         recentAlerts={typeof getRecentAlerts === "function" ? getRecentAlerts(token.symbol) : []}

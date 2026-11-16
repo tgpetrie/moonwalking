@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import WaveStructureOverlay, { waveIsDrawable, wavePatternLabel, wavePrices } from './WaveStructureOverlay.jsx';
+import WaveStructureOverlay, { waveIsDrawable, wavePlainLabels, wavePrices, waveVisibleParts } from './WaveStructureOverlay.jsx';
+import SwingHistoryOverlay from './SwingHistoryOverlay.jsx';
 
 const positive = (value) => typeof value === 'number' && Number.isFinite(value) && value > 0;
 const priceText = (value) => positive(value)
@@ -49,10 +50,21 @@ export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
   const zoneValid = positive(zone.low) && positive(zone.high) && zone.high >= zone.low;
   const firstTime = bars[0][0];
   const lastTime = bars[bars.length - 1][0];
-  // Wave structure is drawn only when it was read on this chart's candle size.
-  const wave = waveIsDrawable(waveAnalysis)
-    && (!Number.isFinite(waveAnalysis.bar_seconds) || waveAnalysis.bar_seconds === chart.granularity_seconds)
-    ? waveAnalysis : null;
+  // The setup is drawn only when it was read on this chart's candle size.
+  const sameCandles = waveAnalysis && waveAnalysis.available
+    && (!Number.isFinite(waveAnalysis.bar_seconds) || waveAnalysis.bar_seconds === chart.granularity_seconds);
+  const wave = sameCandles && waveIsDrawable(waveAnalysis) ? waveAnalysis : null;
+  const swingHistory = sameCandles ? waveAnalysis.swing_history : null;
+  const waveNames = wave ? wavePlainLabels(wave) : null;
+  // The caption names only the parts that are on this chart's candle window.
+  const waveParts = wave ? waveVisibleParts(wave, bars[0][0]) : null;
+  const waveCaption = wave ? [
+    waveParts.priorMove && `The thick line marked 1 is the ${waveNames.priorMove.toLowerCase()}.`,
+    waveParts.zone && `The shaded band marked 2 is the ${waveNames.zone.toLowerCase()}, where pullbacks like this commonly end.`,
+    waveParts.target && `The dotted line marked 3 is the ${waveNames.target.toLowerCase()}.`,
+    waveParts.breaks && 'The dashed pink line is where this read stops applying.',
+    swingHistory?.swings?.length && 'Small arrows mark earlier swing lows and highs.',
+  ].filter(Boolean).join(' ') : '';
   const prices = [...bars.flatMap((c) => [c[1], c[2]]), ...levels.map((l) => l.price),
     ...(zoneValid ? [zone.low, zone.high] : []), ...wavePrices(wave, firstTime)];
   const low = Math.min(...prices);
@@ -92,6 +104,7 @@ export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
               <rect x={x(c[0]) - candleWidth / 2} y={378 - c[5] / volumeMax * 35} width={candleWidth} height={c[5] / volumeMax * 35} fill={color} opacity="0.35" />
             </g>;
           })}
+          {swingHistory && <SwingHistoryOverlay history={swingHistory} x={x} y={y} firstTime={firstTime} xMax={580} />}
           {wave && <WaveStructureOverlay wave={wave} x={x} y={y} xMin={16} xMax={580} firstTime={firstTime} />}
           {positioned.map((level) => <g key={level.id} role="button" tabIndex={0}
             aria-label={`Explain ${level.label.toLowerCase()} at ${priceText(level.price)}`} aria-pressed={active.id === level.id}
@@ -116,7 +129,7 @@ export default function RiskLevelsChart({ plan, entry, waveAnalysis = null }) {
       <div className="risk-chart__explanation" aria-live="polite" style={{ borderColor: active.color }}>
         <h4>{active.label} · {priceText(active.price)}</h4><p>{active.why}</p>
       </div>
-      {wave && <p className="risk-chart__hint" data-testid="risk-chart-wave-note"><strong>Wave structure · {wavePatternLabel(wave)}.</strong> {wave.summary} The shaded band is the projected wave C zone, 0.618 to 1.618 of wave A. Wave counts are descriptive and not outcome-validated.</p>}
+      {wave && <p className="risk-chart__hint" data-testid="risk-chart-wave-note"><strong>The setup in plain English: {wave.story?.headline || wave.summary}.</strong> {waveCaption} This describes the shape of recent swings and has not been tested against outcomes.</p>}
       <p className="risk-chart__hint">Quote as of {timeText(plan.price_as_of)} · Last candle closed {timeText(chart.last_close_at)} · Times shown in your local timezone. This is a snapshot; refresh Risk Levels for an updated plan.</p>
       <p className="risk-chart__hint">Suggested prices are reference levels, not exchange-validated order prices. The sell-limit gap is an uncalibrated ATR-based compatibility placeholder, not a live liquidity or spread estimate. Check the market pair and allowed price increment before entering them. A stop-limit can remain unfilled if price gaps below the limit. <a href="https://help.coinbase.com/en/coinbase/trading-and-funding/advanced-trade/order-types" target="_blank" rel="noreferrer">How stop-limit orders work</a></p>
     </section>

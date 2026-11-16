@@ -40,7 +40,7 @@ const buildEndpoints = () => ({
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
   socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
-  chartRead: (symbol, eventContext = null) => {
+  chartRead: (symbol, eventContext = null, horizon = null) => {
     const base = `${API_BASE_URL}/api/chart-read/${encodeSymbol(symbol)}`;
     const params = new URLSearchParams();
     const ctx = eventContext && typeof eventContext === "object" ? eventContext : null;
@@ -59,6 +59,8 @@ const buildEndpoints = () => ({
     if (window) params.set("event_window", window);
     if (price !== null) params.set("event_price", String(price));
     if (pct !== null) params.set("event_pct", String(pct));
+    // "swing" is the server default; only the other views need the parameter.
+    if (horizon && horizon !== "swing") params.set("horizon", String(horizon));
 
     const query = params.toString();
     return query ? `${base}?${query}` : base;

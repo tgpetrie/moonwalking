@@ -34,6 +34,7 @@ export function TokenRowUnified({
   activeAlert = null,
   recentAlerts = [],
   rankDelta = 0,
+  structurePosture = null, // optional chart-structure context; never hides or reorders a row
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -266,6 +267,21 @@ export function TokenRowUnified({
               ) : null}
             </div>
           </div>
+          {/* Chart-structure context sits under the symbol; it never hides or reorders the row. */}
+          {structurePosture?.label ? (
+            <span
+              className={`bh-structure bh-structure--${structurePosture.tone === "risk" ? "risk" : "constructive"}`}
+              data-testid="structure-posture"
+              data-posture={structurePosture.key || ""}
+              title={`${structurePosture.label}. ${structurePosture.detail || ""}`.trim()}
+              aria-label={`Chart structure: ${structurePosture.label}`}
+            >
+              <span className="bh-structure__full">{structurePosture.label}</span>
+              <span className="bh-structure__short" aria-hidden="true">
+                {structurePosture.short_label || structurePosture.label}
+              </span>
+            </span>
+          ) : null}
         </div>
       </CellTag>
 
