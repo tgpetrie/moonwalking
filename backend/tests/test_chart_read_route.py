@@ -19,6 +19,7 @@ def offline_catalyst(monkeypatch):
             return {"trending": {"status": "unavailable"}}
 
     monkeypatch.setattr(catalyst_sentiment, "get_service", lambda: Unavailable())
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: [])
 
 
 def test_chart_read_route_forwards_event_context(monkeypatch):
@@ -227,6 +228,18 @@ def test_cycle_route_uses_daily_and_weekly_history(monkeypatch):
     assert body["catalyst_sentiment"]["status"] == "unavailable"
     assert body["catalyst_sentiment"]["posture"] is None
     assert "paper_order_ticket" not in body
+
+
+@pytest.mark.parametrize("horizon", ["swing", "cycle"])
+def test_swing_and_cycle_expose_top_down_context(monkeypatch, horizon):
+    hourly = _history()
+    daily = [[1_600_041_600 + i * 86400, 50, 200, 100, 100, 10] for i in range(400)][::-1]
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: hourly)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product: daily)
+    with backend_app.app.test_request_context(f"/api/chart-read/SOL?horizon={horizon}"):
+        body = backend_app.get_chart_read("SOL").get_json()
+    assert body["top_down_confluence"]["available"] is True
+    assert body["multi_year_context"]["log_fib_retracements"]["0.5"] == pytest.approx(100)
 
 
 def test_short_horizon_reads_15m_candles_with_a_4h_trend_check(monkeypatch):

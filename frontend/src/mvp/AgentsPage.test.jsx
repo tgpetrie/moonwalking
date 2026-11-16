@@ -63,6 +63,29 @@ const NEVER = [
 ];
 
 describe("AgentsPage", () => {
+  it("records explicit paper fill and close prices", async () => {
+    let ticket = { id: "x", product_id: "BTC-USD", side: "buy", status: "approved_paper" };
+    vi.stubGlobal("fetch", vi.fn((url, options = {}) => {
+      let body;
+      if (String(url).includes("/api/execution-agent/mode")) {
+        body = { status: "live", mode: "autonomous" };
+      } else if (String(url).includes("/api/execution-agent/tickets")) {
+        if (options.method === "POST") {
+          const action = JSON.parse(options.body);
+          ticket = { ...ticket, status: action.action === "fill" ? "filled_paper" : "closed_paper" };
+          body = { status: "live", ticket };
+        } else body = { status: "live", tickets: [ticket] };
+      } else body = String(url).includes("/api/agents/status") ? statusPayload(NEVER) : { status: "live", observations: [] };
+      return Promise.resolve({ ok: true, status: 200, json: async () => body });
+    }));
+    render(<AgentsPage />);
+    fireEvent.change(await screen.findByLabelText("Paper fill price"), { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record fill (Paper)" }));
+    fireEvent.change(await screen.findByLabelText("Paper exit price"), { target: { value: "105" } });
+    fireEvent.click(screen.getByRole("button", { name: "Close position (Paper)" }));
+    expect(await screen.findByText(/closed_paper/)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith("/api/execution-agent/tickets", expect.objectContaining({ body: expect.stringContaining('"exit_price":105') }));
+  });
   it("updates the paper mode and approves a staged paper ticket", async () => {
     vi.stubGlobal("fetch", vi.fn((url, options = {}) => {
       let body;

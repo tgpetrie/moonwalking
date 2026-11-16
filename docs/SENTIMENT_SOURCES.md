@@ -49,3 +49,9 @@ Moonwalkings should not hard-code or scrape individual “low-key” crypto acco
 - Cached fallback data may be served as `stale`; it must never be relabeled as live.
 - Configured catalog entries are metadata only; they do not count as active coverage unless the backend contributed them to `sources`.
 - The experimental catalyst scout also reads CoinGecko Trending and selected news RSS feeds. XML DTDs and entities are rejected; failed or expired feeds are excluded from the fresh summary. It is not a representative measure of all coin sentiment.
+- VIP matches are names or handles appearing alongside a coin in sourced text,
+  not proof the named person authored a post, follows anyone, or endorsed a
+  claim. The curated tiers and weights are user-specified, not verified
+  rankings. Cross-tier confluence reflects mentions in the same 24-hour
+  symbol window, and a ZackXBT mention triggers a conservative risk flag even
+  if the text is not an allegation. Vitalik and Hayes RSS feeds are optional.

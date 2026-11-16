@@ -43,10 +43,14 @@ tickets in SQLite (`MW_PAPER_EXECUTION_DB` can override the default location).
 Their Coinbase-shaped payloads are generated locally and never sent to Coinbase.
 Guardian only auto-approves defenses whose size is covered by a fresh owner
 portfolio snapshot; browser-provided holding flags are not verification.
-Autonomous paper tickets are blocked when
-position count, realized R, or sentiment posture is unavailable. The paper API
-does not yet supply those trusted risk inputs, so its autonomous previews remain
-blocked rather than assuming safe defaults.
+Autonomous paper tickets use owner-scoped paper positions, approved-but-unfilled
+buy reservations, UTC-day realized R, and fresh catalyst plus 15m/1h/4h structure.
+Missing required feeds or structure block approval. Paper buy fills and full
+closes are explicitly recorded by the owner at specified prices; approved
+orders are not fills. Realized R is (exit price - fill price) divided by
+(fill price - original stop-limit price), with no fees or slippage simulated.
+Recording a fill or close does not contact Coinbase. Fill prices must be at or
+below the buy limit and above the stop. Partial fills and exits are not modeled.
 
 The Cycle chart reads up to three years of closed daily public Coinbase candles
 and complete Monday–Sunday UTC weekly aggregates. History is cached locally
@@ -59,7 +63,7 @@ listing histories are not labeled multi-year.
 
 ## Later stages
 
-1. Connect verified portfolio-aware risk inputs and record paper plans.
+1. Extend paper simulations with fees, partial fills and portfolio-aware risk inputs.
 2. Grade paper outcomes and expose calibrated ranges only when samples are adequate.
 3. Add Coinbase order preview with explicit in-app confirmation.
 4. Consider capped auto-trading only in a separate funded portfolio with a kill switch and complete audit trail.

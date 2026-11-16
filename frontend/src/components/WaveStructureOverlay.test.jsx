@@ -273,6 +273,18 @@ describe("chart read panel in plain English", () => {
 });
 
 describe("chart read horizon switcher", () => {
+  it.each(["swing", "cycle"])("shows top-down support on %s", (horizon) => {
+    render(<ChartReadPanel data={read({ horizon, top_down_confluence: {
+      available: true, at_multi_year_support: true,
+      macro_log_support_box: { low: 60, high: 80 },
+      micro_support_box: { low: 70, high: 90 },
+      micro_timeframe: "1h", micro_breakout_pivot: 110,
+    } })} />);
+    const region = screen.getByTestId("top-down-confluence");
+    expect(region.textContent).toContain("At observed multi-year support");
+    expect(region.textContent).toContain("Wave B pivot");
+    expect(region.textContent).toContain("1h support");
+  });
   it("offers short-term, swing, macro and cycle and reports the choice", () => {
     const onHorizonChange = vi.fn();
     render(<ChartReadPanel data={read({ horizon: "swing" })} horizon="swing" onHorizonChange={onHorizonChange} />);

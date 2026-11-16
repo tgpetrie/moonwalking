@@ -287,6 +287,29 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
           The setup, its chart and the bigger picture lead; the range read follows. */}
       <div style={dim} aria-busy={Boolean(loading)}>
         <StructureSection wave={wave_analysis} />
+        {(data.horizon === 'swing' || data.horizon === 'cycle') && data.top_down_confluence?.available ? (
+          <div data-testid="top-down-confluence">
+            <p style={styles.watchLabel}>Multi-degree context</p>
+            <p style={styles.summary}>
+              {data.top_down_confluence.at_multi_year_support ? 'At observed multi-year support' : 'Outside observed multi-year support'}
+            </p>
+            <div style={styles.chips}>
+              {data.top_down_confluence.macro_log_support_box ? <Chip>Macro log support: {wavePrice(data.top_down_confluence.macro_log_support_box.low)}–{wavePrice(data.top_down_confluence.macro_log_support_box.high)}</Chip> : null}
+              {data.top_down_confluence.micro_support_box ? <Chip>{data.top_down_confluence.micro_timeframe} support: {wavePrice(data.top_down_confluence.micro_support_box.low)}–{wavePrice(data.top_down_confluence.micro_support_box.high)}</Chip> : null}
+              {Number.isFinite(data.top_down_confluence.micro_breakout_pivot) ? <Chip>Wave B pivot: {wavePrice(data.top_down_confluence.micro_breakout_pivot)}</Chip> : null}
+            </div>
+            {data.multi_year_context?.log_fib_retracements ? (
+              <details style={styles.technical}>
+                <summary style={styles.technicalSummary}>Cycle log Fibonacci levels</summary>
+                <div style={styles.chips}>
+                  {Object.entries(data.multi_year_context.log_fib_retracements).map(([ratio, value]) => (
+                    <Chip key={ratio}>{ratio}: {wavePrice(value)}</Chip>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {afterSetup}

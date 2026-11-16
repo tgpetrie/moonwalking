@@ -67,6 +67,44 @@ NEWS_FEEDS = {
     "cointelegraph": "https://cointelegraph.com/rss",
     "decrypt": "https://decrypt.co/feed",
 }
+OPTIONAL_NEWS_FEEDS = {
+    "vitalik_blog": "https://vitalik.eth.limo/feed.xml",
+    "arthur_hayes": "https://cryptohayes.substack.com/feed",
+}
+# Curated mentions, not a verified list of followers or authorship.
+VIP_INFLUENCER_GRAPH = (
+    ("Vitalik Buterin", "@VitalikButerin", 1, 1.8, "ETH", ()),
+    ("Changpeng Zhao", "@cz_binance", 1, 2.0, "BNB/BTC", ("CZ",)),
+    ("Michael Saylor", "@saylor", 1, 1.7, "BTC", ()),
+    ("Arthur Hayes", "@CryptoHayes", 1, 2.0, "macro/perps", ()),
+    ("Elon Musk", "@elonmusk", 1, 2.2, "DOGE/BTC", ()),
+    ("PlanB", "@100trillionUSD", 1, 1.5, "BTC", ()),
+    ("Anthony Pompliano", "@APompliano", 1, 1.4, "BTC", ("Pomp",)),
+    ("Balaji Srinivasan", "@balajis", 1, 1.5, "macro", ()),
+    ("Robert Kiyosaki", "@theRealKiyosaki", 1, 1.2, "BTC", ()),
+    ("James Wynn", "@JamesWynnReal", 1, 1.6, "perps/high-beta", ("Jwynn",)),
+    ("Cobie", "@cobie", 2, 2.2, "alpha", ()),
+    ("Pentoshi", "@Pentosh1", 2, 2.1, "alpha", ()),
+    ("Andrew Kang", "@Rewkang", 2, 2.0, "alpha", ()),
+    ("Julien Bittel", "@BittelJulien", 2, 2.0, "BTC", ()),
+    ("Lyn Alden", "@LynAldenContact", 2, 1.9, "BTC", ()),
+    ("Willy Woo", "@woonomic", 2, 1.8, "BTC", ()),
+    ("Rekt Capital", "@rektcapital", 2, 1.9, "alpha", ()),
+    ("DonAlt", "@CryptoDonAlt", 2, 1.9, "alpha", ()),
+    ("Mert Mumtaz", "@0xMert_", 2, 1.9, "SOL", ()),
+    ("Jesse Pollak", "@jessepollak", 2, 1.8, "BASE/ETH", ()),
+    ("Lookonchain", "@lookonchain", 2, 1.8, "onchain", ()),
+    ("ZackXBT", "@zachxbt", 2, 3.0, "security_sleuth", ()),
+)
+
+
+def match_vips(text: str) -> list[dict[str, Any]]:
+    matched = []
+    for name, handle, tier, weight, category, aliases in VIP_INFLUENCER_GRAPH:
+        terms = (name, handle, *aliases)
+        if any(re.search(r"(?<![A-Za-z0-9_])" + re.escape(term) + r"(?![A-Za-z0-9_])", text or "", re.I) for term in terms):
+            matched.append({"name": name, "handle": handle, "tier": tier, "category": category, "weight": weight})
+    return matched
 COINGECKO_TRENDING_URL = "https://api.coingecko.com/api/v3/search/trending"
 COINGECKO_COIN_URL = (
     "https://api.coingecko.com/api/v3/coins/{coin_id}?localization=false&tickers=false"
@@ -491,7 +529,8 @@ def summarize_symbol(
         if sym not in hits:
             continue
         tags = classify_catalyst(text)
-        mentions.append({**item, "tags": tags, "whale": whale if whale and whale["asset"] == sym else None})
+        vips = match_vips(text)
+        mentions.append({**item, "tags": tags, "vip_mentions": vips, "sentiment_weight": max((v["weight"] for v in vips), default=1.0), "whale": whale if whale and whale["asset"] == sym else None})
     mentions.sort(key=lambda m: m["ts"], reverse=True)
 
     by_source: dict[str, int] = {}
@@ -507,9 +546,15 @@ def summarize_symbol(
     positive = [m for m in mentions if m["tags"]["tone"] == "positive"]
     negative = [m for m in mentions if m["tags"]["tone"] == "negative"]
     severe = sorted({t for m in negative for t in m["tags"]["negative"] if t in SEVERE_NEGATIVE})
-    if severe or (negative and len(negative) > len(positive)):
+    vip_mentions = list({v["handle"]: v for m in mentions for v in m["vip_mentions"]}.values())
+    cross_tier = {v["tier"] for v in vip_mentions} == {1, 2}
+    bonus = 1.5 if cross_tier else 1.0
+    weighted_positive = sum(m["sentiment_weight"] for m in positive) * bonus
+    weighted_negative = sum(m["sentiment_weight"] for m in negative) * bonus
+    security_mention = any(v["category"] == "security_sleuth" for v in vip_mentions)
+    if severe or security_mention or (negative and weighted_negative > weighted_positive):
         catalyst_tone = "negative"
-    elif positive and len(positive) > len(negative):
+    elif positive and weighted_positive > weighted_negative:
         catalyst_tone = "positive"
     elif positive or negative:
         catalyst_tone = "mixed"
@@ -554,11 +599,17 @@ def summarize_symbol(
         "catalyst_tone": catalyst_tone,
         "positive_catalysts": len(positive),
         "negative_catalysts": len(negative),
+        "weighted_positive": weighted_positive,
+        "weighted_negative": weighted_negative,
+        "vip_mentions": vip_mentions,
+        "cross_tier_confluence": cross_tier,
+        "cross_tier_multiplier": bonus,
+        "negative_catalyst_risk": security_mention,
         "severe_negative": severe,
         "whale_flows": whales[:5],
         "catalysts": catalysts,
         "recent_mentions": [
-            {"title": m["title"], "source": m["source"], "outlet": m.get("outlet"), "url": m.get("url"), "ts": m["ts"]}
+            {"title": m["title"], "source": m["source"], "outlet": m.get("outlet"), "url": m.get("url"), "ts": m["ts"], "vip_mentions": m["vip_mentions"], "sentiment_weight": m["sentiment_weight"]}
             for m in mentions[:5]
         ],
         "votes": votes,
@@ -615,8 +666,8 @@ def structure_sentiment_posture(
         or (one_hour[2] == "bullish" and one_hour[0] in ("abc_in_progress", "abc_complete", "impulse_in_progress"))
     )
 
-    if summary.get("severe_negative"):
-        tag = summary["severe_negative"][0].replace("_", " ")
+    if summary.get("severe_negative") or summary.get("negative_catalyst_risk"):
+        tag = summary["severe_negative"][0].replace("_", " ") if summary.get("severe_negative") else "security researcher mentioned"
         return {
             "key": "negative_catalyst_risk",
             "tone": "risk",
@@ -788,6 +839,8 @@ class CatalystSentimentService:
             )
         for outlet, url in NEWS_FEEDS.items():
             specs[f"news:{outlet}"] = ("news", url, lambda t, o=outlet: parse_rss(t, o))
+        for outlet, url in OPTIONAL_NEWS_FEEDS.items():
+            specs[f"optional_news:{outlet}"] = ("news", url, lambda t, o=outlet: parse_rss(t, o))
         return specs
 
     def _refresh(self, name: str, kind: str, url: str, parse: Callable[[str], Any]) -> None:
@@ -899,7 +952,7 @@ class CatalystSentimentService:
 
     def all_items(self) -> list[dict[str, Any]]:
         seen, out = set(), []
-        for item in self._items("telegram:") + self._items("reddit:") + self._items("news:"):
+        for item in self._items("telegram:") + self._items("reddit:") + self._items("news:") + self._items("optional_news:"):
             if item.get("id") in seen:
                 continue
             seen.add(item.get("id"))

@@ -140,6 +140,10 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
         "pct_from_cycle_high": round((price / high[2] - 1) * 100, 2),
         "cycle_range_position_pct": round((price - low[1]) / span * 100, 2) if span else None,
         "macro_fib_levels": {str(ratio): high[2] - span * ratio for ratio in (0.236, 0.382, 0.5, 0.618, 0.786)},
+        "log_fib_retracements": {
+            str(ratio): high[2] ** (1.0 - ratio) * low[1] ** ratio
+            for ratio in (0.236, 0.382, 0.5, 0.618, 0.786, 0.886)
+        } if span > 0 else {},
         "major_historical_zones": zones[:6],
         "zone_method": "daily highs/lows grouped into 2% price bands; at least three daily touches; sorted by touches then base volume",
         "candle_count": len(rows),
@@ -149,6 +153,62 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
         "first_timestamp": rows[0][0],
         "last_timestamp": rows[-1][0],
     }
+
+
+def top_down_confluence(cycle: dict[str, Any], reads: dict[str, dict[str, Any]], current_price: Any) -> dict[str, Any]:
+    """Compare bullish short-term swings with observed cycle support."""
+    price = _num(current_price)
+    if not cycle.get("available") or not cycle.get("is_multi_year"):
+        return {"available": False, "reason": "multi_year_history_unavailable"}
+    low = _num((cycle.get("cycle_low") or {}).get("price"))
+    high = _num((cycle.get("cycle_high") or {}).get("price"))
+    fib = cycle.get("log_fib_retracements") or {}
+    box_low, box_high = _num(fib.get("0.886")), _num(fib.get("0.618"))
+    if price is None or low is None or high is None or high <= low or box_low is None or box_high is None:
+        return {"available": False, "reason": "cycle_levels_unavailable"}
+    result = {
+        "available": True,
+        "at_multi_year_support": None,
+        "macro_log_support_box": {"low": box_low, "high": box_high},
+        "micro_support_box": None,
+        "micro_breakout_pivot": None,
+        "micro_timeframe": None,
+    }
+    support_top = max(low + (high - low) * 0.35, box_high)
+
+    def overlaps(a, b):
+        return a <= support_top and b >= low or a <= box_high and b >= box_low
+
+    at_support = overlaps(price, price)
+    for tf in ("1h", "4h"):
+        wave = reads.get(tf) or {}
+        if not wave.get("available") or wave.get("bias") != "bullish":
+            continue
+        zone = wave.get("projected_c_zone") or {}
+        zlow, zhigh = _num(zone.get("low")), _num(zone.get("high"))
+        if zlow is not None and zhigh is not None:
+            at_support = at_support or overlaps(min(zlow, zhigh), max(zlow, zhigh))
+        points = {str(p.get("label")): _num(p.get("price")) for p in wave.get("wave_points") or [] if isinstance(p, dict)}
+        c_price = points.get("C")
+        if c_price is not None:
+            at_support = at_support or overlaps(c_price, c_price)
+        is_abc = wave.get("active_pattern") in {"abc_in_progress", "abc_complete"}
+        origin, peak, pivot = (points.get("start"), points.get("0"), points.get("B")) if is_abc else (None, None, None)
+        if origin is None or peak is None:
+            pivots = wave.get("pivots") or []
+            for first, second in reversed(list(zip(pivots, pivots[1:]))):
+                if first.get("kind") == "low" and second.get("kind") == "high":
+                    origin, peak = _num(first.get("price")), _num(second.get("price"))
+                    break
+        if result["micro_timeframe"] is None and origin is not None and peak is not None and 0 < origin < peak:
+            span = peak - origin
+            result.update(
+                micro_timeframe=tf,
+                micro_support_box={"low": peak - span * 0.786, "high": peak - span * 0.5},
+                micro_breakout_pivot=pivot if pivot is not None and pivot > 0 else None,
+            )
+    result["at_multi_year_support"] = at_support
+    return result
 
 
 def _money(price: Any) -> str:

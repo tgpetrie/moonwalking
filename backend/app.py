@@ -11926,10 +11926,17 @@ def execution_agent_tickets():
         return jsonify({"error": "A JSON object is required."}), 400
     action = payload.get("action")
     try:
-        if action == "approve":
+        if action in {"approve", "fill", "close", "cancel"}:
             if not isinstance(payload.get("ticket_id"), str) or not payload["ticket_id"]:
                 raise ValueError("A paper ticket ID is required.")
-            ticket = paper_execution_store.approve_ticket(user["id"], payload.get("ticket_id"))
+            if action == "approve":
+                ticket = paper_execution_store.approve_ticket(user["id"], payload["ticket_id"])
+            elif action == "fill":
+                ticket = paper_execution_store.fill_ticket(user["id"], payload["ticket_id"], payload.get("fill_price"))
+            elif action == "close":
+                ticket = paper_execution_store.close_position(user["id"], payload["ticket_id"], payload.get("exit_price"))
+            else:
+                ticket = paper_execution_store.cancel_ticket(user["id"], payload["ticket_id"])
         elif action in {"preview", "stage"}:
             intent = payload.get("ticket")
             if not isinstance(intent, dict):
@@ -11961,26 +11968,28 @@ def execution_agent_tickets():
                             and holding["available_quantity"] >= size
                             for holding in snapshot.get("holdings") or []
                         )
-            entry = intent.get("entry_price")
+            entry = intent.get("entry_price") if intent.get("side") == "buy" else intent.get("current_price")
             stop = intent.get("stop_limit_price")
             target = intent.get("target_price")
-            if intent.get("side") == "buy" and all(
+            if all(
                 isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
                 for value in (entry, stop, target)
             ) and 0 < stop < entry < target:
                 intent["rr_planned"] = round((target - entry) / (entry - stop), 2)
             else:
                 intent.pop("rr_planned", None)
-            context = {
-                "mode": mode,
-                "trade_intents": [intent],
-            }
-            observations = CoinbaseExecutionAgent().run(context)
-            ticket = dict(observations[0].evidence["ticket"])
+            posture = _trusted_execution_sentiment(intent["product_id"].split("-")[0]) if mode == "autonomous" else None
+
+            def evaluate(risk):
+                context = {"mode": mode, "trade_intents": [intent], **risk, "sentiment_posture": posture}
+                return dict(CoinbaseExecutionAgent().run(context)[0].evidence["ticket"])
+
             if action == "stage":
-                ticket = paper_execution_store.stage_ticket(user["id"], ticket)
+                ticket = paper_execution_store.stage_evaluated_ticket(user["id"], evaluate)
+            else:
+                ticket = evaluate(paper_execution_store.risk_metrics(user["id"]))
         else:
-            raise ValueError("Action must be preview, stage, or approve.")
+            raise ValueError("Action must be preview, stage, approve, fill, close, or cancel.")
     except LookupError as exc:
         return jsonify({"error": str(exc)}), 404
     except (ValueError, TypeError) as exc:
@@ -11988,6 +11997,28 @@ def execution_agent_tickets():
     response = jsonify({"status": "live", "paper": True, "ticket": ticket})
     response.headers["Cache-Control"] = "private, no-store"
     return response
+
+
+def _trusted_execution_sentiment(symbol):
+    """Require fresh mandatory feeds and structure before autonomous approval."""
+    from catalyst_sentiment import get_service, structure_sentiment_posture
+
+    service = get_service()
+    summary = service.symbol(symbol)
+    if summary.get("severe_negative") or summary.get("negative_catalyst_risk"):
+        return "negative_catalyst_risk"
+    sources = service.source_health()
+    required = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
+    if not required or not all(source.get("status") == "ok" for source in required.values()):
+        return None
+    try:
+        structure = _structure_posture_for(symbol)
+    except (requests.RequestException, ValueError, OSError):
+        logging.warning("[PaperExecution] structure unavailable for %s", symbol, exc_info=True)
+        return None
+    if not structure or not all((structure.get("reads") or {}).get(tf) for tf in ("15m", "1h", "4h")):
+        return None
+    return structure_sentiment_posture(summary, structure=structure).get("key")
 
 
 _ICON_BATCH_SYMBOL_LIMIT = 250
@@ -13429,6 +13460,31 @@ def get_chart_read(symbol):
         result["multi_year_context"]["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
             higher, "1w", [], as_of_ts=now
         )
+    if horizon in {"swing", "cycle"}:
+        import chart_reader
+        from elliott_wave_engine import resample_candles
+
+        try:
+            if horizon == "cycle":
+                hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300) or []
+                cycle = result["multi_year_context"]
+                wave_1h = chart_reader.build_wave_analysis(hourly, "1h", as_of_ts=now)
+            else:
+                hourly = history
+                daily = chart_reader.fetch_multi_year_daily_candles(product_id)
+                cycle = chart_structure.multi_year_context(daily)
+                result["multi_year_context"] = cycle
+                wave_1h = result["wave_analysis"]
+            closed = _closed_candles(hourly, 3600, now)
+            four_hour = resample_candles(closed, 14400)
+            wave_4h = chart_reader.build_wave_analysis(four_hour, "4h", as_of_ts=now)
+            result["top_down_confluence"] = chart_structure.top_down_confluence(
+                cycle, {"1h": wave_1h, "4h": wave_4h},
+                closed[-1][4] if closed else None,
+            )
+        except (requests.RequestException, ValueError, OSError, sqlite3.Error):
+            logging.warning("[ChartRead] top-down history unavailable for %s", sym, exc_info=True)
+            result["top_down_confluence"] = {"available": False, "reason": "history_unavailable"}
 
     try:
         from catalyst_sentiment import get_service, structure_sentiment_posture
@@ -13436,7 +13492,7 @@ def get_chart_read(symbol):
         service = get_service()
         summary = service.symbol(sym)
         sources = service.source_health()
-        relevant = {name: state for name, state in sources.items() if name != "fear_greed"}
+        relevant = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
         fresh = any(source.get("status") == "ok" for source in relevant.values())
         complete = bool(relevant) and all(source.get("status") == "ok" for source in relevant.values())
         structure = {"reads": {"1h": result["wave_analysis"]}} if horizon == "swing" else {}
@@ -13462,12 +13518,14 @@ def get_chart_read(symbol):
         if not tickets and horizon == "swing":
             from coinbase_execution_agent import CoinbaseExecutionAgent
 
+            mode = paper_execution_store.get_mode(user["id"])
             observations = CoinbaseExecutionAgent().run({
                 "product_id": product_id,
                 "symbol": sym,
                 "wave_analysis": result["wave_analysis"],
-                "mode": paper_execution_store.get_mode(user["id"]),
-                "sentiment_posture": result["catalyst_sentiment"].get("posture"),
+                "mode": mode,
+                **paper_execution_store.risk_metrics(user["id"]),
+                "sentiment_posture": _trusted_execution_sentiment(sym) if mode == "autonomous" else result["catalyst_sentiment"].get("posture"),
             })
             if observations:
                 result["paper_order_ticket"] = observations[0].evidence["ticket"]

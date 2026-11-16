@@ -25,6 +25,7 @@ export default function PaperExecutionControls({ productId = null, preview = nul
   const [tickets, setTickets] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [paperPrice, setPaperPrice] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,7 +56,10 @@ export default function PaperExecutionControls({ productId = null, preview = nul
         body: JSON.stringify(body),
       });
       if (result.mode) setMode(result.mode);
-      if (result.ticket) setTickets((current) => [result.ticket, ...current.filter((item) => item.id !== result.ticket.id)]);
+      if (result.ticket) {
+        setTickets((current) => [result.ticket, ...current.filter((item) => item.id !== result.ticket.id)]);
+        setPaperPrice("");
+      }
       setError("");
     } catch (cause) {
       setError(cause.message);
@@ -67,7 +71,7 @@ export default function PaperExecutionControls({ productId = null, preview = nul
   return (
     <section className="mw-panel" aria-label="Paper execution">
       <h3>Paper execution</h3>
-      <p>Preview and approval only. No Coinbase orders are submitted.</p>
+      <p>Paper simulation only. No Coinbase orders are submitted.</p>
       {mode ? (
         <label>
           Execution mode{" "}
@@ -98,6 +102,27 @@ export default function PaperExecutionControls({ productId = null, preview = nul
                 ? { action: "approve", ticket_id: ticket.id }
                 : { action: "stage", ticket })}>
               {ticket.id ? "Approve (Paper)" : "Stage (Paper)"}
+            </button>
+          ) : null}
+          {ticket.id && ticket.side === "buy" && ["approved_paper", "auto_approved_autonomous", "filled_paper"].includes(ticket.status) ? (
+            <div>
+              <label>
+                {ticket.status === "filled_paper" ? "Paper exit price" : "Paper fill price"}
+                <input type="number" min="0" step="any" value={paperPrice}
+                  onChange={(event) => setPaperPrice(event.target.value)} />
+              </label>
+              <button type="button" disabled={busy || !Number.isFinite(Number(paperPrice)) || Number(paperPrice) <= 0}
+                onClick={() => update("/api/execution-agent/tickets", ticket.status === "filled_paper"
+                  ? { action: "close", ticket_id: ticket.id, exit_price: Number(paperPrice) }
+                  : { action: "fill", ticket_id: ticket.id, fill_price: Number(paperPrice) })}>
+                {ticket.status === "filled_paper" ? "Close position (Paper)" : "Record fill (Paper)"}
+              </button>
+            </div>
+          ) : null}
+          {ticket.id && ["staged_for_approval", "approved_paper", "auto_approved_autonomous", "auto_approved_guardian"].includes(ticket.status) ? (
+            <button type="button" disabled={busy}
+              onClick={() => update("/api/execution-agent/tickets", { action: "cancel", ticket_id: ticket.id })}>
+              Cancel ticket (Paper)
             </button>
           ) : null}
         </div>

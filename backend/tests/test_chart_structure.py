@@ -114,9 +114,29 @@ def test_cycle_context_math_and_historical_shelves():
     assert context["pct_from_cycle_high"] == -54
     assert context["cycle_range_position_pct"] == 28
     assert context["macro_fib_levels"]["0.5"] == 125
+    assert context["log_fib_retracements"]["0.5"] == pytest.approx(100)
+    assert context["log_fib_retracements"]["0.886"] == pytest.approx(200 ** 0.114 * 50 ** 0.886)
     assert any(z["kind"] == "support" and z["touches"] == 4 for z in context["major_historical_zones"])
     assert context["missing_days"] == 0
     assert cs.multi_year_context([])["available"] is False
+
+
+def test_top_down_support_boxes_and_wave_b_pivot():
+    cycle = cs.multi_year_context([[86400 * i, 50, 200, 100, 100, 1] for i in range(365)])
+    wave = {"available": True, "bias": "bullish", "active_pattern": "abc_in_progress",
+            "wave_points": [{"label": "start", "price": 60}, {"label": "0", "price": 140}, {"label": "B", "price": 125}],
+            "projected_c_zone": {"low": 80, "high": 90}}
+    out = cs.top_down_confluence(cycle, {"1h": wave}, 150)
+    assert out["at_multi_year_support"] is True
+    assert out["micro_support_box"] == pytest.approx({"low": 77.12, "high": 100})
+    assert out["micro_breakout_pivot"] == 125
+    assert cs.top_down_confluence(cycle, {}, 190)["at_multi_year_support"] is False
+    assert cs.top_down_confluence({"available": False}, {}, 100)["available"] is False
+    wave = {"available": True, "bias": "bullish", "active_pattern": "impulse_in_progress",
+            "pivots": [{"kind": "low", "price": 60}, {"kind": "high", "price": 140}]}
+    out = cs.top_down_confluence(cycle, {"4h": wave}, 190)
+    assert out["micro_timeframe"] == "4h"
+    assert out["micro_support_box"] == pytest.approx({"low": 77.12, "high": 100})
 
 
 def test_cycle_weekly_bars_require_complete_monday_weeks():

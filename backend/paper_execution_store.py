@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from contextlib import contextmanager
 from pathlib import Path
@@ -37,6 +38,18 @@ def _connect():
         );
         CREATE INDEX IF NOT EXISTS paper_execution_owner
         ON paper_execution_tickets(owner_id, created_ts DESC);
+        CREATE TABLE IF NOT EXISTS paper_execution_positions (
+            ticket_id TEXT PRIMARY KEY,
+            owner_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            entry_price REAL NOT NULL,
+            risk_usd REAL NOT NULL,
+            opened_ts INTEGER NOT NULL,
+            closed_ts INTEGER,
+            exit_price REAL,
+            realized_r REAL
+        );
         """
     )
     try:
@@ -93,6 +106,96 @@ def stage_ticket(owner_id, ticket):
     return record
 
 
+def _risk_metrics(conn, owner_id, now):
+    day_start = int(now // 86400) * 86400
+    positions = conn.execute(
+        "SELECT COUNT(*) FROM paper_execution_positions WHERE owner_id=? AND closed_ts IS NULL",
+        (owner_id,),
+    ).fetchone()[0]
+    reserved = 0
+    for row in conn.execute(
+        "SELECT t.ticket_json FROM paper_execution_tickets t "
+        "LEFT JOIN paper_execution_positions p ON p.ticket_id=t.id "
+        "WHERE t.owner_id=? AND p.ticket_id IS NULL", (owner_id,),
+    ):
+        ticket = json.loads(row[0])
+        if ticket.get("side") == "buy" and ticket.get("status") in {"approved_paper", "auto_approved_autonomous"}:
+            reserved += 1
+    realized = conn.execute(
+        "SELECT COALESCE(SUM(realized_r), 0) FROM paper_execution_positions "
+        "WHERE owner_id=? AND closed_ts>=? AND closed_ts<?",
+        (owner_id, day_start, day_start + 86400),
+    ).fetchone()[0]
+    return {"open_positions": positions + reserved, "daily_realized_r": realized}
+
+
+def risk_metrics(owner_id):
+    with _connect() as conn:
+        return _risk_metrics(conn, owner_id, time.time())
+
+
+def stage_evaluated_ticket(owner_id, evaluator):
+    """Evaluate and reserve an autonomous ticket under one write lock."""
+    with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        ticket = evaluator(_risk_metrics(conn, owner_id, time.time()))
+        record = dict(ticket, id=str(uuid.uuid4()), paper=True, created_ts=int(time.time()))
+        conn.execute(
+            "INSERT INTO paper_execution_tickets VALUES (?, ?, ?, ?, ?)",
+            (record["id"], owner_id, record["product_id"], record["created_ts"],
+             json.dumps(record, allow_nan=False)),
+        )
+        return record
+
+
+def _positive_number(value, name):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a positive finite number")
+    return float(value)
+
+
+def fill_ticket(owner_id, ticket_id, price):
+    price = _positive_number(price, "fill_price")
+    with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT ticket_json FROM paper_execution_tickets WHERE owner_id=? AND id=?", (owner_id, ticket_id)).fetchone()
+        if row is None:
+            raise LookupError("Paper ticket not found")
+        ticket = json.loads(row[0])
+        if ticket.get("side") != "buy" or ticket.get("status") not in {"approved_paper", "auto_approved_autonomous"}:
+            raise ValueError("Only approved unfilled buy tickets can be filled")
+        limit = _positive_number(ticket.get("entry_price"), "entry_price")
+        stop = _positive_number(ticket.get("stop_limit_price"), "stop_limit_price")
+        quantity = _positive_number(ticket.get("base_size") or ticket.get("size"), "base_size")
+        if price > limit or price <= stop:
+            raise ValueError("Fill price must be at or below the buy limit and above the stop")
+        conn.execute(
+            "INSERT INTO paper_execution_positions(ticket_id,owner_id,product_id,quantity,entry_price,risk_usd,opened_ts) VALUES(?,?,?,?,?,?,?)",
+            (ticket_id, owner_id, ticket["product_id"], quantity, price, quantity * (price - stop), int(time.time())),
+        )
+        ticket["status"] = "filled_paper"
+        ticket["fill_price"] = price
+        conn.execute("UPDATE paper_execution_tickets SET ticket_json=? WHERE owner_id=? AND id=?", (json.dumps(ticket, allow_nan=False), owner_id, ticket_id))
+        return ticket
+
+
+def close_position(owner_id, ticket_id, price):
+    price = _positive_number(price, "exit_price")
+    with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM paper_execution_positions WHERE owner_id=? AND ticket_id=?", (owner_id, ticket_id)).fetchone()
+        if row is None:
+            raise LookupError("Paper position not found")
+        if row["closed_ts"] is not None:
+            raise ValueError("Paper position already closed")
+        realized = (price - row["entry_price"]) * row["quantity"] / row["risk_usd"]
+        conn.execute("UPDATE paper_execution_positions SET closed_ts=?, exit_price=?, realized_r=? WHERE owner_id=? AND ticket_id=?", (int(time.time()), price, realized, owner_id, ticket_id))
+        ticket = json.loads(conn.execute("SELECT ticket_json FROM paper_execution_tickets WHERE owner_id=? AND id=?", (owner_id, ticket_id)).fetchone()[0])
+        ticket.update(status="closed_paper", exit_price=price, realized_r=realized)
+        conn.execute("UPDATE paper_execution_tickets SET ticket_json=? WHERE owner_id=? AND id=?", (json.dumps(ticket, allow_nan=False), owner_id, ticket_id))
+        return ticket
+
+
 def approve_ticket(owner_id, ticket_id):
     with _connect() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -111,3 +214,18 @@ def approve_ticket(owner_id, ticket_id):
             (json.dumps(ticket, allow_nan=False), owner_id, ticket_id),
         )
     return ticket
+
+
+def cancel_ticket(owner_id, ticket_id):
+    """Release an unfilled paper reservation, without touching an exchange."""
+    with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT ticket_json FROM paper_execution_tickets WHERE owner_id=? AND id=?", (owner_id, ticket_id)).fetchone()
+        if row is None:
+            raise LookupError("Paper ticket not found")
+        ticket = json.loads(row[0])
+        if ticket.get("status") not in {"staged_for_approval", "approved_paper", "auto_approved_autonomous", "auto_approved_guardian"}:
+            raise ValueError("Only unfilled paper tickets can be cancelled")
+        ticket["status"] = "cancelled_paper"
+        conn.execute("UPDATE paper_execution_tickets SET ticket_json=? WHERE owner_id=? AND id=?", (json.dumps(ticket, allow_nan=False), owner_id, ticket_id))
+        return ticket

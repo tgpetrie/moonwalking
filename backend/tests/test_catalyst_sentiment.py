@@ -95,3 +95,22 @@ def test_scout_emits_agent_observation():
     observations = agent.run({"catalyst_sentiment": {"symbol": "BTC", "severe_negative": ["hack"]}})
     assert observations[0].agent == "sentiment_scout"
     assert observations[0].severity == "warning"
+
+
+def test_vip_mentions_weight_cross_tier_and_security_warning():
+    from catalyst_sentiment import build_universe, summarize_symbol, match_vips
+    universe = build_universe(["BTC"])
+    items = [
+        {"source": "news", "title": "BTC launch by Vitalik Buterin", "ts": 100, "id": "1"},
+        {"source": "news", "title": "BTC hack discussed by @zachxbt", "ts": 100, "id": "2"},
+    ]
+    summary = summarize_symbol("BTC", items, universe=universe, now=101)
+    assert summary["weighted_positive"] == pytest.approx(1.8 * 1.5)
+    assert summary["weighted_negative"] == pytest.approx(3 * 1.5)
+    assert summary["cross_tier_confluence"]
+    assert summary["negative_catalyst_risk"]
+    assert structure_sentiment_posture(summary)["key"] == "negative_catalyst_risk"
+    assert match_vips("@cobie123 BTC") == []
+    assert not summarize_symbol("ETH", items, universe=universe, now=101)["vip_mentions"]
+    mention = summarize_symbol("BTC", [{"source": "news", "title": "BTC discussed by ZackXBT", "ts": 100}], universe=universe, now=101)
+    assert structure_sentiment_posture(mention)["key"] == "negative_catalyst_risk"
