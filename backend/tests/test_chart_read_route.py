@@ -180,3 +180,167 @@ def test_chart_read_route_survives_a_wave_failure(monkeypatch):
     assert body["symbol"] == "SOL" and body["candle_count"] == 50
     assert body["wave_analysis"]["available"] is False
     assert body["wave_analysis"]["reason"] == "engine_error"
+
+
+# ─── horizons ─────────────────────────────────────────────────────────────────
+
+
+def test_chart_read_route_defaults_to_the_swing_horizon(monkeypatch):
+    monkeypatch.setattr(
+        backend_app, "_fetch_coinbase_candles", lambda *a, **k: _history()
+    )
+    for url in ("/api/chart-read/SOL", "/api/chart-read/SOL?horizon=bogus"):
+        with backend_app.app.test_request_context(url):
+            body = backend_app.get_chart_read("SOL").get_json()
+        assert body["horizon"] == "swing" and body["timeframe"] == "1h"
+        assert [h["key"] for h in body["horizons"]] == ["short", "swing", "macro"]
+        wave = body["wave_analysis"]
+        assert wave["story"]["steps"] and "swings" in wave["swing_history"]
+        assert len(wave["swing_history"]["swings"]) == len(wave["pivots"])
+
+
+def test_short_horizon_reads_15m_candles_with_a_4h_trend_check(monkeypatch):
+    asked = []
+
+    def fake_fetch(product_id, granularity=60, count=70):
+        asked.append(granularity)
+        return _history(count=300, step=granularity)[:count]
+
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", fake_fetch)
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=short"):
+        response = backend_app.get_chart_read("SOL")
+
+    assert response.status_code == 200
+    assert sorted(asked) == [900, 3600]
+    body = response.get_json()
+    assert body["horizon"] == "short" and body["timeframe"] == "15m"
+    assert body["window_hours"] == 12.5  # 50 fifteen-minute candles
+    wave = body["wave_analysis"]
+    assert wave["timeframe"] == "15m" and wave["bar_seconds"] == 900
+    assert wave["higher_timeframe"] == "4h"
+    assert wave["chart"]["granularity_seconds"] == 900
+
+
+def test_macro_horizon_pages_back_and_reads_4h_candles(monkeypatch):
+    hourly = _history(count=720)  # newest first, 30 days of 1h candles
+    pages = []
+
+    def fake_fetch(product_id, granularity=60, count=70):
+        if granularity == 86400:
+            return []
+        assert granularity == 3600
+        return hourly[:count]
+
+    def fake_before(product_id, granularity, end_ts, count=300):
+        pages.append(end_ts)
+        older = [c for c in hourly if c[0] <= end_ts]
+        return older[:count]
+
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", fake_fetch)
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles_before", fake_before)
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=macro"):
+        response = backend_app.get_chart_read("SOL")
+
+    assert response.status_code == 200
+    # Two more pages, each ending one bar before the oldest candle already held.
+    assert pages == [hourly[299][0] - 3600, hourly[599][0] - 3600]
+    body = response.get_json()
+    assert body["horizon"] == "macro" and body["timeframe"] == "4h"
+    assert body["window_hours"] == 200.0  # 50 four-hour candles
+    wave = body["wave_analysis"]
+    assert wave["timeframe"] == "4h" and wave["bar_seconds"] == 14400
+    assert wave["candle_count"] == 180  # 720 hourly candles in closed 4h buckets
+    assert wave["chart"]["candles"][-1][0] == hourly[0][0] - 3 * 3600
+
+
+def test_macro_horizon_still_reads_when_paging_fails(monkeypatch):
+    hourly = _history(count=300)
+    monkeypatch.setattr(
+        backend_app,
+        "_fetch_coinbase_candles",
+        lambda product_id, granularity=60, count=70: (
+            [] if granularity == 86400 else hourly[:count]
+        ),
+    )
+    monkeypatch.setattr(
+        backend_app, "_fetch_coinbase_candles_before", lambda *a, **k: None
+    )
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=macro"):
+        body = backend_app.get_chart_read("SOL").get_json()
+    assert body["wave_analysis"]["candle_count"] == 75
+    assert body["wave_analysis"]["available"] is True
+
+
+# ─── structure posture for board rows ─────────────────────────────────────────
+
+
+def _posture(monkeypatch, url, fetch):
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", fetch)
+    with backend_app.app.test_request_context(url):
+        return backend_app.get_structure_posture().get_json()
+
+
+def test_structure_posture_reads_each_symbol_once_and_caches_it(monkeypatch):
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()
+    calls = []
+
+    def fetch(product_id, granularity=60, count=70):
+        calls.append((product_id, granularity))
+        if product_id.startswith("GONE"):
+            return None
+        return _history()[:count] if granularity == 3600 else []
+
+    url = "/api/structure-posture?symbols=sol,BTC,sol,bad!sym,GONE"
+    body = _posture(monkeypatch, url, fetch)
+
+    assert sorted(body["postures"]) == ["BTC", "SOL"]  # GONE has no candles
+    assert body["pending"] == []
+    assert body["blocks_alerts"] is False and body["outcome_validated"] is False
+    sol = body["postures"]["SOL"]
+    assert sol["reads"]["1h"]["active_pattern"] == "abc_complete"
+    assert set(sol["posture"]) >= {"key", "tone", "label", "short_label", "detail"}
+    assert sorted(set(calls)) == [
+        ("BTC-USD", 900),
+        ("BTC-USD", 3600),
+        ("GONE-USD", 3600),
+        ("SOL-USD", 900),
+        ("SOL-USD", 3600),
+    ]
+
+    calls.clear()
+    again = _posture(monkeypatch, url, fetch)
+    assert again["postures"] == body["postures"]
+    assert calls == []  # every symbol, including the miss, came from the cache
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()
+
+
+def test_structure_posture_limits_new_reads_per_call(monkeypatch):
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()
+    monkeypatch.setattr(backend_app, "STRUCTURE_POSTURE_MAX_FRESH", 2)
+
+    def fetch(product_id, granularity=60, count=70):
+        return _history()[:count] if granularity == 3600 else []
+
+    url = "/api/structure-posture?symbols=AAA,BBB,CCC"
+    first = _posture(monkeypatch, url, fetch)
+    assert sorted(first["postures"]) == ["AAA", "BBB"] and first["pending"] == ["CCC"]
+    second = _posture(monkeypatch, url, fetch)
+    assert sorted(second["postures"]) == ["AAA", "BBB", "CCC"]
+    assert second["pending"] == []
+    empty = _posture(monkeypatch, "/api/structure-posture", fetch)
+    assert empty["postures"] == {} and empty["pending"] == []
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()
+
+
+def test_structure_posture_survives_a_read_failure(monkeypatch):
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()
+
+    def boom(sym):
+        raise RuntimeError("reader down")
+
+    monkeypatch.setattr(backend_app, "_structure_posture_for", boom)
+    with backend_app.app.test_request_context("/api/structure-posture?symbols=SOL"):
+        response = backend_app.get_structure_posture()
+    assert response.status_code == 200
+    assert response.get_json()["postures"] == {}
+    backend_app._STRUCTURE_POSTURE_CACHE.clear()

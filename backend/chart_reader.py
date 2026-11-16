@@ -17,7 +17,9 @@ __all__ = ["analyze_candles", "build_wave_analysis"]
 _SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
 # Higher timeframe used for the wave read's trend check, built from the same candles.
 _HIGHER_TIMEFRAME = {"1m": "15m", "5m": "1h", "15m": "4h", "1h": "4h", "4h": "1d"}
-_WAVE_CHART_BARS = 160
+# Candles sent with the wave read: the whole window the swings were read from,
+# so earlier higher lows and lower highs can be drawn, not just the last count.
+_WAVE_CHART_BARS = 300
 
 
 # ─── normalise ────────────────────────────────────────────────────────────────
@@ -427,8 +429,17 @@ def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
 # ─── wave structure ───────────────────────────────────────────────────────────
 
 
+def _structure_layer():
+    try:
+        from chart_structure import plain_story, swing_history
+    except ImportError:
+        from backend.chart_structure import plain_story, swing_history
+    return plain_story, swing_history
+
+
 def _wave_fallback(reason: str) -> dict[str, Any]:
     """Same shape as an engine result, saying no wave read is available."""
+    plain_story, swing_history = _structure_layer()
     return {
         "available": False,
         "reason": reason,
@@ -447,6 +458,8 @@ def _wave_fallback(reason: str) -> dict[str, Any]:
         "confidence": 0.0,
         "confidence_label": "low",
         "summary": "Wave structure is not available for this chart.",
+        "swing_history": swing_history([]),
+        "story": plain_story(None),
         "outcome_validated": False,
     }
 
@@ -464,6 +477,10 @@ def build_wave_analysis(
     bar cannot confirm or move a swing. Without ``higher_tf_candles`` the
     trend check is resampled from the same candles when there are enough.
     Returns the fallback shape when history is short or the engine fails.
+
+    Two plain-English layers ride along with every read: ``swing_history``
+    (each confirmed swing labeled as a higher or lower high or low) and
+    ``story`` (the read restated as numbered steps).
     """
     try:
         try:
@@ -479,16 +496,22 @@ def build_wave_analysis(
         if as_of_ts is not None and step:
             rows = [r for r in rows if r[0] + step <= as_of_ts]
         candles = [list(r) for r in rows]
-        higher_name = None
+        higher_name = _HIGHER_TIMEFRAME.get(timeframe)
         if higher_tf_candles is None:
-            higher_name = _HIGHER_TIMEFRAME.get(timeframe)
             if higher_name:
                 higher_tf_candles = resample_candles(candles, _SECONDS[higher_name])
+        elif not higher_tf_candles:
+            higher_name = None  # the caller supplied no higher-timeframe bars
         result = dict(
             analyze_wave_structure(candles, higher_tf_candles=higher_tf_candles)
         )
         result["timeframe"] = timeframe
         result["higher_timeframe"] = higher_name
+        plain_story, swing_history = _structure_layer()
+        result["swing_history"] = swing_history(
+            result.get("pivots"), candles[-1][4] if candles else None
+        )
+        result["story"] = plain_story(result)
         if result.get("available"):
             result["chart"] = {
                 "candles": candles[-_WAVE_CHART_BARS:],

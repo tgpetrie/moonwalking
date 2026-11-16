@@ -13127,16 +13127,83 @@ def get_chart(symbol):
     )
 
 
+def _fetch_coinbase_candles_before(product_id, granularity, end_ts, count=300):
+    """Candles ending at or before ``end_ts``, newest first, or ``None``.
+
+    ``_fetch_coinbase_candles`` only returns the latest page. The longer
+    chart-read horizons page back with this.
+    """
+    try:
+        end = datetime.fromtimestamp(float(end_ts), tz=timezone.utc)
+        start = end - timedelta(seconds=granularity * (count - 1))
+        resp = requests.get(
+            f"https://api.exchange.coinbase.com/products/{product_id}/candles",
+            params={
+                "granularity": granularity,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+            },
+            timeout=5,
+        )
+        if not resp.ok:
+            logging.debug(f"[Candles] HTTP {resp.status_code} paging {product_id}")
+            return None
+        data = resp.json()
+        return data[:count] if isinstance(data, list) else None
+    except Exception as exc:
+        logging.debug(f"[Candles] Paging error for {product_id}: {exc}")
+        return None
+
+
+def _fetch_coinbase_candle_history(product_id, granularity, pages=1):
+    """Up to ``pages`` x 300 candles, newest first. Stops at the first gap."""
+    history = _fetch_coinbase_candles(product_id, granularity=granularity, count=300)
+    if not history:
+        return history
+    history = list(history)
+    for _ in range(max(0, int(pages) - 1)):
+        try:
+            oldest = min(float(c[0]) for c in history)
+        except (TypeError, ValueError, IndexError):
+            break
+        older = _fetch_coinbase_candles_before(
+            product_id, granularity, oldest - granularity
+        )
+        if not older:
+            break
+        seen = {c[0] for c in history}
+        added = [c for c in older if c and c[0] not in seen]
+        if not added:
+            break
+        history.extend(added)
+    return history
+
+
+def _closed_candles(candles, step, now):
+    """Completed candles only, oldest first."""
+    rows = []
+    for candle in candles or []:
+        try:
+            if float(candle[0]) + step <= now:
+                rows.append(candle)
+        except (TypeError, ValueError, IndexError):
+            continue
+    rows.sort(key=lambda candle: float(candle[0]))
+    return rows
+
+
 @app.route("/api/chart-read/<symbol>")
 def get_chart_read(symbol):
     """Deterministic chart read for a coin — math-derived, basic-user language.
 
-    Uses 1h candles over the most recent ~50 hours (Coinbase Exchange), plus
-    up to 300 completed 1h candles for the descriptive wave-structure read.
-    No predictions, no trading advice.
+    ``horizon`` picks the view: ``swing`` (default) reads 1h candles over the
+    most recent ~50 hours plus up to 300 completed 1h candles for the
+    structure read, ``short`` reads 15m candles and ``macro`` reads 4h candles
+    built from about a month of 1h history. No predictions, no trading advice.
     """
     try:
         from chart_reader import analyze_candles
+        import chart_structure
     except ImportError as exc:
         logging.error(f"[ChartRead] chart_reader import failed: {exc}")
         return jsonify({"error": "Chart reader unavailable"}), 503
@@ -13165,15 +13232,55 @@ def get_chart_read(symbol):
         if evidence:
             event_context["evidence"] = evidence
 
+    horizon = str(request.args.get("horizon") or "").strip().lower()
+    if horizon not in chart_structure.HORIZONS:
+        horizon = chart_structure.DEFAULT_HORIZON
+    timeframe = chart_structure.HORIZONS[horizon]["timeframe"]
+    now = time.time()
     product_id = f"{sym}-USD"
-    # One request serves both reads: the newest 50 candles feed the basic read
-    # as before, the full history (up to 300) feeds the wave structure.
-    history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+    higher = None  # None lets the reader resample the trend check itself
+
+    def fetch_both(first, second):
+        """Two independent candle requests at once, so a view costs one wait."""
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            a, b = pool.submit(first), pool.submit(second)
+            return a.result(), b.result()
+
+    if horizon == "short":
+        history, hourly = fetch_both(
+            lambda: _fetch_coinbase_candles(product_id, granularity=900, count=300),
+            lambda: _fetch_coinbase_candles(product_id, granularity=3600, count=300),
+        )
+        try:
+            from elliott_wave_engine import resample_candles
+
+            higher = resample_candles(_closed_candles(hourly, 3600, now), 14400)
+        except Exception as exc:
+            logging.debug(f"[ChartRead] 4h trend bars unavailable for {sym}: {exc}")
+    elif horizon == "macro":
+        hourly, higher = fetch_both(
+            lambda: _fetch_coinbase_candle_history(product_id, 3600, pages=3),
+            lambda: _fetch_coinbase_candles(product_id, granularity=86400, count=300),
+        )
+        higher = higher or []
+        history = None
+        if hourly:
+            try:
+                from elliott_wave_engine import resample_candles
+
+                bars = resample_candles(_closed_candles(hourly, 3600, now), 14400)
+                history = list(reversed(bars))  # newest first, like Coinbase
+            except Exception as exc:
+                logging.warning(f"[ChartRead] 4h bars unavailable for {sym}: {exc}")
+    else:
+        # One request serves both reads: the newest 50 candles feed the basic
+        # read as before, the full history (up to 300) feeds the structure.
+        history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
     if not history:
         return jsonify({"error": f"No candle data for {sym}"}), 404
     candles = history[:50]
 
-    result = analyze_candles(candles, sym, "1h", event_context=event_context)
+    result = analyze_candles(candles, sym, timeframe, event_context=event_context)
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
 
@@ -13181,15 +13288,113 @@ def get_chart_read(symbol):
         import chart_reader
 
         result["wave_analysis"] = chart_reader.build_wave_analysis(
-            history, "1h", as_of_ts=time.time()
+            history, timeframe, higher, as_of_ts=now
         )
     except Exception as exc:
         logging.warning(f"[ChartRead] wave analysis unavailable for {sym}: {exc}")
         result.setdefault(
             "wave_analysis", {"available": False, "active_pattern": "none"}
         )
+    result["horizon"] = horizon
+    result["horizons"] = chart_structure.horizon_list()
 
     return jsonify(result)
+
+
+# Structure posture for board rows. Display context only: nothing below is read
+# by the alert pipeline, so it cannot block, rank or delay an alert.
+_STRUCTURE_POSTURE_CACHE = {}  # symbol -> (computed_at, payload)
+_STRUCTURE_POSTURE_LOCK = threading.Lock()
+STRUCTURE_POSTURE_TTL_SECONDS = 300
+STRUCTURE_POSTURE_MISS_TTL_SECONDS = 60
+STRUCTURE_POSTURE_MAX_SYMBOLS = 40
+STRUCTURE_POSTURE_MAX_FRESH = 12
+_STRUCTURE_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,15}$")
+
+
+def _structure_posture_for(sym):
+    """Fetch 1h and 15m candles for one symbol and read its structure."""
+    import chart_structure
+
+    product_id = f"{sym}-USD"
+    hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+    if not hourly:
+        return None
+    quarter = _fetch_coinbase_candles(product_id, granularity=900, count=300)
+    return chart_structure.radar_structure(quarter or [], hourly, as_of_ts=time.time())
+
+
+@app.route("/api/structure-posture")
+def get_structure_posture():
+    """Plain-English chart-structure posture for a list of board symbols.
+
+    ``?symbols=BTC,ETH``. Reads are cached per symbol; at most
+    ``STRUCTURE_POSTURE_MAX_FRESH`` new symbols are computed per call and the
+    rest come back under ``pending`` for the next poll.
+    """
+    symbols = []
+    for raw in str(request.args.get("symbols") or "").split(","):
+        sym = raw.strip().upper()
+        if _STRUCTURE_SYMBOL_RE.match(sym) and sym not in symbols:
+            symbols.append(sym)
+    symbols = symbols[:STRUCTURE_POSTURE_MAX_SYMBOLS]
+
+    now = time.time()
+    found, missing = {}, []
+    with _STRUCTURE_POSTURE_LOCK:
+        for sym in symbols:
+            hit = _STRUCTURE_POSTURE_CACHE.get(sym)
+            ttl = (
+                STRUCTURE_POSTURE_TTL_SECONDS
+                if hit and hit[1] is not None
+                else STRUCTURE_POSTURE_MISS_TTL_SECONDS
+            )
+            if hit and now - hit[0] < ttl:
+                found[sym] = hit[1]
+            else:
+                missing.append(sym)
+    fresh = missing[:STRUCTURE_POSTURE_MAX_FRESH]
+    pending = missing[STRUCTURE_POSTURE_MAX_FRESH:]
+
+    if fresh:
+
+        def safe(sym):
+            try:
+                return _structure_posture_for(sym)
+            except Exception as exc:
+                logging.debug(f"[StructurePosture] {sym} failed: {exc}")
+                return None
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            computed = list(pool.map(safe, fresh))
+        with _STRUCTURE_POSTURE_LOCK:
+            for sym, payload in zip(fresh, computed):
+                _STRUCTURE_POSTURE_CACHE[sym] = (now, payload)
+                found[sym] = payload
+            if len(_STRUCTURE_POSTURE_CACHE) > 600:
+                cutoff = now - STRUCTURE_POSTURE_TTL_SECONDS
+                for key in [
+                    k for k, v in _STRUCTURE_POSTURE_CACHE.items() if v[0] < cutoff
+                ]:
+                    _STRUCTURE_POSTURE_CACHE.pop(key, None)
+
+    return jsonify(
+        {
+            "postures": {
+                sym: {
+                    "posture": payload.get("posture"),
+                    "trend_4h": payload.get("trend_4h"),
+                    "reads": payload.get("reads") or {},
+                }
+                for sym, payload in found.items()
+                if payload is not None
+            },
+            "pending": pending,
+            "ttl_seconds": STRUCTURE_POSTURE_TTL_SECONDS,
+            "blocks_alerts": False,
+            "outcome_validated": False,
+        }
+    )
 
 
 @app.route("/api/recommendations")
