@@ -326,7 +326,7 @@ def test_exchange_time_may_lead_the_local_clock_only_within_the_skew_allowance()
     strict = GuardedDryRunExitExecutor(max_clock_skew_ms=0)
     assert strict.quote_guard(ahead(1), 174.8, 1.0, NOW_MS) == ["exchange_book_stale"]
     assert strict.quote_guard(ahead(0), 174.8, 1.0, NOW_MS) == []
-    for bad in (-1, 15_001, float("nan"), None):
+    for bad in (-1, 2_001, 15_001, float("nan"), None):
         with pytest.raises(ValueError):
             GuardedDryRunExitExecutor(max_clock_skew_ms=bad)
 
@@ -573,7 +573,7 @@ def test_trim_carries_a_three_rung_reload_plan_with_the_coin_gain(store):
         (105.0, 35.0, 229.69, "log_fib_0.702"),
         (90.0, 40.0, 262.5, "log_fib_0.786"),
     ]
-    coins = 164.0625 / 120 + 229.6875 / 105 + 262.5 / 90
+    coins = 164.06 / 120 + 229.69 / 105 + 262.5 / 90
     assert plan["projected_reloaded_coins"] == pytest.approx(coins)
     assert plan["net_coin_gain_qty"] == pytest.approx(coins - 3.75)
     assert plan["net_coin_gain_pct"] == round((coins - 3.75) / 10 * 100, 2) == 27.21
@@ -631,7 +631,8 @@ def test_only_an_approved_or_executed_trim_opens_a_reload_plan(store):
     })
     assert agent.last_proposals[0]["status"] == "auto_executed_dry_run"
     (plan,) = other.active_reload_plans("sol-usd")
-    assert plan["trim_status"] == "auto_executed_dry_run" and plan["remaining_usdc"] == 656.25
+    assert plan["trim_status"] == "auto_executed_dry_run"
+    assert plan["remaining_usdc"] == agent.last_proposals[0]["execution"]["proceeds_usd"] == 654.84
     assert other.active_reload_plans("AVAX") == []
 
 
@@ -693,8 +694,39 @@ def test_reload_is_found_without_a_position_and_never_auto_executes(store):
     (reload_,) = agent.last_proposals
     assert reload_["action"] == "RELOAD_ACCUMULATE" and reload_["status"] == "pending_approval"
     assert reload_["sizing"]["note"] == "equity_unknown"
-    assert reload_["sizing"]["suggested_notional_usd"] == 164.06
+    assert reload_["sizing"]["suggested_notional_usd"] is None
+    assert reload_["sizing"]["funded_usd"] == 164.06
+    with pytest.raises(ValueError, match="no allocated size"):
+        store.decide_proposal(reload_["proposal_id"], "approve")
     assert store.count_auto_orders_since(0) == 0
+
+
+def test_partial_reload_debits_only_its_sized_buy_and_rejects_stale_approval(store):
+    _approved_trim(store)
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    context = {
+        "cycle_scan": _scan(_reload_row(118.0)),
+        "portfolio_equity_usd": 1_000,
+        "quote_fetcher": lambda products: pytest.fail(f"Fetched quotes for reload: {products}"),
+    }
+    agent = CycleStrategistAgent(store)
+    agent.run({**context, "now_ts": NOW + DAY})
+    (first,) = agent.last_proposals
+    assert first["status"] == "pending_approval"
+    assert first["sizing"]["suggested_notional_usd"] == 73.75
+    assert first["evidence"]["reload_fills"][0]["usdc"] == 73.75
+
+    agent.run({**context, "now_ts": NOW + 2 * DAY, "portfolio_equity_usd": 10_000})
+    (stale,) = agent.last_proposals
+    assert stale["evidence"]["reload_fills"][0]["usdc"] == 164.06
+    approved = store.decide_proposal(first["proposal_id"], "approve")
+    assert store.decide_proposal(first["proposal_id"], "approve") == approved
+    with pytest.raises(ValueError, match="no longer available"):
+        AgentStore(store.db_path).decide_proposal(stale["proposal_id"], "approve")
+    (plan,) = AgentStore(store.db_path).active_reload_plans()
+    assert plan["remaining_usdc"] == 582.50
+    assert plan["tranches"][0]["remaining_usdc"] == 90.31
+    assert not plan["tranches"][0]["filled"]
 
 
 def test_reload_plan_stops_triggering_below_its_invalidation(store):
@@ -823,6 +855,50 @@ def test_sizing_without_equity_gives_no_notional(store):
     assert entry.sizing["suggested_notional_usd"] is None and entry.sizing["risk_budget_pct"] == 0.5
 
 
+def test_unpriced_holdings_and_outsize_knobs_cannot_bypass_heat(store):
+    context = {
+        "cycle_scan": _scan(_row("ETH", 3000.0), _breakout()),
+        "positions": [{"symbol": "ETH", "quantity": 2, "stop_price": 2750.25}],
+        "watchlist": ["AVAX"], "portfolio_equity_usd": 10_000,
+        "max_open_risk_pct": 100,
+    }
+    agent = CycleStrategistAgent(store)
+    (entry,) = agent.evaluate(context)
+    assert entry.sizing["max_open_risk_pct"] == 5
+    assert entry.sizing["suggested_notional_usd"] == 7.5  # $0.50 of actual heat remains
+    (entry,) = agent.evaluate({**context, "positions": [{"symbol": "ETH", "quantity": 2}, {"symbol": "MISSING", "quantity": 3}]})
+    assert entry.sizing["note"] == "positions_unpriced"
+    assert entry.sizing["suggested_notional_usd"] is None
+    (entry,) = agent.evaluate({**context, "positions": [], "portfolio_equity_usd": 0.001})
+    assert entry.sizing["suggested_notional_usd"] == 0
+
+
+@pytest.mark.parametrize("guard", ["floor", "position", "scanner"])
+def test_protective_breach_at_five_percent_and_just_beyond(store, guard):
+    from agents.cycle_strategist import evaluate_protective_stop
+
+    floor = 100 if guard == "floor" else None
+    position = 100 if guard == "position" else 94.0
+    row = _row("SOL", 95.0, accumulation_invalidation_stop={"stop_price": 100 if guard == "scanner" else 91})
+    fresh = evaluate_protective_stop(row, floor, 95, position)
+    assert fresh.stop_price == 95 and fresh.breach_state != "stale_floor_break_reassess"
+    stale = evaluate_protective_stop(row, floor, 94.999, position)
+    assert stale.breach_state == "stale_floor_break_reassess"
+    assert stale.stop_price is None or stale.stop_price < stale.reference_price
+
+
+def test_a_broken_scanner_stop_remains_stale_despite_a_nearer_position_stop(store):
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(_row("SOL", 90, accumulation_invalidation_stop={"stop_price": 100})),
+        "positions": [{"symbol": "SOL", "quantity": 2, "stop_price": 91, "higher_low_floor": 92}],
+        "quote_fetcher": lambda products: pytest.fail(f"Fetched quotes for stale exit: {products}"),
+    })
+    (stop,) = agent.last_proposals
+    assert stop["breach_state"] == "stale_floor_break_reassess"
+    assert stop["status"] == "pending_approval" and stop["stop_price"] is None
+
+
 # ─── Phase 2: pair rotation ──────────────────────────────────────────────────
 
 
@@ -914,12 +990,26 @@ def test_a_defended_coin_is_neither_rotated_nor_used_as_the_leader(store):
     assert {p.action for p in agent.evaluate(context)} == {PROTECTIVE_STOP}
 
 
+def test_rotation_heat_cap_scales_both_legs_and_does_not_overlap_trim(store):
+    agent = CycleStrategistAgent(store)
+    context = _rotation_context(_laggard(), _leader(), portfolio_equity_usd=1_020)
+    # The laggard's $50 assumed risk leaves $1 of heat for the 8% stop.
+    (rotation,) = agent.evaluate(context)
+    assert rotation.reward_to_risk_ratio == 7.5
+    assert rotation.pair["freed_usd"] == rotation.sizing["suggested_notional_usd"] == 12.50
+    assert rotation.trim_pct == 2.5
+    assert agent.evaluate({**context, "portfolio_equity_usd": 1_000}) == []
+    with_trim = _laggard(rollover_target_box={"low": 4.5, "high": 5.5})
+    assert [p.action for p in agent.evaluate(_rotation_context(with_trim, _leader(), portfolio_equity_usd=10_000))] == [TRIM_TO_USDC]
+
+
 # ─── Phase 2: live top-of-book quote feed ────────────────────────────────────
 
 
 class _Book:
     def __init__(self, body, status=200):
         self.body, self.status = body, status
+        self.status_code = status
 
     def raise_for_status(self):
         if self.status >= 400:
@@ -945,9 +1035,10 @@ def test_fetch_top_of_book_reads_the_public_exchange_level_one_book():
         calls.append((url, kwargs))
         return _Book(_book())
 
-    quote = fetch_top_of_book("SOL-USD", http_get=http_get, now_ms=lambda: NOW_MS)
+    quote = fetch_top_of_book("SOL-USD", http_get=http_get, now_ms=lambda: NOW_MS, timeout=500)
     assert calls[0][0] == "https://api.exchange.coinbase.com/products/SOL-USD/book"
-    assert calls[0][1]["params"] == {"level": 1} and calls[0][1]["timeout"] > 0
+    assert calls[0][1]["params"] == {"level": 1}
+    assert calls[0][1]["timeout"] == 4 and calls[0][1]["allow_redirects"] is False
     assert quote == {
         "product_id": "SOL-USD", "quote_status": "AVAILABLE",
         "source": "coinbase_exchange_book_level_1",
@@ -958,12 +1049,15 @@ def test_fetch_top_of_book_reads_the_public_exchange_level_one_book():
     quotes = fetch_live_quotes(["sol", "SOL-USD", "avax-usd", "bad symbol"], http_get=http_get, now_ms=lambda: NOW_MS)
     assert list(quotes) == ["SOL-USD", "AVAX-USD"]
     assert len(calls) == 3
+    assert fetch_live_quotes(["SOL/EUR", "SOL-USDC", "../accounts"], http_get=http_get) == {}
+    assert len(calls) == 3
 
 
 @pytest.mark.parametrize(
     "response,reason",
     [
         (_Book(_book(), status=429), "request_failed:RuntimeError"),
+        (_Book(_book(), status=302), "unexpected_http_status"),
         (_Book(ValueError("not json")), "request_failed:ValueError"),
         (_Book(["not", "a", "book"]), "malformed_book"),
         (_Book(_book(auction_mode=True)), "auction_mode"),
@@ -982,12 +1076,12 @@ def test_fetch_top_of_book_handles_one_sided_books_bad_time_and_bad_products():
     assert fetch_top_of_book("../accounts", http_get=boom)["reason"] == "invalid_product"
     assert fetch_top_of_book("SOL-EUR", http_get=boom)["reason"] == "invalid_product"
     one_sided = fetch_top_of_book("SOL-USD", http_get=lambda url, **kw: _Book(_book(asks=[])))
-    assert one_sided["quote_status"] == "UNAVAILABLE" and one_sided["ask_usd"] is None
+    assert one_sided["quote_status"] == "UNAVAILABLE" and one_sided["reason"] == "invalid_book_levels"
     untimed = fetch_top_of_book("SOL-USD", http_get=lambda url, **kw: _Book(_book(time="yesterday")))
-    assert untimed["quote_status"] == "AVAILABLE" and untimed["exchange_time_ms"] is None
+    assert untimed["quote_status"] == "UNAVAILABLE" and untimed["reason"] == "invalid_book_time"
     # The executor refuses a book with no exchange timestamp.
-    blocks = GuardedDryRunExitExecutor().quote_guard(untimed, 174.8, 1.0, untimed["observed_at_ms"])
-    assert "quote_missing_exchange_timestamp" in blocks
+    blocks = GuardedDryRunExitExecutor().quote_guard(untimed, 174.8, 1.0, NOW_MS)
+    assert "quote_unavailable" in blocks
 
 
 def _live_fetcher(calls, **changes):

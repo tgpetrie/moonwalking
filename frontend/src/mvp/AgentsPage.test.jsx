@@ -476,7 +476,7 @@ describe("AgentsPage", () => {
       expect(within(row).getByText("Reload accumulate")).toBeInTheDocument();
       expect(within(row).getByText("R:R 7.13")).toBeInTheDocument();
       expect(within(row).getByText("Suggested Size").nextSibling).toHaveTextContent("$164.06 · 1.3903 SOL");
-      expect(within(row).getByText(/Funded by \$164.06 already freed; no fresh cash\./)).toBeInTheDocument();
+      expect(within(row).getByText(/USDC funding limit \$164\.06\./)).toBeInTheDocument();
       expect(within(row).getByRole("link", { name: "Trade" })).toHaveAttribute(
         "href", "https://www.coinbase.com/advanced-trade/spot/SOL-USD"
       );

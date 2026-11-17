@@ -18,6 +18,7 @@ import { fetchPortfolio } from "../../mvp/portfolioApi.js";
 const TTL_MS = 60_000;
 
 let _cache = { ts: 0, symbols: null, promise: null };
+const EMPTY_SYMBOLS = new Set();
 
 /** Pure: extract non-cash holding symbols from a portfolio snapshot. */
 export function extractHoldingSymbols(snapshot) {
@@ -34,12 +35,32 @@ export function __resetHoldingsCacheForTests() {
   _cache = { ts: 0, symbols: null, promise: null };
 }
 
-export default function useHoldingSymbols({ enabled = true } = {}) {
-  const [symbols, setSymbols] = useState(() => _cache.symbols || new Set());
+export default function useHoldingSymbols({ enabled = true, cached = true } = {}) {
+  const [symbols, setSymbols] = useState(() => cached ? _cache.symbols || EMPTY_SYMBOLS : EMPTY_SYMBOLS);
 
   useEffect(() => {
     if (!enabled) return undefined;
     let active = true;
+
+    if (!cached) {
+      // The public board must confirm the current session before showing holdings.
+      let request = 0;
+      const load = () => {
+        const id = ++request;
+        setSymbols(EMPTY_SYMBOLS);
+        fetchPortfolio().then(extractHoldingSymbols).then((result) => {
+          if (active && id === request) setSymbols(result);
+        }).catch(() => {
+          if (active && id === request) setSymbols(EMPTY_SYMBOLS);
+        });
+      };
+      load();
+      window.addEventListener("focus", load);
+      return () => {
+        active = false;
+        window.removeEventListener("focus", load);
+      };
+    }
 
     if (_cache.symbols && Date.now() - _cache.ts < TTL_MS) {
       setSymbols(_cache.symbols);
@@ -69,7 +90,7 @@ export default function useHoldingSymbols({ enabled = true } = {}) {
     return () => {
       active = false;
     };
-  }, [enabled]);
+  }, [enabled, cached]);
 
-  return symbols;
+  return enabled ? symbols : EMPTY_SYMBOLS;
 }

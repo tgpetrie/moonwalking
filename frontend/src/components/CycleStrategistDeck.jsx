@@ -103,7 +103,11 @@ function ReloadPlan({ plan, symbol }) {
               <td>{price(rung.level)}</td>
               <td>{usd(rung.usdc)}</td>
               <td>{coins(rung.coins)}</td>
-              <td>{RUNG_BASIS[rung.basis] || rung.basis}{rung.filled ? " · spent" : ""}</td>
+              <td>
+                {RUNG_BASIS[rung.basis] || rung.basis}
+                {rung.filled ? " · spent" : finite(rung.remaining_usdc) && rung.remaining_usdc < rung.usdc
+                  ? ` · ${usd(rung.remaining_usdc)} left` : ""}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -118,6 +122,9 @@ function ReloadPlan({ plan, symbol }) {
 function SuggestedSize({ sizing, symbol }) {
   if (!sizing || typeof sizing !== "object") return null;
   const sized = finite(sizing.suggested_notional_usd);
+  const unavailable = sizing.note === "positions_unpriced" ? "needs prices for all holdings"
+    : sizing.note === "invalid_stop" ? "needs a stop below entry"
+    : "needs portfolio equity";
   return (
     <>
       <div>
@@ -125,7 +132,7 @@ function SuggestedSize({ sizing, symbol }) {
         <dd>
           {sized
             ? `${usd(sizing.suggested_notional_usd)}${finite(sizing.suggested_quantity) ? ` · ${coins(sizing.suggested_quantity)} ${symbol}` : ""}`
-            : "needs portfolio equity"}
+            : unavailable}
         </dd>
       </div>
       {finite(sizing.risk_budget_pct) ? (
@@ -149,7 +156,7 @@ function sizingNotes(sizing) {
     notes.push(`Heat cap: open risk is ${finite(sizing.open_risk_pct) ? `${sizing.open_risk_pct}%` : "unknown"} of the ${sizing.max_open_risk_pct}% limit, so the size is reduced.`);
   }
   if (sizing.position_capped) notes.push("Size held to the single-position limit.");
-  if (finite(sizing.funded_usd)) notes.push(`Funded by ${usd(sizing.funded_usd)} already freed; no fresh cash.`);
+  if (finite(sizing.funded_usd)) notes.push(`USDC funding limit ${usd(sizing.funded_usd)}.`);
   if (sizing.equity_basis === "held_positions_mark") notes.push("Equity is the marked value of held coins only; cash is not counted.");
   return notes;
 }
@@ -197,7 +204,7 @@ function ProposalRow({ proposal, busy, onDecide }) {
           <div><dt>Broken floor</dt><dd>{price(evidence.broken_floor_price)}</dd></div>
         ) : null}
         {finite(proposal.target_price) ? <div><dt>Target</dt><dd>{price(proposal.target_price)}</dd></div> : null}
-        {proposal.trim_pct ? <div><dt>Trim</dt><dd>{proposal.trim_pct}%</dd></div> : null}
+        {proposal.trim_pct ? <div><dt>Trim</dt><dd>{Number(proposal.trim_pct).toLocaleString(undefined, { maximumFractionDigits: 2 })}%</dd></div> : null}
         <SuggestedSize sizing={proposal.sizing} symbol={buySymbol} />
       </dl>
       {Array.isArray(proposal.reasons) && proposal.reasons.length ? (
@@ -218,7 +225,8 @@ function ProposalRow({ proposal, busy, onDecide }) {
         )}
         {DECIDABLE.has(status) && proposal.proposal_id ? (
           <>
-            <button type="button" className="mw-button mw-button--ghost mw-button--sm" disabled={busy}
+            <button type="button" className="mw-button mw-button--ghost mw-button--sm"
+              disabled={busy || (proposal.action === "RELOAD_ACCUMULATE" && !(proposal.sizing?.suggested_notional_usd > 0))}
               onClick={() => onDecide(proposal.proposal_id, "approve")}>Approve</button>
             <button type="button" className="mw-button mw-button--ghost mw-button--sm" disabled={busy}
               onClick={() => onDecide(proposal.proposal_id, "reject")}>Reject</button>

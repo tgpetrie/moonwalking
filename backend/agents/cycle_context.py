@@ -8,6 +8,7 @@ local runner script and any backend caller hand agents identical context.
 from __future__ import annotations
 
 from datetime import datetime
+from itertools import islice
 import math
 import re
 import time
@@ -18,6 +19,7 @@ MAX_SCAN_AGE_SECONDS = 1800
 EXCHANGE_BOOK_URL = "https://api.exchange.coinbase.com/products/{product_id}/book"
 QUOTE_TIMEOUT_SECONDS = 4.0
 MAX_QUOTE_PRODUCTS = 30
+QUOTE_BATCH_SECONDS = 12.0
 RISK_KEYS = ("portfolio_equity_usd", "base_risk_pct", "max_open_risk_pct")
 _SYMBOL = re.compile(r"[A-Z0-9]{1,15}")
 
@@ -119,6 +121,9 @@ def fetch_top_of_book(
     symbol = _symbol(product_id)
     if not symbol or product_id != f"{symbol}-USD":
         return _unavailable(str(product_id), "invalid_product")
+    timeout = _positive(timeout)
+    if timeout is None:
+        return _unavailable(product_id, "invalid_timeout")
     if http_get is None:
         import requests
 
@@ -127,11 +132,14 @@ def fetch_top_of_book(
         response = http_get(
             EXCHANGE_BOOK_URL.format(product_id=product_id),
             params={"level": 1},
-            timeout=timeout,
+            timeout=min(timeout, QUOTE_TIMEOUT_SECONDS),
+            allow_redirects=False,
             headers={"User-Agent": "moonwalking-local-agents", "Accept": "application/json"},
         )
         observed = int(now_ms()) if now_ms else time.time_ns() // 1_000_000
         response.raise_for_status()
+        if response.status_code != 200:
+            return _unavailable(product_id, "unexpected_http_status")
         book = response.json()
     except Exception as exc:  # network, HTTP status or body decoding
         return _unavailable(product_id, f"request_failed:{type(exc).__name__}")
@@ -156,12 +164,16 @@ def fetch_top_of_book(
         try:
             parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
             if parsed.tzinfo is not None:
-                exchange_ms = int(parsed.timestamp() * 1000)
-        except ValueError:
+                exchange_ms = parsed.timestamp() * 1000
+        except (ValueError, OverflowError, OSError):
             pass
+    if exchange_ms is None or exchange_ms <= 0 or observed <= 0:
+        return _unavailable(product_id, "invalid_book_time")
+    if bid is None or bid_size is None or ask is None or ask_size is None or ask < bid:
+        return _unavailable(product_id, "invalid_book_levels")
     return {
         "product_id": product_id,
-        "quote_status": "AVAILABLE" if bid is not None and ask is not None else "UNAVAILABLE",
+        "quote_status": "AVAILABLE",
         "source": "coinbase_exchange_book_level_1",
         "observed_at_ms": observed,
         "exchange_time_ms": exchange_ms,
@@ -181,10 +193,23 @@ def fetch_live_quotes(
 ) -> dict[str, dict[str, Any]]:
     """Level-1 quotes keyed by ``BASE-USD`` for up to ``MAX_QUOTE_PRODUCTS`` coins."""
     quotes: dict[str, dict[str, Any]] = {}
-    for symbol in normalize_watchlist(products)[:MAX_QUOTE_PRODUCTS]:
+    per_book = _positive(timeout)
+    if per_book is None or isinstance(products, (str, bytes)):
+        return quotes
+    deadline = time.monotonic() + QUOTE_BATCH_SECONDS
+    for product in islice(products, MAX_QUOTE_PRODUCTS):
+        product = product.strip().upper() if isinstance(product, str) else None
+        symbol = _symbol(product)
+        if symbol is None or product not in (symbol, f"{symbol}-USD"):
+            continue
         product_id = f"{symbol}-USD"
+        if product_id in quotes:
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
         quotes[product_id] = fetch_top_of_book(
-            product_id, http_get=http_get, timeout=timeout, now_ms=now_ms
+            product_id, http_get=http_get, timeout=min(per_book, remaining), now_ms=now_ms
         )
     return quotes
 

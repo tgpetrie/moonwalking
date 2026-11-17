@@ -1,3 +1,5 @@
+import { normalizeWindowKey } from "./windows.js";
+
 /**
  * Desk tape for INTELLIGENCE_LOG: turns the raw anomaly log into a
  * cycle-confluent read.
@@ -29,6 +31,7 @@ const FLOW = new Set(["STEALTH", "VOLUME", "WHALE"]);
 const SEVERITY_RANK = { critical: 4, high: 3, warning: 2, medium: 2, info: 1, low: 1 };
 
 const finite = (value) => {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : null;
 };
@@ -40,10 +43,11 @@ export const severityRank = (log) =>
   SEVERITY_RANK[String(log?.severity || "").toLowerCase()] ?? 0;
 
 export function signalDirection(log, label) {
-  if (BULLISH.has(label)) return "up";
-  if (BEARISH.has(label)) return "down";
   const dir = String(log?.direction || "").toLowerCase();
   if (dir === "up" || dir === "down") return dir;
+  if (dir === "flat") return null;
+  if (BULLISH.has(label)) return "up";
+  if (BEARISH.has(label)) return "down";
   const text = String(log?.body || "").toLowerCase();
   if (text.includes("distribut")) return "down";
   if (text.includes("accumul")) return "up";
@@ -55,7 +59,10 @@ export function signalDirection(log, label) {
 const volumePct = (log) => finite(log?.vol_change_pct);
 
 const isOneMinute = (log) =>
-  String(log?.window || "").toLowerCase() === "1m" || /_1M$/i.test(String(log?.type || ""));
+  normalizeWindowKey(log?.window, { type: log?.type }) === "1m";
+
+const eventTime = (log) => finite(Object.hasOwn(log, "eventTs") ? log.eventTs : log.ts);
+const compareEntries = (a, b) => b.rank - a.rank || (eventTime(b.log) ?? 0) - (eventTime(a.log) ?? 0);
 
 export function isTrivialNoise(log, label) {
   if (label === "STEALTH" || !isOneMinute(log)) return false;
@@ -66,18 +73,18 @@ export function isTrivialNoise(log, label) {
 
 /** Drops the weaker side of every same-symbol up/down pair inside the window. */
 export function dropContradictions(entries, windowMs = CONFLICT_WINDOW_MS) {
-  const ranked = [...entries].sort(
-    (a, b) => b.rank - a.rank || (b.log.ts || 0) - (a.log.ts || 0)
-  );
+  const ranked = [...entries].sort(compareEntries);
   const kept = [];
   const keep = new Set();
   for (const entry of ranked) {
-    const { symbol, ts = 0 } = entry.log;
-    const conflict = entry.direction && symbol && kept.some((k) =>
-      k.log.symbol === symbol
+    const symbol = baseSymbol(entry.log.symbol);
+    const ts = eventTime(entry.log);
+    const conflict = entry.direction && symbol && ts !== null && kept.some((k) =>
+      baseSymbol(k.log.symbol) === symbol
       && k.direction
       && k.direction !== entry.direction
-      && Math.abs((k.log.ts || 0) - ts) <= windowMs
+      && eventTime(k.log) !== null
+      && Math.abs(eventTime(k.log) - ts) <= windowMs
     );
     if (conflict) continue;
     kept.push(entry);
@@ -116,14 +123,14 @@ export function cycleContext(row, price) {
   const high = finite(box.high);
   const px = finite(price) ?? finite(row.price);
   const inBox = low !== null && high !== null && px !== null && low < high && px >= low && px <= high;
-  if (inBox || bucket === "rollover_profit_zone") {
+  if (inBox) {
     flags.rolloverBox = true;
     badges.push({ key: "rollover", label: "ROLLOVER BOX", tone: "risk" });
   }
   if (bucket === "low_confirmation_breakout" || row.breaking_confirmation_pivot === true) {
     flags.breakout = true;
     badges.push({ key: "pivot", label: "PIVOT BREAK", tone: "gain" });
-    if (row.above_50w_sma === true) badges.push({ key: "50w", label: "50W RECLAIM", tone: "gain" });
+    if (row.above_50w_sma === true) badges.push({ key: "50w", label: "ABOVE 50W", tone: "gain" });
   }
   if (bucket === "growth_expansion_ride") badges.push({ key: "growth", label: "GROWTH", tone: "gain" });
   return { flags, badges };
@@ -149,10 +156,12 @@ function confluenceCall(flags, label, direction) {
  * @param {{scan?: object, watchSymbols?: string[], heldSymbols?: string[]}} context
  */
 export function buildDeskTape(logs, classify, { scan = null, watchSymbols = [], heldSymbols = [] } = {}) {
-  const index = buildCycleIndex(scan);
+  const index = buildCycleIndex(scan?.status === "ready" ? scan : null);
   const watch = new Set(watchSymbols.map(baseSymbol).filter(Boolean));
   const held = new Set(heldSymbols.map(baseSymbol).filter(Boolean));
-  const stageNumber = scan?.industry?.available ? finite(scan.industry.stage_number) : null;
+  const stage = scan?.status === "ready" && scan.industry?.available === true
+    ? finite(scan.industry.stage_number) : null;
+  const stageNumber = [1, 2, 3, 4].includes(stage) ? stage : null;
   const entries = [];
   for (const log of Array.isArray(logs) ? logs : []) {
     const { label, chipTone } = classify(log);
@@ -180,7 +189,7 @@ export function buildDeskTape(logs, classify, { scan = null, watchSymbols = [], 
   });
 }
 
-export const scanIsReady = (scan) => Boolean(scan && scan.status !== "warming" && buildCycleIndex(scan).size);
+export const scanIsReady = (scan) => scan?.status === "ready" && buildCycleIndex(scan).size > 0;
 
 /** Applies a filter pill. `fallback` is true when desk shows top anomalies because the scan is not ready. */
 export function filterTape(tape, filter, { scanReady = false } = {}) {
@@ -193,7 +202,7 @@ export function filterTape(tape, filter, { scanReady = false } = {}) {
   const top = new Set(
     tape
       .filter((e) => e.log.symbol)
-      .sort((a, b) => b.rank - a.rank || (b.log.ts || 0) - (a.log.ts || 0))
+      .sort(compareEntries)
       .slice(0, DESK_FALLBACK_LIMIT)
   );
   return { rows: tape.filter((e) => desk.has(e) || top.has(e)), fallback: true };

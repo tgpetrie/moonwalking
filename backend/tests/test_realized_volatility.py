@@ -8,20 +8,23 @@ densely-sampled coins of genuinely different volatility.
 
 from __future__ import annotations
 
-import importlib
-import math
+from importlib.util import module_from_spec, spec_from_file_location
 
 import pytest
 
 
 @pytest.fixture()
-def price_db(tmp_path, monkeypatch):
-    monkeypatch.setenv("MOONWALKING_PRICE_DB", str(tmp_path / "prices.db"))
+def price_db(tmp_path):
     import price_db as module
 
-    importlib.reload(module)
-    module.ensure_price_db()
-    return module
+    # Flask's background workers can hold references to the production module.
+    # Give this test an independent module and connection path.
+    spec = spec_from_file_location("isolated_volatility_price_db", module.__file__)
+    isolated = module_from_spec(spec)
+    spec.loader.exec_module(isolated)
+    isolated.DB_PATH = str(tmp_path / "prices.db")
+    isolated.ensure_price_db()
+    return isolated
 
 
 def _fill(module, symbol, start_ts, prices, *, step=60):
@@ -82,7 +85,7 @@ def test_duplicate_key_forms_do_not_split_a_symbol(price_db):
     now = 1_700_003_600
     start = now - 3600
     _fill(price_db, "AAVE", start, [100.0 + (i % 3) for i in range(60)])
-    price_db.insert_price_snapshot(start, [("AAVE-USD", 100.0)])
+    price_db.insert_price_snapshot(start + 60, [("AAVE-USD", 1000.0)])
 
     results = price_db.realized_volatility_by_product(now)
     assert "AAVE-USD" not in results

@@ -5,7 +5,32 @@ For the November 16 cycle lane, continue from
 audited commit `464e7f3`, which is also the tip of
 `codex/cycle-strategist-audit-20261116`. The
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
-it verified; Phase 2 has not had that red-team pass.
+it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
+
+## Phase 2 delta audit
+
+- The reload ladder budgets and debits USDC in cents. Approving a reload
+  checks current rung balances inside the same SQLite write transaction.
+  Partial buys preserve the residual balance. Simulated trims fund their
+  ladders up to recorded proceeds. Approval records a paper decision.
+- The heat limit is 5%. The CLI can lower it. Sizing uses unrounded heat
+  and withholds a suggested quantity when any holding is unpriced or equity
+  is unavailable. A capped rotation scales both legs to the same amount.
+  Reloads and rotations stay in the approval queue in Mode B.
+- A breach more than 5% below any protection level needs reassessment and a
+  reference snapshot in that state triggers no quote fetch. The quote guard
+  accepts up to two seconds of exchange clock lead while independently
+  checking receipt age, book age, spread and depth.
+- Desk tape compares backend event times, and retains the last good scan for
+  Industry Pulse while the desk withholds scan badges during refresh or
+  failure. The badge `ABOVE 50W` reflects the level comparison in the scan.
+  The desk confirms the current owner's holdings through the portfolio API.
+- The realized volatility tests use an independent price database module.
+  The duplicate symbol regression puts both forms inside its query window.
+- Verification passed with 1,043 backend tests (33 skipped), 614 frontend
+  tests and the production build. One live read of Coinbase's public BTC-USD
+  level 1 book passed the quote guard. The existing Moonwalking servers were
+  left untouched.
 
 ## Broken-stop guard and INTELLIGENCE_LOG desk tape · November 17
 

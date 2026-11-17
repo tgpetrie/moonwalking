@@ -75,4 +75,14 @@ describe("AnomalyStream desk tape", () => {
     fireEvent.click(screen.getByRole("button", { name: "Raw Tape" }));
     expect(rowSymbols().filter((s) => s === "BTC")).toHaveLength(1);
   });
+
+  it("uses backend event times when opposite signals arrive in one poll", async () => {
+    render(<AnomalyStream data={{ alerts: [
+      alert("old", "BTC-USD", "coin_trend_break_up", { event_ts_ms: NOW - 100_000 }),
+      alert("new", "BTC-USD", "coin_trend_break_down", { event_ts_ms: NOW - 1_000 }),
+    ] }} />);
+    await screen.findAllByTestId("intel-row");
+    fireEvent.click(screen.getByRole("button", { name: "Raw Tape" }));
+    expect(rowSymbols().filter((s) => s === "BTC")).toHaveLength(2);
+  });
 });

@@ -21,6 +21,7 @@ from agents.cycle_context import (  # noqa: E402
     normalize_positions,
     normalize_watchlist,
 )
+from agents.cycle_strategist import MAX_OPEN_RISK_PCT  # noqa: E402
 from agents.runner import run_once  # noqa: E402
 from agents.store import AgentStore  # noqa: E402
 
@@ -146,7 +147,7 @@ def main() -> int:
         "--max-open-risk-pct",
         type=float,
         default=None,
-        help="Portfolio heat cap: open risk across held positions (default 5.0).",
+        help="Lower the portfolio heat cap from its 5.0%% maximum.",
     )
     args = parser.parse_args()
     if args.paper_owner_id is not None and not 0 < args.paper_owner_id < 2**63:
@@ -157,6 +158,8 @@ def main() -> int:
         value = getattr(args, flag)
         if value is not None and not 0 < value <= 100:
             parser.error(f"--{flag.replace('_', '-')} must be above 0 and at most 100")
+    if args.max_open_risk_pct is not None and args.max_open_risk_pct > MAX_OPEN_RISK_PCT:
+        parser.error(f"--max-open-risk-pct cannot exceed {MAX_OPEN_RISK_PCT:g}")
 
     # Follow Flask's configured store paths without enabling notification channels.
     try:
@@ -190,14 +193,14 @@ def main() -> int:
         context["audit_source_path"] = str(audit_path)
 
     store = AgentStore(args.db_path)
-    watchlist = split_symbols(args.watchlist or args.symbols)
+    watchlist = normalize_watchlist(split_symbols(args.watchlist or args.symbols))
     # A coin with an open reload ladder is scanned even after it is fully sold.
     reload_symbols = [plan["symbol"] for plan in store.active_reload_plans()]
     # When Flask caps the submitted list, prioritize held coins over watch-only coins.
     scan_symbols = list(dict.fromkeys(
         [*(row["symbol"] for row in positions), *reload_symbols, *watchlist]
     ))
-    params = {"symbols": ",".join(scan_symbols)} if scan_symbols else None
+    params = {"symbols": ",".join(scan_symbols[:30])} if scan_symbols else None
     scan = fetch_json(f"{api_base}/api/macro-cycle-scan", timeout=60.0, params=params)
     # Unlike an in-process scan, a response from HTTP must carry freshness metadata.
     if scan is not None and scan.get("status") != "ready":

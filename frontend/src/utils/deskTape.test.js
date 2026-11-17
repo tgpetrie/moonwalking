@@ -31,6 +31,14 @@ describe("desk tape contradictions", () => {
     ], classify);
     expect(tape).toHaveLength(3);
   });
+
+  it("matches aliases and lets the newer event break a severity tie", () => {
+    const tape = buildDeskTape([
+      log({ symbol: "BTC", label: "BREAKOUT", eventTs: 1_000_000 }),
+      log({ symbol: "BTC-USDC", label: "BREAKDOWN", eventTs: 1_060_000 }),
+    ], classify);
+    expect(tape.map((e) => e.label)).toEqual(["BREAKDOWN"]);
+  });
 });
 
 describe("desk tape noise", () => {
@@ -55,8 +63,23 @@ describe("desk tape cycle context", () => {
     expect(by.ATOM.call.label).toBe("EXHAUSTION BREAKOUT");
     expect(by.SOL.badges.map((b) => b.label)).toContain("ROLLOVER BOX");
     expect(by.SOL.call.label).toBe("ROLLOVER DISTRIBUTION");
-    expect(by.FET.badges.map((b) => b.label)).toEqual(["PIVOT BREAK", "50W RECLAIM"]);
+    expect(by.FET.badges.map((b) => b.label)).toEqual(["PIVOT BREAK", "ABOVE 50W"]);
     expect(by.DOGE.badges.map((b) => b.label)).toEqual(["WATCHLIST"]);
+  });
+
+  it("bounds stage badges and limits rollover distribution to the box", () => {
+    const scan = {
+      status: "ready", industry: { available: true, stage_number: 9 },
+      coins: [{ symbol: "SOL", bucket: "rollover_profit_zone", price: 190, rollover_target_box: { low: 180, high: 200 } }],
+    };
+    const [inside, above] = buildDeskTape([
+      log({ symbol: "SOL", label: "BREAKDOWN", ref_price: null }),
+      log({ symbol: "SOL", label: "BREAKDOWN", ref_price: 205 }),
+    ], classify, { scan, heldSymbols: ["SOL"] });
+    expect(inside.call?.label).toBe("ROLLOVER DISTRIBUTION");
+    expect(above.call).toBeNull();
+    expect(above.badges.map((b) => b.label)).toEqual(["HELD"]);
+    expect(scanIsReady({ ...scan, status: "refreshing" })).toBe(false);
   });
 
   it("filters desk to confluence, watchlist to members and raw to everything", () => {

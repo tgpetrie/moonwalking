@@ -5,7 +5,8 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 import { stripLeadingSymbol, stripLeadingType } from "../utils/alertText";
 import { createEventKey, shouldSkip, markSeen, expireOldKeys } from "../utils/intelligenceDedup";
-import { TAPE_FILTERS, buildDeskTape, filterTape, scanIsReady } from "../utils/deskTape";
+import { TAPE_FILTERS, baseSymbol, buildDeskTape, filterTape, scanIsReady, signalDirection } from "../utils/deskTape";
+import { pickTsMs } from "../utils/priorityEngine.js";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -199,6 +200,7 @@ export default function AnomalyStream({
   data = {},
   volumeData = [],
   cycleScan = null,
+  scanError = null,
   watchSymbols = EMPTY,
   heldSymbols = EMPTY,
 }) {
@@ -313,19 +315,11 @@ export default function AnomalyStream({
     const nowMs = Date.now();
     expireOldKeys(seenRef.current, nowMs);
 
-    const timeStr = new Date(nowMs)
-      .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
-      .replace(/\u200E/g, "");
-
     const newLogs = [];
     for (const a of alerts) {
       if (!a) continue;
-      // Semantic dedup: same type+symbol+window+direction = same ongoing condition
-      const key = createEventKey(a);
-      if (shouldSkip(key, seenRef.current, nowMs)) continue;
-
       const norm = normalizeAlert(a);
-      const symbol = safeSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
+      const symbol = baseSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
       const extracted = extractAlertPct(a);
       const type = deriveAlertType({
         type: a?.type ?? norm?.type,
@@ -335,7 +329,8 @@ export default function AnomalyStream({
       const parsed = parseImpulseMessage(a);
       const pct = extracted.pct ?? pickNumber(norm?.pct, a?.pct, parsed?.parsed_pct);
       const windowLabel = norm?.window || windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
-      const volPct = pickNumber(a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
+      const volPct = pickNumber(a.vol_change_pct, a.vol_pct, a.volume_change_pct,
+        a.volume_change_1h_pct, a.meta?.vol_change_pct, a.meta?.vol_pct);
       const sentimentDelta = pickNumber(
         a?.sentiment_delta,
         a?.sentimentDelta,
@@ -345,11 +340,22 @@ export default function AnomalyStream({
       const divergenceRaw = extractDivergenceRaw(a) ?? extractDivergenceRaw(a?.meta || {});
       const rawMsg = a.message || a.title || "";
       const msg = cleanAlertMessage(rawMsg, symbol, type);
-      const direction = String(a?.direction || "").toLowerCase();
+      const direction = String(a.direction || "").toLowerCase();
+      const eventTs = pickTsMs(a);
+      // Resolve direction before semantic dedup so opposite moves without a
+      // direction field still compete by event time and severity on the tape.
+      const key = createEventKey({
+        ...a, symbol, window: windowLabel, direction: signalDirection({ direction, body: msg, pct }, type),
+      });
+      if (shouldSkip(key, seenRef.current, nowMs)) continue;
+      const timeStr = new Date(eventTs ?? nowMs)
+        .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        .replace(/\u200E/g, "");
 
       newLogs.push({
         id: `a-${nowMs}-${Math.random().toString(36).slice(2, 6)}`,
         ts: nowMs,
+        eventTs,
         time: timeStr,
         source: "alert",
         symbol,
@@ -365,7 +371,7 @@ export default function AnomalyStream({
         vol_change_pct: volPct,
         sentiment_delta: sentimentDelta,
         divergence: divergenceRaw,
-        direction: direction === "up" || direction === "down" ? direction : null,
+        direction,
         ref_price: pickNumber(a?.price_now, a?.price, a?.current_price, a?.meta?.price),
       });
       markSeen(key, seenRef.current, nowMs);
@@ -422,13 +428,15 @@ export default function AnomalyStream({
         aria-live="polite"
       >
         {!isCollapsed && filter === "desk" && fallback ? (
-          <div className="bh-intel-note">Cycle scan warming · showing top anomalies</div>
+          <div className="bh-intel-note">
+            {scanError ? "Cycle scan unavailable" : "Cycle scan warming"} · showing top anomalies
+          </div>
         ) : null}
         {!isCollapsed && rows.length === 0 ? (
           <div className="bh-intel-note">
             {filter === "watchlist"
               ? "No anomalies on watchlist or held coins yet."
-              : "No desk-grade confluence right now. Raw Tape shows every anomaly."}
+              : "No desk-grade confluence right now. Raw Tape shows the wider feed."}
           </div>
         ) : null}
         {visibleRows.map(({ log, label, chipTone, badges, call }) => {

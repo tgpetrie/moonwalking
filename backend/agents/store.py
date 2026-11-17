@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_EVEN
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,28 @@ OPEN_PROPOSAL_STATUSES = frozenset({"pending_approval", "blocked_by_guard"})
 # A trim in one of these states has freed USDC for its reload ladder.
 RELOAD_PLAN_ACTIVE_STATUSES = ("approved", "auto_executed_dry_run")
 PRIVATE_AGENT = "cycle_strategist"
+
+
+def usdc_cents(value, *, round_down=False) -> int:
+    """Use the same precision for persisted budgets, debits and approvals."""
+    if type(value) not in (int, float):
+        return 0
+    amount = Decimal(str(value))
+    if not amount.is_finite() or amount <= 0:
+        return 0
+    rounding = ROUND_DOWN if round_down else ROUND_HALF_EVEN
+    return int((amount * 100).to_integral_value(rounding=rounding))
+
+
+def split_reload_cents(total: int, weights: list[int]) -> list[int]:
+    """Allocate every cent, giving the remainder to the closest allocations."""
+    combined = sum(weights)
+    parts = [divmod(total * weight, combined) for weight in weights]
+    cents = [part for part, _ in parts]
+    order = sorted(range(len(parts)), key=lambda i: -parts[i][1])
+    for index in order[:total - sum(cents)]:
+        cents[index] += 1
+    return cents
 
 
 class AgentStore:
@@ -579,6 +602,8 @@ class AgentStore:
                 return existing
             if existing["status"] not in OPEN_PROPOSAL_STATUSES:
                 raise ValueError(f"proposal is already {existing['status']}")
+            if status == "approved" and existing["action"] == "RELOAD_ACCUMULATE":
+                self._validate_reload_approval(conn, existing)
             conn.execute(
                 "UPDATE trade_proposals SET status = ?, updated_ts = ? WHERE proposal_id = ?",
                 (status, int(time.time()), proposal_id),
@@ -588,47 +613,71 @@ class AgentStore:
     def active_reload_plans(self, symbol: str | None = None) -> list[dict]:
         """Reload ladders that still hold unspent USDC, oldest first.
 
-        A trim's plan becomes active once the trim is approved or executed in
-        dry run; a pending, blocked or rejected trim freed nothing. A rung is
-        spent when an approved ``RELOAD_ACCUMULATE`` proposal names it.
+        Approved fills debit their allocated amount. Older approved proposals
+        treated a named rung as fully spent and retain that behavior.
         """
+        with self._connection() as conn:
+            conn.execute("BEGIN")
+            return self._active_reload_plans(conn, symbol)
+
+    def _active_reload_plans(self, conn, symbol: str | None) -> list[dict]:
         filters, params = "", []
         if symbol:
             filters, params = "AND symbol = ?", [symbol.upper().split("-")[0]]
-        with self._connection() as conn:
-            trims = conn.execute(
-                f"""
-                SELECT * FROM trade_proposals
-                WHERE action = 'TRIM_TO_USDC' AND status IN (?, ?) {filters}
-                ORDER BY created_ts, proposal_id
-                """,
-                (*RELOAD_PLAN_ACTIVE_STATUSES, *params),
-            ).fetchall()
-            reloads = conn.execute(
-                f"""
-                SELECT proposal_json FROM trade_proposals
-                WHERE action = 'RELOAD_ACCUMULATE' AND status = 'approved' {filters}
-                """,
-                params,
-            ).fetchall()
-        spent = set()
+        trims = conn.execute(
+            f"""
+            SELECT * FROM trade_proposals
+            WHERE action = 'TRIM_TO_USDC' AND status IN (?, ?) {filters}
+            ORDER BY created_ts, proposal_id
+            """,
+            (*RELOAD_PLAN_ACTIVE_STATUSES, *params),
+        ).fetchall()
+        reloads = conn.execute(
+            f"""
+            SELECT proposal_json FROM trade_proposals
+            WHERE action = 'RELOAD_ACCUMULATE' AND status = 'approved' {filters}
+            """,
+            params,
+        ).fetchall()
+        spent = {}
+        closed = set()
         for row in reloads:
             evidence = json.loads(row["proposal_json"]).get("evidence") or {}
             for fill in evidence.get("reload_fills") or []:
-                if isinstance(fill, dict):
-                    spent.add((fill.get("plan_id"), fill.get("tranche")))
+                if not isinstance(fill, dict):
+                    continue
+                key = (fill.get("plan_id"), fill.get("tranche"))
+                if evidence.get("reload_allocation_version") == 1:
+                    spent[key] = spent.get(key, 0) + usdc_cents(fill.get("usdc"))
+                else:
+                    closed.add(key)
         plans = []
         for row in trims:
             proposal = self._row_to_proposal(row)
             plan = proposal.get("reload_plan")
             if not isinstance(plan, dict) or not plan.get("available"):
                 continue
-            tranches = [
-                {**tranche, "filled": (proposal["proposal_id"], tranche.get("index")) in spent}
-                for tranche in plan.get("tranches") or []
-                if isinstance(tranche, dict)
-            ]
-            remaining = sum(t.get("usdc") or 0.0 for t in tranches if not t["filled"])
+            rungs = [t for t in plan.get("tranches") or [] if isinstance(t, dict)]
+            allocations = [usdc_cents(t.get("usdc")) for t in rungs]
+            budget = usdc_cents(plan.get("freed_usdc"))
+            if proposal["status"] == "auto_executed_dry_run":
+                execution = proposal.get("execution") or {}
+                budget = min(budget, usdc_cents(execution.get("proceeds_usd")))
+            if budget <= 0 or not any(allocations):
+                continue
+            if sum(allocations) != budget:
+                allocations = split_reload_cents(budget, allocations)
+            tranches = []
+            remaining = 0
+            for rung, allocated in zip(rungs, allocations):
+                key = (proposal["proposal_id"], rung.get("index"))
+                balance = 0 if key in closed else max(0, allocated - spent.get(key, 0))
+                remaining += balance
+                tranches.append({
+                    **rung,
+                    "remaining_usdc": balance / 100,
+                    "filled": balance == 0,
+                })
             if remaining <= 0:
                 continue
             plans.append({
@@ -639,9 +688,35 @@ class AgentStore:
                 "trim_status": proposal["status"],
                 "created_ts": proposal["created_ts"],
                 "tranches": tranches,
-                "remaining_usdc": round(remaining, 2),
+                "funding_usdc": budget / 100,
+                "remaining_usdc": remaining / 100,
             })
         return plans
+
+    def _validate_reload_approval(self, conn, proposal) -> None:
+        evidence = proposal.get("evidence") or {}
+        fills = evidence.get("reload_fills") or []
+        sized = usdc_cents((proposal.get("sizing") or {}).get("suggested_notional_usd"))
+        if not fills or not sized:
+            raise ValueError("Reload has no allocated size. Refresh the proposal.")
+        plans = self._active_reload_plans(conn, proposal["symbol"])
+        available = {
+            (plan["plan_id"], rung["index"]): usdc_cents(rung["remaining_usdc"])
+            for plan in plans
+            for rung in plan["tranches"]
+        }
+        total = 0
+        for fill in fills:
+            key = (fill.get("plan_id"), fill.get("tranche"))
+            amount = usdc_cents(fill.get("usdc"))
+            balance = available.pop(key, 0)
+            if not 0 < amount <= balance or (
+                evidence.get("reload_allocation_version") != 1 and amount != balance
+            ):
+                raise ValueError("Reload funds are no longer available. Refresh the proposal.")
+            total += amount
+        if total != sized:
+            raise ValueError("Reload allocation does not match the sized buy. Refresh the proposal.")
 
     @staticmethod
     def _count_auto_orders(

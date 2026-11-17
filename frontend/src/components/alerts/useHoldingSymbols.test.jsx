@@ -54,6 +54,19 @@ describe("useHoldingSymbols", () => {
     expect(fetchPortfolio).toHaveBeenCalledTimes(1);
   });
 
+  it("does not put cached holdings on the board before confirming the session", async () => {
+    fetchPortfolio.mockResolvedValueOnce({ holdings: [{ symbol: "BTC" }] });
+    const previous = renderHook(() => useHoldingSymbols());
+    await waitFor(() => expect(previous.result.current.has("BTC")).toBe(true));
+    previous.unmount();
+
+    fetchPortfolio.mockRejectedValueOnce(Object.assign(new Error("Signed out"), { status: 401 }));
+    const board = renderHook(() => useHoldingSymbols({ cached: false }));
+    expect(board.result.current.size).toBe(0);
+    await waitFor(() => expect(fetchPortfolio).toHaveBeenCalledTimes(2));
+    expect(board.result.current.size).toBe(0);
+  });
+
   it("swallows failures and yields an empty set", async () => {
     fetchPortfolio.mockRejectedValue(Object.assign(new Error("x"), { status: 401 }));
     const { result } = renderHook(() => useHoldingSymbols());

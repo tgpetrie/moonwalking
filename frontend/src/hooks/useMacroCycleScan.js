@@ -15,7 +15,7 @@ export const SCAN_RETRY_MS = 60_000;
 
 export function useMacroCycleScan(symbols, { enabled = true } = {}) {
   const key = normalizeScanSymbols(symbols).join(",");
-  const [state, setState] = useState({ scan: null, loading: enabled, error: null });
+  const [state, setState] = useState({ scan: null, loading: enabled, error: null, status: "warming", key });
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -33,11 +33,13 @@ export function useMacroCycleScan(symbols, { enabled = true } = {}) {
           scan: scan.status === "warming" && prev.scan?.status !== "warming" && prev.scan ? prev.scan : scan,
           loading: false,
           error: null,
+          status: scan.status,
+          key,
         }));
       } catch (error) {
         if (cancelled || error?.name === "AbortError") return;
         delay = SCAN_RETRY_MS;
-        setState((prev) => ({ scan: prev.scan, loading: false, error: "unavailable" }));
+        setState((prev) => ({ ...prev, loading: false, error: "unavailable", status: "unavailable", key }));
       }
       if (!cancelled) timer = setTimeout(load, delay);
     };
@@ -49,7 +51,7 @@ export function useMacroCycleScan(symbols, { enabled = true } = {}) {
     };
   }, [key, enabled]);
 
-  return state;
+  return state.key === key ? state : { ...state, loading: enabled, status: "warming" };
 }
 
 export default useMacroCycleScan;

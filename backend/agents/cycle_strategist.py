@@ -44,7 +44,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 import hashlib
+import math
 import time
 from typing import Any, Callable, Mapping
 
@@ -55,7 +57,7 @@ from .cycle_context import (
     normalize_watchlist,
     usable_cycle_scan,
 )
-from .store import AgentStore
+from .store import AgentStore, OPEN_PROPOSAL_STATUSES, split_reload_cents, usdc_cents
 
 
 TRIM_TO_USDC = "TRIM_TO_USDC"
@@ -78,12 +80,13 @@ STOP_APPROACH_PCT = 3.0
 # is a stale break that waits for an operator.
 FRESH_FLOOR_BREAK_PCT = 5.0
 STALE_FLOOR_BREAK = "stale_floor_break_reassess"
+MAX_QUOTE_CLOCK_SKEW_MS = 2_000
 ACCUMULATION_MIN_STREAK = 18
 ACCUMULATION_MAX_STOP_PCT = 10.0
 BREAKOUT_MIN_WEEKLY_RSI = 60.0
 
 # Reload ladder: share of the freed USDC per rung, shallowest rung first.
-RELOAD_WEIGHTS = (0.25, 0.35, 0.40)
+RELOAD_WEIGHTS = (25, 35, 40)
 RELOAD_FIB_RATIOS = ("0.618", "0.702", "0.786")
 RELOAD_MIN_DISCOUNT_PCT = 1.0  # a rung sits at least this far under the trim price
 RELOAD_LEVEL_MERGE_PCT = 1.0  # candidate levels closer than this count as one rung
@@ -284,6 +287,10 @@ def _fmt_price(value: float) -> str:
     return f"${value:,.2f}" if value >= 1 else f"${value:.4g}"
 
 
+def _stale_break(price, level) -> bool:
+    return price < level * (1 - FRESH_FLOOR_BREAK_PCT / 100)
+
+
 def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposal:
     """A close below the daily higher-low floor, fresh or long since broken.
 
@@ -295,7 +302,7 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
     """
     below = (floor - price) / floor * 100
     evidence = {"floor": floor, "broken_floor_price": floor, "distance_below_floor_pct": _round(below)}
-    if below <= FRESH_FLOOR_BREAK_PCT:
+    if not _stale_break(price, floor):
         return TradeProposal(
             action=PROTECTIVE_STOP,
             symbol=row["symbol"],
@@ -307,8 +314,11 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
             reasons=[f"Just closed {below:.1f}% below {_fmt_price(floor)} floor."],
             evidence={**evidence, "trigger": "higher_low_floor_breached", "stop_distance_pct": 0.0},
         )
-    stop = next(
-        (c for c in (scanner_stop, position_stop) if c is not None and 0 < c < price), None
+    stop, basis = next(
+        ((level, basis) for level, basis in (
+            (scanner_stop, "accumulation_invalidation_stop"), (position_stop, "position_stop")
+        ) if level is not None and 0 < level < price),
+        (None, "floor_already_broken_reassess"),
     )
     reasons = [f"Floor {_fmt_price(floor)} already broken by {below:.0f}%."]
     if stop is None:
@@ -332,8 +342,7 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
             **evidence,
             "trigger": "stale_floor_break",
             "reclaim_resistance": floor,
-            "stop_basis": "accumulation_invalidation_stop" if stop is not None
-            else "floor_already_broken_reassess",
+            "stop_basis": basis,
             "stop_distance_pct": _round((price - stop) / price * 100) if stop is not None else None,
         },
     )
@@ -354,7 +363,7 @@ def _stop_break(row, floor, price, broken_stop, position_guard) -> TradeProposal
         "broken_stop_basis": basis,
         "distance_below_stop_pct": _round(below),
     }
-    if below <= FRESH_FLOOR_BREAK_PCT:
+    if not _stale_break(price, broken_stop):
         return TradeProposal(
             action=PROTECTIVE_STOP,
             symbol=row["symbol"],
@@ -391,17 +400,28 @@ def _stop_break(row, floor, price, broken_stop, position_guard) -> TradeProposal
 def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
     scanner_stop = _num(stop.get("stop_price"))
-    stop_price = _num(position_stop)
+    position_stop = _num(position_stop)
+    floor = _num(floor)
+    price = _num(price)
+    if price is None or price <= 0:
+        return None
+    # Use the deepest breached guard before checking legacy near-stop precedence.
+    broken = [
+        (level, kind) for level, kind in (
+            (floor, "floor"), (position_stop, "position"), (scanner_stop, "scanner")
+        )
+        if level is not None and (level > price or (level == price and kind != "floor"))
+    ]
+    if broken:
+        level, kind = max(broken, key=lambda item: item[0])
+        if kind == "floor":
+            return _floor_break(row, level, price, scanner_stop, position_stop)
+        return _stop_break(row, floor, price, level, kind == "position")
+    stop_price = position_stop
     position_guard = stop_price is not None and stop_price > 0
     if not position_guard:
         stop_price = scanner_stop
-    if floor is not None and price < floor and (stop_price is None or floor >= stop_price):
-        return _floor_break(
-            row, floor, price, scanner_stop, _num(position_stop) if position_guard else None
-        )
-    if stop_price is not None and 0 < stop_price and price <= stop_price:
-        return _stop_break(row, floor, price, stop_price, position_guard)
-    if stop_price is not None and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
+    if stop_price is not None and 0 < stop_price and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
         trigger, level = "invalidation_stop_near", stop_price
         detail = "the position stop" if position_guard else "the accumulation invalidation stop"
         distance = (price - stop_price) / price * 100
@@ -522,7 +542,13 @@ def build_reload_plan(row, multi_year, price, trim_quantity, held_quantity, floo
     The figures assume each rung fills at its level and leave out fees and
     slippage. They describe a plan; nothing is ordered.
     """
-    freed = trim_quantity * price
+    price, trim_quantity, held_quantity = map(_num, (price, trim_quantity, held_quantity))
+    if price is None or trim_quantity is None or held_quantity is None or not (
+        price > 0 and 0 < trim_quantity <= held_quantity
+    ):
+        return {"available": False, "reason": "invalid_trim_size"}
+    freed_cents = usdc_cents(trim_quantity * price, round_down=True)
+    freed = freed_cents / 100
     stop = _num((row.get("accumulation_invalidation_stop") or {}).get("stop_price"))
     cycle_low = _num(row.get("cycle_low"))
     if stop is not None and 0 < stop < price:
@@ -533,16 +559,16 @@ def build_reload_plan(row, multi_year, price, trim_quantity, held_quantity, floo
         invalidation, basis = None, None
     ceiling = price * (1 - RELOAD_MIN_DISCOUNT_PCT / 100)
     chosen: list[tuple[float, str]] = []
-    for level, source in _reload_candidates(row, multi_year, floor):
-        if not (invalidation or 0) < level <= ceiling:
+    for level, source in _reload_candidates(row, multi_year, _num(floor)):
+        if invalidation is None or not 0 < invalidation < level <= ceiling:
             continue
         if any(abs(level / kept - 1) * 100 < RELOAD_LEVEL_MERGE_PCT for kept, _ in chosen):
             continue
         chosen.append((level, source))
-        if len(chosen) == len(RELOAD_WEIGHTS):
+        if len(chosen) == min(len(RELOAD_WEIGHTS), freed_cents):
             break
     plan: dict[str, Any] = {
-        "available": bool(chosen),
+        "available": bool(chosen and freed_cents),
         "reference_price": price,
         "trim_quantity": trim_quantity,
         "freed_usdc": _round(freed, 2),
@@ -551,26 +577,29 @@ def build_reload_plan(row, multi_year, price, trim_quantity, held_quantity, floo
         "fresh_cash_usd": 0.0,
         "assumptions": "Each rung fills at its level. Fees and slippage are not included.",
     }
-    if not chosen:
-        plan["reason"] = "no_support_level_between_stop_and_price"
+    if not chosen or not freed_cents:
+        plan["reason"] = "no_support_level_between_stop_and_price" if freed_cents else "insufficient_trim_proceeds"
         return plan
     chosen.sort(reverse=True)
     weights = RELOAD_WEIGHTS[: len(chosen)]
     total = sum(weights)
     tranches, coins = [], 0.0
-    for index, ((level, source), weight) in enumerate(zip(chosen, weights), start=1):
-        usdc = freed * weight / total
+    allocation = split_reload_cents(freed_cents, list(weights))
+    for index, ((level, source), weight, cents) in enumerate(zip(chosen, weights, allocation), start=1):
+        usdc = cents / 100
         coins += usdc / level
         tranches.append({
             "index": index,
             "weight_pct": _round(weight / total * 100),
             "level": level,
             "basis": source,
-            "usdc": _round(usdc, 2),
+            "usdc": usdc,
             "coins": usdc / level,
             "discount_pct": _round((1 - level / price) * 100),
         })
     gain = coins - trim_quantity
+    if not math.isfinite(coins) or coins <= 0 or not math.isfinite(gain / held_quantity * 100):
+        return {**plan, "available": False, "reason": "invalid_reload_projection"}
     plan.update(
         tranches=tranches,
         average_reload_price=freed / coins,
@@ -589,31 +618,30 @@ def evaluate_reload(row, price, plans) -> TradeProposal | None:
     kiss = row.get("daily_macd_kiss") is True
     if not (stoch_turn or kiss):
         return None
-    fills, pool, remaining, invalidations = [], 0.0, 0.0, []
+    fills, pool, remaining, invalidations = [], 0, 0, []
     for plan in plans or []:
         invalidation = _num(plan.get("invalidation_stop"))
-        if invalidation is not None and price <= invalidation:
+        if invalidation is None or not 0 < invalidation < price:
             continue  # this plan's support has failed
         for tranche in plan.get("tranches") or []:
-            level, usdc = _num(tranche.get("level")), _num(tranche.get("usdc"))
-            if tranche.get("filled") or level is None or usdc is None or usdc <= 0:
+            level = _num(tranche.get("level"))
+            cents = usdc_cents(tranche.get("remaining_usdc", tranche.get("usdc")))
+            if tranche.get("filled") or level is None or level <= invalidation or not cents:
                 continue
-            remaining += usdc
+            remaining += cents
             if price <= level:
                 fills.append({
                     "plan_id": plan.get("plan_id"),
                     "tranche": tranche.get("index"),
                     "level": level,
-                    "usdc": usdc,
+                    "usdc": cents / 100,
                 })
-                pool += usdc
-                if invalidation is not None:
-                    invalidations.append(invalidation)
+                pool += cents
+                invalidations.append(invalidation)
     if not fills:
         return None
     stop = _num((row.get("accumulation_invalidation_stop") or {}).get("stop_price"))
-    if stop is None or not 0 < stop < price:
-        stop = max(invalidations) if invalidations else None
+    stop = max([*invalidations, stop] if stop is not None and 0 < stop < price else invalidations)
     trigger = "weekly StochRSI turning up under 25" if stoch_turn else "daily MACD kiss"
     return TradeProposal(
         action=RELOAD_ACCUMULATE,
@@ -624,12 +652,11 @@ def evaluate_reload(row, price, plans) -> TradeProposal | None:
         reasons=[
             f"Price has reached {len(fills)} unfilled reload rung(s) from an earlier trim.",
             f"Momentum confirmation: {trigger}.",
-            f"Funded by ${pool:,.2f} of USDC that trim freed; no fresh cash.",
         ],
         evidence={
             "reload_fills": fills,
-            "reload_pool_usdc": _round(pool, 2),
-            "reload_pool_remaining_usdc": _round(remaining, 2),
+            "reload_pool_usdc": pool / 100,
+            "reload_pool_remaining_usdc": remaining / 100,
             "weekly_stoch_turning_up": stoch_turn,
             "daily_macd_kiss": kiss,
         },
@@ -642,7 +669,7 @@ def evaluate_reload(row, price, plans) -> TradeProposal | None:
 def active_target(row) -> dict[str, Any] | None:
     """The tier the industry stage selects, falling back to the rollover box."""
     tiers = (row.get("active_target_tier"), "rollover_target_box")
-    for tier in dict.fromkeys(tiers):
+    for tier in tiers:
         if tier not in ("rollover_target_box", "full_extension_targets"):
             continue
         box = row.get(tier)
@@ -650,7 +677,7 @@ def active_target(row) -> dict[str, Any] | None:
             continue
         low, high = _num(box.get("low")), _num(box.get("high"))
         if low is not None and high is not None and 0 < low <= high:
-            return {"tier": tier, "low": low, "high": high, "mid": (low + high) / 2}
+            return {"tier": tier, "low": low, "high": high, "mid": low + (high - low) / 2}
     return None
 
 
@@ -659,7 +686,8 @@ def reward_to_risk(price, stop, target) -> float | None:
     price, stop, target = _num(price), _num(stop), _num(target)
     if price is None or stop is None or target is None or not 0 < stop < price < target:
         return None
-    return (target - price) / (price - stop)
+    price_decimal, stop_decimal, target_decimal = map(lambda value: Decimal(str(value)), (price, stop, target))
+    return _num((target_decimal - price_decimal) / (price_decimal - stop_decimal))
 
 
 def _setting(context, key, default) -> float:
@@ -684,7 +712,11 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
             unpriced.append(symbol)
             continue
         quantity = position["quantity"]
-        value += quantity * price
+        marked = _num(quantity * price)
+        if marked is None or not math.isfinite(value + marked):
+            unpriced.append(symbol)
+            continue
+        value += marked
         stops = (
             _num(position.get("stop_price")),
             floors.get(symbol),
@@ -695,7 +727,7 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
             risk += quantity * (price - max(usable))
         else:
             assumed.append(symbol)
-            risk += quantity * price * HEAT_ASSUMED_STOP_PCT / 100
+            risk += marked * (HEAT_ASSUMED_STOP_PCT / 100)
     supplied = _num(context.get("portfolio_equity_usd"))
     if supplied is not None and supplied > 0:
         equity, basis = supplied, "supplied"
@@ -708,28 +740,37 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
         "equity_basis": basis,
         "open_risk_usd": _round(risk, 2),
         "open_risk_pct": _round(risk / equity * 100) if equity else None,
-        "max_open_risk_pct": _setting(context, "max_open_risk_pct", MAX_OPEN_RISK_PCT),
+        "max_open_risk_pct": min(
+            _setting(context, "max_open_risk_pct", MAX_OPEN_RISK_PCT), MAX_OPEN_RISK_PCT
+        ),
         "assumed_stop_symbols": assumed,
         "unpriced_symbols": unpriced,
-        "reserved_pct": 0.0,
+        "_equity": equity,
+        "_risk": risk,
+        "_reserved_risk": 0.0,
     }
 
 
 def size_entry(price, stop, stage, heat, base_risk_pct, *, funded_usd=None) -> dict[str, Any]:
     """Suggested size from the stage-scaled risk budget, inside the heat cap.
 
-    ``heat["reserved_pct"]`` accumulates the risk of entries already sized in
+    ``heat["_reserved_risk"]`` accumulates the risk of entries already sized in
     this pass, so several proposals cannot each claim the same headroom.
     ``funded_usd`` caps the size at money a trim already freed.
     """
+    stage = stage if isinstance(stage, str) else None
     multiplier = STAGE_RISK_MULTIPLIER.get(stage, UNKNOWN_STAGE_RISK_MULTIPLIER)
     budget = base_risk_pct * multiplier
-    stop_fraction = (price - stop) / price
+    price, stop = _num(price), _num(stop)
+    stop_fraction = None
+    if price is not None and stop is not None and 0 < stop < price:
+        price_decimal = Decimal(str(price))
+        stop_fraction = float((price_decimal - Decimal(str(stop))) / price_decimal)
     out: dict[str, Any] = {
         "base_risk_pct": base_risk_pct,
         "stage_multiplier": multiplier,
         "risk_budget_pct": _round(budget, 3),
-        "stop_distance_pct": _round(stop_fraction * 100),
+        "stop_distance_pct": _round(stop_fraction * 100) if stop_fraction is not None else None,
         "max_open_risk_pct": heat["max_open_risk_pct"],
         "open_risk_pct": heat["open_risk_pct"],
         "equity_basis": heat["equity_basis"],
@@ -739,32 +780,36 @@ def size_entry(price, stop, stage, heat, base_risk_pct, *, funded_usd=None) -> d
         "suggested_quantity": None,
         "risk_at_stop_usd": None,
     }
-    equity = heat["equity_usd"]
-    if equity is None:
-        out["note"] = "equity_unknown"
-        notional = funded_usd
-    else:
-        headroom = max(
-            0.0, heat["max_open_risk_pct"] - heat["open_risk_pct"] - heat["reserved_pct"]
-        )
-        if budget > headroom:
-            budget, out["heat_capped"] = headroom, True
-        notional = equity * budget / 100 / stop_fraction
-        ceiling = equity * MAX_POSITION_PCT / 100
-        if notional > ceiling:
-            notional, out["position_capped"] = ceiling, True
-        if funded_usd is not None:
-            notional = min(notional, funded_usd)
-        used = notional * stop_fraction / equity * 100
-        heat["reserved_pct"] += used
-        out["risk_budget_pct"] = _round(used, 3)
     if funded_usd is not None:
         out["funded_usd"] = _round(funded_usd, 2)
-    if notional is not None:
+    equity = heat["_equity"]
+    if stop_fraction is None or stop_fraction <= 0:
+        out["note"] = "invalid_stop"
+    elif heat["unpriced_symbols"]:
+        out["note"] = "positions_unpriced"
+    elif equity is None:
+        out["note"] = "equity_unknown"
+    else:
+        headroom = max(0.0, equity * (heat["max_open_risk_pct"] / 100) - heat["_risk"] - heat["_reserved_risk"])
+        risk_budget = equity * (budget / 100)
+        out["heat_capped"] = risk_budget > headroom
+        risk_budget = min(risk_budget, headroom)
+        ceiling = equity * (MAX_POSITION_PCT / 100)
+        out["position_capped"] = risk_budget > ceiling * stop_fraction
+        notional = ceiling if out["position_capped"] else risk_budget / stop_fraction
+        if funded_usd is not None:
+            notional = min(notional, max(0.0, funded_usd))
+        notional = usdc_cents(notional, round_down=True) / 100
+        used = notional * stop_fraction
+        quantity = notional / price
+        if not math.isfinite(quantity):
+            return {**out, "note": "invalid_sized_quantity"}
+        heat["_reserved_risk"] += used
         out.update(
-            suggested_notional_usd=_round(notional, 2),
-            suggested_quantity=notional / price,
-            risk_at_stop_usd=_round(notional * stop_fraction, 2),
+            risk_budget_pct=_round(used / equity * 100, 3),
+            suggested_notional_usd=notional,
+            suggested_quantity=quantity,
+            risk_at_stop_usd=_round(used, 2),
         )
     return out
 
@@ -822,7 +867,7 @@ def rank_leaders(rows, stop_for, excluded=()) -> list[dict[str, Any]]:
 
 
 def evaluate_rotation(row, price, quantity, leader) -> TradeProposal:
-    freed = quantity * ROTATION_TRIM_PCT / 100 * price
+    freed = usdc_cents(quantity * (ROTATION_TRIM_PCT / 100) * price, round_down=True) / 100
     return TradeProposal(
         action=ROTATE_TO_LEADER,
         symbol=row["symbol"],
@@ -844,7 +889,7 @@ def evaluate_rotation(row, price, quantity, leader) -> TradeProposal:
             "sell_product_id": f"{row['symbol']}-USD",
             "buy_symbol": leader["symbol"],
             "buy_product_id": leader["product_id"],
-            "freed_usd": _round(freed, 2),
+            "freed_usd": freed,
             "leader": leader,
         },
     )
@@ -863,7 +908,7 @@ class GuardedDryRunExitExecutor:
         max_quote_deviation_pct: float = 2.0,
         max_spread_pct: float = 1.0,
         slippage_bps: float = 10.0,
-        max_clock_skew_ms: int = 2_000,
+        max_clock_skew_ms: int = MAX_QUOTE_CLOCK_SKEW_MS,
     ):
         """``max_clock_skew_ms`` is how far Coinbase's book time may run ahead
         of this machine's clock. Live books arrive stamped up to about half a
@@ -876,7 +921,7 @@ class GuardedDryRunExitExecutor:
             age is None or age <= 0 or deviation is None or not 0 <= deviation <= 100
             or spread is None or not 0 <= spread <= 100
             or slippage is None or not 0 <= slippage < 10_000
-            or skew is None or not 0 <= skew <= age
+            or skew is None or not 0 <= skew <= min(age, MAX_QUOTE_CLOCK_SKEW_MS)
         ):
             raise ValueError("invalid dry-run guard parameters")
         self.max_quote_age_ms = age
@@ -903,12 +948,12 @@ class GuardedDryRunExitExecutor:
                 reasons.append("quote_crossed_book")
             elif (ask - bid) / (bid + (ask - bid) / 2) * 100 > self.max_spread_pct:
                 reasons.append("quote_spread_too_wide")
-        if observed is None or now is None or not 0 <= now - observed <= self.max_quote_age_ms:
+        if observed is None or observed <= 0 or now is None or not 0 <= now - observed <= self.max_quote_age_ms:
             reasons.append("quote_stale")
         if exchange is None:
             reasons.append("quote_missing_exchange_timestamp")
         elif (
-            now is None or observed is None
+            exchange <= 0 or now is None or observed is None
             or exchange > observed + self.max_clock_skew_ms
             or not -self.max_clock_skew_ms <= now - exchange <= self.max_quote_age_ms
         ):
@@ -949,7 +994,7 @@ class GuardedDryRunExitExecutor:
         bid = float(quote["bid_usd"])
         if proposal.action == PROTECTIVE_STOP:
             stop = _num(proposal.stop_price)
-            if stop is None or stop <= 0:
+            if stop is None or not 0 < stop <= float(proposal.reference_price):
                 return blocked("invalid_stop_price")
             if proposal.evidence.get("trigger") == "invalidation_stop_near":
                 if bid <= stop:
@@ -967,11 +1012,13 @@ class GuardedDryRunExitExecutor:
                 # The stop sits at the market; the bid must still be under the floor.
                 level = _num(proposal.evidence.get("broken_floor_price")) or stop
             elif trigger == "invalidation_stop_breached":
-                level = stop
+                level = _num(proposal.evidence.get("broken_stop_price")) or stop
             else:
                 level = None
             if level is None or bid > level:
                 return blocked("quote_does_not_confirm_stop_breach")
+            if _stale_break(bid, level):
+                return blocked(STALE_FLOOR_BREAK)
         fill = bid * (1.0 - self.slippage_bps / 10_000.0)
         proceeds = _num(fill * quantity)
         if proceeds is None or fill <= 0 or proceeds <= 0:
@@ -1068,6 +1115,7 @@ class CycleStrategistAgent:
 
         proposals: list[TradeProposal] = []
         defended = set()
+        trimming = set()
         for symbol in sorted(held):
             row = rows.get(symbol)
             price = _num(row.get("price")) if row else None
@@ -1088,6 +1136,7 @@ class CycleStrategistAgent:
                     row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor
                 )
                 proposals.append(trim)
+                trimming.add(symbol)
 
         heat = portfolio_heat(
             context, held, rows, {symbol: floor_of(symbol) for symbol in held if symbol in rows}
@@ -1137,11 +1186,26 @@ class CycleStrategistAgent:
                 funded_usd=entry.evidence.get("reload_pool_usdc")
                 if entry.action == RELOAD_ACCUMULATE else None,
             )
+            if entry.action == RELOAD_ACCUMULATE:
+                remaining = usdc_cents(entry.sizing["suggested_notional_usd"])
+                allocations = []
+                for fill in entry.evidence["reload_fills"]:
+                    amount = min(remaining, usdc_cents(fill["usdc"]))
+                    if not amount:
+                        break
+                    allocations.append({**fill, "usdc": amount / 100})
+                    remaining -= amount
+                entry.evidence["reload_fills"] = allocations
+                entry.evidence["reload_allocation_version"] = 1
+                entry.reasons.append(
+                    "The buy uses the allocated reload funds."
+                    if allocations else "Sizing is unavailable at the current portfolio risk."
+                )
             proposals.append(entry)
 
         laggards = [
             symbol for symbol in sorted(held)
-            if symbol not in defended and symbol in rows and is_laggard(rows[symbol])
+            if symbol not in defended and symbol not in trimming and symbol in rows and is_laggard(rows[symbol])
             and (_num(rows[symbol].get("price")) or 0) > 0
         ]
         if laggards:
@@ -1157,8 +1221,17 @@ class CycleStrategistAgent:
                     leader["reference_price"], leader["stop_price"], stage, heat, base_risk,
                     funded_usd=rotation.pair["freed_usd"],
                 )
+                notional = rotation.sizing["suggested_notional_usd"]
+                if not notional:
+                    continue
+                if notional < rotation.pair["freed_usd"]:
+                    rotation.trim_pct *= notional / rotation.pair["freed_usd"]
+                    rotation.pair["freed_usd"] = notional
+                    rotation.reasons[-1] = (
+                        f"Rotate ${notional:,.2f} of {symbol} into {leader['symbol']} within the risk budget."
+                    )
                 proposals.append(rotation)
-        self.last_heat = {key: value for key, value in heat.items() if key != "reserved_pct"}
+        self.last_heat = {key: value for key, value in heat.items() if not key.startswith("_")}
         return proposals
 
     def _route(self, proposal, settings, held, quotes, now_ms, orders_today):
@@ -1180,7 +1253,7 @@ class CycleStrategistAgent:
         return result["status"], result
 
     @staticmethod
-    def _fetch_exit_quotes(context, store, proposals, quotes) -> dict[str, Any]:
+    def _fetch_exit_quotes(context, store, proposals, quotes, now) -> dict[str, Any]:
         """Top-of-book quotes for exits Mode B is about to simulate.
 
         The context's ``quote_fetcher`` is called here, straight before
@@ -1196,13 +1269,20 @@ class CycleStrategistAgent:
             settings["autonomy_mode"] != "auto_protect_exits"
             or settings["execution_mode"] != "dry_run"
             or settings["emergency_pause"]
+            or store.count_auto_orders_since(int(now // 86_400) * 86_400)
+                >= settings["daily_order_cap"]
         ):
             return {}
-        wanted = sorted({
-            p.product_id for p in proposals
-            if p.action in EXIT_ACTIONS and p.product_id not in quotes
-            and p.breach_state != STALE_FLOOR_BREAK
-        })
+        wanted = []
+        for proposal in proposals:
+            if (
+                proposal.action not in EXIT_ACTIONS or proposal.product_id in quotes
+                or proposal.breach_state == STALE_FLOOR_BREAK
+            ):
+                continue
+            saved = store.get_proposal(proposal.proposal_id)
+            if saved is None or saved["status"] in OPEN_PROPOSAL_STATUSES:
+                wanted.append(proposal.product_id)
         if not wanted:
             return {}
         try:
@@ -1231,11 +1311,12 @@ class CycleStrategistAgent:
         if not proposals:
             return []
         held = _positions(context)
-        quotes = dict(context["quotes"]) if isinstance(context.get("quotes"), dict) else {}
-        quotes.update(self._fetch_exit_quotes(context, store, proposals, quotes))
-        observations = []
         for proposal in proposals:
             proposal.proposal_id = proposal_id(proposal.action, proposal.symbol, now)
+        quotes = dict(context["quotes"]) if isinstance(context.get("quotes"), dict) else {}
+        quotes.update(self._fetch_exit_quotes(context, store, proposals, quotes, now))
+        observations = []
+        for proposal in proposals:
             saved, settings = store.route_proposal(
                 proposal.to_record(),
                 lambda settings, count, decision_ms: self._route(

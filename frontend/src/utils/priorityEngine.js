@@ -24,7 +24,7 @@ const toEpochMs = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const pickTsMs = (alert) => {
+export const pickTsMs = (alert) => {
   const fields = [
     alert?.event_ts_ms,
     alert?.ts_ms,

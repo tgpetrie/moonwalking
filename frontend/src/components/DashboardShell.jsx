@@ -269,7 +269,7 @@ export default function DashboardShell({ onInfo }) {
   // Use centralized data hook with loading states
   const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
   const boardStats = boardOutcomes?.boards || {};
-  const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
+  const { items: watchlistItems, toggle: toggleWatchlist, isAuthenticated } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentLaunchContext, setSentimentLaunchContext] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
@@ -360,7 +360,7 @@ export default function DashboardShell({ onInfo }) {
   // One scan poll shared by Industry Pulse and the INTELLIGENCE_LOG desk tape.
   const cycleScanState = useMacroCycleScan(watchlistSymbols);
   // Coinbase holdings resolve to an empty set when signed out or unavailable.
-  const holdingSymbolSet = useHoldingSymbols();
+  const holdingSymbolSet = useHoldingSymbols({ enabled: isAuthenticated === true, cached: false });
   const heldSymbols = useMemo(() => Array.from(holdingSymbolSet), [holdingSymbolSet]);
   const onInfoProp = onInfo || handleInfo;
   const uiLoading = loading || warming;
@@ -554,7 +554,8 @@ export default function DashboardShell({ onInfo }) {
                         <AnomalyStream
                           data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
                           volumeData={bannerVolume1h || []}
-                          cycleScan={cycleScanState.scan}
+                          cycleScan={cycleScanState.status === "ready" ? cycleScanState.scan : null}
+                          scanError={cycleScanState.error}
                           watchSymbols={watchlistSymbols}
                           heldSymbols={heldSymbols}
                         />
