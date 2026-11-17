@@ -693,6 +693,90 @@ class AgentStore:
             })
         return plans
 
+    def get_compounding_summary(self, prices: dict | None = None) -> dict:
+        """What approved and dry-run executed trims, stops and reloads add up to.
+
+        ``prices`` maps a symbol to its current scan price and is only used for
+        ``drawdown_avoided_usd``. Extra coins compare what a reload's USDC buys
+        at the reload price with what the same USDC bought at the trim's sale
+        price, so no fresh cash is counted. Descriptive, dry-run figures.
+        """
+
+        def number(value):
+            try:
+                out = float(value)
+            except (TypeError, ValueError):
+                return None
+            return out if 0 < out < float("inf") else None
+
+        def sale_price(proposal):
+            if not proposal:
+                return None
+            return number((proposal.get("execution") or {}).get("fill_price")) or number(
+                proposal.get("reference_price")
+            )
+
+        with self._connection() as conn:
+            conn.execute("BEGIN")
+            plans = self._active_reload_plans(conn, None)
+            rows = conn.execute(
+                """
+                SELECT * FROM trade_proposals
+                WHERE status IN (?, ?)
+                  AND action IN ('TRIM_TO_USDC', 'PROTECTIVE_STOP', 'RELOAD_ACCUMULATE')
+                ORDER BY created_ts, proposal_id
+                """,
+                RELOAD_PLAN_ACTIVE_STATUSES,
+            ).fetchall()
+            proposals = [self._row_to_proposal(row) for row in rows]
+
+        trims = {p["proposal_id"]: p for p in proposals if p["action"] == "TRIM_TO_USDC"}
+        realized: dict[str, float] = {}
+        for proposal in proposals:
+            if proposal["action"] != "RELOAD_ACCUMULATE" or proposal["status"] != "approved":
+                continue
+            bought_at = number(proposal.get("reference_price"))
+            for fill in (proposal.get("evidence") or {}).get("reload_fills") or []:
+                if not isinstance(fill, dict):
+                    continue
+                usdc, sold_at = number(fill.get("usdc")), sale_price(trims.get(fill.get("plan_id")))
+                if bought_at and usdc and sold_at:
+                    symbol = proposal["symbol"]
+                    realized[symbol] = realized.get(symbol, 0.0) + usdc / bought_at - usdc / sold_at
+        projected = dict(realized)
+        for plan in plans:
+            sold_at = sale_price(trims.get(plan["plan_id"]))
+            for rung in plan["tranches"]:
+                level, left = number(rung.get("level")), number(rung.get("remaining_usdc"))
+                if sold_at and level and left:
+                    symbol = plan["symbol"]
+                    projected[symbol] = projected.get(symbol, 0.0) + left / level - left / sold_at
+
+        avoided, priced = 0.0, set()
+        for proposal in proposals:
+            if proposal["action"] == "RELOAD_ACCUMULATE":
+                continue
+            price = number((prices or {}).get(proposal["symbol"]))
+            sold_at = sale_price(proposal)
+            quantity = (
+                number((proposal.get("reload_plan") or {}).get("trim_quantity"))
+                or number((proposal.get("execution") or {}).get("quantity"))
+                or number(proposal.get("quantity"))
+            )
+            if price and sold_at and quantity:
+                priced.add(proposal["symbol"])
+                if price < sold_at:
+                    avoided += (sold_at - price) * quantity
+        return {
+            "freed_usdc_available": sum(usdc_cents(p["remaining_usdc"]) for p in plans) / 100,
+            "active_ladders_count": len(plans),
+            "realized_extra_coins_by_symbol": {s: round(v, 8) for s, v in sorted(realized.items())},
+            "projected_extra_coins_by_symbol": {s: round(v, 8) for s, v in sorted(projected.items())},
+            "drawdown_avoided_usd": round(avoided, 2),
+            "drawdown_priced_symbols": sorted(priced),
+            "dry_run_only": True,
+        }
+
     def _validate_reload_approval(self, conn, proposal) -> None:
         evidence = proposal.get("evidence") or {}
         fills = evidence.get("reload_fills") or []

@@ -60,6 +60,24 @@ def usable_cycle_scan(scan: Any, *, now: float | None = None) -> bool:
     return 0 <= age < min(ttl, MAX_SCAN_AGE_SECONDS)
 
 
+def core_and_priority_ready(scan: Any, products: Iterable[Any] = ()) -> bool:
+    """True when the industry regime is read and every given product is settled.
+
+    A product is settled when it has a row in ``scan["coins"]`` or is listed as
+    unavailable. Lets a pass run while the outer atlas slices are still filling.
+    """
+    if not isinstance(scan, Mapping) or not isinstance(scan.get("coins"), list):
+        return False
+    industry = scan.get("industry")
+    if not isinstance(industry, Mapping) or not industry.get("available"):
+        return False
+    settled = {row.get("product_id") for row in scan["coins"] if isinstance(row, Mapping)}
+    unavailable = scan.get("unavailable")
+    if isinstance(unavailable, (list, tuple)):
+        settled.update(item for item in unavailable if isinstance(item, str))
+    return all(product in settled for product in products)
+
+
 def normalize_positions(rows: Iterable[Mapping[str, Any]] | None) -> list[dict]:
     """Keep rows with a symbol and a positive quantity, one per symbol (summed)."""
     merged: dict[str, dict] = {}

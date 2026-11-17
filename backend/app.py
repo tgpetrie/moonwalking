@@ -11955,6 +11955,7 @@ def get_agent_proposals():
         "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
         # Reload ladders from approved or dry-run executed trims that still hold USDC.
         "reload_plans": store.active_reload_plans(symbol),
+        "compounding_summary": store.get_compounding_summary(_cycle_scan_prices()),
         "autonomy": store.get_autonomy_settings(),
     })
 
@@ -12079,8 +12080,29 @@ def _cycle_pass_watchlist(user):
 
 def _cycle_pass_scan(wanted):
     """The cached cycle scan. Never computes in the request."""
+    from agents.cycle_context import core_and_priority_ready
+
     payload = _macro_scan_snapshot(wanted, allow_inline=False)
-    return _macro_scan_response(payload, wanted) if payload else None
+    if not payload:
+        return None
+    scan = _macro_scan_response(payload, wanted)
+    if scan.get("status") == "refreshing" and core_and_priority_ready(scan, wanted):
+        # The regime and every owner symbol are read; only outer slices are
+        # still filling. Age is still checked by ``usable_cycle_scan``.
+        scan = {**scan, "status": "ready", "atlas_refreshing": True}
+    return scan
+
+
+def _cycle_scan_prices(scan=None):
+    """Symbol -> price from the given scan, else from the cached scan."""
+    if not isinstance(scan, dict):
+        with _MACRO_SCAN_LOCK:
+            scan = _MACRO_SCAN_STATE["payload"] or {}
+    return {
+        row["symbol"]: row.get("price")
+        for row in scan.get("coins") or []
+        if isinstance(row, dict) and row.get("available") and row.get("symbol")
+    }
 
 
 def _cycle_pass_quote_fetcher(products):
@@ -12158,6 +12180,7 @@ def run_agent_cycle_pass():
             return _private_json({
                 **body, "status": "skipped", "reason": "no_cycle_scan",
                 "runs": [], "observation_count": 0, "proposals": [],
+                "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
                 "autonomy": store.get_autonomy_settings(),
             })
         agent = CycleStrategistAgent()
@@ -12171,6 +12194,7 @@ def run_agent_cycle_pass():
             "observation_count": result["observation_count"],
             "smart_alerts": result.get("smart_alerts"),
             "proposals": list(getattr(agent, "last_proposals", None) or []),
+            "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
             "autonomy": store.get_autonomy_settings(),
         })
     finally:
@@ -14072,7 +14096,7 @@ MACRO_ATLAS_SLICE_INTERVAL_SECONDS = 20
 _MACRO_ATLAS = None
 # Owner symbols that go to the front of the atlas universe. Set in-process by
 # the owner's cycle pass; empty until that route has run in this process.
-_MACRO_ATLAS_PRIORITY = {"held": (), "watchlist": (), "reload": ()}
+_MACRO_ATLAS_PRIORITY = {"held": (), "watchlist": (), "reload": (), "requested": ()}
 _MACRO_SCAN_LOCK = threading.Lock()
 _MACRO_SCAN_STATE = {
     "payload": None,
@@ -14105,14 +14129,79 @@ def _macro_scan_universe():
         logging.debug("[MacroScan] liquidity snapshot unavailable", exc_info=True)
     with _MACRO_SCAN_LOCK:
         priority = dict(_MACRO_ATLAS_PRIORITY)
+    # Symbols asked for on the public route count only once the board has
+    # verified them, so a caller cannot push arbitrary tickers into the scan.
+    known = _macro_scan_known_products()
+    requested = [product for product in priority.get("requested", ()) if product in known]
     return macro_industry_scanner.select_atlas_universe(
         core=(*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS),
         held=priority["held"],
-        watchlist=priority["watchlist"],
+        watchlist=(*priority["watchlist"], *requested),
         reload=priority["reload"],
         volumes=volumes,
+        movers=_macro_atlas_movers(),
         limit=MACRO_SCAN_MAX_PRODUCTS,
     )
+
+
+def _macro_atlas_movers():
+    """Symbols of the board's current 3-minute gainers, strongest first."""
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return []  # the board feed is live data; tests patch this function
+    try:
+        data = get_crypto_data() or {}
+        return [
+            str(coin.get("symbol") or "")
+            for coin in (data.get("gainers") or [])[:30]
+            if isinstance(coin, dict)
+        ]
+    except Exception:
+        logging.debug("[MacroScan] movers unavailable", exc_info=True)
+        return []
+
+
+def _macro_atlas_seed_priority():
+    """Add open paper positions and active reload plans from SQLite to the priority.
+
+    Runs before each universe build, so these symbols are in the first slice
+    after a restart, before any owner cycle pass has run.
+    """
+    held, reload = [], []
+    try:
+        import paper_execution_store
+
+        with paper_execution_store._connect() as conn:
+            held = [
+                str(row[0]).split("-")[0]
+                for row in conn.execute(
+                    "SELECT DISTINCT product_id FROM paper_execution_positions "
+                    "WHERE closed_ts IS NULL LIMIT 60"
+                )
+            ]
+    except Exception:
+        logging.debug("[MacroScan] paper positions unavailable", exc_info=True)
+    try:
+        from agents.store import AgentStore
+
+        reload = [str(plan.get("symbol") or "") for plan in AgentStore().active_reload_plans()]
+    except Exception:
+        logging.debug("[MacroScan] reload plans unavailable", exc_info=True)
+    with _MACRO_SCAN_LOCK:
+        for key, found in (("held", held), ("reload", reload)):
+            _MACRO_ATLAS_PRIORITY[key] = tuple(
+                dict.fromkeys((*_MACRO_ATLAS_PRIORITY.get(key, ()), *found))
+            )[:60]
+
+
+def _macro_atlas_priority_products():
+    """Owner and requested symbols as product ids: always read in a slice."""
+    with _MACRO_SCAN_LOCK:
+        symbols = [
+            str(symbol).upper().removesuffix("-USD")
+            for key in ("held", "watchlist", "reload", "requested")
+            for symbol in _MACRO_ATLAS_PRIORITY.get(key, ())
+        ]
+    return [f"{symbol}-USD" for symbol in dict.fromkeys(symbols) if symbol][:40]
 
 
 def _macro_atlas_set_priority(*, held=(), watchlist=(), reload=()):
@@ -14177,7 +14266,8 @@ def _macro_cycle_scan_compute(products):
     now = time.time()
     scanner.refresh_cycle_atlas_slice(
         atlas, products, _macro_atlas_fetch, now=now,
-        slice_size=MACRO_ATLAS_SLICE_SIZE, required=core,
+        slice_size=MACRO_ATLAS_SLICE_SIZE,
+        required=(*core, *_macro_atlas_priority_products()),
     )
     payload = scanner.scan_universe_cycles(
         atlas.histories(products),
@@ -14191,6 +14281,8 @@ def _macro_cycle_scan_compute(products):
         requested=len(products),
         unavailable=coverage.pop("atlas_unavailable"),
         ttl_seconds=MACRO_SCAN_TTL_SECONDS,
+        # True while cold or expired symbols are still due a later slice.
+        atlas_refreshing=bool(coverage["atlas_pending_count"]),
         **coverage,
     )
     return payload
@@ -14223,11 +14315,15 @@ def _macro_scan_extra_row(product):
 def _macro_scan_refresh(wanted, refresh_base, day):
     try:
         if refresh_base:
+            if "PYTEST_CURRENT_TEST" not in os.environ:
+                _macro_atlas_seed_priority()
             products = _macro_scan_universe()
             if any(product not in products for product in wanted) and not _macro_scan_known_products():
                 # A fresh process may not have run the board's product loader.
-                # Warm metadata at most once per baseline refresh.
+                # Warm metadata at most once per baseline refresh, then rebuild
+                # so verified requested symbols join this first slice.
                 _load_product_ids(timeout=3)
+                products = _macro_scan_universe()
             payload = _macro_cycle_scan_compute(products)
             with _MACRO_SCAN_LOCK:
                 _MACRO_SCAN_STATE.update(
@@ -14380,6 +14476,11 @@ def get_macro_cycle_scan():
             if len(symbols) >= MACRO_SCAN_MAX_REQUESTED:
                 break
     wanted = [f"{symbol}-USD" for symbol in symbols]
+    if wanted:
+        with _MACRO_SCAN_LOCK:
+            _MACRO_ATLAS_PRIORITY["requested"] = tuple(
+                dict.fromkeys((*wanted, *_MACRO_ATLAS_PRIORITY.get("requested", ())))
+            )[:MACRO_SCAN_MAX_REQUESTED]
     payload = _macro_scan_snapshot(wanted)
     if not payload:
         return jsonify(

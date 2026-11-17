@@ -547,6 +547,121 @@ def test_cycle_pass_skips_when_the_cached_scan_is_not_usable(client, cycle_pass)
     assert cycle_pass["quotes"] == []
 
 
+def test_cycle_pass_scan_runs_while_outer_atlas_slices_fill(client, monkeypatch):
+    from agents.cycle_context import core_and_priority_ready, usable_cycle_scan
+
+    filling = {
+        "status": "refreshing", "computed_at": NOW, "ttl_seconds": 1800,
+        "industry": {"available": True}, "coins": [_row("SOL", 175.0)],
+        "unavailable": ["GONE-USD"], "ready_count": 22, "target_universe_size": 120,
+    }
+    assert core_and_priority_ready(filling, ["SOL-USD", "GONE-USD"]) is True
+    assert core_and_priority_ready(filling, ["SOL-USD", "AVAX-USD"]) is False
+    assert core_and_priority_ready({**filling, "industry": {"available": False}}, []) is False
+    assert core_and_priority_ready(None, []) is False
+
+    monkeypatch.setattr(backend_app, "_macro_scan_snapshot", lambda wanted, allow_inline=True: filling)
+    monkeypatch.setattr(backend_app, "_macro_scan_response", lambda payload, wanted: dict(payload))
+    ready = backend_app._cycle_pass_scan(["SOL-USD", "GONE-USD"])
+    assert ready["status"] == "ready" and ready["atlas_refreshing"] is True
+    assert usable_cycle_scan(ready, now=NOW + 60) is True
+    assert usable_cycle_scan(ready, now=NOW + 1801) is False  # a stale scan is still refused
+    # An owner symbol that has not been read yet keeps the pass waiting.
+    assert backend_app._cycle_pass_scan(["SOL-USD", "AVAX-USD"])["status"] == "refreshing"
+    assert backend_app._cycle_scan_prices(ready) == {"SOL": 175.0}
+
+
+def test_atlas_priority_is_seeded_from_sqlite_requests_and_movers(client, monkeypatch):
+    import macro_industry_scanner as mis
+
+    monkeypatch.setattr(
+        backend_app, "_MACRO_ATLAS_PRIORITY",
+        {"held": ("DOT",), "watchlist": (), "reload": (), "requested": ("FET-USD", "NOPE-USD")},
+    )
+    with paper_execution_store._connect() as conn:
+        conn.execute(
+            "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
+            ("t1", 1, "RENDER-USD", 2.0, 5.0, 10.0, int(NOW)),
+        )
+        conn.execute(
+            "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("t2", 1, "ETH-USD", 1.0, 3000.0, 10.0, int(NOW), int(NOW) + 5, 3100.0, 1.0),
+        )
+    trim = _phase2_run(
+        NOW, _row("INJ", 175.0, **PHASE2_SOL), positions=[{"symbol": "INJ", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    client.post(f"/api/agents/proposals/{trim['proposal_id']}/approve", json={})
+
+    backend_app._macro_atlas_seed_priority()
+    assert backend_app._MACRO_ATLAS_PRIORITY["held"] == ("DOT", "RENDER")  # closed ETH is not held
+    assert backend_app._MACRO_ATLAS_PRIORITY["reload"] == ("INJ",)
+    assert backend_app._macro_atlas_priority_products() == [
+        "DOT-USD", "RENDER-USD", "INJ-USD", "FET-USD", "NOPE-USD",
+    ]
+
+    monkeypatch.setattr(backend_app, "latest_quote_volume_by_product", lambda now: {"AAA-USD": {"quote_volume_usd": 5.0}})
+    monkeypatch.setattr(backend_app, "_macro_scan_known_products", lambda: {"FET-USD"})
+    monkeypatch.setattr(backend_app, "_macro_atlas_movers", lambda: ["PEPE", "usdt", "AAA"])
+    core = [*mis.MAJORS, *mis.ALT_INDEX_MEMBERS]
+    universe = backend_app._macro_scan_universe()
+    # Owner symbols, the verified requested symbol, liquidity, then live movers.
+    assert universe == [*core, "RENDER-USD", "FET-USD", "INJ-USD", "AAA-USD", "PEPE-USD"]
+
+
+def test_macro_scan_route_records_requested_symbols_for_the_atlas(client, monkeypatch):
+    monkeypatch.setattr(
+        backend_app, "_MACRO_ATLAS_PRIORITY",
+        {"held": (), "watchlist": (), "reload": (), "requested": ("OLD-USD",)},
+    )
+    monkeypatch.setattr(backend_app, "_macro_scan_snapshot", lambda wanted: None)
+    body = client.get("/api/macro-cycle-scan?symbols=render,FET-USD,bad!sym").json
+    assert body["status"] == "warming"
+    assert backend_app._MACRO_ATLAS_PRIORITY["requested"] == ("RENDER-USD", "FET-USD", "OLD-USD")
+
+
+def test_compounding_summary_tracks_ladders_extra_coins_and_drawdown(client, cycle_pass):
+    empty = client.get("/api/agents/proposals").json["compounding_summary"]
+    assert empty["freed_usdc_available"] == 0 and empty["active_ladders_count"] == 0
+    assert empty["realized_extra_coins_by_symbol"] == {} and empty["drawdown_avoided_usd"] == 0
+
+    trim = _phase2_run(
+        NOW, _row("SOL", 175.0, **PHASE2_SOL), positions=[{"symbol": "SOL", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    client.post(f"/api/agents/proposals/{trim['proposal_id']}/approve", json={})
+    opened = AgentStore().get_compounding_summary({"SOL": 118.0, "AVAX": 1.0})
+    assert opened["freed_usdc_available"] == 656.25 and opened["active_ladders_count"] == 1
+    assert opened["realized_extra_coins_by_symbol"] == {}
+    # 3.75 SOL sold at 175 and now marked at 118.
+    assert opened["drawdown_avoided_usd"] == 213.75 and opened["drawdown_priced_symbols"] == ["SOL"]
+    assert AgentStore().get_compounding_summary({"SOL": 180.0})["drawdown_avoided_usd"] == 0
+    rungs = trim["reload_plan"]["tranches"]
+    ladder = sum(t["usdc"] / t["level"] - t["usdc"] / 175.0 for t in rungs)
+    assert opened["projected_extra_coins_by_symbol"]["SOL"] == pytest.approx(ladder, abs=0.01)
+    # The same 27.21% of the 10 held coins the plan itself projects.
+    assert round(ladder / 10 * 100, 2) == trim["reload_plan"]["net_coin_gain_pct"]
+
+    at_support = _row(
+        "SOL", 118.0, **PHASE2_SOL,
+        accumulation_invalidation_stop={"stop_price": 110.0},
+        weekly_stoch_direction="oversold_turn_up",
+    )
+    reload_ = _phase2_run(NOW + DAY, at_support, positions=[{"symbol": "SOL", "quantity": 6.25}])["RELOAD_ACCUMULATE"]
+    client.post(f"/api/agents/proposals/{reload_['proposal_id']}/approve", json={})
+    filled = client.get("/api/agents/proposals").json["compounding_summary"]
+    assert filled["freed_usdc_available"] == 492.19 and filled["active_ladders_count"] == 1
+    extra = 164.06 / reload_["reference_price"] - 164.06 / 175.0
+    assert filled["realized_extra_coins_by_symbol"] == {"SOL": pytest.approx(extra, abs=1e-6)}
+    assert filled["projected_extra_coins_by_symbol"]["SOL"] > filled["realized_extra_coins_by_symbol"]["SOL"]
+    assert filled["dry_run_only"] is True
+
+    # The pass reports the same summary, priced from the scan it just used.
+    cycle_pass["scan"] = _scan(_row("SOL", 118.0))
+    after = client.post(PASS_URL, json={}).json["compounding_summary"]
+    assert after["drawdown_avoided_usd"] == 213.75 and after["freed_usdc_available"] == 492.19
+    cycle_pass["scan"] = None
+    assert "compounding_summary" in client.post(PASS_URL, json={}).json
+
+
 def test_cycle_pass_refuses_to_overlap_another_pass(client, cycle_pass):
     assert backend_app._CYCLE_PASS_LOCK.acquire(blocking=False)
     try:
