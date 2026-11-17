@@ -7,6 +7,27 @@ audited commit `464e7f3`, which is also the tip of
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
 it verified; Phase 2 has not had that red-team pass.
 
+## Protective stop: fresh vs stale daily floor breaks · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `61a1e26` on top
+of `037108a`. `evaluate_protective_stop` now splits a close below the daily
+higher-low floor by depth (`FRESH_FLOOR_BREAK_PCT = 5.0`):
+
+| Break | Proposal |
+|---|---|
+| Fresh, 0–5% below | `breach_state="fresh_floor_break"`, trigger `higher_low_floor_breached`, `stop_price` = current price (never above market), evidence `broken_floor_price`. Reason e.g. "Just closed 2.1% below $50.11 floor." Mode B dry-run exits only while the bid is still under the broken floor |
+| Stale, more than 5% below | `breach_state="stale_floor_break_reassess"`, trigger `stale_floor_break`; the old floor is `evidence.reclaim_resistance`; `stop_price` is the scanner's `accumulation_invalidation_stop` (or the position stop) when below price, else `None` with `stop_basis="floor_already_broken_reassess"`. Mode B holds it `pending_approval` with `execution.held_reason="stale_floor_break_reassess"`, fetches no quote for it, and the executor refuses it |
+
+The deck shows a `Reclaim` (or `Broken floor`) level, a `Reassess` chip and
+the hold reason. Checks: backend 1033 passed, 33 skipped (full run from
+`backend`); frontend 599 passed in 45 files; `npm --prefix frontend run build`
+passes. A live pass against 5004 with sample holdings ATOM 50, RENDER 100 and LTC 3
+recorded all three as stale breaks, all `pending_approval`: ATOM 17% under
+$1.61 (stop $1.19), LTC 11% under $50.11 (stop $38.43) and RENDER 22% under
+$1.76 (stop $1.15). The previous UTC day's proposals for the same coins
+(old floor-as-stop records) are still open in
+`backend\data\agent_observations.sqlite`; reject them from the deck.
+
 ## Cycle strategist Phase 2: reload ladder, sizing, rotation, live quotes · November 16
 
 Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `e4ac08d`
