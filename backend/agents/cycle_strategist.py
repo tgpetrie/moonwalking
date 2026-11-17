@@ -45,6 +45,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
+from copy import deepcopy
 import hashlib
 import math
 import time
@@ -52,6 +53,7 @@ from typing import Any, Callable, Mapping
 
 from .contracts import AgentObservation, json_safe
 from .cycle_context import (
+    MAX_SCAN_AGE_SECONDS,
     _finite as _num,
     normalize_positions,
     normalize_watchlist,
@@ -147,6 +149,8 @@ class TradeProposal:
     sizing: dict[str, Any] | None = None
     reload_plan: dict[str, Any] | None = None
     pair: dict[str, Any] | None = None
+    market_snapshot: dict[str, Any] | None = None
+    cost_model: dict[str, Any] | None = None
 
     @property
     def product_id(self) -> str:
@@ -579,12 +583,13 @@ def _ladder_advice(low, high, price, freed_usdc, daily_candles) -> dict[str, Any
 
 
 def build_reload_plan(
-    row, multi_year, price, trim_quantity, held_quantity, floor=None, daily_candles=None
+    row, multi_year, price, trim_quantity, held_quantity, floor=None, daily_candles=None,
+    costs=None,
 ) -> dict[str, Any]:
     """Split a trim's USDC across lower support levels and count the coins bought back.
 
-    The figures assume each rung fills at its level and leave out fees and
-    slippage. They describe a plan; nothing is ordered. An available plan also
+    The figures use the recorded paper fee and slippage assumptions at each
+    rung. An available plan also
     carries ``ladder_optimizer``: rung weights tilted by past wick depth in
     ``daily_candles``. With three rungs and enough history those weights split
     the USDC (``weight_source: "ladder_optimizer"``); otherwise the fixed
@@ -595,7 +600,11 @@ def build_reload_plan(
         price > 0 and 0 < trim_quantity <= held_quantity
     ):
         return {"available": False, "reason": "invalid_trim_size"}
-    freed_cents = usdc_cents(trim_quantity * price, round_down=True)
+    from .trading_costs import cost_model, paper_buy, paper_sale
+
+    costs = costs or cost_model(source="legacy_zero_cost_assumption")
+    sale = paper_sale(price, trim_quantity, costs)
+    freed_cents = usdc_cents(sale["proceeds_usd"])
     freed = freed_cents / 100
     stop = _num((row.get("accumulation_invalidation_stop") or {}).get("stop_price"))
     cycle_low = _num(row.get("cycle_low"))
@@ -623,7 +632,9 @@ def build_reload_plan(
         "invalidation_stop": invalidation,
         "invalidation_basis": basis,
         "fresh_cash_usd": 0.0,
-        "assumptions": "Each rung fills at its level. Fees and slippage are not included.",
+        "cost_model": costs,
+        "sale_costs": sale,
+        "assumptions": "Each rung fills with the recorded paper fee and slippage assumptions.",
     }
     if not chosen or not freed_cents:
         plan["reason"] = "no_support_level_between_stop_and_price" if freed_cents else "insufficient_trim_proceeds"
@@ -644,14 +655,15 @@ def build_reload_plan(
     tranches, coins = [], 0.0
     for index, ((level, source), weight, cents) in enumerate(zip(chosen, weights, allocation), start=1):
         usdc = cents / 100
-        coins += usdc / level
+        bought = paper_buy(level, usdc, costs)
+        coins += bought["quantity"]
         tranches.append({
             "index": index,
             "weight_pct": _round(weight / total * 100),
             "level": level,
             "basis": source,
             "usdc": usdc,
-            "coins": usdc / level,
+            "coins": bought["quantity"],
             "discount_pct": _round((1 - level / price) * 100),
         })
     gain = coins - trim_quantity
@@ -970,6 +982,7 @@ class GuardedDryRunExitExecutor:
         max_quote_deviation_pct: float = 2.0,
         max_spread_pct: float = 1.0,
         slippage_bps: float = 10.0,
+        fee_bps: float = 0.0,
         max_clock_skew_ms: int = MAX_QUOTE_CLOCK_SKEW_MS,
     ):
         """``max_clock_skew_ms`` is how far Coinbase's book time may run ahead
@@ -991,6 +1004,9 @@ class GuardedDryRunExitExecutor:
         self.max_quote_deviation_pct = deviation
         self.max_spread_pct = spread
         self.slippage_bps = slippage
+        from .trading_costs import cost_model
+
+        self.cost_model = cost_model(fee_bps, slippage_bps)
 
     def quote_guard(self, quote, reference_price, quantity, now_ms) -> list[str]:
         if not isinstance(quote, dict) or quote.get("quote_status") not in (None, "AVAILABLE"):
@@ -1043,6 +1059,20 @@ class GuardedDryRunExitExecutor:
             return blocked("exit_only")
         if proposal.breach_state == STALE_FLOOR_BREAK:
             return blocked(STALE_FLOOR_BREAK)
+        snapshot = proposal.market_snapshot
+        if snapshot:
+            decision = _num(now_ms)
+            cutoff = _num(snapshot.get("as_of_ts"))
+            computed = _num(snapshot.get("computed_at"))
+            max_age = min(_num(snapshot.get("ttl_seconds")) or MAX_SCAN_AGE_SECONDS, MAX_SCAN_AGE_SECONDS)
+            if (
+                decision is None or cutoff != int(decision // 86400000) * 86400
+                or (computed is not None and not 0 <= decision / 1000 - computed < max_age)
+            ):
+                return blocked("market_snapshot_stale")
+            exchange = _num((quote or {}).get("exchange_time_ms")) if isinstance(quote, dict) else None
+            if exchange is not None and exchange < cutoff * 1000:
+                return blocked("quote_precedes_market_snapshot")
         held_quantity = _num(position.get("quantity"))
         trim = _num(proposal.trim_pct)
         if held_quantity is None or held_quantity <= 0 or trim is None or not 0 < trim <= 100:
@@ -1068,6 +1098,10 @@ class GuardedDryRunExitExecutor:
                     "order_type": "stop_limit_stop_limit_gtc",
                     "stop_price": stop,
                     "base_size": quantity,
+                    "market_snapshot": proposal.market_snapshot,
+                    "quote_observed_at_ms": quote.get("observed_at_ms"),
+                    "quote_exchange_time_ms": quote.get("exchange_time_ms"),
+                    "decision_at_ms": now_ms,
                 }
             trigger = proposal.evidence.get("trigger")
             if trigger == "higher_low_floor_breached":
@@ -1081,8 +1115,10 @@ class GuardedDryRunExitExecutor:
                 return blocked("quote_does_not_confirm_stop_breach")
             if _stale_break(bid, level):
                 return blocked(STALE_FLOOR_BREAK)
-        fill = bid * (1.0 - self.slippage_bps / 10_000.0)
-        proceeds = _num(fill * quantity)
+        from .trading_costs import paper_sale
+
+        sale = paper_sale(bid, quantity, proposal.cost_model or self.cost_model)
+        fill, proceeds = sale["fill_price"], _num(sale["proceeds_usd"])
         if proceeds is None or fill <= 0 or proceeds <= 0:
             return blocked("invalid_fill")
         return {
@@ -1093,9 +1129,13 @@ class GuardedDryRunExitExecutor:
             "base_size": quantity,
             "bid_usd": bid,
             "fill_price": fill,
-            "proceeds_usd": _round(proceeds, 2),
-            "slippage_bps": self.slippage_bps,
+            **sale,
+            "cost_model": proposal.cost_model or self.cost_model,
+            "slippage_bps": (proposal.cost_model or self.cost_model)["slippage_bps"],
             "quote_observed_at_ms": quote.get("observed_at_ms"),
+            "quote_exchange_time_ms": quote.get("exchange_time_ms"),
+            "decision_at_ms": now_ms,
+            "market_snapshot": proposal.market_snapshot,
         }
 
 
@@ -1212,9 +1252,13 @@ class CycleStrategistAgent:
         *,
         executor: GuardedDryRunExitExecutor | None = None,
         clock: Callable[[], float] = time.time,
+        costs=None,
     ):
         self.store = store
         self.executor = executor or GuardedDryRunExitExecutor()
+        from .trading_costs import cost_model
+
+        self.costs = cost_model(**costs) if costs is not None else None
         self.clock = clock
         self.last_proposals: list[dict] = []
         # Entries the last ``evaluate`` dropped at the reward-to-risk gate, and
@@ -1308,6 +1352,7 @@ class CycleStrategistAgent:
                 trim.reload_plan = build_reload_plan(
                     row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor,
                     daily_candles=histories.get(f"{symbol}-USD") if isinstance(histories, dict) else None,
+                    costs=self.costs,
                 )
                 proposals.append(trim)
                 trimming.add(symbol)
@@ -1415,9 +1460,20 @@ class CycleStrategistAgent:
                 proposals.append(rotation)
         self.last_heat = {key: value for key, value in heat.items() if not key.startswith("_")}
         self.last_cluster_guard = guard.summary()
+        from .cycle_context import cycle_evidence
+
+        for proposal in proposals:
+            proposal.market_snapshot = cycle_evidence(scan, proposal.symbol)
+            proposal.cost_model = self.costs
+            position = held.get(proposal.symbol)
+            if position:
+                proposal.evidence["position_snapshot"] = {
+                    key: position[key] for key in ("source", "quantity", "observed_at_ts", "opened_ts")
+                    if key in position
+                }
         return proposals
 
-    def _route(self, proposal, settings, held, quotes, now_ms, orders_today):
+    def _route(self, proposal, settings, held, quotes, now_ms, orders_today, scan=None):
         if proposal.action not in EXIT_ACTIONS or proposal.side != "sell":
             return "pending_approval", None
         if settings["autonomy_mode"] != "auto_protect_exits":
@@ -1428,6 +1484,8 @@ class CycleStrategistAgent:
             return "pending_approval", {"held_reason": "emergency_pause"}
         if settings["execution_mode"] != "dry_run":
             return "blocked_by_guard", {"block_reasons": ["live_order_route_unavailable"]}
+        if scan is not None and not usable_cycle_scan(scan, now=now_ms / 1000):
+            return "blocked_by_guard", {"block_reasons": ["market_snapshot_stale"]}
         if orders_today >= settings["daily_order_cap"]:
             return "blocked_by_guard", {"block_reasons": ["daily_order_cap_reached"]}
         result = self.executor.execute(
@@ -1480,9 +1538,10 @@ class CycleStrategistAgent:
         }
 
     def run(self, context: dict | None) -> list[AgentObservation]:
-        context = context or {}
+        context = deepcopy(context or {})
         supplied_now = _num(context.get("now_ts"))
-        clock = self.clock if supplied_now is None else lambda: supplied_now
+        started = time.monotonic()
+        clock = self.clock if supplied_now is None else lambda: supplied_now + time.monotonic() - started
         now = clock()
         store = self.store or AgentStore()
         plans = context.get("reload_plans")
@@ -1503,7 +1562,7 @@ class CycleStrategistAgent:
             saved, settings = store.route_proposal(
                 proposal.to_record(),
                 lambda settings, count, decision_ms: self._route(
-                    proposal, settings, held, quotes, decision_ms, count
+                    proposal, settings, held, quotes, decision_ms, count, context.get("cycle_scan")
                 ),
                 clock=clock,
             )
@@ -1523,6 +1582,7 @@ class CycleStrategistAgent:
                         "stop_price": saved.get("stop_price"),
                         "breach_state": saved.get("breach_state"),
                         "reference_price": saved["reference_price"],
+                        "market_snapshot": saved.get("market_snapshot"),
                         "target_price": saved.get("target_price"),
                         "reward_to_risk_ratio": saved.get("reward_to_risk_ratio"),
                         "sizing": saved.get("sizing"),

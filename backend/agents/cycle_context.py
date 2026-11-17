@@ -8,6 +8,7 @@ local runner script and any backend caller hand agents identical context.
 from __future__ import annotations
 
 from datetime import datetime
+from copy import deepcopy
 from itertools import islice
 import math
 import re
@@ -50,14 +51,40 @@ def usable_cycle_scan(scan: Any, *, now: float | None = None) -> bool:
     """Allow pure scanner output or fresh, ready data from the Flask route."""
     if not isinstance(scan, Mapping) or not isinstance(scan.get("coins"), list) or not scan["coins"]:
         return False
+    snapshot = scan.get("market_snapshot")
+    if snapshot is not None:
+        if not isinstance(snapshot, Mapping) or not snapshot.get("snapshot_id") or snapshot.get("timeframe") != "1d":
+            return False
+        cutoff = _positive(snapshot.get("as_of_ts"))
+        if cutoff is None or cutoff % 86400:
+            return False
+        if any(
+            row.get("available") and row.get("market_as_of_ts") != cutoff
+            for row in scan["coins"] if isinstance(row, Mapping)
+        ):
+            return False
     if not {"status", "computed_at", "ttl_seconds"}.intersection(scan):
         return True  # Pure in-process scanner result.
+    now = time.time() if now is None else now
+    if snapshot is not None and snapshot["as_of_ts"] != int(now // 86400) * 86400:
+        return False
     computed = _finite(scan.get("computed_at"))
     ttl = _positive(scan.get("ttl_seconds"))
     if scan.get("status") != "ready" or computed is None or ttl is None:
         return False
-    age = (time.time() if now is None else now) - computed
+    age = now - computed
     return 0 <= age < min(ttl, MAX_SCAN_AGE_SECONDS)
+
+
+def cycle_evidence(scan, symbol=None):
+    """Preserve the scan revision and the coin's source candle boundary."""
+    evidence = dict(scan.get("market_snapshot") or {})
+    if evidence:
+        evidence.update({key: scan[key] for key in ("computed_at", "ttl_seconds") if key in scan})
+    if evidence and symbol:
+        row = next((row for row in scan["coins"] if isinstance(row, Mapping) and row.get("symbol") == symbol), {})
+        evidence.update(market_as_of_ts=row.get("market_as_of_ts"), history_id=row.get("history_id"))
+    return evidence or None
 
 
 def core_and_priority_ready(scan: Any, products: Iterable[Any] = ()) -> bool:
@@ -103,7 +130,7 @@ def normalize_positions(rows: Iterable[Mapping[str, Any]] | None) -> list[dict]:
             level = _positive(row.get(key))
             if level is not None:
                 clean[key] = max(level, clean.get(key, 0.0))
-        for key in ("cost_basis", "entry_price", "source"):
+        for key in ("cost_basis", "entry_price", "source", "observed_at_ts", "opened_ts"):
             if row.get(key) is not None:
                 clean.setdefault(key, row[key])
     return [merged[symbol] for symbol in sorted(merged) if math.isfinite(merged[symbol]["quantity"])]
@@ -253,7 +280,7 @@ def build_cycle_context(
     ``base_risk_pct`` and ``max_open_risk_pct``.
     """
     context: dict[str, Any] = {
-        "cycle_scan": dict(scan) if usable_cycle_scan(scan, now=now) else None,
+        "cycle_scan": deepcopy(scan) if usable_cycle_scan(scan, now=now) else None,
         "positions": normalize_positions(positions),
         "watchlist": normalize_watchlist(watchlist),
     }

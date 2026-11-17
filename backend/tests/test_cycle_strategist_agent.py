@@ -423,6 +423,87 @@ def test_context_requires_ready_and_fresh_http_scan(status, computed_at, ready):
     assert (build_cycle_context(http_scan, now=NOW)["cycle_scan"] is not None) is ready
 
 
+def test_snapshot_context_is_frozen_and_rejects_mixed_days():
+    cutoff = int(NOW // 86400) * 86400
+    scan = {
+        **_scan(_row("SOL", 175, market_as_of_ts=cutoff, history_id="sol")),
+        "market_snapshot": {"snapshot_id": "shared", "as_of_ts": cutoff, "timeframe": "1d"},
+        "computed_at": NOW - 1, "ttl_seconds": 1800, "status": "ready",
+    }
+    context = build_cycle_context(scan, now=NOW)
+    scan["coins"][0]["price"] = 900
+    assert context["cycle_scan"]["coins"][0]["price"] == 175
+    scan["coins"][0]["market_as_of_ts"] -= 86400
+    assert build_cycle_context(scan, now=NOW)["cycle_scan"] is None
+    scan["coins"][0]["market_as_of_ts"] += 86400
+    assert build_cycle_context(scan, now=cutoff + 86400)["cycle_scan"] is None
+
+
+def test_execution_uses_a_clock_that_advances_during_quote_fetch(store, monkeypatch):
+    import agents.cycle_strategist as strategist
+
+    elapsed = [0.0]
+    monkeypatch.setattr(strategist.time, "monotonic", lambda: elapsed[0])
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    def fetch(products):
+        elapsed[0] = 2.0
+        return {"SOL-USD": _quote(175, observed_at_ms=NOW_MS + 1500, exchange_time_ms=NOW_MS + 1400)}
+
+    agent = CycleStrategistAgent(store)
+    agent.run({
+        "now_ts": NOW, "cycle_scan": _scan(_row("SOL", 175, rollover_target_box={"low": 150, "high": 200})),
+        "positions": [{"symbol": "SOL", "quantity": 10}], "quote_fetcher": fetch,
+    })
+    (proposal,) = agent.last_proposals
+    assert proposal["status"] == "auto_executed_dry_run"
+    assert proposal["execution"]["decision_at_ms"] == NOW_MS + 2000
+    assert proposal["execution"]["quote_exchange_time_ms"] == NOW_MS + 1400
+
+
+def test_snapshot_is_rechecked_after_a_slow_quote_fetch(store, monkeypatch):
+    import agents.cycle_strategist as strategist
+
+    elapsed = [0.0]
+    monkeypatch.setattr(strategist.time, "monotonic", lambda: elapsed[0])
+    cutoff = int(NOW // 86400) * 86400
+    scan = {
+        **_scan(_row("SOL", 175, rollover_target_box={"low": 150, "high": 200}, market_as_of_ts=cutoff)),
+        "status": "ready", "computed_at": NOW, "ttl_seconds": 1800,
+        "market_snapshot": {"snapshot_id": "fixed", "timeframe": "1d", "as_of_ts": cutoff},
+    }
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    def fetch(products):
+        elapsed[0] = 1801
+        return {"SOL-USD": _quote(175)}
+
+    agent = CycleStrategistAgent(store)
+    agent.run({"now_ts": NOW, "cycle_scan": scan, "positions": [{"symbol": "SOL", "quantity": 10}], "quote_fetcher": fetch})
+    (proposal,) = agent.last_proposals
+    assert proposal["execution"]["block_reasons"] == ["market_snapshot_stale"]
+    assert proposal["market_snapshot"]["snapshot_id"] == "fixed"
+
+
+def test_executor_checks_snapshot_and_quote_order_even_when_called_directly(store):
+    cutoff = int(NOW // 86400) * 86400
+    scan = {
+        **_scan(_row("SOL", 175, rollover_target_box={"low": 150, "high": 200}, market_as_of_ts=cutoff)),
+        "market_snapshot": {"snapshot_id": "fixed", "timeframe": "1d", "as_of_ts": cutoff},
+    }
+    (proposal,) = CycleStrategistAgent(store).evaluate({
+        "now_ts": NOW, "cycle_scan": scan, "positions": [{"symbol": "SOL", "quantity": 10}],
+    })
+    executor = GuardedDryRunExitExecutor()
+    tomorrow = executor.execute(proposal, {"quantity": 10}, _quote(175), NOW_MS + 86400000)
+    assert tomorrow["block_reasons"] == ["market_snapshot_stale"]
+    earlier = executor.execute(
+        proposal, {"quantity": 10}, _quote(175, exchange_time_ms=cutoff * 1000 - 1), NOW_MS,
+    )
+    assert earlier["block_reasons"] == ["quote_precedes_market_snapshot"]
+    proposal.market_snapshot.update(computed_at=NOW - 60, ttl_seconds=30)
+    expired = executor.execute(proposal, {"quantity": 10}, _quote(175), NOW_MS)
+    assert expired["block_reasons"] == ["market_snapshot_stale"]
+
+
 def test_mode_b_never_simulates_accumulation_even_with_a_quote(store):
     store.set_autonomy_settings(autonomy_mode="auto_protect_exits", daily_order_cap=20)
     agent, _ = _run(store, {
@@ -613,6 +694,7 @@ def test_reload_ladder_stays_above_the_stop_and_fills_from_floor_and_clusters(st
         "reference_price": 175.0, "trim_quantity": 3.75, "freed_usdc": 656.25,
         "invalidation_stop": None, "invalidation_basis": None, "fresh_cash_usd": 0.0,
         "assumptions": plan["assumptions"],
+        "cost_model": plan["cost_model"], "sale_costs": plan["sale_costs"],
     }
 
 

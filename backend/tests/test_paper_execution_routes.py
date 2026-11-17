@@ -107,12 +107,15 @@ def test_autonomous_risk_ledger_fill_close_and_daily_loss(client, monkeypatch):
     client.post("/api/execution-agent/mode", json={"mode": "autonomous"})
     ticket = client.post("/api/execution-agent/tickets", json={"action": "stage", "ticket": TICKET}).json["ticket"]
     assert ticket["status"] == "auto_approved_autonomous"
+    assert ticket["reference_price_source"] == "operator_supplied_paper_ticket"
     assert paper_execution_store.risk_metrics(1)["open_positions"] == 1
     assert client.post("/api/execution-agent/tickets", json={"action": "fill", "ticket_id": ticket["id"], "fill_price": 101}).status_code == 400
     assert client.post("/api/execution-agent/tickets", json={"action": "fill", "ticket_id": ticket["id"], "fill_price": 100}).json["ticket"]["status"] == "filled_paper"
     assert client.post("/api/execution-agent/tickets", json={"action": "fill", "ticket_id": ticket["id"], "fill_price": 100}).status_code == 400
     closed = client.post("/api/execution-agent/tickets", json={"action": "close", "ticket_id": ticket["id"], "exit_price": 88}).json["ticket"]
     assert closed["realized_r"] == -2
+    assert closed["fill_price_source"] == closed["exit_price_source"] == "operator_supplied_paper_fill"
+    assert closed["created_ts"] <= closed["filled_ts"] <= closed["closed_ts"]
     assert paper_execution_store.risk_metrics(1) == {"open_positions": 0, "daily_realized_r": -2}
     blocked = client.post("/api/execution-agent/tickets", json={"action": "stage", "ticket": TICKET}).json["ticket"]
     assert "max_daily_loss_reached" in blocked["block_reasons"]

@@ -96,7 +96,10 @@ def list_tickets(owner_id, product_id=None):
 
 
 def stage_ticket(owner_id, ticket):
-    record = dict(ticket, id=str(uuid.uuid4()), paper=True, created_ts=int(time.time()))
+    record = dict(
+        ticket, id=str(uuid.uuid4()), paper=True, created_ts=int(time.time()),
+        reference_price_source="operator_supplied_paper_ticket",
+    )
     with _connect() as conn:
         conn.execute(
             "INSERT INTO paper_execution_tickets VALUES (?, ?, ?, ?, ?)",
@@ -162,7 +165,10 @@ def stage_evaluated_ticket(owner_id, evaluator):
     with _connect() as conn:
         conn.execute("BEGIN IMMEDIATE")
         ticket = evaluator(_risk_metrics(conn, owner_id, time.time()))
-        record = dict(ticket, id=str(uuid.uuid4()), paper=True, created_ts=int(time.time()))
+        record = dict(
+            ticket, id=str(uuid.uuid4()), paper=True, created_ts=int(time.time()),
+            reference_price_source="operator_supplied_paper_ticket",
+        )
         conn.execute(
             "INSERT INTO paper_execution_tickets VALUES (?, ?, ?, ?, ?)",
             (record["id"], owner_id, record["product_id"], record["created_ts"],
@@ -192,12 +198,15 @@ def fill_ticket(owner_id, ticket_id, price):
         quantity = _positive_number(ticket.get("base_size") or ticket.get("size"), "base_size")
         if price > limit or price <= stop:
             raise ValueError("Fill price must be at or below the buy limit and above the stop")
+        filled_ts = int(time.time())
         conn.execute(
             "INSERT INTO paper_execution_positions(ticket_id,owner_id,product_id,quantity,entry_price,risk_usd,opened_ts) VALUES(?,?,?,?,?,?,?)",
-            (ticket_id, owner_id, ticket["product_id"], quantity, price, quantity * (price - stop), int(time.time())),
+            (ticket_id, owner_id, ticket["product_id"], quantity, price, quantity * (price - stop), filled_ts),
         )
         ticket["status"] = "filled_paper"
         ticket["fill_price"] = price
+        ticket["filled_ts"] = filled_ts
+        ticket["fill_price_source"] = "operator_supplied_paper_fill"
         conn.execute("UPDATE paper_execution_tickets SET ticket_json=? WHERE owner_id=? AND id=?", (json.dumps(ticket, allow_nan=False), owner_id, ticket_id))
         return ticket
 
@@ -212,9 +221,13 @@ def close_position(owner_id, ticket_id, price):
         if row["closed_ts"] is not None:
             raise ValueError("Paper position already closed")
         realized = (price - row["entry_price"]) * row["quantity"] / row["risk_usd"]
-        conn.execute("UPDATE paper_execution_positions SET closed_ts=?, exit_price=?, realized_r=? WHERE owner_id=? AND ticket_id=?", (int(time.time()), price, realized, owner_id, ticket_id))
+        closed_ts = int(time.time())
+        conn.execute("UPDATE paper_execution_positions SET closed_ts=?, exit_price=?, realized_r=? WHERE owner_id=? AND ticket_id=?", (closed_ts, price, realized, owner_id, ticket_id))
         ticket = json.loads(conn.execute("SELECT ticket_json FROM paper_execution_tickets WHERE owner_id=? AND id=?", (owner_id, ticket_id)).fetchone()[0])
-        ticket.update(status="closed_paper", exit_price=price, realized_r=realized)
+        ticket.update(
+            status="closed_paper", exit_price=price, realized_r=realized,
+            closed_ts=closed_ts, exit_price_source="operator_supplied_paper_fill",
+        )
         conn.execute("UPDATE paper_execution_tickets SET ticket_json=? WHERE owner_id=? AND id=?", (json.dumps(ticket, allow_nan=False), owner_id, ticket_id))
         return ticket
 

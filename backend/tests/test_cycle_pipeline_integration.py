@@ -28,6 +28,7 @@ def test_real_macro_response_drives_proposals_and_smart_alerts(
     monkeypatch.setenv("MW_MACRO_SCAN_SYNC", "1")
     # Pin the upstream cache's time to the closed daily fixture window.
     monkeypatch.setattr(chart_reader, "time", SimpleNamespace(time=lambda: 1794787200))
+    monkeypatch.setattr(backend_app.time, "time", lambda: 1794787200)
     monkeypatch.setattr(watchlist, "_WATCHLIST_DB_PATH", tmp_path / "watchlist.sqlite")
     watchlist._ensure_watchlist_schema()
     monkeypatch.setattr(backend_app, "_mw_ensure_background_started", lambda: None)
@@ -100,6 +101,7 @@ def test_real_macro_response_drives_proposals_and_smart_alerts(
     scan = scan_response.json
     assert scan["status"] == "ready"
     assert scan["industry"]["stage_number"] == 1
+    assert scan["market_snapshot"]["as_of_ts"] == 1794787200
     ltc = next(row for row in scan["coins"] if row["symbol"] == "LTC")
     assert ltc["rollover_target_box"] is None  # the SMA is the only trim trigger
     assert ltc["multi_year_context"]["weekly_sma_ladder"]["sma_50w"] > ltc["price"]
@@ -125,9 +127,11 @@ def test_real_macro_response_drives_proposals_and_smart_alerts(
         ("Closed monthly RSI", "RENDER")
     ]
     for proposal in (entry, trim):
+        assert proposal["market_snapshot"]["snapshot_id"] == scan["market_snapshot"]["snapshot_id"]
         path = f"/api/agents/proposals/{proposal['proposal_id']}/approve"
         approved = client.post(path, json={})
         assert approved.status_code == 200
         record = approved.json["proposal"]
         assert record["status"] == "approved" and record["execution"] is None
         assert client.post(path, json={}).json["proposal"] == record
+    assert history[0]["evidence"]["market_snapshot"]["snapshot_id"] == scan["market_snapshot"]["snapshot_id"]

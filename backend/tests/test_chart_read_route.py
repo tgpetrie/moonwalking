@@ -493,6 +493,7 @@ def _scan(url):
 def test_macro_cycle_scan_keeps_request_supplements_out_of_other_responses(
     monkeypatch, cycle_fixture, daily_series, macro_scan_state
 ):
+    monkeypatch.setattr(backend_app.time, "time", lambda: 1794787200)
     up = daily_series(10, [(1461, 60)])
     histories = {
         "BTC-USD": up,

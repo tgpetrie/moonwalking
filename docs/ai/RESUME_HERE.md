@@ -7,6 +7,37 @@ audited commit `464e7f3`, which is also the tip of
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
 it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
 
+## Cycle operational hardening · November 17
+
+Continued directly from `7e3a30d` on
+`claude/elliott-abc-v2-reclaim-20261115`. Implementation worktree branch
+`codex/cycle-operational-hardening-20261117`.
+
+| Area | Finding and repair |
+| --- | --- |
+| Market timestamps | Fetch time previously concealed histories ending on an older day. The Atlas scan now requires the latest closed UTC daily candle, excludes open candles and reports each row's `market_as_of_ts` and `history_id`. A shared `market_snapshot` identifies the candle boundary, input revision and industry regime. |
+| Consumer consistency | Contexts copy the published scan. HTTP scans with mixed candle dates, an expired refresh or a previous UTC day's close fail readiness. Strategist proposals, observations, Smart Alert history and simulated executions retain the snapshot ID. Wick-history handoff verifies the scanned history revision. Live portfolio quantities carry their observation time, and cycle equity uses the same daily-close marks plus observed cash balances. |
+| Execution clocks | The decision clock advances while quotes are fetched. The routing guard rechecks the scan after fetching and records decision, local quote-receipt and exchange timestamps. Manual paper tickets record operator price provenance and the fill/close event times. `live_guarded` continues to return `live_order_route_unavailable`. |
+| Fees and slippage | Desk passes and the local runner use explicit paper assumptions of 60 bps fees and 10 bps slippage per side. Set `MW_CYCLE_FEE_BPS` and `MW_CYCLE_SLIPPAGE_BPS` to change them. These are configurable modeling rates. Each new proposal preserves its rates. A simulated sell charges the fee on its slipped fill, and reload budgets include buy fees. Programmatic agent callers can supply `costs=cost_model(...)`. |
+| Inventory valuation | The paper cohort begins with the held quantity on its first attributable exit. Subsequent exits retire remaining coins, and funded reloads restore coins and debit cash. `compounding_summary` reports remaining inventory, cash, their combined value, signed value versus holding, fees and slippage. Missing marks make aggregate valuation unavailable. The scoreboard shows these values and the mark timestamp. |
+| Historical accounting | Existing records use their recorded fills and assumptions. `legacy_costs_unrecorded` and `costs_complete` identify missing cost evidence. Overlapping legacy ladder claims can exceed the cohort's cash. The summary caps available reload cash, reports `reload_funding_shortfall_by_symbol` and withholds that symbol's projection for reconciliation. |
+
+The inventory model covers the cycle trim, protective-stop and funded-reload
+cohort. External fills, transfers, independent entries and rotations need
+reconciliation with the account's fill ledger before using these values for
+account-wide P&L. Daily-close marks and separately timestamped live execution
+quotes retain their source and price basis.
+
+Verification passed with 1,186 backend tests and 33 skips, 624 frontend tests
+across 48 files, the production build, repository guardrails and
+`git diff --check`. Regression checks cover stale/mixed-day scans, retained
+snapshot IDs, advancing decision clocks, a quote preceding the daily-close
+boundary, fee-inclusive partial reloads, inventory valuation, signed
+underperformance, legacy funding shortfalls and manual paper fill provenance.
+Tests used isolated databases and excluded connections to ports 5003, 5004,
+5173 and 5174. Build warnings cover the existing two image references and
+the JavaScript chunk over 500 kB.
+
 ## Phase 4 red-team audit · November 17
 
 Reviewed `6d60690..538c67e` and applied the follow-up on

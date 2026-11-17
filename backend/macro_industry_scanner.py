@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import logging
 import math
+import hashlib
+import json
 from typing import Any
 
 __all__ = [
@@ -378,10 +380,41 @@ def _bucket(context: dict[str, Any], top: dict[str, Any], lead: dict[str, Any]) 
     return None, 0.0
 
 
-def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any]:
+def daily_history_id(candles):
+    """Stable identity of the validated daily input, including revised bars."""
+    bars = _clean(candles)
+    return hashlib.sha256(repr([bars[ts] for ts in sorted(bars)]).encode()).hexdigest()[:24]
+
+
+def market_snapshot(scan, as_of_ts):
+    """Identify the daily evidence and industry regime used by one scan."""
+    evidence = {
+        "as_of_ts": as_of_ts,
+        "industry": scan["industry"],
+        "rows": [
+            (row["product_id"], row.get("history_id"), row.get("available"), row.get("price"))
+            for row in sorted(scan["coins"], key=lambda row: row["product_id"])
+        ],
+    }
+    identity = hashlib.sha256(json.dumps(evidence, sort_keys=True, allow_nan=False).encode()).hexdigest()[:24]
+    return {"snapshot_id": identity, "as_of_ts": as_of_ts, "timeframe": "1d", "price_basis": "closed_daily_candle"}
+
+
+def cycle_row(product_id: str, candles: list[list[Any]] | None, *, as_of_ts=None) -> dict[str, Any]:
     """One coin's scan summary and the structured evidence used downstream."""
     structure = _structure()
     symbol = str(product_id).upper().removesuffix("-USD")
+    bars = _clean(candles)
+    if as_of_ts is not None:
+        bars = {ts: bar for ts, bar in bars.items() if ts + DAY <= as_of_ts}
+    latest = max(bars, default=-DAY) + DAY
+    timing = {"market_as_of_ts": latest, "history_id": daily_history_id(list(bars.values()))}
+    if as_of_ts is not None and latest != as_of_ts:
+        return {
+            "symbol": symbol, "product_id": product_id, "available": False,
+            "reason": "daily_candle_stale", **timing,
+        }
+    candles = [bars[ts] for ts in sorted(bars)]
     context = structure.multi_year_context(candles)
     if not context.get("available") or not context.get("is_multi_year"):
         return {
@@ -390,6 +423,7 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
             "available": False,
             "reason": "not_enough_daily_history",
             "candle_count": context.get("candle_count", 0),
+            **timing,
         }
     price = context["current_price"]
     top = structure.top_down_confluence(context, {}, price)
@@ -414,6 +448,7 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None) -> dict[str, Any
         "product_id": product_id,
         "available": True,
         "price": price,
+        **timing,
         "bucket": bucket,
         "bucket_label": BUCKETS.get(bucket),
         "score": round(score, 2),
@@ -557,6 +592,8 @@ def annotate_cluster_and_beta(
         row["category_id"] = cluster
     try:
         asset, btc = _clean(candles), _clean(btc_candles)
+        if row.get("market_as_of_ts") is not None and max(btc, default=-DAY) + DAY != row["market_as_of_ts"]:
+            btc = {}
         end = max(btc, default=0)
         dates = range(end - BETA_WINDOW_DAYS * DAY, end + DAY, DAY)
         read = _sibling("portfolio_cluster_guard").compute_downside_btc_beta(
@@ -583,6 +620,7 @@ def scan_universe_cycles(
     *,
     members: tuple[str, ...] | list[str] | None = None,
     breadth_products: set[str] | frozenset[str] | None = None,
+    as_of_ts: int | None = None,
 ) -> dict[str, Any]:
     """Rank all rows; optionally constrain industry gate breadth to a fixed universe.
 
@@ -590,10 +628,17 @@ def scan_universe_cycles(
     ``BTC-USD`` (see ``annotate_cluster_and_beta``).
     """
     rows = []
+    if as_of_ts is not None:
+        histories = {
+            product: [bar for ts, bar in _clean(candles).items() if ts + DAY <= as_of_ts]
+            for product, candles in histories.items()
+        }
     btc_history = histories.get("BTC-USD")
+    if as_of_ts is not None and as_of_ts - DAY not in _clean(btc_history):
+        btc_history = None
     for product_id in sorted(histories):
         try:
-            row = cycle_row(product_id, histories[product_id])
+            row = cycle_row(product_id, histories[product_id], as_of_ts=as_of_ts)
             if row.get("available"):
                 annotate_cluster_and_beta(row, histories[product_id], btc_history)
             rows.append(row)
@@ -612,7 +657,11 @@ def scan_universe_cycles(
         [row for row in rows if row["product_id"] in breadth_products]
     )
     try:
-        regime = macro_industry_regime(histories, gate_breadth, members=members)
+        current = {row["product_id"] for row in rows if row.get("available")}
+        regime = macro_industry_regime(
+            {product: candles for product, candles in histories.items() if product in current},
+            gate_breadth, members=members,
+        )
     except Exception:
         logging.exception("[MacroScan] industry regime failed")
         regime = {"available": False, "reason": "regime_failed"}
@@ -631,7 +680,7 @@ def scan_universe_cycles(
         )
         for name in BUCKETS
     }
-    return {
+    result = {
         "industry": regime,
         "breadth": breadth,
         "buckets": buckets,
@@ -642,6 +691,9 @@ def scan_universe_cycles(
         "blocks_alerts": False,
         "outcome_validated": False,
     }
+    cutoff = as_of_ts if as_of_ts is not None else max((row.get("market_as_of_ts", 0) for row in rows), default=0)
+    result["market_snapshot"] = market_snapshot(result, cutoff)
+    return result
 
 
 # ─── rolling universe cycle atlas ─────────────────────────────────────────────

@@ -281,6 +281,12 @@ describe("AgentsPage", () => {
         realized_extra_coins_by_symbol: { SOL: 0.4529, LTC: -0.1 },
         projected_extra_coins_by_symbol: { SOL: 2.2314, DOT: 1.5 },
         drawdown_avoided_usd: 213.75,
+        remaining_inventory_value_usd: 850,
+        strategy_value_usd: 1342.19,
+        net_value_vs_hold_usd: -17.81,
+        fees_deducted_usd: 4.5,
+        slippage_deducted_usd: 0.75,
+        mark_snapshot: { as_of_ts: 1794787200 },
       };
       const calls = mockDeck({
         summary, coverage: { ready_count: 22, target_universe_size: 120 },
@@ -293,6 +299,11 @@ describe("AgentsPage", () => {
       expect(within(board).getByText(/SOL \+0\.4529 \/ \+2\.2314/)).toBeInTheDocument();
       expect(within(board).getByText(/DOT \+0 \/ \+1\.5/)).toBeInTheDocument();
       expect(within(board).getByText("LTC -0.1 / +0")).toBeInTheDocument();
+      expect(within(board).getByText("Paper Cash + Inventory").nextSibling).toHaveTextContent("$1,342.19");
+      expect(within(board).getByText("Remaining Inventory Value").nextSibling).toHaveTextContent("$850.00");
+      expect(within(board).getByText("Net Value vs Hold").nextSibling).toHaveTextContent("$-17.81");
+      expect(within(board).getByText("Fees / Slippage Deducted").nextSibling).toHaveTextContent("$4.50 / $0.75");
+      expect(within(board).getByText("Marked at the UTC daily close · 2026-11-16T00:00:00.000Z")).toBeInTheDocument();
       expect(screen.getByText("Atlas coverage · 22 / 120 coins")).toHaveClass("mw-agents-note");
 
       const listsBefore = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;
@@ -486,7 +497,7 @@ describe("AgentsPage", () => {
       expect(within(rungs[0]).getByText("$164.06")).toBeInTheDocument();
       expect(within(rungs[0]).getByText("0.618 log-Fib support")).toBeInTheDocument();
       expect(within(rungs[2]).getByText("Daily higher-low floor")).toBeInTheDocument();
-      expect(within(plan).getByText(/Invalid below 58.8\..*fees and slippage are not included/)).toBeInTheDocument();
+      expect(within(plan).getByText(/Invalid below 58.8\..*recorded paper assumptions/)).toBeInTheDocument();
       // A trim has no entry size or reward-to-risk badge.
       expect(within(row).queryByText(/^R:R/)).not.toBeInTheDocument();
       expect(within(row).queryByText("Suggested Size")).not.toBeInTheDocument();

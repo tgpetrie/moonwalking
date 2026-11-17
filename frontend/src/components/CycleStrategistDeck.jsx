@@ -181,7 +181,8 @@ function ReloadPlan({ plan, symbol }) {
         </tbody>
       </table>
       <p className="mw-agents-note">
-        Invalid below {price(plan.invalidation_stop)}. Assumes each rung fills at its level; fees and slippage are not included.
+        Invalid below {price(plan.invalidation_stop)}. Each rung uses the recorded paper assumptions.
+        {plan.cost_model ? ` Fee ${plan.cost_model.fee_bps} bps and slippage ${plan.cost_model.slippage_bps} bps per side.` : " Historical fee and slippage assumptions are unavailable."}
       </p>
     </section>
   );
@@ -500,8 +501,16 @@ export default function CycleStrategistDeck() {
             </div>
             <div>
               <dt>Drawdown Avoided</dt>
-              <dd>{summary.drawdown_priced_symbols?.length === 0 ? "—" : usd(summary.drawdown_avoided_usd)}</dd>
+              <dd>{summary.valuation_complete === false || summary.drawdown_priced_symbols?.length === 0 ? "—" : usd(summary.drawdown_avoided_usd)}</dd>
             </div>
+            {"strategy_value_usd" in summary ? (
+              <>
+                <div><dt>Remaining Inventory Value</dt><dd>{usd(summary.remaining_inventory_value_usd)}</dd></div>
+                <div><dt>Paper Cash + Inventory</dt><dd>{usd(summary.strategy_value_usd)}</dd></div>
+                <div><dt>Net Value vs Hold</dt><dd>{usd(summary.net_value_vs_hold_usd)}</dd></div>
+                <div><dt>Fees / Slippage Deducted</dt><dd>{usd(summary.fees_deducted_usd)} / {usd(summary.slippage_deducted_usd)}</dd></div>
+              </>
+            ) : null}
             <div>
               <dt>Extra Coins Compounded / Projected</dt>
               <dd className="mw-agents-scoreboard__coins">
@@ -514,6 +523,20 @@ export default function CycleStrategistDeck() {
               </dd>
             </div>
           </dl>
+          {summary.mark_snapshot?.as_of_ts ? (
+            <p className="mw-agents-note">Marked at the UTC daily close · {new Date(summary.mark_snapshot.as_of_ts * 1000).toISOString()}</p>
+          ) : null}
+          {summary.valuation_complete === false ? (
+            <p className="mw-agents-note">Valuation unavailable for {summary.unpriced_symbols?.join(", ")}.</p>
+          ) : null}
+          {summary.legacy_costs_unrecorded?.length ? (
+            <p className="mw-agents-note">Historical costs unavailable for {summary.legacy_costs_unrecorded.length} paper decisions.</p>
+          ) : null}
+          {Object.keys(summary.reload_funding_shortfall_by_symbol || {}).length ? (
+            <p className="mw-agents-note">
+              Reload funding needs reconciliation for {Object.keys(summary.reload_funding_shortfall_by_symbol).join(", ")}.
+            </p>
+          ) : null}
         </section>
       ) : null}
 

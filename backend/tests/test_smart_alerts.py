@@ -98,6 +98,22 @@ def test_position_stop_overrides_cycle_stop_for_proximity(engine):
     assert engine.evaluate(scan, positions=[{"symbol": "ADA", "stop_price": 0.99}], now=NOW)
 
 
+def test_direct_smart_alert_evaluation_rejects_stale_or_mixed_snapshot(engine):
+    _only(engine, "Held Position Rollover Trim Alert")
+    cutoff = int(NOW // 86400) * 86400
+    scan = {
+        **_scan(_row("SOL", 175, rollover_target_box={"low": 150, "high": 200}, market_as_of_ts=cutoff)),
+        "status": "ready", "computed_at": NOW, "ttl_seconds": 1800,
+        "market_snapshot": {"snapshot_id": "shared", "as_of_ts": cutoff, "timeframe": "1d"},
+    }
+    assert engine.evaluate(scan, positions=[{"symbol": "SOL"}], now=NOW + 1800) == []
+    scan["coins"][0]["market_as_of_ts"] -= 86400
+    assert engine.evaluate(scan, positions=[{"symbol": "SOL"}], now=NOW) == []
+    scan["coins"][0]["market_as_of_ts"] += 86400
+    (alert,) = engine.evaluate(scan, positions=[{"symbol": "SOL"}], now=NOW)
+    assert alert["evidence"]["market_snapshot"]["snapshot_id"] == "shared"
+
+
 def test_watchlist_accumulation_rule_needs_both_conditions(engine):
     _only(engine, "Watchlist Deep Accumulation + StochRSI Turn Alert")
     good = _row("LINK", 10.0, bucket="deep_accumulation_exhaustion", weekly_stoch_direction="oversold_turn_up")

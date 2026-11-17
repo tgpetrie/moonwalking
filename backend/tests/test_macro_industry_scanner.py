@@ -244,6 +244,8 @@ def test_a_coin_without_a_year_of_history_is_skipped(daily_series):
         "available": False,
         "reason": "not_enough_daily_history",
         "candle_count": 200,
+        "market_as_of_ts": row["market_as_of_ts"],
+        "history_id": row["history_id"],
     }
     assert mis.cycle_row("NONE-USD", [])["available"] is False
 
@@ -295,10 +297,10 @@ def test_scan_ranks_buckets_and_reports_skips(shapes, daily_series):
 def test_scan_survives_one_unreadable_series(shapes, monkeypatch):
     real = mis.cycle_row
 
-    def flaky(product_id, candles):
+    def flaky(product_id, candles, **kwargs):
         if product_id == "BAD-USD":
             raise RuntimeError("bad series")
-        return real(product_id, candles)
+        return real(product_id, candles, **kwargs)
 
     monkeypatch.setattr(mis, "cycle_row", flaky)
     scan = mis.scan_universe_cycles({"BAD-USD": shapes["up"], "UP-USD": shapes["up"]})
@@ -427,6 +429,23 @@ def test_scan_rows_carry_cluster_and_beta(shapes):
     assert "category_id" not in coins["ZZZ-USD"]
     for row in coins.values():
         assert row["downside_beta"] == pytest.approx(1.0, abs=1e-6)
+
+
+def test_daily_snapshot_rejects_old_closes_and_excludes_the_open_candle(shapes):
+    up = shapes["up"]
+    cutoff = int(up[-1][0] + DAY)
+    future = [cutoff, 1, 1000, 1, 999, 10]
+    scan = mis.scan_universe_cycles(
+        {"BTC-USD": up, "ETH-USD": up + [future], "SOL-USD": up[:-1]},
+        as_of_ts=cutoff,
+    )
+    rows = {row["symbol"]: row for row in scan["coins"]}
+    assert rows["SOL"]["available"] is False and rows["SOL"]["reason"] == "daily_candle_stale"
+    assert rows["ETH"]["price"] == up[-1][4]
+    assert rows["BTC"]["market_as_of_ts"] == rows["ETH"]["market_as_of_ts"] == cutoff
+    assert scan["market_snapshot"]["as_of_ts"] == cutoff
+    assert rows["ETH"]["history_id"] == mis.daily_history_id(up)
+    assert mis.daily_history_id(up + [future]) != mis.daily_history_id(up)
 
 
 # ─── rolling universe cycle atlas ─────────────────────────────────────────────

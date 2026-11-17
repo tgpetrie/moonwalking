@@ -11957,7 +11957,9 @@ def get_agent_proposals():
         "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
         # Reload ladders from approved or dry-run executed trims that still hold USDC.
         "reload_plans": store.active_reload_plans(symbol),
-        "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
+        "compounding_summary": store.get_compounding_summary(
+            _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
+        ),
         "cycle_scan": _cycle_scan_summary(scan),
         "autonomy": store.get_autonomy_settings(),
     })
@@ -12046,28 +12048,42 @@ def _cycle_pass_portfolio_holdings():
         response = make_response(portfolio_snapshot())
         snapshot = response.get_json(silent=True) or {}
         if response.status_code == 200 and snapshot.get("status") == "live":
-            return snapshot.get("holdings") or []
+            try:
+                stamp = datetime.fromisoformat(str(snapshot.get("updated_at")).replace("Z", "+00:00"))
+                observed_at = stamp.timestamp() if stamp.tzinfo else None
+            except (ValueError, OverflowError, OSError):
+                observed_at = None
+            return [
+                {**row, "observed_at_ts": observed_at}
+                for row in snapshot.get("holdings") or [] if isinstance(row, dict)
+            ]
     except Exception:
         logging.exception("[CyclePass] portfolio snapshot unavailable")
     return None
 
 
 def _cycle_pass_positions(user):
-    """Return positions, source and complete marked equity when available."""
+    """Return positions, source and cash for equity marked on the cycle snapshot."""
     import paper_execution_store
     from portfolio_mode import USD_EQUIVALENTS
 
     holdings = _cycle_pass_portfolio_holdings()
     if holdings is not None:
         holdings = [row for row in holdings if isinstance(row, dict)]
-        marks = [_num_or_none(row.get("market_value_usd")) for row in holdings]
-        equity = sum(marks) if all(mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks) else None
+        cash_rows = [row for row in holdings if row.get("is_cash") or row.get("symbol") in USD_EQUIVALENTS]
+        marks = [_num_or_none(row.get("market_value_usd")) for row in cash_rows]
+        cash = sum(marks) if all(mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks) else None
         return [
-            {"symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio"}
+            {
+                "symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio",
+                "observed_at_ts": row.get("observed_at_ts"),
+            }
             for row in holdings
             if not row.get("is_cash") and row.get("symbol") not in USD_EQUIVALENTS
-        ], "portfolio", equity
-    return paper_execution_store.list_open_positions(user["id"]), "paper", None
+        ], "portfolio", cash
+    observed_at = time.time()
+    positions = paper_execution_store.list_open_positions(user["id"])
+    return [{**row, "observed_at_ts": observed_at} for row in positions], "paper", None
 
 
 def _cycle_pass_watchlist(user):
@@ -12098,6 +12114,10 @@ def _cycle_scan_prices(scan):
     now = time.time()
     if not scan:
         return {}
+    from agents.cycle_context import usable_cycle_scan
+
+    if not usable_cycle_scan(scan, now=now):
+        return {}
     computed_at = scan.get("computed_at", now)
     if not isinstance(computed_at, (int, float)) or not 0 <= now - computed_at < MACRO_SCAN_TTL_SECONDS:
         return {}
@@ -12116,7 +12136,7 @@ def _cycle_scan_summary(scan):
         "status": scan.get("status", "warming"),
         **{
             key: scan.get(key)
-            for key in ("computed_at", "target_universe_size", "ready_count", "coverage_pct", "atlas_refreshing")
+            for key in ("computed_at", "market_snapshot", "target_universe_size", "ready_count", "coverage_pct", "atlas_refreshing")
         },
     }
 
@@ -12128,14 +12148,23 @@ def _cycle_pass_quote_fetcher(products):
     return fetch_live_quotes(products)
 
 
-def _cycle_pass_histories(symbols, *, now):
+def _cycle_pass_histories(symbols, *, now, scan=None):
     """Read current 1D Atlas candles for the held symbols without fetching."""
     atlas = _MACRO_ATLAS
     if atlas is None:
         return {}
     try:
         products = [f"{symbol}-USD" for symbol in symbols]
-        return atlas.histories([product for product in products if atlas.state(product, now) == "fresh"])
+        histories = atlas.histories([product for product in products if atlas.state(product, now) == "fresh"])
+        if scan and scan.get("market_snapshot"):
+            from macro_industry_scanner import daily_history_id
+
+            rows = {row["product_id"]: row for row in scan["coins"]}
+            histories = {
+                product: candles for product, candles in histories.items()
+                if daily_history_id(candles) == rows.get(product, {}).get("history_id")
+            }
+        return histories
     except Exception:
         logging.debug("[CyclePass] atlas histories unavailable", exc_info=True)
         return {}
@@ -12161,15 +12190,15 @@ def run_agent_cycle_pass():
     try:
         from agents.cycle_context import build_cycle_context
         from agents.cycle_strategist import CycleStrategistAgent
+        from agents.trading_costs import configured_cost_model
         from agents.runner import run_once
         from agents.store import AgentStore
 
         store = AgentStore()
-        positions, positions_source, equity = _cycle_pass_positions(user)
+        positions, positions_source, cash = _cycle_pass_positions(user)
         watch = _cycle_pass_watchlist(user)
         context = build_cycle_context(
             None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
-            risk={"portfolio_equity_usd": equity},
         )
         held = [row["symbol"] for row in context["positions"]]
         reload = [plan["symbol"] for plan in store.active_reload_plans()]
@@ -12188,6 +12217,12 @@ def run_agent_cycle_pass():
         now = time.time()
         context["now_ts"] = now
         context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
+        if positions_source == "portfolio" and cash is not None:
+            prices = _cycle_scan_prices(scan)
+            if all(row["symbol"] in prices for row in context["positions"]):
+                context["portfolio_equity_usd"] = cash + sum(
+                    row["quantity"] * prices[row["symbol"]] for row in context["positions"]
+                )
         scan_summary = {
             **_cycle_scan_summary(scan),
             "usable": context["cycle_scan"] is not None,
@@ -12203,11 +12238,13 @@ def run_agent_cycle_pass():
             return _private_json({
                 **body, "status": "skipped", "reason": "no_cycle_scan",
                 "runs": [], "observation_count": 0, "proposals": [],
-                "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
+                "compounding_summary": store.get_compounding_summary(
+                    _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
+                ),
                 "autonomy": store.get_autonomy_settings(),
             })
-        context["cycle_histories"] = _cycle_pass_histories(held, now=now)
-        agent = CycleStrategistAgent()
+        context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
+        agent = CycleStrategistAgent(costs=configured_cost_model())
         result = run_once(
             context, store=store, agents=[agent], smart_alert_engine=_smart_alert_engine()
         )
@@ -12220,7 +12257,9 @@ def run_agent_cycle_pass():
             "proposals": list(getattr(agent, "last_proposals", None) or []),
             # Entries the cluster and beta heat guard held back, and the heat it read.
             "cluster_guard": getattr(agent, "last_cluster_guard", None),
-            "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
+            "compounding_summary": store.get_compounding_summary(
+                _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
+            ),
             "autonomy": store.get_autonomy_settings(),
         })
     finally:
@@ -14364,6 +14403,7 @@ def _macro_cycle_scan_compute(products):
         atlas.histories(fresh_products),
         members=scanner.ALT_INDEX_MEMBERS,
         breadth_products=frozenset(core),
+        as_of_ts=int(now // 86400) * 86400,
     )
     coverage = scanner.atlas_coverage(atlas, products, now)
     payload.update(
@@ -14429,7 +14469,7 @@ def _macro_scan_refresh(wanted, refresh_base, day):
             for product in extras[:MACRO_SCAN_EXTRA_BATCH]:
                 try:
                     candles = _macro_atlas_fetch(product)
-                    row = scanner.cycle_row(product, candles) if candles else None
+                    row = scanner.cycle_row(product, candles, as_of_ts=day * 86400) if candles else None
                     if row and row.get("available"):
                         btc = (
                             atlas.histories(["BTC-USD"]).get("BTC-USD")
@@ -14583,6 +14623,8 @@ def _macro_scan_response(payload, wanted, *, required=None):
 
         if not fresh or not core_and_priority_ready(scan, required):
             scan["status"] = "refreshing"
+    if "market_snapshot" in payload:
+        scan["market_snapshot"] = scanner.market_snapshot(scan, payload["market_snapshot"]["as_of_ts"])
     return scan
 
 

@@ -25,6 +25,7 @@ Delivery is opt-in: ntfy needs ``MW_NTFY_URL``; the dispatcher in
 from __future__ import annotations
 
 from contextlib import closing
+from copy import deepcopy
 from email.header import Header
 import json
 import logging
@@ -742,6 +743,15 @@ class SmartAlertEngine:
         if not isinstance(scan, Mapping):
             return []
         now = float(now if now is not None else time.time())
+        try:
+            from .agents.cycle_context import cycle_evidence, usable_cycle_scan
+        except ImportError:
+            from agents.cycle_context import cycle_evidence, usable_cycle_scan
+
+        if {"status", "computed_at", "ttl_seconds", "market_snapshot"}.intersection(scan):
+            if not usable_cycle_scan(scan, now=now):
+                return []
+        scan = deepcopy(scan)
         held = {
             _symbol(p.get("symbol") or p.get("product_id")): dict(p)
             for p in positions or []
@@ -760,6 +770,7 @@ class SmartAlertEngine:
                 continue
             rule["id"] = stored["id"]
             for symbol, snapshot in self._targets(rule, scan, held, watch):
+                snapshot["market_snapshot"] = cycle_evidence(scan, None if symbol == "MARKET" else symbol)
                 if not self.matches(rule, snapshot):
                     continue
                 alert = self._fire(rule, symbol, snapshot, now, deliver, stored)
@@ -788,6 +799,7 @@ class SmartAlertEngine:
                 "at_multi_year_support",
                 "stop_distance_pct",
                 "rollover_target_box",
+                "market_snapshot",
             )
             if snapshot.get(key) is not None
         }

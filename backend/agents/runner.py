@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Iterable
+from copy import deepcopy
+import time
 
 from .audit_triage import AuditTriageAgent
 from .cycle_context import evaluate_smart_alerts
 from .cycle_strategist import CycleStrategistAgent
+from .trading_costs import configured_cost_model
 from .data_quality import DataQualityAgent
 from .development_efficiency import DevelopmentEfficiencyAgent
 from .portfolio_watch import PortfolioWatchAgent
@@ -39,8 +42,13 @@ def run_once(
     smart_alert_engine: object | None = None,
 ) -> dict:
     store = store or AgentStore()
+    context = deepcopy(context or {})
+    started = time.monotonic()
     active_agents = (
-        [factory() for factory in DEFAULT_AGENT_FACTORIES] if agents is None else list(agents)
+        [
+            factory(costs=configured_cost_model()) if factory is CycleStrategistAgent else factory()
+            for factory in DEFAULT_AGENT_FACTORIES
+        ] if agents is None else list(agents)
     )
     runs = []
     total_observations = 0
@@ -52,7 +60,7 @@ def run_once(
             bind_store(store)
         run_id = store.begin_run(name, model_version=getattr(agent, "model_version", None))
         try:
-            observations = list(agent.run(context or {}))
+            observations = list(agent.run(deepcopy(context)))
             recorded = store.record_observations(run_id, observations)
             store.finish_run(run_id, status="ok", observation_count=recorded)
             total_observations += recorded
@@ -64,6 +72,8 @@ def run_once(
     if smart_alert_engine is not None:
         # Alerts read the same cycle scan as the strategist, after it has run.
         try:
+            if isinstance(context.get("now_ts"), (int, float)):
+                context["now_ts"] += time.monotonic() - started
             alerts = evaluate_smart_alerts(context or {}, smart_alert_engine)
             result["smart_alerts"] = {
                 "status": alerts["status"],

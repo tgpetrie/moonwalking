@@ -566,6 +566,38 @@ def test_cycle_pass_prefers_the_live_portfolio_and_fetches_quotes_only_in_mode_b
     assert AgentStore().count_auto_orders_since(0) == 0  # no quote came back, so nothing executed
 
 
+def test_desk_pass_persists_configured_paper_costs(client, cycle_pass, monkeypatch):
+    monkeypatch.setenv("MW_CYCLE_FEE_BPS", "60")
+    monkeypatch.setenv("MW_CYCLE_SLIPPAGE_BPS", "10")
+    cycle_pass["scan"] = _scan(_row("SOL", 175, **PHASE2_SOL))
+    trim = client.post(PASS_URL, json={}).json["proposals"][0]
+    assert trim["cost_model"]["fee_bps"] == 60 and trim["cost_model"]["slippage_bps"] == 10
+    plan = trim["reload_plan"]
+    expected = int(3.75 * 175 * .999 * .994 * 100) / 100
+    assert plan["freed_usdc"] == expected
+    assert sum(rung["usdc"] for rung in plan["tranches"]) == pytest.approx(expected)
+    AgentStore().decide_proposal(trim["proposal_id"], "approve")
+    summary = AgentStore().get_compounding_summary({"SOL": 118})
+    assert summary["freed_usdc_available"] == summary["remaining_cash_usd"] == expected
+    assert summary["fees_deducted_usd"] > 0 and summary["slippage_deducted_usd"] > 0
+
+
+def test_ladder_history_must_match_the_scan_revision(client, monkeypatch):
+    import macro_industry_scanner as scanner
+
+    daily = [[int(NOW // DAY - i) * DAY, 90, 110, 100, 105, 1] for i in (2, 1)]
+    atlas = scanner.CycleAtlas()
+    atlas.entries["SOL-USD"] = {"candles": daily, "fetched_at": NOW, "checked_at": NOW}
+    monkeypatch.setattr(backend_app, "_MACRO_ATLAS", atlas)
+    scan = {
+        "market_snapshot": {"snapshot_id": "first"},
+        "coins": [{"product_id": "SOL-USD", "history_id": scanner.daily_history_id(daily)}],
+    }
+    assert backend_app._cycle_pass_histories(["SOL"], now=NOW, scan=scan) == {"SOL-USD": daily}
+    atlas.entries["SOL-USD"]["candles"] = [daily[0], [*daily[1][:4], 106, 1]]
+    assert backend_app._cycle_pass_histories(["SOL"], now=NOW, scan=scan) == {}
+
+
 def test_cycle_pass_skips_when_the_cached_scan_is_not_usable(client, cycle_pass):
     for scan in (None, {"status": "refreshing", "computed_at": NOW, "ttl_seconds": 1800, "coins": [_row("SOL", 175.0)]}):
         cycle_pass["scan"] = scan

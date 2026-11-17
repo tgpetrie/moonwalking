@@ -698,15 +698,12 @@ class AgentStore:
             allocations = split_reload_cents(budget, allocations)
         return list(zip(rungs, allocations))
 
-    def get_compounding_summary(self, prices: dict | None = None) -> dict:
+    def get_compounding_summary(self, prices: dict | None = None, *, market_snapshot=None) -> dict:
         """What approved and dry-run executed trims, stops and reloads add up to.
 
-        ``prices`` maps a symbol to its current scan price and is only used for
-        ``drawdown_avoided_usd``. Extra coins compare what a reload's USDC buys
-        at the reload price with what the same USDC bought at the trim's sale
-        price, so no fresh cash is counted. Drawdown values each attributable
-        paper exit at its approved reference or simulated fill price, using
-        held snapshots to avoid counting the same exposure twice.
+        Replay the paper cohort in decision order, preserving each record's
+        cost assumptions. Value its remaining coins and cash against holding
+        the initial coin stack. Mark prices must be supplied from one snapshot.
         """
 
         def number(value):
@@ -718,10 +715,7 @@ class AgentStore:
                 return None
             return out if 0 < out < float("inf") else None
 
-        def sale_price(proposal):
-            if proposal["status"] == "auto_executed_dry_run":
-                return number((proposal.get("execution") or {}).get("fill_price"))
-            return number(proposal.get("reference_price"))
+        from .trading_costs import cost_model, paper_buy, paper_sale
 
         with self._connection() as conn:
             conn.execute("BEGIN")
@@ -743,12 +737,57 @@ class AgentStore:
             for plan_id, trim in trims.items()
             for rung, cents in self._funded_reload_rungs(trim)
         }
-        realized: dict[str, float] = {}
+        inventory = {}
+        sales = {}
+        realized = {}
+        fees = slippage = 0.0
+        legacy = []
         for proposal in proposals:
-            if proposal["action"] != "RELOAD_ACCUMULATE" or proposal["status"] != "approved":
+            symbol = proposal["symbol"]
+            model = proposal.get("cost_model")
+            execution = proposal.get("execution") or {}
+            if model is None:
+                model = execution.get("cost_model") or cost_model(source="legacy_unrecorded_costs")
+                if model["source"] == "legacy_unrecorded_costs":
+                    legacy.append(proposal["proposal_id"])
+            if proposal["action"] != "RELOAD_ACCUMULATE":
+                plan = proposal.get("reload_plan") or {}
+                evidence = proposal.get("evidence") or {}
+                simulated = proposal["status"] == "auto_executed_dry_run"
+                quantity = (
+                    number(execution.get("base_size")) or number(execution.get("quantity"))
+                    or number(plan.get("trim_quantity")) or number(proposal.get("quantity"))
+                    or number(evidence.get("quantity"))
+                )
+                reference = number(proposal.get("reference_price"))
+                if quantity is None or reference is None:
+                    continue
+                held = number(evidence.get("held_quantity")) or quantity
+                state = inventory.setdefault(symbol, {"initial": held, "coins": held, "cash": 0.0})
+                attributed = min(quantity, state["coins"], held)
+                if attributed <= 0:
+                    continue
+                sale = paper_sale(reference, attributed, model)
+                if simulated:
+                    fill = number(execution.get("fill_price"))
+                    proceeds = number(execution.get("proceeds_usd"))
+                    if fill is None or proceeds is None:
+                        continue
+                    fraction = attributed / quantity
+                    sale = {
+                        "proceeds_usd": proceeds * fraction,
+                        "fee_usd": (execution.get("fee_usd") or 0.0) * fraction,
+                        "slippage_usd": (execution.get("slippage_usd") or 0.0) * fraction,
+                    }
+                state["coins"] -= attributed
+                state["cash"] += sale["proceeds_usd"]
+                fees += sale["fee_usd"]
+                slippage += sale["slippage_usd"]
+                sales[proposal["proposal_id"]] = (attributed, sale["proceeds_usd"])
                 continue
             bought_at = number(proposal.get("reference_price"))
-            symbol = proposal["symbol"]
+            if proposal["status"] != "approved" or bought_at is None or symbol not in inventory:
+                continue
             evidence = proposal.get("evidence") or {}
             for fill in evidence.get("reload_fills") or []:
                 if not isinstance(fill, dict):
@@ -759,60 +798,84 @@ class AgentStore:
                     min(remaining, usdc_cents(fill.get("usdc")))
                     if evidence.get("reload_allocation_version") == 1 else remaining
                 )
-                if cents:
+                if cents and key[1] in sales:
                     unallocated[key] -= cents
-                    sold_at = sale_price(trims[key[1]])
-                    if bought_at and sold_at:
-                        usdc = cents / 100
-                        realized[symbol] = realized.get(symbol, 0.0) + usdc / bought_at - usdc / sold_at
+                    sold_coins, proceeds = sales[key[1]]
+                    budget = min(cents / 100, inventory[symbol]["cash"])
+                    buy = paper_buy(bought_at, budget, model)
+                    inventory[symbol]["cash"] -= budget
+                    inventory[symbol]["coins"] += buy["quantity"]
+                    fees += buy["fee_usd"]
+                    slippage += buy["slippage_usd"]
+                    realized[symbol] = realized.get(symbol, 0.0) + buy["quantity"] - sold_coins * budget / proceeds
         projected = dict(realized)
         for plan in plans:
-            sold_at = sale_price(trims.get(plan["plan_id"]))
+            sale = sales.get(plan["plan_id"])
+            trim = trims[plan["plan_id"]]
+            model = trim.get("cost_model") or cost_model(source="legacy_unrecorded_costs")
             for rung in plan["tranches"]:
                 level, left = number(rung.get("level")), number(rung.get("remaining_usdc"))
-                if sold_at and level and left:
+                if sale and level and left:
                     symbol = plan["symbol"]
-                    projected[symbol] = projected.get(symbol, 0.0) + left / level - left / sold_at
+                    buy = paper_buy(level, left, model)
+                    projected[symbol] = projected.get(symbol, 0.0) + buy["quantity"] - sale[0] * left / sale[1]
 
-        avoided, priced = 0.0, set()
-        exposure = {}
-        for proposal in proposals:
-            if proposal["action"] == "RELOAD_ACCUMULATE":
-                continue
-            symbol = proposal["symbol"]
+        valuations, missing = {}, []
+        for symbol, state in sorted(inventory.items()):
             price = number((prices or {}).get(symbol))
-            sold_at = sale_price(proposal)
-            plan = proposal.get("reload_plan") or {}
-            evidence = proposal.get("evidence") or {}
-            execution = proposal.get("execution") or {}
-            trim_quantity = number(plan.get("trim_quantity"))
-            quantity = (
-                number(execution.get("base_size"))
-                or number(execution.get("quantity"))
-                or trim_quantity
-                or number(proposal.get("quantity"))
-                or number(evidence.get("quantity"))
-            )
-            if price and sold_at and quantity:
-                held = number(evidence.get("held_quantity"))
-                if held is None:
-                    trim_pct = number(proposal.get("trim_pct"))
-                    held = (trim_quantity * 100 / trim_pct) if trim_quantity and trim_pct else quantity
-                # Paper decisions do not change holdings. Only attribute the
-                # part of an exit not already attributed to an earlier one.
-                prior_held, attributed = exposure.get(symbol, (held, 0.0))
-                attributed = max(0.0, attributed - max(0.0, prior_held - held))
-                quantity = min(quantity, max(0.0, held - attributed))
-                exposure[symbol] = (held, attributed + quantity)
-                priced.add(symbol)
-                avoided += max(0.0, sold_at - price) * quantity
+            if price is None:
+                missing.append(symbol)
+                continue
+            remaining_value = state["coins"] * price
+            hold = state["initial"] * price
+            valuations[symbol] = {
+                "mark_price": price,
+                "remaining_coins": state["coins"],
+                "remaining_inventory_value_usd": remaining_value,
+                "cash_usd": state["cash"],
+                "strategy_value_usd": remaining_value + state["cash"],
+                "hold_value_usd": hold,
+                "net_value_vs_hold_usd": remaining_value + state["cash"] - hold,
+            }
+        complete = not missing
+        net = sum(value["net_value_vs_hold_usd"] for value in valuations.values())
+        reload_cash = {}
+        for plan in plans:
+            symbol = plan["symbol"]
+            reload_cash[symbol] = reload_cash.get(symbol, 0) + usdc_cents(plan["remaining_usdc"])
+        shortfalls = {
+            symbol: round(cents / 100 - inventory.get(symbol, {}).get("cash", 0), 2)
+            for symbol, cents in reload_cash.items()
+            if cents > usdc_cents(inventory.get(symbol, {}).get("cash", 0))
+        }
+        for symbol in shortfalls:
+            projected.pop(symbol, None)
         return {
-            "freed_usdc_available": sum(usdc_cents(p["remaining_usdc"]) for p in plans) / 100,
+            "freed_usdc_available": sum(
+                min(cents, usdc_cents(inventory.get(symbol, {}).get("cash", 0)))
+                for symbol, cents in reload_cash.items()
+            ) / 100,
+            "reload_funding_shortfall_by_symbol": shortfalls,
             "active_ladders_count": len(plans),
             "realized_extra_coins_by_symbol": {s: round(v, 8) for s, v in sorted(realized.items())},
             "projected_extra_coins_by_symbol": {s: round(v, 8) for s, v in sorted(projected.items())},
-            "drawdown_avoided_usd": round(avoided, 2),
-            "drawdown_priced_symbols": sorted(priced),
+            "drawdown_avoided_usd": round(max(0.0, net), 2),
+            "drawdown_priced_symbols": sorted(valuations),
+            "valuation_complete": complete,
+            "unpriced_symbols": missing,
+            "remaining_inventory_by_symbol": {s: round(v["coins"], 8) for s, v in sorted(inventory.items())},
+            "initial_inventory_by_symbol": {s: round(v["initial"], 8) for s, v in sorted(inventory.items())},
+            "remaining_cash_usd": round(sum(v["cash"] for v in inventory.values()), 2),
+            "remaining_inventory_value_usd": round(sum(v["remaining_inventory_value_usd"] for v in valuations.values()), 2) if complete else None,
+            "strategy_value_usd": round(sum(v["strategy_value_usd"] for v in valuations.values()), 2) if complete else None,
+            "hold_value_usd": round(sum(v["hold_value_usd"] for v in valuations.values()), 2) if complete else None,
+            "net_value_vs_hold_usd": round(net, 2) if complete else None,
+            "fees_deducted_usd": round(fees, 2),
+            "slippage_deducted_usd": round(slippage, 2),
+            "costs_complete": not legacy,
+            "legacy_costs_unrecorded": sorted(legacy),
+            "mark_snapshot": market_snapshot,
+            "accounting_basis": "paper_decisions_and_dry_run_fills",
             "dry_run_only": True,
         }
 
