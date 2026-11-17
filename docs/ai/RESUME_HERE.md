@@ -9,18 +9,18 @@ it verified; Phase 2 has not had that red-team pass.
 
 ## Broken-stop guard and INTELLIGENCE_LOG desk tape · November 17
 
-Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `2fb58ff` on top
-of `b970d7d`.
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commits `2fb58ff` on top
+of `b970d7d`, then `af87408` (per-row stage badge and held symbols).
 
 | Item | State |
 |---|---|
 | Broken position / invalidation stops (`cycle_strategist._stop_break`) | When price is already at or under `position_stop` or `accumulation_invalidation_stop`, the same 5% split applies. Fresh (≤5% below): `breach_state="fresh_stop_break"`, `stop_price=min(stop, price)`, evidence `broken_stop_price`, `broken_stop_basis`, `distance_below_stop_pct`. Stale (>5% below): `breach_state="stale_floor_break_reassess"`, trigger `stale_stop_break`, `stop_price=None`, `reclaim_resistance` = the broken stop; Mode B holds it `pending_approval`. A stop is never set above the reference price |
 | Local DB | The three 2026-11-16T23:14 UTC proposals with stops above market (ATOM `8ee5a7cc9855ac4f`, LTC `3d8a3dadfb967da2`, RENDER `604f37cf5e0aaf72`) were rejected in `backend\data\agent_observations.sqlite` (untracked). The three clean stale rows remain pending |
-| Desk tape (`frontend/src/utils/deskTape.js`, `AnomalyStream.jsx`) | Same-coin up/down signals within 60 s keep only the higher-severity (then newer) one. 1m moves under 1% are dropped unless volume is up ≥50% or the label is STEALTH. Rows joined to the `/api/macro-cycle-scan` coin rows show `DEEP ACCUM · Nm`, `ROLLOVER BOX`, `PIVOT BREAK`, `50W RECLAIM`, `GROWTH`, `HELD` or `WATCHLIST` badges, and confluence calls `EXHAUSTION BREAKOUT` / `ACCUMULATION BID` (up on deep accumulation) and `ROLLOVER DISTRIBUTION` (down inside the box). The industry stage is one `STAGE n` chip in the header, not repeated per row |
+| Desk tape (`frontend/src/utils/deskTape.js`, `AnomalyStream.jsx`) | Same-coin up/down signals within 60 s keep only the higher-severity (then newer) one. 1m moves under 1% are dropped unless volume is up ≥50% or the label is STEALTH. Rows joined to the `/api/macro-cycle-scan` coin rows show `DEEP ACCUM · Nm`, `ROLLOVER BOX`, `PIVOT BREAK`, `50W RECLAIM`, `GROWTH`, `HELD` or `WATCHLIST` badges, and confluence calls `EXHAUSTION BREAKOUT` / `ACCUMULATION BID` (up on deep accumulation) and `ROLLOVER DISTRIBUTION` (down inside the box). Every coin row also carries a `STAGE n` badge when the industry stage is available (`af87408`; the header chip was removed) |
 | Filter pills | `Confluence & Desk` (default; confluence flags, STEALTH vol ≥100%, watchlist/held; falls back to the top 12 anomalies with a "Cycle scan warming" note while the scan is not ready), `Watchlist`, `Raw Tape` |
-| Shared scan | `DashboardShell` calls `useMacroCycleScan` once and passes it to `IndustryPulse` (new `scanState` prop) and `AnomalyStream` (`cycleScan`, `watchSymbols`) |
-| Checks | Backend, from `backend`: 1035 passed, 33 skipped. Frontend: 608 passed in 47 files. `npm --prefix frontend run build` passes |
-| Not done | Held positions are not available on the frontend, so `heldSymbols` is wired but not fed and `HELD` badges do not appear yet. No browser check against 5174 |
+| Shared scan and holdings | `DashboardShell` calls `useMacroCycleScan` once and passes it to `IndustryPulse` (new `scanState` prop) and `AnomalyStream` (`cycleScan`, `watchSymbols`). Since `af87408` it also passes non-cash Coinbase holdings from `useHoldingSymbols` as `heldSymbols`, so held coins get `HELD` and appear under the `Watchlist` pill; signed out or no portfolio gives an empty set |
+| Checks | After `af87408`: frontend 610 passed in 47 files, `npm --prefix frontend run build` passes. Backend unchanged since `2fb58ff` (1035 passed, 33 skipped then); a later full run had one order-dependent failure in `test_realized_volatility.py::test_duplicate_key_forms_do_not_split_a_symbol` that passes in isolation |
+| Not done | No browser check of the desk tape against 5174 |
 
 ## Protective stop: fresh vs stale daily floor breaks · November 16
 
