@@ -18,18 +18,29 @@ file, are now used by the strategist and the cycle chart read:
 | `backend/ladder_optimizer.py` | `build_reload_plan` (`_ladder_advice`) | Available trim reload plans carry `ladder_optimizer`: adaptive rung weights, `expected_fill_probability_by_rung`, `net_extra_coins_vs_flat_weights`, `expected_extra_coins_vs_flat_weights`. Box = invalidation stop up to the plan's highest rung; wick history from `context["cycle_histories"]`. Advisory only: the plan's `tranches` still drive the ledger. |
 | `backend/cycle_backtest.py` | `/api/chart-read/<symbol>?horizon=cycle` | `multi_year_context.backtest` summarizes `simulate_cycle_compounding` over the daily history (events left out). `CycleReadSection.jsx` renders the Historical cycle replay strip. |
 
+Follow-up on November 17 closed the three Phase 4 gaps:
+- **Real cluster and beta data.** `backend/coin_clusters.py` is a hand-kept
+  map of about 150 Coinbase coins into 11 clusters (unmapped coins stand
+  alone). `macro_industry_scanner.annotate_cluster_and_beta` adds
+  `category_id`, `downside_beta` (trailing 365 shared days against BTC-USD,
+  matched by timestamp) and `btc_beta` detail to every readable scan row and
+  to supplemental rows, so the guard now sees real clusters and betas.
+- **One ladder weighting.** `optimize_reload_ladder` takes `base_weights`; the
+  strategist passes the plan's own 25/35/40. With three rungs and at least 8
+  measured wick events the tilted weights split the trim USDC
+  (`weight_source: "ladder_optimizer"`, `ladder_optimizer.applied_to_tranches`);
+  otherwise the fixed 25/35/40 split is unchanged.
+- **Replay cache.** `_cycle_backtest_cached` keeps one replay per product,
+  keyed by UTC day, bar count and newest timestamp, capped at 256 entries.
+
 Open items:
-- No live data source sets a coin's cluster or downside beta yet. Without
-  `category_id` on scan rows or `context["symbol_clusters"]` /
-  `context["downside_betas"]`, each coin is its own cluster with beta 1, so in
-  practice the guard adds a 2% per-coin heat cap and little else.
+- The cluster map is a judgement call and needs upkeep as listings change.
+- The desk pass fills `context["cycle_histories"]` for held coins from the
+  Atlas cache only (never a fetch), so a held coin the Atlas has not read yet
+  keeps the 25/35/40 split.
 - The guard only runs when equity is known, and skips entries with no sized
   risk.
-- The optimizer's default split (40/35/25, shallow-heavy) is the reverse of the
-  plan's own tranche weights (25/35/40, deep-heavy). The optimizer is advisory
-  and nothing reconciles the two.
-- The replay is a simplified self-contained rule set, not the live strategist,
-  and runs on every cycle chart read (about 1,460 daily bars).
+- The replay is a simplified self-contained rule set, not the live strategist.
 - The request named `ChartAnalysisModal.jsx`, which does not exist; the cycle
   section is `CycleReadSection.jsx`, tested in `CycleReadSection.test.jsx`.
 

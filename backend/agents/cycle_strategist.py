@@ -546,22 +546,21 @@ def _quant_module(name: str):
         return importlib.import_module(f"backend.{name}")
 
 
-def _ladder_advice(plan: Mapping[str, Any], price: float, daily_candles) -> dict[str, Any]:
-    """Adaptive three-rung read from ``ladder_optimizer`` for an available plan.
+def _ladder_advice(low, high, price, freed_usdc, daily_candles) -> dict[str, Any]:
+    """Adaptive three-rung read from ``ladder_optimizer``.
 
-    The box runs from the invalidation stop up to the plan's highest rung. The
-    optimizer's rungs and weights are advisory: the plan's own ``tranches``
-    stay the ledger's allocation, so these fill probabilities belong to the
-    optimizer's rungs, not to the tranches.
+    The box runs from the invalidation stop (``low``) up to the plan's highest
+    rung (``high``). The optimizer starts from the plan's own tranche weights
+    and tilts them by past wick depth. Its fill probabilities belong to its own
+    rungs at fixed box depths, not to the plan's tranche levels.
     """
+    low, high = _num(low), _num(high)
+    if low is None or high is None or not 0 < low < high:
+        return {"available": False, "reason": "no_support_box"}
     try:
-        levels = [_num(t.get("level")) for t in plan.get("tranches") or []]
-        levels = [level for level in levels if level is not None and level > 0]
-        low, high = _num(plan.get("invalidation_stop")), max(levels) if levels else None
-        if low is None or high is None or not 0 < low < high:
-            return {"available": False, "reason": "no_support_box"}
         advice = _quant_module("ladder_optimizer").optimize_reload_ladder(
-            low, high, price, plan["freed_usdc"], daily_candles=daily_candles,
+            low, high, price, freed_usdc, daily_candles=daily_candles,
+            base_weights=RELOAD_WEIGHTS,
         )
     except Exception as exc:  # advice must never sink the trim proposal
         return {"available": False, "reason": f"optimizer_failed:{type(exc).__name__}"}
@@ -576,7 +575,6 @@ def _ladder_advice(plan: Mapping[str, Any], price: float, daily_candles) -> dict
         "expected_extra_coins_vs_flat_weights": advice["expected_extra_coins_vs_flat_weights"],
         "wick_events": advice["history"]["events"],
         "spread_bps": advice["spread_bps"],
-        "advisory_only": True,
     }
 
 
@@ -587,8 +585,10 @@ def build_reload_plan(
 
     The figures assume each rung fills at its level and leave out fees and
     slippage. They describe a plan; nothing is ordered. An available plan also
-    carries ``ladder_optimizer``, an advisory read of adaptive rung weights and
-    fill odds from ``daily_candles`` when given.
+    carries ``ladder_optimizer``: rung weights tilted by past wick depth in
+    ``daily_candles``. With three rungs and enough history those weights split
+    the USDC (``weight_source: "ladder_optimizer"``); otherwise the fixed
+    25/35/40 split is used.
     """
     price, trim_quantity, held_quantity = map(_num, (price, trim_quantity, held_quantity))
     if price is None or trim_quantity is None or held_quantity is None or not (
@@ -629,7 +629,16 @@ def build_reload_plan(
         plan["reason"] = "no_support_level_between_stop_and_price" if freed_cents else "insufficient_trim_proceeds"
         return plan
     chosen.sort(reverse=True)
+    advice = _ladder_advice(invalidation, chosen[0][0], price, freed, daily_candles)
     weights = RELOAD_WEIGHTS[: len(chosen)]
+    # A full three-rung ladder takes the history-tilted split. Without enough
+    # wick history the optimizer returns the plan's own 25/35/40 unchanged.
+    applied = bool(
+        advice.get("available") and advice["regime"] != "default" and len(chosen) == len(RELOAD_WEIGHTS)
+    )
+    if applied:
+        weights = tuple(max(1, round(weight * 10_000)) for weight in advice["weights"])
+    advice["applied_to_tranches"] = applied
     total = sum(weights)
     tranches, coins = [], 0.0
     allocation = split_reload_cents(freed_cents, list(weights))
@@ -656,8 +665,9 @@ def build_reload_plan(
         # Growth of the whole stack: coins held after the round trip against before.
         net_coin_gain_pct=_round(gain / held_quantity * 100),
         reloaded_vs_trimmed_pct=_round(gain / trim_quantity * 100),
+        weight_source="ladder_optimizer" if applied else "default",
+        ladder_optimizer=advice,
     )
-    plan["ladder_optimizer"] = _ladder_advice(plan, price, daily_candles)
     return plan
 
 

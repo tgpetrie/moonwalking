@@ -12124,6 +12124,18 @@ def _cycle_pass_quote_fetcher(products):
     return fetch_live_quotes(products)
 
 
+def _cycle_pass_histories(symbols):
+    """Atlas-cached daily candles for these symbols, keyed ``SYMBOL-USD``. Never fetches."""
+    atlas = _MACRO_ATLAS
+    if atlas is None:
+        return {}
+    try:
+        return atlas.histories([f"{symbol}-USD" for symbol in symbols])
+    except Exception:
+        logging.debug("[CyclePass] atlas histories unavailable", exc_info=True)
+        return {}
+
+
 @app.post("/api/agents/run-cycle-pass")
 def run_agent_cycle_pass():
     """Run the Cycle Strategist and the smart alerts once, in this process.
@@ -12170,6 +12182,11 @@ def run_agent_cycle_pass():
         now = time.time()
         context["now_ts"] = now
         context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
+        # Held coins' cached daily history, so trim reload ladders can read
+        # past wick depth. Never fetched here.
+        context["cycle_histories"] = _cycle_pass_histories(
+            [row["symbol"] for row in context["positions"]]
+        )
         scan_summary = {
             **_cycle_scan_summary(scan),
             "usable": context["cycle_scan"] is not None,
@@ -13805,6 +13822,38 @@ _CYCLE_BACKTEST_FIELDS = (
 )
 
 
+CYCLE_BACKTEST_CACHE_MAX = 256
+_CYCLE_BACKTEST_CACHE = {}
+_CYCLE_BACKTEST_LOCK = threading.Lock()
+
+
+def _cycle_backtest_cached(product_id, daily_candles):
+    """The replay summary, computed at most once per product, UTC day and history.
+
+    The key holds the bar count and newest timestamp too, so a history that
+    gains a bar within the day is replayed again. The oldest entries are
+    dropped past ``CYCLE_BACKTEST_CACHE_MAX``.
+    """
+    stamps = [bar[0] for bar in daily_candles or [] if isinstance(bar, (list, tuple)) and bar]
+    try:
+        newest = max(float(ts) for ts in stamps) if stamps else None
+    except (TypeError, ValueError):
+        newest = None
+    key = (str(product_id), int(time.time() // 86400), len(stamps), newest)
+    with _CYCLE_BACKTEST_LOCK:
+        hit = _CYCLE_BACKTEST_CACHE.get(key)
+    if hit is not None:
+        return dict(hit)
+    summary = _cycle_backtest_summary(daily_candles)
+    with _CYCLE_BACKTEST_LOCK:
+        for stale in [k for k in _CYCLE_BACKTEST_CACHE if k[0] == key[0]]:
+            del _CYCLE_BACKTEST_CACHE[stale]  # one live entry per product
+        _CYCLE_BACKTEST_CACHE[key] = summary
+        while len(_CYCLE_BACKTEST_CACHE) > CYCLE_BACKTEST_CACHE_MAX:
+            del _CYCLE_BACKTEST_CACHE[next(iter(_CYCLE_BACKTEST_CACHE))]
+    return dict(summary)
+
+
 def _cycle_backtest_summary(daily_candles):
     """Summary of ``cycle_backtest.simulate_cycle_compounding`` over the daily history.
 
@@ -13949,7 +13998,7 @@ def get_chart_read(symbol):
         result["multi_year_context"]["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
             higher, "1w", [], as_of_ts=now
         )
-        result["multi_year_context"]["backtest"] = _cycle_backtest_summary(history)
+        result["multi_year_context"]["backtest"] = _cycle_backtest_cached(product_id, history)
     if horizon in {"swing", "cycle"}:
         import chart_reader
         from elliott_wave_engine import resample_candles
@@ -14386,7 +14435,11 @@ def _macro_scan_refresh(wanted, refresh_base, day):
             for product in extras[:MACRO_SCAN_EXTRA_BATCH]:
                 try:
                     candles = _macro_atlas_fetch(product)
-                    rows[product] = scanner.cycle_row(product, candles) if candles else None
+                    row = scanner.cycle_row(product, candles) if candles else None
+                    if row and row.get("available"):
+                        btc = atlas.histories(["BTC-USD"]).get("BTC-USD")
+                        scanner.annotate_cluster_and_beta(row, candles, btc)
+                    rows[product] = row
                 except Exception as exc:
                     if scanner.is_atlas_rate_limit(exc):
                         atlas.record_rate_limit(time.time())

@@ -86,6 +86,19 @@ def test_weights_always_sum_to_one_with_every_rung_at_least_fifteen_percent(cand
     assert all(0.05 <= p <= 0.95 for p in result["expected_fill_probability_by_rung"])
 
 
+def test_base_weights_set_the_fallback_and_the_point_the_tilt_moves_from():
+    deep_heavy = (25, 35, 40)
+    assert ladder(base_weights=deep_heavy)["weights"] == [0.25, 0.35, 0.4]
+    assert ladder(base_weights=deep_heavy)["net_extra_coins_vs_flat_weights"] > 0
+    tilted = ladder(daily_candles=DEEP, base_weights=deep_heavy)["weights"]
+    assert tilted[2] > 0.4 and tilted[0] == pytest.approx(lo.MIN_WEIGHT)
+    rebound = ladder(daily_candles=SHALLOW, base_weights=deep_heavy)["weights"]
+    assert rebound[0] > 0.25 and rebound[2] < 0.4
+    for bad in ((1, 1), (1, 0, 1), (1, "x", 1), (1, float("nan"), 1), None):
+        with pytest.raises(ValueError):
+            ladder(base_weights=bad)
+
+
 def test_short_history_keeps_the_default_split():
     result = ladder(daily_candles=DEEP[:40])
     assert result["weights"] == [0.40, 0.35, 0.25] and result["regime"] == "default"

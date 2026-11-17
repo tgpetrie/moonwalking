@@ -333,6 +333,74 @@ def test_short_macro_history_cannot_claim_stage_four(daily_series):
     assert result["components"]["ALT_INDEX_3Y"]["above_100w_sma"] is None
 
 
+# ─── cluster and downside beta on scan rows ───────────────────────────────────
+
+
+def test_coin_cluster_map():
+    import coin_clusters
+
+    assert coin_clusters.cluster_for("SOL") == "layer-1"
+    assert coin_clusters.cluster_for(" sol-usd ") == "layer-1"
+    assert coin_clusters.cluster_for("RENDER") == coin_clusters.cluster_for("RNDR") == "ai-compute"
+    assert coin_clusters.cluster_for("BTC") == "majors"
+    assert coin_clusters.cluster_for("NOPE") is None and coin_clusters.cluster_for(None) is None
+    # Every coin sits in exactly one cluster.
+    flat = [s for symbols in coin_clusters._GROUPS.values() for s in symbols]
+    assert len(flat) == len(set(flat)) == len(coin_clusters.COIN_CLUSTERS)
+
+
+def _closes_to_bars(closes, t0=0):
+    return bars(closes, t0=t0)
+
+
+def test_beta_annotation_matches_days_by_timestamp_and_reads_the_down_days():
+    moves = [0.02, -0.01, 0.03, -0.03, 0.01, -0.02] * 10
+    btc, fragile = [100.0], [10.0]
+    for move in moves:
+        btc.append(btc[-1] * (1 + move))
+        fragile.append(fragile[-1] * (1 + (2 * move if move < 0 else 0.5 * move)))
+    btc_bars = _closes_to_bars(btc)
+    asset_bars = _closes_to_bars(fragile)
+    # Bars in any order and an extra, unmatched day do not shift the pairing.
+    shuffled = list(reversed(asset_bars)) + [[999 * DAY, 1, 1, 1, 1, 1]]
+    row = mis.annotate_cluster_and_beta({"product_id": "AVAX-USD", "symbol": "AVAX"}, shuffled, btc_bars)
+    assert row["category_id"] == "layer-1"
+    assert row["downside_beta"] == pytest.approx(2.0, abs=1e-3)
+    assert row["btc_beta"]["available"] is True and row["btc_beta"]["observations"] == 60
+    assert row["btc_beta"]["downside_beta"] == pytest.approx(2.0, abs=1e-3)
+
+    unmapped = mis.annotate_cluster_and_beta({"product_id": "ZZZ-USD"}, asset_bars, btc_bars)
+    assert "category_id" not in unmapped and "downside_beta" in unmapped
+
+    # Too little shared history: detail is kept, no beta is claimed.
+    thin = mis.annotate_cluster_and_beta({"product_id": "SOL-USD"}, asset_bars[:2], btc_bars)
+    assert thin["category_id"] == "layer-1" and "downside_beta" not in thin
+    assert thin["btc_beta"]["available"] is False
+    assert "downside_beta" not in mis.annotate_cluster_and_beta({"product_id": "SOL-USD"}, asset_bars, None)
+
+
+def test_beta_uses_only_the_trailing_year():
+    old_wild = [0.05, -0.08] * 200
+    recent = [0.02, -0.01, 0.03, -0.03, 0.01, -0.02] * 61
+    btc, asset = [100.0], [10.0]
+    for i, move in enumerate(old_wild + recent):
+        btc.append(btc[-1] * (1 + move))
+        asset.append(asset[-1] * (1 + (move * 3 if i < len(old_wild) else move)))
+    row = mis.annotate_cluster_and_beta({"product_id": "SOL-USD"}, bars(asset), bars(btc))
+    assert row["btc_beta"]["observations"] == mis.BETA_WINDOW_DAYS
+    assert row["downside_beta"] == pytest.approx(1.0, abs=1e-3)
+
+
+def test_scan_rows_carry_cluster_and_beta(shapes):
+    histories = {"BTC-USD": shapes["up"], "SOL-USD": shapes["up"], "ZZZ-USD": shapes["up"]}
+    coins = {row["product_id"]: row for row in mis.scan_universe_cycles(histories)["coins"]}
+    assert coins["BTC-USD"]["category_id"] == "majors"
+    assert coins["SOL-USD"]["category_id"] == "layer-1"
+    assert "category_id" not in coins["ZZZ-USD"]
+    for row in coins.values():
+        assert row["downside_beta"] == pytest.approx(1.0, abs=1e-6)
+
+
 # ─── rolling universe cycle atlas ─────────────────────────────────────────────
 
 NOON = 20000 * DAY + 12 * 3600

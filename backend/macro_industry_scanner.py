@@ -37,6 +37,7 @@ __all__ = [
     "cycle_row",
     "universe_breadth",
     "scan_universe_cycles",
+    "annotate_cluster_and_beta",
     "ATLAS_TARGET_SIZE",
     "CycleAtlas",
     "is_atlas_eligible",
@@ -524,17 +525,75 @@ def universe_breadth(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+BETA_WINDOW_DAYS = 365
+
+
+def _sibling(name: str):
+    import importlib
+
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return importlib.import_module(f"backend.{name}")
+
+
+def annotate_cluster_and_beta(
+    row: dict[str, Any],
+    candles: list[list[Any]] | None,
+    btc_candles: list[list[Any]] | None,
+) -> dict[str, Any]:
+    """Add the coin's narrative cluster and its downside beta against BTC to a row.
+
+    ``category_id`` comes from ``coin_clusters`` and is left out for an
+    unmapped coin. Beta uses the closes of the last ``BETA_WINDOW_DAYS`` days
+    that both series traded, matched by timestamp. ``downside_beta`` is the
+    beta on BTC's down days, or the full-sample beta when there are too few
+    of them, and is left out when neither can be read. ``btc_beta`` carries the
+    detail. Never raises.
+    """
+    cluster = _sibling("coin_clusters").cluster_for(row.get("product_id") or row.get("symbol"))
+    if cluster:
+        row["category_id"] = cluster
+    try:
+        asset, btc = _clean(candles), _clean(btc_candles)
+        shared = sorted(set(asset) & set(btc))[-(BETA_WINDOW_DAYS + 1):]
+        read = _sibling("portfolio_cluster_guard").compute_downside_btc_beta(
+            [asset[ts][4] for ts in shared], [btc[ts][4] for ts in shared]
+        )
+    except Exception:
+        logging.debug("[MacroScan] beta read failed for %s", row.get("product_id"), exc_info=True)
+        return row
+    row["btc_beta"] = {
+        key: read.get(key)
+        for key in (
+            "available", "beta", "downside_beta", "downside_correlation",
+            "relative_drawdown_multiplier", "observations", "down_days",
+        )
+    }
+    if read.get("available"):
+        row["downside_beta"] = read["effective_downside_beta"]
+    return row
+
+
 def scan_universe_cycles(
     histories: dict[str, list[list[Any]]],
     *,
     members: tuple[str, ...] | list[str] | None = None,
     breadth_products: set[str] | frozenset[str] | None = None,
 ) -> dict[str, Any]:
-    """Rank all rows; optionally constrain industry gate breadth to a fixed universe."""
+    """Rank all rows; optionally constrain industry gate breadth to a fixed universe.
+
+    Readable rows also carry their cluster and downside beta against
+    ``BTC-USD`` (see ``annotate_cluster_and_beta``).
+    """
     rows = []
+    btc_history = histories.get("BTC-USD")
     for product_id in sorted(histories):
         try:
-            rows.append(cycle_row(product_id, histories[product_id]))
+            row = cycle_row(product_id, histories[product_id])
+            if row.get("available"):
+                annotate_cluster_and_beta(row, histories[product_id], btc_history)
+            rows.append(row)
         except Exception:  # one bad series must not sink the scan
             logging.exception("[MacroScan] cycle read failed for %s", product_id)
             rows.append(

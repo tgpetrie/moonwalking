@@ -516,6 +516,29 @@ def test_cycle_pass_runs_strategist_and_alerts_from_paper_positions(client, cycl
     assert backend_app._MACRO_ATLAS_PRIORITY["watchlist"] == ("AVAX",)
 
 
+def test_cycle_pass_hands_held_coins_cached_history_to_the_reload_ladder(client, cycle_pass, monkeypatch):
+    import macro_industry_scanner as mis
+
+    # Without an atlas the pass still runs and the ladder keeps 25/35/40.
+    monkeypatch.setattr(backend_app, "_MACRO_ATLAS", None)
+    cycle_pass["scan"] = _scan(_row("SOL", 175.0, **PHASE2_SOL))
+    trim = client.post(PASS_URL, json={}).json["proposals"][0]
+    assert trim["reload_plan"]["weight_source"] == "default"
+
+    # With deep-wick history in the atlas cache, the ladder tilts deep.
+    wicky = [
+        [NOW - (100 - i) * DAY, 92.0 if i % 7 == 0 else 100.0, 110.0, 100.0, 105.0, 10.0]
+        for i in range(100)
+    ]
+    atlas = mis.CycleAtlas()
+    atlas.entries["SOL-USD"] = {"candles": wicky, "fetched_at": NOW, "checked_at": NOW}
+    monkeypatch.setattr(backend_app, "_MACRO_ATLAS", atlas)
+    assert backend_app._cycle_pass_histories(["SOL", "NOPE"]) == {"SOL-USD": wicky}
+    deep = client.post(PASS_URL, json={}).json["proposals"][0]["reload_plan"]
+    assert deep["weight_source"] == "ladder_optimizer"
+    assert deep["ladder_optimizer"]["regime"] == "deep_wick"
+
+
 def test_cycle_pass_prefers_the_live_portfolio_and_fetches_quotes_only_in_mode_b(client, cycle_pass):
     cycle_pass["holdings"] = [
         {"symbol": "SOL", "quantity": 4.0},

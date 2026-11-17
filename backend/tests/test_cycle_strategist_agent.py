@@ -1267,6 +1267,30 @@ def test_cluster_guard_caps_beta_adjusted_heat_against_held_risk(store):
     assert agent.last_cluster_guard["suppressed_proposals"][0]["cluster_guard"]["cluster"] == "layer-1"
 
 
+def test_cluster_guard_reads_clusters_and_betas_from_real_scan_rows(store):
+    import macro_industry_scanner as mis
+
+    # Held SOL and AVAX fill layer-1, so a NEAR breakout is held back while a
+    # LINK breakout in oracle-data goes ahead.
+    rows = [
+        _row("SOL", 175.0, accumulation_invalidation_stop={"stop_price": 170.0}),
+        _row("AVAX", 30.0, accumulation_invalidation_stop={"stop_price": 29.0}),
+        _breakout("NEAR"), _breakout("LINK"),
+    ]
+    for row in rows:
+        mis.annotate_cluster_and_beta(row, None, None)
+    context = _guard_context(
+        *rows, positions=[{"symbol": "SOL", "quantity": 1}, {"symbol": "AVAX", "quantity": 10}],
+        watchlist=["NEAR", "LINK"],
+    )
+    agent = CycleStrategistAgent(store)
+    proposals = agent.evaluate(context)
+    assert [p.symbol for p in proposals if p.action == BREAKOUT_ENTRY] == ["LINK"]
+    (blocked,) = agent.last_cluster_guard["suppressed_proposals"]
+    assert (blocked["symbol"], blocked["suppression_reason"]) == ("NEAR", "cluster_count_cap_exceeded")
+    assert agent.last_cluster_guard["clusters"]["layer-1"]["symbols"] == ["AVAX", "SOL"]
+
+
 def test_cluster_guard_steps_aside_without_equity_and_for_unsized_entries(store):
     agent = CycleStrategistAgent(store)
     rows = [_breakout(symbol) for symbol in ("AVAX", "NEAR", "SOL")]
@@ -1285,28 +1309,45 @@ def test_trim_reload_plan_carries_adaptive_ladder_advice(store):
     agent, _ = _run(store, context)
     plan = agent.last_proposals[0]["reload_plan"]
     advice = plan["ladder_optimizer"]
-    assert advice["available"] is True and advice["advisory_only"] is True
+    assert advice["available"] is True and advice["applied_to_tranches"] is False
     assert advice["support_box"] == {"low": pytest.approx(58.8), "high": 120.0}
-    assert advice["regime"] == "default" and advice["weights"] == [0.4, 0.35, 0.25]
+    # Without wick history the optimizer keeps the plan's own deep-heavy split.
+    assert advice["regime"] == "default" and advice["weights"] == [0.25, 0.35, 0.4]
     assert advice["expected_fill_probability_by_rung"] == [0.7, 0.5, 0.3]
-    assert set(advice) >= {"net_extra_coins_vs_flat_weights", "expected_extra_coins_vs_flat_weights"}
+    assert advice["net_extra_coins_vs_flat_weights"] > 0
+    assert "expected_extra_coins_vs_flat_weights" in advice
     assert sum(rung["usdc_allocation"] for rung in advice["rungs"]) == pytest.approx(656.25, abs=0.02)
-    # The ledger's own tranches are unchanged by the advice.
+    assert plan["weight_source"] == "default"
     assert [t["usdc"] for t in plan["tranches"]] == [164.06, 229.69, 262.5]
 
-    deep = CycleStrategistAgent(store).evaluate(
+    deep_plan = CycleStrategistAgent(store).evaluate(
         {**context, "cycle_histories": {"SOL-USD": _wicky_daily(92.0)}}
-    )[0].reload_plan["ladder_optimizer"]
-    assert deep["regime"] == "deep_wick" and deep["weights"][2] > deep["weights"][0]
+    )[0].reload_plan
+    deep = deep_plan["ladder_optimizer"]
+    assert deep["regime"] == "deep_wick" and deep["applied_to_tranches"] is True
     assert deep["expected_fill_probability_by_rung"] == [0.95, 0.95, 0.95]
     assert deep["wick_events"] >= 8
+    # Deep wicks move USDC from the 120 rung to the 90 rung; every cent is still split.
+    assert deep_plan["weight_source"] == "ladder_optimizer"
+    usdc = [t["usdc"] for t in deep_plan["tranches"]]
+    assert sum(usdc) == pytest.approx(656.25) and usdc[2] > 262.5 and usdc[0] < 164.06
+    assert [t["weight_pct"] for t in deep_plan["tranches"]] == pytest.approx(
+        [w * 100 for w in deep["weights"]], abs=0.01
+    )
+    assert deep_plan["net_coin_gain_pct"] > plan["net_coin_gain_pct"]
+
+    # A fast-rebound history moves USDC toward the shallow rung instead.
+    fast_plan = CycleStrategistAgent(store).evaluate(
+        {**context, "cycle_histories": {"SOL-USD": _wicky_daily(99.0)}}
+    )[0].reload_plan
+    assert fast_plan["ladder_optimizer"]["regime"] == "fast_rebound"
+    assert fast_plan["tranches"][0]["usdc"] > 164.06 and fast_plan["tranches"][2]["usdc"] < 262.5
 
 
 def test_reload_plan_without_a_support_box_reports_why():
     from agents.cycle_strategist import _ladder_advice
 
-    assert _ladder_advice({"tranches": [], "invalidation_stop": None}, 100.0, None) == {
-        "available": False, "reason": "no_support_box",
-    }
-    broken = _ladder_advice({"tranches": [{"level": 90.0}], "invalidation_stop": 50.0}, 100.0, None)
-    assert broken["available"] is False and broken["reason"].startswith("optimizer_failed:")
+    assert _ladder_advice(None, 90.0, 100.0, 500.0, None) == {"available": False, "reason": "no_support_box"}
+    assert _ladder_advice(95.0, 90.0, 100.0, 500.0, None)["reason"] == "no_support_box"
+    broken = _ladder_advice(50.0, 90.0, 100.0, 0, None)
+    assert broken["available"] is False and broken["reason"] == "optimizer_failed:ValueError"

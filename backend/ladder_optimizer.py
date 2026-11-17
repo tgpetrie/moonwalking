@@ -112,11 +112,14 @@ def optimize_reload_ladder(
     *,
     daily_candles: Any = None,
     spread_bps: float = 15.0,
+    base_weights: Any = DEFAULT_WEIGHTS,
 ) -> dict[str, Any]:
     """Three reload rungs with history-adapted weights and spread-aware coin counts.
 
     Rungs sit 38.2%, 50% and 61.8% of the way down from ``support_high`` to
-    ``support_low`` and never above ``current_price``. A buy is assumed to pay
+    ``support_low`` and never above ``current_price``. ``base_weights``
+    (shallow to deep, normalized to sum to 1) is the split kept when history is
+    short and the one the tilt moves from. A buy is assumed to pay
     half of ``spread_bps`` over the rung price. ``net_extra_coins_vs_flat_weights``
     compares the coins bought if every rung fills against an equal three-way
     split; ``expected_extra_coins_vs_flat_weights`` weights each rung by its
@@ -134,16 +137,23 @@ def optimize_reload_ladder(
         raise ValueError("spread_bps must be a number") from exc
     if isinstance(spread_bps, bool) or not math.isfinite(spread) or not 0 <= spread < 10_000:
         raise ValueError("spread_bps must be from 0 to under 10000")
+    try:
+        base = [float(value) for value in base_weights]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("base_weights must be three positive numbers") from exc
+    if len(base) != len(RUNG_DEPTHS) or any(isinstance(v, bool) or not math.isfinite(v) or v <= 0 for v in base):
+        raise ValueError("base_weights must be three positive numbers")
+    base = [value / sum(base) for value in base]
 
     history = measure_wick_penetration(daily_candles)
     if history["enough_history"]:
         shares = history["touch_share_by_rung"]
         tilt = (shares[2] - NEUTRAL_DEEP_SHARE) * TILT_STRENGTH
-        weights = _clamped_weights([DEFAULT_WEIGHTS[0] - tilt, DEFAULT_WEIGHTS[1], DEFAULT_WEIGHTS[2] + tilt])
+        weights = _clamped_weights([base[0] - tilt, base[1], base[2] + tilt])
         probabilities = [min(max(share, PROBABILITY_BOUNDS[0]), PROBABILITY_BOUNDS[1]) for share in shares]
         regime = "deep_wick" if tilt > 0.02 else "fast_rebound" if tilt < -0.02 else "neutral"
     else:
-        weights, probabilities, regime = list(DEFAULT_WEIGHTS), list(DEFAULT_FILL_PROBABILITIES), "default"
+        weights, probabilities, regime = base, list(DEFAULT_FILL_PROBABILITIES), "default"
 
     cost = 1.0 + spread / 20_000.0  # half the spread is paid on a buy
     prices = [min(price, high - depth * (high - low)) for depth in RUNG_DEPTHS]
