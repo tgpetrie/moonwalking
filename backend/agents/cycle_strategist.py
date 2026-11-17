@@ -1126,6 +1126,11 @@ class CycleStrategistAgent:
             floor = floor_of(symbol)
             stop = evaluate_protective_stop(row, floor, price, position.get("stop_price"))
             if stop:
+                # The size defended, so the ledger can value the exit later.
+                held_quantity = _num(position.get("quantity"))
+                if held_quantity is not None and held_quantity > 0:
+                    stop.evidence["quantity"] = held_quantity
+                    stop.evidence["notional_usd"] = _round(held_quantity * price, 2)
                 proposals.append(stop)
                 defended.add(symbol)
                 continue  # defend first; a stop is no time to trim or add

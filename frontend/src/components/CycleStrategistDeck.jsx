@@ -3,6 +3,7 @@ import {
   approveAgentProposal,
   fetchAgentProposals,
   rejectAgentProposal,
+  runCycleAgentPass,
   updateAgentAutonomy,
 } from "../api.js";
 import { getCoinbaseAdvancedSpotUrl } from "../utils/coinbaseUrl.js";
@@ -237,6 +238,10 @@ function ProposalRow({ proposal, busy, onDecide }) {
   );
 }
 
+const PASS_SKIP_REASONS = {
+  no_cycle_scan: "the cycle scan is still warming or out of date",
+};
+
 export default function CycleStrategistDeck() {
   const [autonomy, setAutonomy] = useState(null);
   const [proposals, setProposals] = useState([]);
@@ -244,10 +249,14 @@ export default function CycleStrategistDeck() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [capDraft, setCapDraft] = useState("");
+  const [summary, setSummary] = useState(null);
+  const [passNote, setPassNote] = useState("");
 
   const load = useCallback(async () => {
     try {
       const payload = await fetchAgentProposals({ limit: 100 });
+      setSummary(payload.compounding_summary && typeof payload.compounding_summary === "object"
+        ? payload.compounding_summary : null);
       setProposals(Array.isArray(payload.proposals) ? payload.proposals : []);
       setReloadPlans(Array.isArray(payload.reload_plans) ? payload.reload_plans : []);
       if (payload.autonomy && typeof payload.autonomy === "object") {
@@ -297,6 +306,34 @@ export default function CycleStrategistDeck() {
     }
   };
 
+  const runPass = async () => {
+    setBusy(true);
+    setPassNote("Running desk pass…");
+    try {
+      const result = await runCycleAgentPass();
+      await load();
+      if (result.status === "ok") {
+        const count = Array.isArray(result.proposals) ? result.proposals.length : 0;
+        setPassNote(`Desk pass complete · ${count} proposal${count === 1 ? "" : "s"} from this pass`);
+      } else {
+        setPassNote(`Desk pass skipped · ${PASS_SKIP_REASONS[result.reason] || result.reason || "no reason given"}`);
+      }
+    } catch (cause) {
+      setPassNote("");
+      setError(cause.message || "The desk pass could not run.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const extraCoins = summary
+    ? Array.from(new Set([
+      ...Object.keys(summary.realized_extra_coins_by_symbol || {}),
+      ...Object.keys(summary.projected_extra_coins_by_symbol || {}),
+    ])).sort()
+    : [];
+  const ladders = Number(summary?.active_ladders_count) || 0;
+
   const capValue = Number(capDraft);
   const capValid = capDraft !== "" && Number.isInteger(capValue) && capValue >= 0 && capValue <= MAX_CAP;
   const pending = proposals.filter((p) => DECIDABLE.has(p.status)).length;
@@ -307,7 +344,14 @@ export default function CycleStrategistDeck() {
         <div className="mw-panel__header">
           <div><h3>Autonomy Control Deck</h3><span>Cycle Strategist · dry-run only, no live orders</span></div>
           {autonomy?.emergency_pause ? <span className="mw-agents-chip is-sev-critical">Paused</span> : null}
+          {autonomy ? (
+            <button type="button" className="mw-pill" disabled={busy} onClick={runPass}
+              title="Run the Cycle Strategist and smart alerts once from the cached cycle scan. Dry-run only.">
+              Run Desk Pass
+            </button>
+          ) : null}
         </div>
+        {passNote ? <p className="mw-agents-note" role="status">{passNote}</p> : null}
         {error ? <p className="mw-agents-error" role="alert">{error}</p> : null}
         {autonomy ? (
           <div className="mw-agents-filters">
@@ -353,6 +397,35 @@ export default function CycleStrategistDeck() {
           </p>
         ) : null}
       </section>
+
+      {summary ? (
+        <section className="mw-panel" aria-label="Coin-stack compounding scoreboard">
+          <div className="mw-panel__header">
+            <div><h3>Coin-Stack Compounding Scoreboard</h3><span>Dry-run figures from approved and simulated trims, stops and reloads</span></div>
+          </div>
+          <dl style={{ display: "flex", flexWrap: "wrap", gap: "12px 32px", margin: 0 }}>
+            <div>
+              <dt>Freed Reload USDC</dt>
+              <dd>{usd(summary.freed_usdc_available)} · {ladders} open ladder{ladders === 1 ? "" : "s"}</dd>
+            </div>
+            <div>
+              <dt>Drawdown Avoided</dt>
+              <dd>{usd(summary.drawdown_avoided_usd)}</dd>
+            </div>
+            <div>
+              <dt>Extra Coins Compounded / Projected</dt>
+              <dd>
+                {extraCoins.length ? extraCoins.map((symbol) => (
+                  <span key={symbol} style={{ marginRight: 12 }}>
+                    {symbol} +{coins(summary.realized_extra_coins_by_symbol?.[symbol] ?? 0)}
+                    {" / "}+{coins(summary.projected_extra_coins_by_symbol?.[symbol] ?? 0)}
+                  </span>
+                )) : "None yet"}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
 
       <section className="mw-panel" aria-label="Trade proposal queue">
         <div className="mw-panel__header">

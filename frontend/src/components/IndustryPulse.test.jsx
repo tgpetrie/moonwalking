@@ -150,6 +150,17 @@ describe("industry pulse summary", () => {
     expect(coinSymbols()).toEqual(["ETH", "RENDER", "FET"]);
   });
 
+  it("shows atlas coverage and a refreshing note only while slices are filling", () => {
+    const { rerender } = render(<IndustryPulseView scan={scan()} />);
+    expect(screen.queryByTestId("industry-pulse-atlas")).not.toBeInTheDocument();
+    rerender(<IndustryPulseView scan={scan({ ready_count: 22, target_universe_size: 120, atlas_refreshing: true })} />);
+    expect(screen.getByTestId("industry-pulse-atlas")).toHaveTextContent("Atlas 22 / 120 coins");
+    expect(screen.getByTestId("industry-pulse-atlas-refreshing")).toHaveTextContent("Refreshing atlas…");
+    rerender(<IndustryPulseView scan={scan({ ready_count: 120, target_universe_size: 120, atlas_refreshing: false })} />);
+    expect(screen.getByTestId("industry-pulse-atlas")).toHaveTextContent("Atlas 120 / 120 coins");
+    expect(screen.queryByTestId("industry-pulse-atlas-refreshing")).not.toBeInTheDocument();
+  });
+
   it("says it is context only and how much was read", () => {
     render(<IndustryPulseView scan={scan()} />);
     const text = screen.getByTestId("industry-pulse").textContent;

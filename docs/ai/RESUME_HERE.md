@@ -837,3 +837,20 @@ Keep a new active-branch pointer here when work moves to another branch.
 Documentation-only commits may follow the recorded implementation hash;
 the branch's Git history gives the exact latest documentation checkpoint.
 This page reconstructs the task without relying on a particular chat history.
+
+## Checkpoint 2026-11-16: Cycle Atlas, in-process desk pass, compounding scoreboard
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, commits `92cd6f6`, `ed0747d`, `d59e445` and the Checkpoint 4 commit after them.
+
+- `/api/macro-cycle-scan` is a Rolling Universe Cycle Atlas of up to 120 USD pairs (`backend/macro_industry_scanner.py`: `select_atlas_universe`, `CycleAtlas`, `refresh_cycle_atlas_slice`, `atlas_coverage`). Daily reads are cached 6h and expire at the UTC day boundary; slices read the core and owner symbols plus 8 more, at least 20s apart, with a doubling backoff on HTTP 429. The payload carries `target_universe_size`, `ready_count`, `coverage_pct`, `atlas_refreshing`.
+- Atlas priority comes from the owner cycle pass, from SQLite (open paper positions, active reload plans), from verified `?symbols=` and from the board's cached 3-minute gainers (`cache["data"]`, never a fetch).
+- `POST /api/agents/run-cycle-pass` (owner-only, JSON `{}` body, no-store) runs `CycleStrategistAgent` + `SmartAlertEngine` in-process. It runs while outer atlas slices fill once the regime and every held/watchlist symbol are read.
+- `AgentStore.get_compounding_summary` is returned by `GET /api/agents/proposals` and the desk pass. `PROTECTIVE_STOP` proposals now record `evidence.quantity` and `evidence.notional_usd`.
+- UI: `runCycleAgentPass()` in `frontend/src/api.js`; "Run Desk Pass" button and Coin-Stack Compounding Scoreboard in `CycleStrategistDeck.jsx`; atlas coverage badge in `IndustryPulse.jsx`.
+- `PRICE_UNIVERSE_SAMPLE_SIZE` defaults to 220.
+
+Open items:
+- Atlas slices are request-driven: coverage grows only when the scan endpoint or a chart read is called.
+- SQLite priority seeding is skipped under pytest; the seed function is tested directly.
+- The scoreboard and atlas badge use inline styles; no CSS classes were added.
+- Only targeted test files were run for these checkpoints, not the full backend or frontend suites. `test_chart_read_route.py` was last run at `d59e445`, before the movers lookup changed.

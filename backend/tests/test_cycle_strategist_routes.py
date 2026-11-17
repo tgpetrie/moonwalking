@@ -662,6 +662,29 @@ def test_compounding_summary_tracks_ladders_extra_coins_and_drawdown(client, cyc
     assert "compounding_summary" in client.post(PASS_URL, json={}).json
 
 
+def test_protective_stop_records_quantity_and_counts_toward_drawdown_avoided(client):
+    broken = _row("DOT", 9.0, accumulation_invalidation_stop={"stop_price": 10.0})
+    stop = _phase2_run(NOW, broken, positions=[{"symbol": "DOT", "quantity": 40}])["PROTECTIVE_STOP"]
+    assert stop["evidence"]["quantity"] == 40 and stop["evidence"]["notional_usd"] == 360.0
+    # Pending stops are not counted; an approved one is.
+    assert AgentStore().get_compounding_summary({"DOT": 6.0})["drawdown_avoided_usd"] == 0
+    client.post(f"/api/agents/proposals/{stop['proposal_id']}/approve", json={})
+    summary = AgentStore().get_compounding_summary({"DOT": 6.0})
+    assert summary["drawdown_avoided_usd"] == 120.0  # 40 DOT, 9.00 -> 6.00
+    assert summary["drawdown_priced_symbols"] == ["DOT"]
+
+
+def test_atlas_movers_read_only_the_in_memory_board_snapshot(monkeypatch):
+    def boom(*args, **kwargs):
+        raise AssertionError("the scan worker must not fetch prices")
+
+    monkeypatch.setattr(backend_app, "get_crypto_data", boom)
+    monkeypatch.setitem(backend_app.cache, "data", None)
+    assert backend_app._macro_atlas_movers() == []
+    monkeypatch.setitem(backend_app.cache, "data", {"gainers": [{"symbol": "PEPE"}, "junk", {"symbol": "WIF"}]})
+    assert backend_app._macro_atlas_movers() == ["PEPE", "WIF"]
+
+
 def test_cycle_pass_refuses_to_overlap_another_pass(client, cycle_pass):
     assert backend_app._CYCLE_PASS_LOCK.acquire(blocking=False)
     try:

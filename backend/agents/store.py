@@ -762,6 +762,7 @@ class AgentStore:
                 number((proposal.get("reload_plan") or {}).get("trim_quantity"))
                 or number((proposal.get("execution") or {}).get("quantity"))
                 or number(proposal.get("quantity"))
+                or number((proposal.get("evidence") or {}).get("quantity"))
             )
             if price and sold_at and quantity:
                 priced.add(proposal["symbol"])

@@ -14146,10 +14146,10 @@ def _macro_scan_universe():
 
 def _macro_atlas_movers():
     """Symbols of the board's current 3-minute gainers, strongest first."""
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return []  # the board feed is live data; tests patch this function
     try:
-        data = get_crypto_data() or {}
+        # Read the board's in-memory 3-minute snapshot only. The scan worker
+        # must never start a price fetch; an empty cache means no movers yet.
+        data = cache.get("data") or {}
         return [
             str(coin.get("symbol") or "")
             for coin in (data.get("gainers") or [])[:30]
