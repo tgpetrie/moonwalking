@@ -152,6 +152,7 @@ export function buildDeskTape(logs, classify, { scan = null, watchSymbols = [], 
   const index = buildCycleIndex(scan);
   const watch = new Set(watchSymbols.map(baseSymbol).filter(Boolean));
   const held = new Set(heldSymbols.map(baseSymbol).filter(Boolean));
+  const stageNumber = scan?.industry?.available ? finite(scan.industry.stage_number) : null;
   const entries = [];
   for (const log of Array.isArray(logs) ? logs : []) {
     const { label, chipTone } = classify(log);
@@ -164,6 +165,7 @@ export function buildDeskTape(logs, classify, { scan = null, watchSymbols = [], 
     const { flags, badges } = cycleContext(index.get(symbol), entry.log.ref_price);
     const isHeld = held.has(symbol);
     const isWatch = watch.has(symbol);
+    if (symbol && stageNumber) badges.push({ key: "stage", label: `STAGE ${stageNumber}`, tone: "stage" });
     if (isHeld) badges.push({ key: "held", label: "HELD", tone: "watch" });
     else if (isWatch) badges.push({ key: "watch", label: "WATCHLIST", tone: "watch" });
     const stealthSurge = entry.label === "STEALTH" && (volumePct(entry.log) ?? 0) >= STEALTH_SURGE_VOL_PCT;

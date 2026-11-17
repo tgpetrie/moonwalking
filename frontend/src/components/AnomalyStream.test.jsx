@@ -32,12 +32,23 @@ const ALERTS = [
 const rowSymbols = () => screen.queryAllByTestId("intel-row").map((r) => r.getAttribute("data-symbol"));
 
 describe("AnomalyStream desk tape", () => {
-  it("renders cycle badges, the confluence call and the stage chip", async () => {
+  it("renders cycle badges, the confluence call and a per-row stage badge", async () => {
     render(<AnomalyStream data={{ alerts: ALERTS }} cycleScan={SCAN} watchSymbols={["DOGE"]} />);
     await screen.findByText("DEEP ACCUM · 23m");
     expect(screen.getByText("EXHAUSTION BREAKOUT")).toBeInTheDocument();
     expect(screen.getByText("WATCHLIST")).toBeInTheDocument();
-    expect(screen.getByText("STAGE 1")).toBeInTheDocument();
+    const rows = screen.getAllByTestId("intel-row");
+    expect(rows.length).toBeGreaterThan(1);
+    rows.forEach((row) => expect(within(row).getByText("STAGE 1")).toBeInTheDocument());
+  });
+
+  it("includes held coins in the Watchlist filter with a HELD badge", async () => {
+    render(<AnomalyStream data={{ alerts: ALERTS }} cycleScan={SCAN} watchSymbols={["DOGE"]} heldSymbols={["XRP"]} />);
+    await screen.findByText("DEEP ACCUM · 23m");
+    fireEvent.click(screen.getByRole("button", { name: "Watchlist" }));
+    expect(rowSymbols().sort()).toEqual(["DOGE", "XRP"]);
+    const xrp = screen.getAllByTestId("intel-row").find((r) => r.getAttribute("data-symbol") === "XRP");
+    expect(within(xrp).getByText("HELD")).toBeInTheDocument();
   });
 
   it("switches between Confluence & Desk, Watchlist and Raw Tape", async () => {

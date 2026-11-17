@@ -3757,13 +3757,6 @@ body {
   outline-offset: 2px;
 }
 
-.bh-intel-stage {
-  font-size: var(--text-2xs);
-  letter-spacing: 0.12em;
-  color: var(--status-ok);
-  white-space: nowrap;
-}
-
 .bh-intel-note {
   padding: 8px 12px;
   font-size: var(--text-2xs);
@@ -3790,6 +3783,7 @@ body {
 .bh-intel-badge--risk  { color: var(--danger); border-color: rgba(255,159,180,0.35); }
 .bh-intel-badge--gain  { color: var(--signal-positive); border-color: rgba(255,179,71,0.30); }
 .bh-intel-badge--watch { color: var(--accent-primary); border-color: rgba(192,132,252,0.35); }
+.bh-intel-badge--stage { color: var(--status-ok); border-color: rgba(16,174,155,0.25); }
 
 .bh-intel-call { font-weight: 700; }
 .bh-intel-call--gain { color: var(--signal-positive); border-color: var(--signal-positive); }

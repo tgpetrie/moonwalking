@@ -43,7 +43,13 @@ vi.mock("./VolumeBannerScroll.jsx", () => ({ default: () => null }));
 vi.mock("./TopBannerScroll.jsx", () => ({ default: () => null }));
 vi.mock("./SentimentPopupAdvanced.jsx", () => ({ default: () => null }));
 vi.mock("./AlertsPanelGlobal.jsx", () => ({ default: () => null }));
-vi.mock("./AnomalyStream.jsx", () => ({ default: () => null }));
+vi.mock("./AnomalyStream.jsx", () => ({
+  default: ({ heldSymbols = [], watchSymbols = [] }) => (
+    <div data-testid="anomaly-stream-mount" data-held={heldSymbols.join(",")} data-watch={watchSymbols.join(",")} />
+  ),
+}));
+const { HELD } = vi.hoisted(() => ({ HELD: new Set(["ATOM", "LTC"]) }));
+vi.mock("./alerts/useHoldingSymbols.js", () => ({ default: () => HELD }));
 vi.mock("./AlertsDock.jsx", () => ({ default: () => null }));
 vi.mock("./AskBhabitPanel.jsx", () => ({ default: () => null }));
 vi.mock("./BoardWrapper.jsx", () => ({ default: ({ children }) => children }));
@@ -75,5 +81,13 @@ describe("DashboardShell industry pulse", () => {
     expect(pulse).toHaveAttribute("data-symbols", "RENDER,FET");
     expect(pulse).toHaveAttribute("data-clickable", "yes");
     expect(pulse.closest(".bh-rail-stack")).not.toBeNull();
+  });
+
+  it("feeds Coinbase holdings and the watchlist into the intelligence log", () => {
+    render(<DashboardShell />);
+
+    const stream = screen.getByTestId("anomaly-stream-mount");
+    expect(stream).toHaveAttribute("data-held", "ATOM,LTC");
+    expect(stream).toHaveAttribute("data-watch", "RENDER,FET");
   });
 });

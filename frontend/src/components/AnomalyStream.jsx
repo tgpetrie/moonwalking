@@ -238,7 +238,6 @@ export default function AnomalyStream({
     [tape, filter, scanReady]
   );
   const visibleRows = isCollapsed ? EMPTY : rows;
-  const stageNumber = cycleScan?.industry?.available ? cycleScan.industry.stage_number : null;
 
   // Rows inserted within the last 3s get the fresh-entry animation
   const freshIds = useMemo(() => {
@@ -413,11 +412,6 @@ export default function AnomalyStream({
               </button>
             ))}
           </div>
-          {stageNumber ? (
-            <span className="bh-intel-stage" title={cycleScan.industry.stage_label || undefined}>
-              STAGE {stageNumber}
-            </span>
-          ) : null}
         </div>
       ) : null}
 

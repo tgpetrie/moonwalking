@@ -19,6 +19,7 @@ import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
 import IndustryPulse from "./IndustryPulse.jsx";
 import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
+import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -358,6 +359,9 @@ export default function DashboardShell({ onInfo }) {
   const watchlistSymbols = useMemo(() => watchlistItems.map((item) => item.symbol), [watchlistItems]);
   // One scan poll shared by Industry Pulse and the INTELLIGENCE_LOG desk tape.
   const cycleScanState = useMacroCycleScan(watchlistSymbols);
+  // Coinbase holdings resolve to an empty set when signed out or unavailable.
+  const holdingSymbolSet = useHoldingSymbols();
+  const heldSymbols = useMemo(() => Array.from(holdingSymbolSet), [holdingSymbolSet]);
   const onInfoProp = onInfo || handleInfo;
   const uiLoading = loading || warming;
 
@@ -552,6 +556,7 @@ export default function DashboardShell({ onInfo }) {
                           volumeData={bannerVolume1h || []}
                           cycleScan={cycleScanState.scan}
                           watchSymbols={watchlistSymbols}
+                          heldSymbols={heldSymbols}
                         />
                       </div>
                     </section>
