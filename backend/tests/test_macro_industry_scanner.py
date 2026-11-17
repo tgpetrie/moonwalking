@@ -331,3 +331,196 @@ def test_short_macro_history_cannot_claim_stage_four(daily_series):
     result = mis.scan_universe_cycles(histories)["industry"]
     assert result["stage_number"] == 3
     assert result["components"]["ALT_INDEX_3Y"]["above_100w_sma"] is None
+
+
+# ─── rolling universe cycle atlas ─────────────────────────────────────────────
+
+NOON = 20000 * DAY + 12 * 3600
+
+
+class RateLimited(Exception):
+    status_code = 429
+
+
+class Clock:
+    """Each fetch appears to take half of ``step`` seconds."""
+
+    def __init__(self, step=1.0):
+        self.now, self.step = 0.0, step
+
+    def __call__(self):
+        self.now += self.step / 2
+        return self.now
+
+
+def atlas_universe(count):
+    return [f"C{i:03d}-USD" for i in range(count)]
+
+
+def two_bars(_product=None):
+    return bars([1.0, 2.0])
+
+
+def test_atlas_universe_orders_owner_symbols_before_liquidity_and_drops_stables():
+    volumes = {
+        "AAA-USD": {"quote_volume_usd": 5.0},
+        "BBB-USD": {"quote_volume_usd": 50.0},
+        "USDT-USD": {"quote_volume_usd": 9e9},
+        "WBTC-USD": 8e9,
+        "CBETH-USD": 7e9,
+        "CCC-USDC": {"quote_volume_usd": 6e9},
+        "bad!-USD": 1.0,
+        "ZZZ-USD": {"quote_volume_usd": "nan"},
+    }
+    universe = mis.select_atlas_universe(
+        core=("BTC-USD", "ETH-USD"),
+        held=["render", "USDC", "BTC"],
+        watchlist=["FET-USD", "RENDER"],
+        reload=["SOL"],
+        volumes=volumes,
+        movers=["PEPE", "AAA-USD", "DAI"],
+    )
+    assert universe == [
+        "BTC-USD", "ETH-USD", "RENDER-USD", "FET-USD", "SOL-USD",
+        "BBB-USD", "AAA-USD", "ZZZ-USD", "PEPE-USD",
+    ]
+    assert not mis.is_atlas_eligible("USDC-USD") and not mis.is_atlas_eligible("cbBTC")
+    assert mis.is_atlas_eligible("SOL") and not mis.is_atlas_eligible("SOL-USDC")
+
+
+def test_atlas_universe_is_capped_at_120_liquid_pairs():
+    volumes = {f"C{i:03d}-USD": float(1000 - i) for i in range(300)}
+    universe = mis.select_atlas_universe(core=mis.MAJORS, held=["C250"], volumes=volumes)
+    assert len(universe) == mis.ATLAS_TARGET_SIZE == 120
+    assert universe[:4] == ["BTC-USD", "ETH-USD", "C250-USD", "C000-USD"]
+    assert len(set(universe)) == 120
+    assert mis.select_atlas_universe(volumes=volumes, limit=5) == atlas_universe(5)
+
+
+def test_atlas_slice_reads_required_first_then_a_bounded_number_of_cold_products():
+    universe = atlas_universe(30)
+    calls = []
+
+    def fetch(product):
+        calls.append(product)
+        return two_bars()
+
+    atlas = mis.CycleAtlas()
+    first = mis.refresh_cycle_atlas_slice(
+        atlas, universe, fetch, now=NOON, slice_size=8, required=universe[20:22], clock=Clock()
+    )
+    # Required products are read whatever the budget, then eight more in order.
+    assert calls == universe[20:22] + universe[:8]
+    assert first["network_reads"] == 8 and first["refreshed"] == calls
+    cover = mis.atlas_coverage(atlas, universe, NOON)
+    assert cover["target_universe_size"] == 30 and cover["ready_count"] == 10
+    assert cover["coverage_pct"] == 33.3 and cover["atlas_pending_count"] == 20
+
+    # Later slices pick up where the last one stopped and never re-read fresh data.
+    for _ in range(3):
+        mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 60, slice_size=8, clock=Clock())
+    assert sorted(calls) == universe and len(calls) == 30
+    cover = mis.atlas_coverage(atlas, universe, NOON + 60)
+    assert cover["ready_count"] == 30 and cover["coverage_pct"] == 100.0
+    assert cover["atlas_pending_count"] == 0 and cover["fresh_count"] == 30
+    idle = mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 120, slice_size=8, clock=Clock())
+    assert idle["attempted"] == [] and len(calls) == 30
+    assert set(atlas.histories(universe)) == set(universe)
+
+
+def test_atlas_slice_does_not_charge_the_budget_for_locally_cached_reads():
+    universe = atlas_universe(30)
+    atlas = mis.CycleAtlas()
+    done = mis.refresh_cycle_atlas_slice(
+        atlas, universe, two_bars, now=NOON, slice_size=2, clock=Clock(step=0.0)
+    )
+    assert len(done["refreshed"]) == 30 and done["network_reads"] == 0
+
+
+def test_atlas_reads_expire_by_ttl_and_at_the_utc_day_boundary_but_stay_served():
+    universe = atlas_universe(3)
+    atlas = mis.CycleAtlas()
+    mis.refresh_cycle_atlas_slice(atlas, universe, two_bars, now=NOON, clock=Clock())
+    assert atlas.state(universe[0], NOON + 6 * 3600 - 1) == "fresh"
+    assert atlas.state(universe[0], NOON + 6 * 3600) == "expired"
+    late = 20000 * DAY + 23 * 3600
+    mis.refresh_cycle_atlas_slice(atlas, universe, two_bars, now=late, clock=Clock())
+    assert atlas.state(universe[0], late + 3599) == "fresh"
+    assert atlas.state(universe[0], late + 3600) == "expired"  # a new daily bar has closed
+    cover = mis.atlas_coverage(atlas, universe, late + 3600)
+    assert cover["ready_count"] == 3 and cover["fresh_count"] == 0 and cover["atlas_pending_count"] == 3
+    assert set(atlas.histories(universe)) == set(universe)
+
+    # Cold products are read first, then expired ones, oldest first.
+    atlas.entries[universe[1]]["fetched_at"] -= 100
+    order = []
+    mis.refresh_cycle_atlas_slice(
+        atlas, universe + ["NEW-USD"], lambda p: order.append(p) or two_bars(),
+        now=late + 3600, slice_size=2, clock=Clock(),
+    )
+    assert order == ["NEW-USD", universe[1]]
+
+
+def test_atlas_stops_on_http_429_and_backs_off_with_doubling():
+    universe = atlas_universe(10)
+    calls = []
+
+    def fetch(product):
+        calls.append(product)
+        if len(calls) >= 3:
+            raise RateLimited()
+        return two_bars()
+
+    atlas = mis.CycleAtlas()
+    hit = mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON, clock=Clock())
+    assert hit["rate_limited"] is True and hit["refreshed"] == universe[:2] and len(calls) == 3
+    assert atlas.backoff_until == NOON + 60
+    assert mis.atlas_coverage(atlas, universe, NOON)["atlas_retry_at"] == NOON + 60
+
+    # No request at all is made while backing off.
+    waiting = mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 59, clock=Clock())
+    assert waiting["backing_off"] is True and waiting["attempted"] == [] and len(calls) == 3
+    again = mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 60, clock=Clock())
+    assert again["rate_limited"] is True and len(calls) == 4
+    assert atlas.backoff_until == NOON + 60 + 120
+    # The rate-limited product stays cold, so it is retried rather than marked failed.
+    assert atlas.state(universe[2], NOON + 60) == "cold"
+
+    ok = mis.refresh_cycle_atlas_slice(atlas, universe, two_bars, now=NOON + 200, slice_size=3, clock=Clock())
+    assert ok["refreshed"] == universe[2:5] and atlas.backoff_seconds == 0.0
+    assert mis.atlas_coverage(atlas, universe, NOON + 200)["atlas_retry_at"] is None
+
+
+def test_atlas_failed_reads_wait_an_hour_and_keep_the_last_good_candles():
+    universe = ["GOOD-USD", "EMPTY-USD", "BOOM-USD"]
+    good = two_bars()
+    attempts = []
+
+    def fetch(product):
+        attempts.append(product)
+        if product == "BOOM-USD":
+            raise ValueError("bad page")
+        return good if product == "GOOD-USD" else []
+
+    atlas = mis.CycleAtlas()
+    first = mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON, clock=Clock())
+    assert first["failed"] == ["EMPTY-USD", "BOOM-USD"] and first["rate_limited"] is False
+    cover = mis.atlas_coverage(atlas, universe, NOON + 10)
+    assert cover["atlas_unavailable"] == ["EMPTY-USD", "BOOM-USD"]
+    assert cover["ready_count"] == 1 and cover["atlas_pending_count"] == 0
+    mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 3599, clock=Clock())
+    assert len(attempts) == 3
+    mis.refresh_cycle_atlas_slice(atlas, universe, fetch, now=NOON + 3600, clock=Clock())
+    assert attempts[3:] == ["EMPTY-USD", "BOOM-USD"]
+
+    # An expired product whose refresh fails keeps serving its last good read.
+    tomorrow = NOON + DAY
+    mis.refresh_cycle_atlas_slice(atlas, universe, lambda p: [], now=tomorrow, clock=Clock())
+    assert atlas.histories(universe) == {"GOOD-USD": good}
+    assert atlas.state("GOOD-USD", tomorrow + 1) == "failed"
+    assert atlas.state("GOOD-USD", tomorrow + 3600) == "expired"
+
+    # Products that leave the universe are dropped from the cache.
+    mis.refresh_cycle_atlas_slice(atlas, ["EMPTY-USD"], lambda p: [], now=tomorrow, clock=Clock())
+    assert set(atlas.entries) == {"EMPTY-USD"}
+    assert mis.atlas_coverage(mis.CycleAtlas(), [], NOON)["coverage_pct"] == 0.0

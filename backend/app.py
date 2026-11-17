@@ -4626,7 +4626,7 @@ CONFIG = {
         os.environ.get("ONE_MIN_DEFAULT_SEED_COUNT", 10)
     ),  # seed count for 1m list
     "PRICE_UNIVERSE_SAMPLE_SIZE": int(
-        os.environ.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120)
+        os.environ.get("PRICE_UNIVERSE_SAMPLE_SIZE", 220)
     ),  # USD products sample size
     "PRICE_UNIVERSE_MAX": int(
         os.environ.get("PRICE_UNIVERSE_MAX", 250)
@@ -7008,7 +7008,7 @@ def get_coinbase_prices():
                 "TAO-USD",
             ]
 
-            sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120))
+            sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 220))
             sample_max = int(CONFIG.get("PRICE_UNIVERSE_MAX", 250))
             sample = max(30, min(sample, sample_max))
 
@@ -13907,11 +13907,20 @@ def get_structure_posture():
 
 # Industry liquidity gate and multi-coin cycle scanner.
 MACRO_SCAN_TTL_SECONDS = 1800
-MACRO_SCAN_MAX_PRODUCTS = 40
+# Rolling Universe Cycle Atlas: the scan covers up to this many liquid USD
+# pairs, read from Coinbase a bounded slice at a time and served from cache.
+MACRO_SCAN_MAX_PRODUCTS = 120
 MACRO_SCAN_MAX_REQUESTED = 30
-MACRO_SCAN_TOP_LIQUID = 12
 MACRO_SCAN_WORKERS = 3
 MACRO_SCAN_EXTRA_BATCH = 6
+# Network reads per slice (about five candle requests each) and the shortest
+# gap between two slices.
+MACRO_ATLAS_SLICE_SIZE = 8
+MACRO_ATLAS_SLICE_INTERVAL_SECONDS = 20
+_MACRO_ATLAS = None
+# Owner symbols that go to the front of the atlas universe. Set in-process by
+# the owner's cycle pass; empty until that route has run in this process.
+_MACRO_ATLAS_PRIORITY = {"held": (), "watchlist": (), "reload": ()}
 _MACRO_SCAN_LOCK = threading.Lock()
 _MACRO_SCAN_STATE = {
     "payload": None,
@@ -13934,20 +13943,51 @@ def _macro_scan_inline():
 
 
 def _macro_scan_universe():
-    """Stable public universe from the core assets and observed liquidity."""
+    """Atlas universe: core assets, owner symbols, then observed liquidity."""
     import macro_industry_scanner
 
-    core = (*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS)
-    liquid = []
+    volumes = {}
     try:
         volumes = latest_quote_volume_by_product(int(time.time())) or {}
-        liquid = sorted(
-            (pid for pid in volumes if re.fullmatch(r"[A-Z0-9]{1,15}-USD", pid)),
-            key=lambda pid: (-float(volumes[pid].get("quote_volume_usd") or 0.0), pid),
-        )[:MACRO_SCAN_TOP_LIQUID]
     except Exception:
         logging.debug("[MacroScan] liquidity snapshot unavailable", exc_info=True)
-    return list(dict.fromkeys((*core, *liquid)))[:MACRO_SCAN_MAX_PRODUCTS]
+    with _MACRO_SCAN_LOCK:
+        priority = dict(_MACRO_ATLAS_PRIORITY)
+    return macro_industry_scanner.select_atlas_universe(
+        core=(*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS),
+        held=priority["held"],
+        watchlist=priority["watchlist"],
+        reload=priority["reload"],
+        volumes=volumes,
+        limit=MACRO_SCAN_MAX_PRODUCTS,
+    )
+
+
+def _macro_atlas_set_priority(*, held=(), watchlist=(), reload=()):
+    """Record the owner's symbols so the next universe build puts them first."""
+    with _MACRO_SCAN_LOCK:
+        _MACRO_ATLAS_PRIORITY.update(
+            held=tuple(held)[:60], watchlist=tuple(watchlist)[:60], reload=tuple(reload)[:60]
+        )
+
+
+def _macro_atlas_fetch(product):
+    import chart_reader
+
+    return chart_reader.fetch_multi_year_daily_candles(
+        product, years=chart_reader.CYCLE_HISTORY_YEARS
+    )
+
+
+def _macro_atlas_wants_slice(state, now):
+    """True when cold or expired atlas symbols are due their next slice."""
+    payload = state["payload"]
+    return bool(
+        payload
+        and payload.get("atlas_pending_count")
+        and now - state["computed_at"] >= MACRO_ATLAS_SLICE_INTERVAL_SECONDS
+        and now >= (payload.get("atlas_retry_at") or 0)
+    )
 
 
 def _macro_scan_known_products():
@@ -13969,22 +14009,37 @@ def _macro_scan_load(product):
 
 
 def _macro_cycle_scan_compute(products):
-    """Load each product's closed daily history and run the stable scan."""
+    """Refresh one atlas slice, then scan every product the atlas can serve.
+
+    Only one refresh worker runs at a time (``_MACRO_SCAN_STATE["running"]``),
+    so the atlas is touched by a single thread.
+    """
     import macro_industry_scanner as scanner
 
-    with ThreadPoolExecutor(max_workers=MACRO_SCAN_WORKERS) as pool:
-        histories = dict(zip(products, pool.map(_macro_scan_load, products)))
-    payload = scanner.scan_universe_cycles(
-        {product: candles for product, candles in histories.items() if candles},
-        members=scanner.ALT_INDEX_MEMBERS,
-        breadth_products=frozenset((*scanner.MAJORS, *scanner.ALT_INDEX_MEMBERS)),
+    global _MACRO_ATLAS
+    # A cleared snapshot (new process, or a test reset) starts a new atlas.
+    if _MACRO_ATLAS is None or _MACRO_SCAN_STATE["payload"] is None:
+        _MACRO_ATLAS = scanner.CycleAtlas()
+    atlas = _MACRO_ATLAS
+    core = (*scanner.MAJORS, *scanner.ALT_INDEX_MEMBERS)
+    now = time.time()
+    scanner.refresh_cycle_atlas_slice(
+        atlas, products, _macro_atlas_fetch, now=now,
+        slice_size=MACRO_ATLAS_SLICE_SIZE, required=core,
     )
+    payload = scanner.scan_universe_cycles(
+        atlas.histories(products),
+        members=scanner.ALT_INDEX_MEMBERS,
+        breadth_products=frozenset(core),
+    )
+    coverage = scanner.atlas_coverage(atlas, products, now)
     payload.update(
         status="ready",
         computed_at=time.time(),
         requested=len(products),
-        unavailable=[product for product, candles in histories.items() if not candles],
+        unavailable=coverage.pop("atlas_unavailable"),
         ttl_seconds=MACRO_SCAN_TTL_SECONDS,
+        **coverage,
     )
     return payload
 
@@ -14065,7 +14120,7 @@ def _macro_scan_snapshot(wanted=(), *, allow_inline=True):
     with _MACRO_SCAN_LOCK:
         state = _MACRO_SCAN_STATE
         prior = state["payload"]
-        refresh_base = not _macro_scan_is_fresh(state, now)
+        refresh_base = not _macro_scan_is_fresh(state, now) or _macro_atlas_wants_slice(state, now)
         if (
             (inline and not allow_inline)
             or state["running"]
@@ -14182,6 +14237,9 @@ def get_macro_cycle_scan():
                 "breadth": None,
                 "buckets": {},
                 "coins": [],
+                "target_universe_size": MACRO_SCAN_MAX_PRODUCTS,
+                "ready_count": 0,
+                "coverage_pct": 0.0,
                 "blocks_alerts": False,
                 "outcome_validated": False,
             }

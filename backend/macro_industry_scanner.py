@@ -12,6 +12,10 @@ in multi-year daily candles keyed by Coinbase product id.
   rotation stages plus a three-state gate.
 - ``scan_universe_cycles`` reads every coin supplied, measures breadth across
   them and sorts them into four cycle buckets.
+- ``CycleAtlas`` with ``select_atlas_universe`` and
+  ``refresh_cycle_atlas_slice`` keeps a rolling cache of daily reads for up
+  to 120 liquid USD pairs and refreshes it a bounded slice at a time, using
+  the fetch function the caller passes in.
 
 The stages, gate and buckets are descriptive and have not been outcome tested.
 """
@@ -33,6 +37,12 @@ __all__ = [
     "cycle_row",
     "universe_breadth",
     "scan_universe_cycles",
+    "ATLAS_TARGET_SIZE",
+    "CycleAtlas",
+    "is_atlas_eligible",
+    "select_atlas_universe",
+    "refresh_cycle_atlas_slice",
+    "atlas_coverage",
 ]
 
 DAY = 86400
@@ -568,4 +578,254 @@ def scan_universe_cycles(
         "skipped": [row["symbol"] for row in rows if not row.get("available")],
         "blocks_alerts": False,
         "outcome_validated": False,
+    }
+
+
+# ─── rolling universe cycle atlas ─────────────────────────────────────────────
+#
+# The atlas keeps one multi-year daily (1D) read per product. Weekly (1W) and
+# monthly bars are built from that same daily read by ``chart_structure``, so
+# one cached series serves every timeframe of the cycle read. The atlas does
+# no I/O itself: the caller injects ``fetch`` and the clock.
+
+ATLAS_TARGET_SIZE = 120
+ATLAS_SLICE_SIZE = 8
+# A daily read is reused for six hours and never across a UTC day boundary,
+# because a new closed daily bar exists after midnight UTC.
+ATLAS_DAILY_TTL_SECONDS = 6 * 3600
+# A product whose read failed or came back empty is not retried for an hour.
+ATLAS_FAILED_TTL_SECONDS = 3600
+ATLAS_BACKOFF_MIN_SECONDS = 60.0
+ATLAS_BACKOFF_MAX_SECONDS = 900.0
+# A fetch faster than this was served from the on-disk day cache and does not
+# count against the slice's network budget.
+ATLAS_CHEAP_FETCH_SECONDS = 0.05
+
+STABLECOINS = frozenset({
+    "USDC", "USDT", "DAI", "PYUSD", "GUSD", "USDP", "PAX", "BUSD", "TUSD",
+    "USDS", "USDE", "USD1", "FDUSD", "EURC", "EUROC", "GYEN", "UST", "LUSD",
+    "FRAX", "MUSD", "RLUSD",
+})
+WRAPPED_TOKENS = frozenset({
+    "WBTC", "CBBTC", "TBTC", "WETH", "CBETH", "STETH", "WSTETH", "RETH",
+    "LSETH", "MSOL", "JITOSOL", "WAXL", "WLUNA", "WAMPL", "WCFG", "WBNB",
+    "CBDOGE", "CBXRP", "CBLTC", "CBADA",
+})
+_ATLAS_PRODUCT_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+
+def _atlas_product(value: Any) -> str | None:
+    """``BASE-USD`` for a symbol or USD product id, else ``None``."""
+    if not isinstance(value, str):
+        return None
+    base = value.strip().upper().removesuffix("-USD")
+    if not 1 <= len(base) <= 15 or not set(base) <= _ATLAS_PRODUCT_CHARS:
+        return None
+    return f"{base}-USD"
+
+
+def is_atlas_eligible(product_id: Any) -> bool:
+    """A USD spot pair that is neither a stablecoin nor a wrapped token."""
+    product = _atlas_product(product_id)
+    if product is None:
+        return False
+    return product.removesuffix("-USD") not in STABLECOINS | WRAPPED_TOKENS
+
+
+def _volume_usd(value: Any) -> float:
+    if isinstance(value, dict):
+        value = value.get("quote_volume_usd")
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return out if math.isfinite(out) and out > 0 else 0.0
+
+
+def select_atlas_universe(
+    *,
+    core: Any = (),
+    held: Any = (),
+    watchlist: Any = (),
+    reload: Any = (),
+    volumes: dict[str, Any] | None = None,
+    movers: Any = (),
+    limit: int = ATLAS_TARGET_SIZE,
+) -> list[str]:
+    """Up to ``limit`` product ids, most important first.
+
+    Order: the core members the industry regime needs, the owner's held and
+    watchlist symbols, symbols with an active reload plan, then Coinbase USD
+    pairs by 24h USD volume and finally active movers. Stablecoins and
+    wrapped tokens are dropped from every group except ``core``.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(values: Any, *, filtered: bool = True) -> None:
+        for raw in values or ():
+            product = _atlas_product(raw)
+            if product is None or product in seen or (filtered and not is_atlas_eligible(product)):
+                continue
+            seen.add(product)
+            out.append(product)
+
+    add(core, filtered=False)
+    add(held)
+    add(watchlist)
+    add(reload)
+    liquid = {
+        pid: _volume_usd(row)
+        for pid, row in (volumes or {}).items()
+        # Only real ``BASE-USD`` ids: a ``BASE-USDC`` pair is another market.
+        if isinstance(pid, str) and pid.endswith("-USD") and _atlas_product(pid) == pid
+    }
+    add(sorted(liquid, key=lambda pid: (-liquid[pid], pid)))
+    add(movers)
+    return out[: max(0, int(limit))]
+
+
+class CycleAtlas:
+    """Per-product cache of daily candle reads with a TTL and a 429 backoff."""
+
+    def __init__(
+        self,
+        *,
+        ttl_seconds: float = ATLAS_DAILY_TTL_SECONDS,
+        failed_ttl_seconds: float = ATLAS_FAILED_TTL_SECONDS,
+    ) -> None:
+        self.ttl_seconds = float(ttl_seconds)
+        self.failed_ttl_seconds = float(failed_ttl_seconds)
+        # product -> {"candles", "fetched_at" (last success), "checked_at" (last try)}
+        self.entries: dict[str, dict[str, Any]] = {}
+        self.backoff_seconds = 0.0
+        self.backoff_until = 0.0
+
+    def state(self, product: str, now: float) -> str:
+        """``cold``, ``fresh``, ``expired`` or ``failed`` (waiting to retry)."""
+        entry = self.entries.get(product)
+        if entry is None:
+            return "cold"
+        recently_failed = (
+            entry["checked_at"] > entry["fetched_at"]
+            and now - entry["checked_at"] < self.failed_ttl_seconds
+        )
+        if not entry["candles"]:
+            return "failed" if recently_failed else "cold"
+        fetched = entry["fetched_at"]
+        if int(fetched // DAY) == int(now // DAY) and 0 <= now - fetched < self.ttl_seconds:
+            return "fresh"
+        return "failed" if recently_failed else "expired"
+
+    def histories(self, products: Any) -> dict[str, list[list[Any]]]:
+        """Cached candles for the given products, fresh or not."""
+        return {
+            product: self.entries[product]["candles"]
+            for product in products
+            if (self.entries.get(product) or {}).get("candles")
+        }
+
+    def _store(self, product: str, candles: Any, now: float) -> bool:
+        entry = self.entries.setdefault(
+            product, {"candles": None, "fetched_at": float("-inf"), "checked_at": now}
+        )
+        if isinstance(candles, list) and candles:
+            entry.update(candles=candles, fetched_at=now, checked_at=now)
+            return True
+        # Keep the last good read (if any) and retry after the failure TTL.
+        entry["checked_at"] = max(now, entry["fetched_at"] + 1e-3)
+        return False
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return 429 in (status, getattr(exc, "status_code", None))
+
+
+def refresh_cycle_atlas_slice(
+    atlas: CycleAtlas,
+    universe: list[str] | tuple[str, ...],
+    fetch: Any,
+    *,
+    now: float,
+    slice_size: int = ATLAS_SLICE_SIZE,
+    required: Any = (),
+    clock: Any = None,
+    cheap_seconds: float = ATLAS_CHEAP_FETCH_SECONDS,
+) -> dict[str, Any]:
+    """Refresh one bounded slice of cold or expired products.
+
+    ``required`` products that are not fresh are always read. After them, at
+    most ``slice_size`` network reads are made: cold products in universe
+    order, then expired ones, oldest first. A read that returns within
+    ``cheap_seconds`` came from a local cache and is not counted. The first
+    HTTP 429 ends the slice and starts a doubling backoff during which later
+    calls read nothing. Products outside ``universe`` are dropped.
+    """
+    if clock is None:
+        import time as _time
+
+        clock = _time.monotonic
+    universe = list(dict.fromkeys(universe))
+    members = set(universe)
+    for product in [p for p in atlas.entries if p not in members]:
+        del atlas.entries[product]
+    summary: dict[str, Any] = {
+        "attempted": [], "refreshed": [], "failed": [], "rate_limited": False,
+        "backing_off": False, "network_reads": 0,
+    }
+    if now < atlas.backoff_until:
+        summary["backing_off"] = True
+        return summary
+
+    states = {product: atlas.state(product, now) for product in universe}
+    must = [p for p in dict.fromkeys(required) if states.get(p) in {"cold", "expired"}]
+    cold = [p for p in universe if states[p] == "cold" and p not in must]
+    expired = sorted(
+        (p for p in universe if states[p] == "expired" and p not in must),
+        key=lambda p: atlas.entries[p]["fetched_at"],
+    )
+    budget = max(0, int(slice_size))
+    for product in (*must, *cold, *expired):
+        is_required = product in must
+        if not is_required and summary["network_reads"] >= budget:
+            break
+        started = clock()
+        try:
+            candles = fetch(product)
+        except Exception as exc:
+            if _is_rate_limit(exc):
+                atlas.backoff_seconds = min(
+                    max(ATLAS_BACKOFF_MIN_SECONDS, atlas.backoff_seconds * 2),
+                    ATLAS_BACKOFF_MAX_SECONDS,
+                )
+                atlas.backoff_until = now + atlas.backoff_seconds
+                summary["rate_limited"] = True
+                break
+            logging.debug("[CycleAtlas] read failed for %s: %s", product, exc)
+            candles = None
+        summary["attempted"].append(product)
+        if not is_required and clock() - started >= cheap_seconds:
+            summary["network_reads"] += 1
+        summary["refreshed" if atlas._store(product, candles, now) else "failed"].append(product)
+    if summary["refreshed"] and not summary["rate_limited"]:
+        atlas.backoff_seconds = 0.0
+    return summary
+
+
+def atlas_coverage(atlas: CycleAtlas, universe: list[str] | tuple[str, ...], now: float) -> dict[str, Any]:
+    """How much of the target universe the atlas can serve right now."""
+    universe = list(dict.fromkeys(universe))
+    states = {product: atlas.state(product, now) for product in universe}
+    ready = [p for p in universe if (atlas.entries.get(p) or {}).get("candles")]
+    target = len(universe)
+    return {
+        "target_universe_size": target,
+        "ready_count": len(ready),
+        "coverage_pct": round(len(ready) / target * 100.0, 1) if target else 0.0,
+        "fresh_count": sum(1 for s in states.values() if s == "fresh"),
+        # Still to read in a later slice: never read, or read but out of date.
+        "atlas_pending_count": sum(1 for s in states.values() if s in {"cold", "expired"}),
+        "atlas_unavailable": [p for p in universe if p not in ready and states[p] == "failed"],
+        "atlas_retry_at": atlas.backoff_until if now < atlas.backoff_until else None,
     }
