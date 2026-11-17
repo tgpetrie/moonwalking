@@ -95,6 +95,56 @@ def test_protective_stop_on_floor_breach_preempts_trim(store):
     assert obs[0].severity == "critical"
 
 
+def test_fresh_floor_break_stops_at_market_and_mode_b_exits(store):
+    # 49.06 is 2.1% under the 50.11 floor: a fresh structural break.
+    row = _row("SOL", 49.06)
+    positions = [{"symbol": "SOL", "quantity": 10, "higher_low_floor": 50.11}]
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(row), "positions": positions, "quotes": {"SOL-USD": _quote(49.0)},
+    })
+    (proposal,) = agent.last_proposals
+    assert proposal["breach_state"] == "fresh_floor_break"
+    assert proposal["stop_price"] == proposal["reference_price"] == 49.06
+    assert proposal["evidence"]["broken_floor_price"] == 50.11
+    assert proposal["reasons"] == ["Just closed 2.1% below $50.11 floor."]
+    assert proposal["status"] == "auto_executed_dry_run"
+    assert proposal["execution"]["base_size"] == 10
+
+
+def test_deep_stale_floor_break_reassesses_and_mode_b_never_sells(store):
+    # RENDER at 1.40 is 20% under its 1.76 floor, with the cycle-low stop at 1.30.
+    row = _row("RENDER", 1.40, accumulation_invalidation_stop={"stop_price": 1.30})
+    positions = [{"symbol": "RENDER", "quantity": 100, "higher_low_floor": 1.76}]
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    calls = []
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(row), "positions": positions,
+        "quotes": {"RENDER-USD": _quote(1.39)},
+        "quote_fetcher": lambda products: calls.append(products) or {},
+    })
+    (proposal,) = agent.last_proposals
+    assert proposal["breach_state"] == "stale_floor_break_reassess"
+    assert proposal["status"] == "pending_approval"
+    assert proposal["execution"] == {"held_reason": "stale_floor_break_reassess"}
+    assert proposal["stop_price"] == 1.30 < proposal["reference_price"]
+    assert proposal["evidence"]["reclaim_resistance"] == 1.76
+    assert proposal["reasons"][0] == "Floor $1.76 already broken by 20%."
+    assert calls == [] and store.count_auto_orders_since(0) == 0
+
+    # With no cycle-low stop under price there is no stop at all, never one above market.
+    for stop in (None, 1.50):
+        extra = {"accumulation_invalidation_stop": {"stop_price": stop}} if stop else {}
+        (proposal,) = CycleStrategistAgent(store).evaluate({
+            "cycle_scan": _scan(_row("RENDER", 1.40, **extra)), "positions": positions,
+        })
+        assert proposal.stop_price is None
+        assert proposal.evidence["stop_basis"] == "floor_already_broken_reassess"
+        assert GuardedDryRunExitExecutor().execute(
+            proposal, positions[0], _quote(1.39), NOW_MS
+        )["block_reasons"] == ["stale_floor_break_reassess"]
+
+
 def test_protective_stop_when_invalidation_stop_is_near(store):
     row = _row("ADA", 1.0, accumulation_invalidation_stop={"stop_price": 0.975, "stop_distance_pct": 2.5})
     agent, _ = _run(store, {"cycle_scan": _scan(row), "positions": [{"symbol": "ADA", "quantity": 100}]})

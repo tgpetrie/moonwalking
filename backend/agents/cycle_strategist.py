@@ -8,7 +8,11 @@ deterministic proposals:
                           pressing an overhead 50W/100W average, while the
                           liquidity rotation is still Stage 1 or 2
 - ``PROTECTIVE_STOP``     held coin has lost its daily higher-low floor, or is
-                          close to its accumulation invalidation stop
+                          close to its accumulation invalidation stop. A fresh
+                          break (at most 5% under the floor) exits at market;
+                          a deeper, stale break keeps the floor as reclaim
+                          resistance, guards the cycle-low stop below price
+                          and always waits for approval
 - ``ACCUMULATE_SUPPORT``  deep accumulation exhaustion (18+ bearish months,
                           weekly StochRSI turning up under 25, daily MACD kiss
                           or divergence) with a stop no more than 10% away
@@ -30,8 +34,8 @@ by the open-risk (portfolio heat) limit.
 
 Proposals are stored in ``AgentStore``. In ``approval_queue`` mode every
 proposal waits for approval. In ``auto_protect_exits`` mode, trims and
-protective stops run through ``GuardedDryRunExitExecutor``; entries, reloads
-and rotations always wait for approval.
+protective stops run through ``GuardedDryRunExitExecutor``, except stale floor
+breaks; entries, reloads and rotations always wait for approval.
 Nothing here can submit an exchange order: ``live_guarded`` is recorded as a
 setting but blocks automatic execution because no live route exists.
 """
@@ -70,6 +74,10 @@ TRIM_MIN_PCT = 25.0
 TRIM_MAX_PCT = 50.0
 SMA_TOUCH_PCT = 2.0  # within this much of an overhead 50W/100W average
 STOP_APPROACH_PCT = 3.0
+# A close this far under the daily higher-low floor is a fresh break; deeper
+# is a stale break that waits for an operator.
+FRESH_FLOOR_BREAK_PCT = 5.0
+STALE_FLOOR_BREAK = "stale_floor_break_reassess"
 ACCUMULATION_MIN_STREAK = 18
 ACCUMULATION_MAX_STOP_PCT = 10.0
 BREAKOUT_MIN_WEEKLY_RSI = 60.0
@@ -128,6 +136,7 @@ class TradeProposal:
     status: str = "pending_approval"
     trim_pct: float | None = None
     stop_price: float | None = None
+    breach_state: str | None = None
     stage: str | None = None
     evidence: dict[str, Any] = field(default_factory=dict)
     target_price: float | None = None
@@ -271,16 +280,77 @@ def evaluate_trim(row, multi_year, stage, price) -> TradeProposal | None:
     )
 
 
+def _fmt_price(value: float) -> str:
+    return f"${value:,.2f}" if value >= 1 else f"${value:.4g}"
+
+
+def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposal:
+    """A close below the daily higher-low floor, fresh or long since broken.
+
+    A fresh break (at most ``FRESH_FLOOR_BREAK_PCT`` below) is still a live
+    structural failure, so the exit stop sits at the market, never above it.
+    A deeper break is stale: selling there dumps the low, so the old floor
+    becomes reclaim resistance, the stop falls back to the cycle invalidation
+    below price, and the proposal always waits for an operator.
+    """
+    below = (floor - price) / floor * 100
+    evidence = {"floor": floor, "broken_floor_price": floor, "distance_below_floor_pct": _round(below)}
+    if below <= FRESH_FLOOR_BREAK_PCT:
+        return TradeProposal(
+            action=PROTECTIVE_STOP,
+            symbol=row["symbol"],
+            side="sell",
+            reference_price=price,
+            trim_pct=100.0,
+            stop_price=price,
+            breach_state="fresh_floor_break",
+            reasons=[f"Just closed {below:.1f}% below {_fmt_price(floor)} floor."],
+            evidence={**evidence, "trigger": "higher_low_floor_breached", "stop_distance_pct": 0.0},
+        )
+    stop = next(
+        (c for c in (scanner_stop, position_stop) if c is not None and 0 < c < price), None
+    )
+    reasons = [f"Floor {_fmt_price(floor)} already broken by {below:.0f}%."]
+    if stop is None:
+        reasons.append(
+            f"Reassess on a bounce to {_fmt_price(floor)}; no cycle-low stop sits below price."
+        )
+    else:
+        reasons.append(
+            f"Reassess on a bounce to {_fmt_price(floor)} or guard the cycle-low stop at {_fmt_price(stop)}."
+        )
+    return TradeProposal(
+        action=PROTECTIVE_STOP,
+        symbol=row["symbol"],
+        side="sell",
+        reference_price=price,
+        trim_pct=100.0,
+        stop_price=stop,
+        breach_state=STALE_FLOOR_BREAK,
+        reasons=reasons,
+        evidence={
+            **evidence,
+            "trigger": "stale_floor_break",
+            "reclaim_resistance": floor,
+            "stop_basis": "accumulation_invalidation_stop" if stop is not None
+            else "floor_already_broken_reassess",
+            "stop_distance_pct": _round((price - stop) / price * 100) if stop is not None else None,
+        },
+    )
+
+
 def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
+    scanner_stop = _num(stop.get("stop_price"))
     stop_price = _num(position_stop)
     position_guard = stop_price is not None and stop_price > 0
     if not position_guard:
-        stop_price = _num(stop.get("stop_price"))
+        stop_price = scanner_stop
     if floor is not None and price < floor and (stop_price is None or floor >= stop_price):
-        trigger, level = "higher_low_floor_breached", floor
-        message = "Price closed below the daily higher-low floor."
-    elif stop_price is not None and 0 < stop_price and price <= stop_price:
+        return _floor_break(
+            row, floor, price, scanner_stop, _num(position_stop) if position_guard else None
+        )
+    if stop_price is not None and 0 < stop_price and price <= stop_price:
         trigger, level = "invalidation_stop_breached", stop_price
         detail = "the position stop" if position_guard else "the accumulation invalidation stop"
         message = f"Price closed at or below {detail}."
@@ -817,6 +887,8 @@ class GuardedDryRunExitExecutor:
 
         if proposal.action not in EXIT_ACTIONS or proposal.side != "sell":
             return blocked("exit_only")
+        if proposal.breach_state == STALE_FLOOR_BREAK:
+            return blocked(STALE_FLOOR_BREAK)
         held_quantity = _num(position.get("quantity"))
         trim = _num(proposal.trim_pct)
         if held_quantity is None or held_quantity <= 0 or trim is None or not 0 < trim <= 100:
@@ -843,9 +915,15 @@ class GuardedDryRunExitExecutor:
                     "stop_price": stop,
                     "base_size": quantity,
                 }
-            if proposal.evidence.get("trigger") not in {
-                "higher_low_floor_breached", "invalidation_stop_breached"
-            } or bid > stop:
+            trigger = proposal.evidence.get("trigger")
+            if trigger == "higher_low_floor_breached":
+                # The stop sits at the market; the bid must still be under the floor.
+                level = _num(proposal.evidence.get("broken_floor_price")) or stop
+            elif trigger == "invalidation_stop_breached":
+                level = stop
+            else:
+                level = None
+            if level is None or bid > level:
                 return blocked("quote_does_not_confirm_stop_breach")
         fill = bid * (1.0 - self.slippage_bps / 10_000.0)
         proceeds = _num(fill * quantity)
@@ -1041,6 +1119,8 @@ class CycleStrategistAgent:
             return "pending_approval", None
         if settings["autonomy_mode"] != "auto_protect_exits":
             return "pending_approval", None
+        if proposal.breach_state == STALE_FLOOR_BREAK:
+            return "pending_approval", {"held_reason": STALE_FLOOR_BREAK}
         if settings["emergency_pause"]:
             return "pending_approval", {"held_reason": "emergency_pause"}
         if settings["execution_mode"] != "dry_run":
@@ -1074,6 +1154,7 @@ class CycleStrategistAgent:
         wanted = sorted({
             p.product_id for p in proposals
             if p.action in EXIT_ACTIONS and p.product_id not in quotes
+            and p.breach_state != STALE_FLOOR_BREAK
         })
         if not wanted:
             return {}
@@ -1129,6 +1210,7 @@ class CycleStrategistAgent:
                         "reasons": saved["reasons"],
                         "trim_pct": saved.get("trim_pct"),
                         "stop_price": saved.get("stop_price"),
+                        "breach_state": saved.get("breach_state"),
                         "reference_price": saved["reference_price"],
                         "target_price": saved.get("target_price"),
                         "reward_to_risk_ratio": saved.get("reward_to_risk_ratio"),

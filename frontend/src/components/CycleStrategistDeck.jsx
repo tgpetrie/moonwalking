@@ -158,6 +158,9 @@ function ProposalRow({ proposal, busy, onDecide }) {
   const symbol = String(proposal.symbol || "").toUpperCase();
   const status = proposal.status || "pending_approval";
   const blockReasons = Array.isArray(proposal.execution?.block_reasons) ? proposal.execution.block_reasons : [];
+  const heldReason = typeof proposal.execution?.held_reason === "string" ? proposal.execution.held_reason : "";
+  const evidence = proposal.evidence && typeof proposal.evidence === "object" ? proposal.evidence : {};
+  const staleBreak = proposal.breach_state === "stale_floor_break_reassess";
   const pair = proposal.action === "ROTATE_TO_LEADER" && proposal.pair && typeof proposal.pair === "object" ? proposal.pair : null;
   const buySymbol = pair ? String(pair.buy_symbol || "").toUpperCase() : symbol;
   const notes = sizingNotes(proposal.sizing);
@@ -173,6 +176,9 @@ function ProposalRow({ proposal, busy, onDecide }) {
             R:R {Number(proposal.reward_to_risk_ratio).toFixed(2)}
           </span>
         ) : null}
+        {staleBreak ? (
+          <span className="mw-agents-chip is-sev-watch" title="Floor broke long ago; reassess instead of selling the low">Reassess</span>
+        ) : null}
         <span className={`mw-agents-chip ${STATUS_CHIP[status] || ""}`}>{STATUS_LABEL[status] || status}</span>
       </div>
       <dl className="mw-proposal__levels">
@@ -185,6 +191,11 @@ function ProposalRow({ proposal, busy, onDecide }) {
         ) : (
           <div><dt>Stop</dt><dd>{price(proposal.stop_price)}</dd></div>
         )}
+        {finite(evidence.reclaim_resistance) ? (
+          <div><dt>Reclaim</dt><dd>{price(evidence.reclaim_resistance)}</dd></div>
+        ) : finite(evidence.broken_floor_price) ? (
+          <div><dt>Broken floor</dt><dd>{price(evidence.broken_floor_price)}</dd></div>
+        ) : null}
         {finite(proposal.target_price) ? <div><dt>Target</dt><dd>{price(proposal.target_price)}</dd></div> : null}
         {proposal.trim_pct ? <div><dt>Trim</dt><dd>{proposal.trim_pct}%</dd></div> : null}
         <SuggestedSize sizing={proposal.sizing} symbol={buySymbol} />
@@ -195,6 +206,7 @@ function ProposalRow({ proposal, busy, onDecide }) {
       {notes.length ? <p className="mw-agents-note">{notes.join(" ")}</p> : null}
       {proposal.action === "TRIM_TO_USDC" ? <ReloadPlan plan={proposal.reload_plan} symbol={symbol} /> : null}
       {blockReasons.length ? <p className="mw-agents-note">Guard: {blockReasons.join(", ").replaceAll("_", " ")}</p> : null}
+      {heldReason ? <p className="mw-agents-note">Held for approval: {heldReason.replaceAll("_", " ")}</p> : null}
       <div className="mw-proposal__actions">
         {pair ? (
           <>

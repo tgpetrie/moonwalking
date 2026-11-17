@@ -298,6 +298,27 @@ describe("AgentsPage", () => {
       expect(calls.some((c) => c.path.endsWith("/reject"))).toBe(true);
     });
 
+    it("marks a stale floor break for reassessment with its reclaim level", async () => {
+      mockDeck({
+        proposals: [proposal({
+          action: "PROTECTIVE_STOP",
+          reference_price: 1.4,
+          stop_price: 1.3,
+          trim_pct: 100,
+          breach_state: "stale_floor_break_reassess",
+          evidence: { trigger: "stale_floor_break", reclaim_resistance: 1.76, broken_floor_price: 1.76 },
+          execution: { held_reason: "stale_floor_break_reassess" },
+        })],
+        autonomy: { autonomy_mode: "auto_protect_exits", execution_mode: "dry_run", emergency_pause: false, daily_order_cap: 3 },
+      });
+      render(<AgentsPage />);
+      const row = await screen.findByRole("listitem", { name: "RENDER Protective stop" });
+      expect(within(row).getByText("Reassess")).toBeInTheDocument();
+      expect(within(row).getByText("Reclaim").nextSibling).toHaveTextContent("1.76");
+      expect(within(row).getByText("Held for approval: stale floor break reassess")).toBeInTheDocument();
+      expect(within(row).getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    });
+
     it("switches autonomy mode, execution mode, pause and daily cap", async () => {
       const calls = mockDeck({ proposals: [] });
       render(<AgentsPage />);
