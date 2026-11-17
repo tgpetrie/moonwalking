@@ -339,6 +339,55 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
     )
 
 
+def _stop_break(row, floor, price, broken_stop, position_guard) -> TradeProposal:
+    """A close at or below the position or cycle invalidation stop.
+
+    Mirrors ``_floor_break``: a fresh break exits at the market, a deep one
+    turns the broken stop into reclaim resistance and waits for an operator.
+    """
+    detail = "position stop" if position_guard else "accumulation invalidation stop"
+    basis = "position_stop" if position_guard else "accumulation_invalidation_stop"
+    below = (broken_stop - price) / broken_stop * 100
+    evidence = {
+        "floor": floor,
+        "broken_stop_price": broken_stop,
+        "broken_stop_basis": basis,
+        "distance_below_stop_pct": _round(below),
+    }
+    if below <= FRESH_FLOOR_BREAK_PCT:
+        return TradeProposal(
+            action=PROTECTIVE_STOP,
+            symbol=row["symbol"],
+            side="sell",
+            reference_price=price,
+            trim_pct=100.0,
+            stop_price=min(broken_stop, price),
+            breach_state="fresh_stop_break",
+            reasons=[f"Price closed {below:.1f}% below the {detail} at {_fmt_price(broken_stop)}."],
+            evidence={**evidence, "trigger": "invalidation_stop_breached", "stop_distance_pct": 0.0},
+        )
+    return TradeProposal(
+        action=PROTECTIVE_STOP,
+        symbol=row["symbol"],
+        side="sell",
+        reference_price=price,
+        trim_pct=100.0,
+        stop_price=None,
+        breach_state=STALE_FLOOR_BREAK,
+        reasons=[
+            f"The {detail} at {_fmt_price(broken_stop)} is already broken by {below:.0f}%.",
+            f"Reassess on a bounce to {_fmt_price(broken_stop)}; do not sell into the low.",
+        ],
+        evidence={
+            **evidence,
+            "trigger": "stale_stop_break",
+            "reclaim_resistance": broken_stop,
+            "stop_basis": "stop_already_broken_reassess",
+            "stop_distance_pct": None,
+        },
+    )
+
+
 def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
     scanner_stop = _num(stop.get("stop_price"))
@@ -351,10 +400,8 @@ def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProp
             row, floor, price, scanner_stop, _num(position_stop) if position_guard else None
         )
     if stop_price is not None and 0 < stop_price and price <= stop_price:
-        trigger, level = "invalidation_stop_breached", stop_price
-        detail = "the position stop" if position_guard else "the accumulation invalidation stop"
-        message = f"Price closed at or below {detail}."
-    elif stop_price is not None and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
+        return _stop_break(row, floor, price, stop_price, position_guard)
+    if stop_price is not None and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
         trigger, level = "invalidation_stop_near", stop_price
         detail = "the position stop" if position_guard else "the accumulation invalidation stop"
         distance = (price - stop_price) / price * 100

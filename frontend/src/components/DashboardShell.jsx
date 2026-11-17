@@ -18,6 +18,7 @@ import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
 import IndustryPulse from "./IndustryPulse.jsx";
+import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -354,7 +355,9 @@ export default function DashboardShell({ onInfo }) {
     toggleWatchlist({ symbol, price });
   };
 
-  const watchlistSymbols = watchlistItems.map((item) => item.symbol);
+  const watchlistSymbols = useMemo(() => watchlistItems.map((item) => item.symbol), [watchlistItems]);
+  // One scan poll shared by Industry Pulse and the INTELLIGENCE_LOG desk tape.
+  const cycleScanState = useMacroCycleScan(watchlistSymbols);
   const onInfoProp = onInfo || handleInfo;
   const uiLoading = loading || warming;
 
@@ -485,7 +488,7 @@ export default function DashboardShell({ onInfo }) {
                     <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
 
                     {/* Multi-year cycle context. It never filters or ranks the boards below. */}
-                    <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} />
+                    <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} scanState={cycleScanState} />
 
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
@@ -547,6 +550,8 @@ export default function DashboardShell({ onInfo }) {
                         <AnomalyStream
                           data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
                           volumeData={bannerVolume1h || []}
+                          cycleScan={cycleScanState.scan}
+                          watchSymbols={watchlistSymbols}
                         />
                       </div>
                     </section>

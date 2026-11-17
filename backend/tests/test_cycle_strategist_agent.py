@@ -145,6 +145,34 @@ def test_deep_stale_floor_break_reassesses_and_mode_b_never_sells(store):
         )["block_reasons"] == ["stale_floor_break_reassess"]
 
 
+def test_deep_invalidation_stop_break_never_stops_above_market(store):
+    # ATOM at 4.00 is 20% under its 5.00 cycle invalidation stop and has no daily floor.
+    row = _row("ATOM", 4.00, accumulation_invalidation_stop={"stop_price": 5.00})
+    positions = [{"symbol": "ATOM", "quantity": 50}]
+    store.set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    agent, _ = _run(store, {
+        "cycle_scan": _scan(row), "positions": positions, "quotes": {"ATOM-USD": _quote(3.99)},
+    })
+    (proposal,) = agent.last_proposals
+    assert proposal["breach_state"] == "stale_floor_break_reassess"
+    assert proposal["stop_price"] is None
+    assert proposal["evidence"]["reclaim_resistance"] == 5.00
+    assert proposal["status"] == "pending_approval"
+    assert proposal["execution"] == {"held_reason": "stale_floor_break_reassess"}
+    assert store.count_auto_orders_since(0) == 0
+
+
+def test_fresh_position_stop_break_stops_at_market(store):
+    # 9.70 is 3% under the 10.00 position stop: still a live exit, capped at market.
+    positions = [{"symbol": "LTC", "quantity": 5, "stop_price": 10.00}]
+    (proposal,) = CycleStrategistAgent(store).evaluate({
+        "cycle_scan": _scan(_row("LTC", 9.70)), "positions": positions,
+    })
+    assert proposal.breach_state == "fresh_stop_break"
+    assert proposal.stop_price == proposal.reference_price == 9.70
+    assert proposal.evidence["broken_stop_basis"] == "position_stop"
+
+
 def test_protective_stop_when_invalidation_stop_is_near(store):
     row = _row("ADA", 1.0, accumulation_invalidation_stop={"stop_price": 0.975, "stop_distance_pct": 2.5})
     agent, _ = _run(store, {"cycle_scan": _scan(row), "positions": [{"symbol": "ADA", "quantity": 100}]})

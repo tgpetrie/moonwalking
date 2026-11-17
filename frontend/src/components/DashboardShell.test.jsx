@@ -29,6 +29,10 @@ vi.mock("../context/WatchlistContext.jsx", () => ({
   useWatchlist: () => ({ items: [{ symbol: "RENDER" }, { symbol: "FET" }], toggle: vi.fn() }),
 }));
 
+vi.mock("../hooks/useMacroCycleScan.js", () => ({
+  useMacroCycleScan: () => ({ scan: null, loading: false, error: null }),
+}));
+
 vi.mock("./IndustryPulse.jsx", () => ({
   default: ({ symbols, onInfo }) => (
     <div data-testid="industry-pulse-mount" data-symbols={symbols.join(",")} data-clickable={typeof onInfo === "function" ? "yes" : "no"} />

@@ -230,7 +230,9 @@ export function IndustryPulseView({ scan, loading = false, error = null, onInfo 
   );
 }
 
-export default function IndustryPulse({ symbols = [], onInfo }) {
-  const { scan, loading, error } = useMacroCycleScan(symbols);
+/** `scanState` lets a parent share one scan poll with other panels. */
+export default function IndustryPulse({ symbols = [], onInfo, scanState = null }) {
+  const own = useMacroCycleScan(symbols, { enabled: !scanState });
+  const { scan, loading, error } = scanState || own;
   return <IndustryPulseView scan={scan} loading={loading} error={error} onInfo={onInfo} />;
 }

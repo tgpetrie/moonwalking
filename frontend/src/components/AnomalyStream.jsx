@@ -5,6 +5,7 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 import { stripLeadingSymbol, stripLeadingType } from "../utils/alertText";
 import { createEventKey, shouldSkip, markSeen, expireOldKeys } from "../utils/intelligenceDedup";
+import { TAPE_FILTERS, buildDeskTape, filterTape, scanIsReady } from "../utils/deskTape";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -192,8 +193,17 @@ const renderIntelMessage = (message) => {
   return parts;
 };
 
-export default function AnomalyStream({ data = {}, volumeData = [] }) {
+const EMPTY = [];
+
+export default function AnomalyStream({
+  data = {},
+  volumeData = [],
+  cycleScan = null,
+  watchSymbols = EMPTY,
+  heldSymbols = EMPTY,
+}) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [filter, setFilter] = useState("desk");
   const [logs, setLogs] = useState([
     { id: "init-1", time: "INIT", msg: "ESTABLISHING NEURAL LINK...", label: "SYSTEM" },
     { id: "init-2", time: "INIT", msg: "M3_COPROCESSOR: ONLINE", label: "SYSTEM" },
@@ -216,9 +226,19 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     if (!isCollapsed && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs, isCollapsed]);
+  }, [logs, isCollapsed, filter]);
 
-  const visibleLogs = isCollapsed ? [] : logs;
+  const tape = useMemo(
+    () => buildDeskTape(logs, classifyLog, { scan: cycleScan, watchSymbols, heldSymbols }),
+    [logs, cycleScan, watchSymbols, heldSymbols]
+  );
+  const scanReady = scanIsReady(cycleScan);
+  const { rows, fallback } = useMemo(
+    () => filterTape(tape, filter, { scanReady }),
+    [tape, filter, scanReady]
+  );
+  const visibleRows = isCollapsed ? EMPTY : rows;
+  const stageNumber = cycleScan?.industry?.available ? cycleScan.industry.stage_number : null;
 
   // Rows inserted within the last 3s get the fresh-entry animation
   const freshIds = useMemo(() => {
@@ -326,6 +346,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const divergenceRaw = extractDivergenceRaw(a) ?? extractDivergenceRaw(a?.meta || {});
       const rawMsg = a.message || a.title || "";
       const msg = cleanAlertMessage(rawMsg, symbol, type);
+      const direction = String(a?.direction || "").toLowerCase();
 
       newLogs.push({
         id: `a-${nowMs}-${Math.random().toString(36).slice(2, 6)}`,
@@ -345,6 +366,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         vol_change_pct: volPct,
         sentiment_delta: sentimentDelta,
         divergence: divergenceRaw,
+        direction: direction === "up" || direction === "down" ? direction : null,
+        ref_price: pickNumber(a?.price_now, a?.price, a?.current_price, a?.meta?.price),
       });
       markSeen(key, seenRef.current, nowMs);
     }
@@ -375,16 +398,48 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         {relLabel ? <span className="bh-intel-updated">{relLabel}</span> : null}
       </div>
 
+      {!isCollapsed ? (
+        <div className="bh-intel-filters">
+          <div className="bh-intel-pills" role="group" aria-label="Intelligence log filter">
+            {TAPE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={`bh-intel-pill${filter === f.key ? " is-active" : ""}`}
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {stageNumber ? (
+            <span className="bh-intel-stage" title={cycleScan.industry.stage_label || undefined}>
+              STAGE {stageNumber}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <div
         ref={scrollRef}
         className={`bh-intel-log ${isCollapsed ? "is-collapsed" : ""}`}
         role="log"
         aria-live="polite"
       >
-        {visibleLogs.map((log) => {
+        {!isCollapsed && filter === "desk" && fallback ? (
+          <div className="bh-intel-note">Cycle scan warming · showing top anomalies</div>
+        ) : null}
+        {!isCollapsed && rows.length === 0 ? (
+          <div className="bh-intel-note">
+            {filter === "watchlist"
+              ? "No anomalies on watchlist or held coins yet."
+              : "No desk-grade confluence right now. Raw Tape shows every anomaly."}
+          </div>
+        ) : null}
+        {visibleRows.map(({ log, label, chipTone, badges, call }) => {
           const tradeUrl = coinbaseSpotUrl(log);
           const isClickable = Boolean(tradeUrl);
-          const { label, chipTone } = classifyLog(log);
           const chipClass = `bh-intel-chip bh-intel-chip--${chipTone}`;
           const message = buildMessage(log, label);
           const showPrefix = Boolean(log.prefix) && log.prefix !== "!!!";
@@ -392,7 +447,9 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           return (
             <div
               key={log.id}
-              className={`bh-intel-line${isClickable ? " bh-intel-clickable" : ""}${freshIds.has(log.id) ? " is-fresh" : ""}`}
+              data-testid="intel-row"
+              data-symbol={log.symbol || undefined}
+              className={`bh-intel-line${isClickable ? " bh-intel-clickable" : ""}${freshIds.has(log.id) ? " is-fresh" : ""}${call ? ` is-confluence is-confluence--${call.tone}` : ""}`}
               role={isClickable ? "link" : undefined}
               tabIndex={isClickable ? 0 : undefined}
               onClick={(e) => {
@@ -423,6 +480,16 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
                   )
                 ) : null}{" "}
                 <span className="bh-intel-text">{renderIntelMessage(message)}</span>
+                {call ? (
+                  <span className={`bh-intel-call bh-intel-call--${call.tone}`} title={call.detail}>
+                    {call.label}
+                  </span>
+                ) : null}
+                {badges.map((b) => (
+                  <span key={b.key} className={`bh-intel-badge bh-intel-badge--${b.tone}`}>
+                    {b.label}
+                  </span>
+                ))}
               </span>
             </div>
           );

@@ -3714,6 +3714,90 @@ body {
   flex-shrink: 0;
 }
 
+/* Desk tape: filter pills, cycle badges and confluence calls */
+.bh-intel-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-family: var(--bh-font-sans);
+}
+
+.bh-intel-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bh-intel-pill {
+  font: inherit;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255,255,255,0.14);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.bh-intel-pill:hover { color: var(--text-primary); }
+
+.bh-intel-pill.is-active {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+  background: rgba(192,132,252,0.10);
+}
+
+.bh-intel-pill:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.bh-intel-stage {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  color: var(--status-ok);
+  white-space: nowrap;
+}
+
+.bh-intel-note {
+  padding: 8px 12px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.bh-intel-badge,
+.bh-intel-call {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255,255,255,0.14);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: var(--text-muted);
+}
+
+.bh-intel-badge--accum { color: var(--status-ok); border-color: rgba(16,174,155,0.35); }
+.bh-intel-badge--risk  { color: var(--danger); border-color: rgba(255,159,180,0.35); }
+.bh-intel-badge--gain  { color: var(--signal-positive); border-color: rgba(255,179,71,0.30); }
+.bh-intel-badge--watch { color: var(--accent-primary); border-color: rgba(192,132,252,0.35); }
+
+.bh-intel-call { font-weight: 700; }
+.bh-intel-call--gain { color: var(--signal-positive); border-color: var(--signal-positive); }
+.bh-intel-call--loss { color: var(--signal-negative); border-color: var(--signal-negative); }
+
+.bh-intel-line.is-confluence--gain { box-shadow: inset 2px 0 0 var(--signal-positive); }
+.bh-intel-line.is-confluence--loss { box-shadow: inset 2px 0 0 var(--signal-negative); }
+
 /* Ambient scanning footer */
 .bh-intel-scan {
   padding: 5px 14px 9px;
