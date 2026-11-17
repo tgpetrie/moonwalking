@@ -27,7 +27,7 @@ export function useMacroCycleScan(symbols, { enabled = true } = {}) {
       try {
         const scan = await fetchMacroCycleScan(key ? key.split(",") : []);
         if (cancelled) return;
-        if (scan.status !== "ready") delay = SCAN_PENDING_MS;
+        if (scan.status !== "ready" || scan.atlas_refreshing) delay = SCAN_PENDING_MS;
         // A warming answer carries no read; keep a scan we already have.
         setState((prev) => ({
           scan: scan.status === "warming" && prev.scan?.status !== "warming" && prev.scan ? prev.scan : scan,

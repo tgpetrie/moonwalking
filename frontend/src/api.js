@@ -247,7 +247,7 @@ export async function fetchMacroCycleScan(symbols = [], fetchOptions = {}) {
 
 // --- Owner-only agent controls (credentialed, never cached) ---
 
-async function ownerRequest(path, { method = "GET", body } = {}) {
+async function ownerRequest(path, { method = "GET", body, statuses = ["live"] } = {}) {
   const init = { method, credentials: "include", cache: "no-store" };
   if (body !== undefined) {
     init.headers = { "Content-Type": "application/json" };
@@ -255,7 +255,7 @@ async function ownerRequest(path, { method = "GET", body } = {}) {
   }
   const res = await fetch(`${getBackendBase()}${path}`, init);
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok || payload?.status !== "live") {
+  if (!res.ok || !statuses.includes(payload?.status)) {
     const error = new Error(payload?.error || `Request failed (${res.status})`);
     error.status = res.status;
     throw error;
@@ -290,22 +290,8 @@ export const fetchAgentAutonomy = () => ownerRequest("/api/agents/autonomy");
  * proposals, compounding_summary, cycle_scan }. Runs the Cycle Strategist and
  * the smart alerts once on the server. Dry-run only: no order is placed.
  */
-export async function runCycleAgentPass() {
-  const res = await fetch(`${getBackendBase()}/api/agents/run-cycle-pass`, {
-    method: "POST",
-    credentials: "include",
-    cache: "no-store",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok || !["ok", "skipped"].includes(payload?.status)) {
-    const error = new Error(payload?.error || `Request failed (${res.status})`);
-    error.status = res.status;
-    throw error;
-  }
-  return payload;
-}
+export const runCycleAgentPass = () =>
+  ownerRequest("/api/agents/run-cycle-pass", { method: "POST", body: {}, statuses: ["ok", "skipped"] });
 
 /** changes: any of autonomy_mode, execution_mode, emergency_pause, daily_order_cap. */
 export const updateAgentAutonomy = (changes) =>

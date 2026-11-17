@@ -40,6 +40,7 @@ __all__ = [
     "ATLAS_TARGET_SIZE",
     "CycleAtlas",
     "is_atlas_eligible",
+    "is_atlas_rate_limit",
     "select_atlas_universe",
     "refresh_cycle_atlas_slice",
     "atlas_coverage",
@@ -597,9 +598,6 @@ ATLAS_DAILY_TTL_SECONDS = 6 * 3600
 ATLAS_FAILED_TTL_SECONDS = 3600
 ATLAS_BACKOFF_MIN_SECONDS = 60.0
 ATLAS_BACKOFF_MAX_SECONDS = 900.0
-# A fetch faster than this was served from the on-disk day cache and does not
-# count against the slice's network budget.
-ATLAS_CHEAP_FETCH_SECONDS = 0.05
 
 STABLECOINS = frozenset({
     "USDC", "USDT", "DAI", "PYUSD", "GUSD", "USDP", "PAX", "BUSD", "TUSD",
@@ -655,8 +653,8 @@ def select_atlas_universe(
     """Up to ``limit`` product ids, most important first.
 
     Order: the core members the industry regime needs, the owner's held and
-    watchlist symbols, symbols with an active reload plan, then Coinbase USD
-    pairs by 24h USD volume and finally active movers. Stablecoins and
+    watchlist symbols, symbols with an active reload plan, active movers,
+    then Coinbase USD pairs by 24h USD volume. Stablecoins and
     wrapped tokens are dropped from every group except ``core``.
     """
     out: list[str] = []
@@ -680,8 +678,8 @@ def select_atlas_universe(
         # Only real ``BASE-USD`` ids: a ``BASE-USDC`` pair is another market.
         if isinstance(pid, str) and pid.endswith("-USD") and _atlas_product(pid) == pid
     }
-    add(sorted(liquid, key=lambda pid: (-liquid[pid], pid)))
     add(movers)
+    add(sorted(liquid, key=lambda pid: (-liquid[pid], pid)))
     return out[: max(0, int(limit))]
 
 
@@ -725,6 +723,13 @@ class CycleAtlas:
             if (self.entries.get(product) or {}).get("candles")
         }
 
+    def record_rate_limit(self, now: float) -> None:
+        self.backoff_seconds = min(
+            max(ATLAS_BACKOFF_MIN_SECONDS, self.backoff_seconds * 2),
+            ATLAS_BACKOFF_MAX_SECONDS,
+        )
+        self.backoff_until = now + self.backoff_seconds
+
     def _store(self, product: str, candles: Any, now: float) -> bool:
         entry = self.entries.setdefault(
             product, {"candles": None, "fetched_at": float("-inf"), "checked_at": now}
@@ -737,7 +742,7 @@ class CycleAtlas:
         return False
 
 
-def _is_rate_limit(exc: BaseException) -> bool:
+def is_atlas_rate_limit(exc: BaseException) -> bool:
     status = getattr(getattr(exc, "response", None), "status_code", None)
     return 429 in (status, getattr(exc, "status_code", None))
 
@@ -751,28 +756,21 @@ def refresh_cycle_atlas_slice(
     slice_size: int = ATLAS_SLICE_SIZE,
     required: Any = (),
     clock: Any = None,
-    cheap_seconds: float = ATLAS_CHEAP_FETCH_SECONDS,
 ) -> dict[str, Any]:
     """Refresh one bounded slice of cold or expired products.
 
-    ``required`` products that are not fresh are always read. After them, at
-    most ``slice_size`` network reads are made: cold products in universe
-    order, then expired ones, oldest first. A read that returns within
-    ``cheap_seconds`` came from a local cache and is not counted. The first
-    HTTP 429 ends the slice and starts a doubling backoff during which later
-    calls read nothing. Products outside ``universe`` are dropped.
+    Required products get the first slots, followed by cold products in
+    universe order and expired ones, oldest first. Every attempt uses one
+    slot. HTTP 429 ends the slice and starts a doubling backoff during which
+    later calls read nothing. Products outside ``universe`` are dropped.
     """
-    if clock is None:
-        import time as _time
-
-        clock = _time.monotonic
     universe = list(dict.fromkeys(universe))
     members = set(universe)
     for product in [p for p in atlas.entries if p not in members]:
         del atlas.entries[product]
     summary: dict[str, Any] = {
         "attempted": [], "refreshed": [], "failed": [], "rate_limited": False,
-        "backing_off": False, "network_reads": 0,
+        "backing_off": False,
     }
     if now < atlas.backoff_until:
         summary["backing_off"] = True
@@ -786,27 +784,17 @@ def refresh_cycle_atlas_slice(
         key=lambda p: atlas.entries[p]["fetched_at"],
     )
     budget = max(0, int(slice_size))
-    for product in (*must, *cold, *expired):
-        is_required = product in must
-        if not is_required and summary["network_reads"] >= budget:
-            break
-        started = clock()
+    for product in (*must, *cold, *expired)[:budget]:
+        summary["attempted"].append(product)
         try:
             candles = fetch(product)
         except Exception as exc:
-            if _is_rate_limit(exc):
-                atlas.backoff_seconds = min(
-                    max(ATLAS_BACKOFF_MIN_SECONDS, atlas.backoff_seconds * 2),
-                    ATLAS_BACKOFF_MAX_SECONDS,
-                )
-                atlas.backoff_until = now + atlas.backoff_seconds
+            if is_atlas_rate_limit(exc):
+                atlas.record_rate_limit(clock() if clock is not None else now)
                 summary["rate_limited"] = True
                 break
             logging.debug("[CycleAtlas] read failed for %s: %s", product, exc)
             candles = None
-        summary["attempted"].append(product)
-        if not is_required and clock() - started >= cheap_seconds:
-            summary["network_reads"] += 1
         summary["refreshed" if atlas._store(product, candles, now) else "failed"].append(product)
     if summary["refreshed"] and not summary["rate_limited"]:
         atlas.backoff_seconds = 0.0

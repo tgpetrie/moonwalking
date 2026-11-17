@@ -1129,6 +1129,7 @@ class CycleStrategistAgent:
                 # The size defended, so the ledger can value the exit later.
                 held_quantity = _num(position.get("quantity"))
                 if held_quantity is not None and held_quantity > 0:
+                    stop.evidence["held_quantity"] = held_quantity
                     stop.evidence["quantity"] = held_quantity
                     stop.evidence["notional_usd"] = _round(held_quantity * price, 2)
                 proposals.append(stop)
@@ -1137,6 +1138,7 @@ class CycleStrategistAgent:
             trim = evaluate_trim(row, multi_year, stage, price)
             if trim:
                 quantity = position["quantity"]
+                trim.evidence["held_quantity"] = quantity
                 trim.reload_plan = build_reload_plan(
                     row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor
                 )

@@ -392,21 +392,6 @@ def test_structure_posture_survives_a_read_failure(monkeypatch):
 # ─── cycle read: momentum stack, targets and the industry gate ────────────────
 
 
-@pytest.fixture
-def macro_scan_state():
-    """An empty industry scan cache before and after the test."""
-
-    def reset():
-        backend_app._MACRO_SCAN_STATE.update(
-            payload=None, computed_at=0.0, day=None, products=(), running=False,
-            supplements={}, supplement_day=None, retry_after=0.0,
-        )
-
-    reset()
-    yield backend_app._MACRO_SCAN_STATE
-    reset()
-
-
 def _hourly_near(price):
     """The 1h test history rescaled so its last close sits near ``price``."""
     scale = price / 104.0
@@ -586,7 +571,19 @@ def test_macro_cycle_scan_route_reports_warming_while_a_worker_loads(monkeypatch
     assert done["industry"]["available"] is False
 
 
-def test_macro_scan_universe_uses_core_then_liquid(monkeypatch):
+def test_macro_scan_uses_cached_movers_even_when_volume_could_fill_the_atlas(monkeypatch, macro_scan_state):
+    monkeypatch.setitem(backend_app.cache, "data", {"gainers": [{"symbol": "PEPE"}, {"symbol": "USDC"}]})
+    monkeypatch.setattr(
+        backend_app, "latest_quote_volume_by_product",
+        lambda now: {f"C{i:03d}-USD": {"quote_volume_usd": 100} for i in range(130)},
+    )
+    products = backend_app._macro_scan_universe()
+    assert len(products) == 120
+    assert products[14] == "PEPE-USD"
+    assert "USDC-USD" not in products
+
+
+def test_macro_scan_universe_uses_core_then_liquid(monkeypatch, macro_scan_state):
     import macro_industry_scanner
 
     monkeypatch.setattr(
@@ -604,6 +601,40 @@ def test_macro_scan_universe_uses_core_then_liquid(monkeypatch):
     assert products[: len(core)] == core
     assert products[len(core):] == ["BBB-USD", "AAA-USD", "RENDER-USD"]
     assert len(products) == len(set(products)) <= backend_app.MACRO_SCAN_MAX_PRODUCTS
+
+
+@pytest.mark.parametrize("rate_limited_product", ["BTC-USD", "FET-USD"])
+def test_macro_scan_shares_backoff_between_base_and_supplements(
+    monkeypatch, macro_scan_state, rate_limited_product
+):
+    from types import SimpleNamespace
+
+    now = [1_800_000_000.0]
+    monkeypatch.setattr(backend_app, "time", SimpleNamespace(time=lambda: now[0]))
+    monkeypatch.setattr(backend_app, "_macro_scan_universe", lambda: ["BTC-USD"])
+    monkeypatch.setattr(backend_app, "PRODUCT_IDS", {"BTC-USD", "FET-USD", "RENDER-USD"})
+    reads = []
+
+    def fetch(product):
+        reads.append(product)
+        if product == rate_limited_product and reads.count(product) == 1:
+            now[0] += 15
+            error = RuntimeError("rate limited")
+            error.status_code = 429
+            raise error
+        return []
+
+    monkeypatch.setattr(backend_app, "_macro_atlas_fetch", fetch)
+    first = _scan("/api/macro-cycle-scan?symbols=FET,RENDER")
+    expected = ["BTC-USD"] if rate_limited_product == "BTC-USD" else ["BTC-USD", "FET-USD"]
+    assert reads == expected
+    assert first["atlas_retry_at"] == now[0] + 60
+    now[0] += 59
+    _scan("/api/macro-cycle-scan?symbols=RENDER")
+    assert reads == expected
+    now[0] += 1
+    _scan("/api/macro-cycle-scan?symbols=RENDER")
+    assert len(reads) > len(expected) and reads[-1] == "RENDER-USD"
 
 
 def test_cached_cycle_products_lists_what_the_loader_already_has(monkeypatch, tmp_path):

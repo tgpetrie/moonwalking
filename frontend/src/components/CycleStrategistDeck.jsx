@@ -63,6 +63,7 @@ const usd = (value) => (finite(value)
   ? `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   : "—");
 const coins = (value) => (finite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—");
+const signedCoins = (value) => `${value >= 0 ? "+" : ""}${coins(value)}`;
 const signedPct = (value) => (finite(value) ? `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(2)}%` : "—");
 
 function TradeLink({ target, children }) {
@@ -250,6 +251,7 @@ export default function CycleStrategistDeck() {
   const [busy, setBusy] = useState(false);
   const [capDraft, setCapDraft] = useState("");
   const [summary, setSummary] = useState(null);
+  const [coverage, setCoverage] = useState(null);
   const [passNote, setPassNote] = useState("");
 
   const load = useCallback(async () => {
@@ -257,6 +259,7 @@ export default function CycleStrategistDeck() {
       const payload = await fetchAgentProposals({ limit: 100 });
       setSummary(payload.compounding_summary && typeof payload.compounding_summary === "object"
         ? payload.compounding_summary : null);
+      setCoverage(payload.cycle_scan ?? null);
       setProposals(Array.isArray(payload.proposals) ? payload.proposals : []);
       setReloadPlans(Array.isArray(payload.reload_plans) ? payload.reload_plans : []);
       if (payload.autonomy && typeof payload.autonomy === "object") {
@@ -308,11 +311,15 @@ export default function CycleStrategistDeck() {
 
   const runPass = async () => {
     setBusy(true);
+    setError("");
     setPassNote("Running desk pass…");
     try {
       const result = await runCycleAgentPass();
       await load();
-      if (result.status === "ok") {
+      if (result.runs?.some((run) => run.status === "error") || result.smart_alerts?.status === "error") {
+        setError("The desk pass encountered an error running Cycle Strategist or Smart Alerts.");
+        setPassNote("");
+      } else if (result.status === "ok") {
         const count = Array.isArray(result.proposals) ? result.proposals.length : 0;
         setPassNote(`Desk pass complete · ${count} proposal${count === 1 ? "" : "s"} from this pass`);
       } else {
@@ -351,6 +358,9 @@ export default function CycleStrategistDeck() {
             </button>
           ) : null}
         </div>
+        {finite(coverage?.ready_count) && finite(coverage?.target_universe_size) ? (
+          <p className="mw-agents-note">Atlas coverage · {coverage.ready_count} / {coverage.target_universe_size} coins</p>
+        ) : null}
         {passNote ? <p className="mw-agents-note" role="status">{passNote}</p> : null}
         {error ? <p className="mw-agents-error" role="alert">{error}</p> : null}
         {autonomy ? (
@@ -403,22 +413,22 @@ export default function CycleStrategistDeck() {
           <div className="mw-panel__header">
             <div><h3>Coin-Stack Compounding Scoreboard</h3><span>Dry-run figures from approved and simulated trims, stops and reloads</span></div>
           </div>
-          <dl style={{ display: "flex", flexWrap: "wrap", gap: "12px 32px", margin: 0 }}>
+          <dl className="mw-agents-scoreboard">
             <div>
               <dt>Freed Reload USDC</dt>
               <dd>{usd(summary.freed_usdc_available)} · {ladders} open ladder{ladders === 1 ? "" : "s"}</dd>
             </div>
             <div>
               <dt>Drawdown Avoided</dt>
-              <dd>{usd(summary.drawdown_avoided_usd)}</dd>
+              <dd>{summary.drawdown_priced_symbols?.length === 0 ? "—" : usd(summary.drawdown_avoided_usd)}</dd>
             </div>
             <div>
               <dt>Extra Coins Compounded / Projected</dt>
-              <dd>
+              <dd className="mw-agents-scoreboard__coins">
                 {extraCoins.length ? extraCoins.map((symbol) => (
-                  <span key={symbol} style={{ marginRight: 12 }}>
-                    {symbol} +{coins(summary.realized_extra_coins_by_symbol?.[symbol] ?? 0)}
-                    {" / "}+{coins(summary.projected_extra_coins_by_symbol?.[symbol] ?? 0)}
+                  <span key={symbol}>
+                    {symbol} {signedCoins(summary.realized_extra_coins_by_symbol?.[symbol] ?? 0)}
+                    {" / "}{signedCoins(summary.projected_extra_coins_by_symbol?.[symbol] ?? 0)}
                   </span>
                 )) : "None yet"}
               </dd>

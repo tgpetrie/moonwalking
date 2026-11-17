@@ -296,6 +296,19 @@ describe("industry pulse on the dashboard", () => {
     expect(screen.getByTestId("industry-pulse").getAttribute("data-status")).toBe("READY");
   });
 
+  it("keeps polling at the pending cadence while a ready atlas fills", async () => {
+    fetchMacroCycleScan
+      .mockResolvedValueOnce(scan({ ready_count: 22, target_universe_size: 120, atlas_refreshing: true }))
+      .mockResolvedValue(scan({ ready_count: 120, target_universe_size: 120, atlas_refreshing: false }));
+    render(<IndustryPulse />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByTestId("industry-pulse-atlas-refreshing")).toHaveClass("bh-pulse__atlas-refreshing");
+    await act(async () => { await vi.advanceTimersByTimeAsync(SCAN_PENDING_MS); });
+    expect(fetchMacroCycleScan).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("industry-pulse-atlas")).toHaveTextContent("120 / 120");
+    expect(screen.queryByTestId("industry-pulse-atlas-refreshing")).toBeNull();
+  });
+
   it("reads as unavailable when the request fails and there is nothing to keep", async () => {
     fetchMacroCycleScan.mockRejectedValue(new Error("HTTP error! status: 503"));
     render(<IndustryPulse />);

@@ -7,6 +7,31 @@ audited commit `464e7f3`, which is also the tip of
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
 it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
 
+## Phase 3 Audit Scorecard
+
+Reviewed `6453bbb..1b300a6` on `claude/elliott-abc-v2-reclaim-20261115`,
+covering `92cd6f6`, `ed0747d`, `d59e445`, and `1b300a6`.
+
+| Area | Audit result |
+| --- | --- |
+| Rolling Universe Cycle Atlas | Bounded base and supplemental batches share 429 backoff from the time the limit is received. SQLite seeds the configured owner's open paper positions, watchlists, and active reload plans. Only known, eligible USD pairs from `?symbols=` enter the priority list. Cached movers enter before the volume fill and never start a price fetch. Tests isolate the board cache, product IDs, and Atlas state. |
+| In-process desk pass | The route requires the owner and an empty JSON object. `Cache-Control: private, no-store` applies to rejected, busy, and failed requests. The process lock returns 409 while held and releases after an exception. A pass can run during an outer refresh once the current regime and required markets are settled. Known unavailable rows contribute no action. Pending owner rows and prior-day snapshots keep the pass waiting. |
+| Coin-stack compounding | Reload accounting uses funded rung balances in cents, including partial fills and older whole-rung approvals. Simulated trims and stops use the recorded fill price and size. Drawdown caps overlapping paper exits against observed holdings and excludes missing or stale marks. |
+| UI and design tokens | The scoreboard and Industry Pulse badge use component classes and shared tokens. The desk displays Atlas coverage and uses `.mw-agents-note` for pass status. Industry Pulse keeps polling while `atlas_refreshing` is set. Drawdown displays as unavailable when there are no usable marks. |
+
+Verification ran in a separate worktree with temporary test data and backend
+network calls blocked. `backend/tests/test_chart_read_route.py` passed 23
+tests. The full `backend/tests` run passed 1,066 tests with 33 skips.
+`npm --prefix frontend test -- --run` passed 618 tests across 47 files.
+`npm --prefix frontend run build` passed. Vite warned about unresolved
+`/background-linear.svg` and `/purple-rabbit-bg.png` runtime references
+and a bundle over 500 kB.
+
+The Atlas refreshes on demand. `ready_count` counts cached histories, and the
+price funnel defaults to 220. Live Coinbase throughput and rate limits are
+outside this isolated verification. No server on ports 5003, 5004, 5173, or
+5174 was contacted or changed.
+
 ## Phase 2 delta audit
 
 - The reload ladder budgets and debits USDC in cents. Approving a reload
@@ -837,20 +862,3 @@ Keep a new active-branch pointer here when work moves to another branch.
 Documentation-only commits may follow the recorded implementation hash;
 the branch's Git history gives the exact latest documentation checkpoint.
 This page reconstructs the task without relying on a particular chat history.
-
-## Checkpoint 2026-11-16: Cycle Atlas, in-process desk pass, compounding scoreboard
-
-Branch `claude/elliott-abc-v2-reclaim-20261115`, commits `92cd6f6`, `ed0747d`, `d59e445` and the Checkpoint 4 commit after them.
-
-- `/api/macro-cycle-scan` is a Rolling Universe Cycle Atlas of up to 120 USD pairs (`backend/macro_industry_scanner.py`: `select_atlas_universe`, `CycleAtlas`, `refresh_cycle_atlas_slice`, `atlas_coverage`). Daily reads are cached 6h and expire at the UTC day boundary; slices read the core and owner symbols plus 8 more, at least 20s apart, with a doubling backoff on HTTP 429. The payload carries `target_universe_size`, `ready_count`, `coverage_pct`, `atlas_refreshing`.
-- Atlas priority comes from the owner cycle pass, from SQLite (open paper positions, active reload plans), from verified `?symbols=` and from the board's cached 3-minute gainers (`cache["data"]`, never a fetch).
-- `POST /api/agents/run-cycle-pass` (owner-only, JSON `{}` body, no-store) runs `CycleStrategistAgent` + `SmartAlertEngine` in-process. It runs while outer atlas slices fill once the regime and every held/watchlist symbol are read.
-- `AgentStore.get_compounding_summary` is returned by `GET /api/agents/proposals` and the desk pass. `PROTECTIVE_STOP` proposals now record `evidence.quantity` and `evidence.notional_usd`.
-- UI: `runCycleAgentPass()` in `frontend/src/api.js`; "Run Desk Pass" button and Coin-Stack Compounding Scoreboard in `CycleStrategistDeck.jsx`; atlas coverage badge in `IndustryPulse.jsx`.
-- `PRICE_UNIVERSE_SAMPLE_SIZE` defaults to 220.
-
-Open items:
-- Atlas slices are request-driven: coverage grows only when the scan endpoint or a chart read is called.
-- SQLite priority seeding is skipped under pytest; the seed function is tested directly.
-- The scoreboard and atlas badge use inline styles; no CSS classes were added.
-- Only targeted test files were run for these checkpoints, not the full backend or frontend suites. `test_chart_read_route.py` was last run at `d59e445`, before the movers lookup changed.

@@ -63,6 +63,31 @@
   color: var(--text-muted);
 }
 
+.mw-agents-scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-8);
+  margin: 0;
+}
+
+.mw-agents-scoreboard dt {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.mw-agents-scoreboard dd {
+  margin: var(--space-1) 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-agents-scoreboard__coins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
 /* ---- Agent cards ---- */
 .mw-agents-grid {
   display: grid;

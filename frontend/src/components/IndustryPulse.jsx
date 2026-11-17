@@ -227,10 +227,10 @@ export function IndustryPulseView({ scan, loading = false, error = null, onInfo 
         {finite(members) ? ` · alt index: equal-weight proxy of ${members} coins, not market-cap weighted` : ""}
         {finite(scan.ready_count) && finite(scan.target_universe_size) ? (
           <span className="bh-pulse__atlas" data-testid="industry-pulse-atlas"
-            title="Coins the cycle atlas has read, out of its target universe">
-            {` · Atlas ${scan.ready_count} / ${scan.target_universe_size} coins`}
+            title="Coins with cached history, out of the target universe">
+            {`Atlas ${scan.ready_count} / ${scan.target_universe_size} coins`}
             {scan.atlas_refreshing ? (
-              <em data-testid="industry-pulse-atlas-refreshing" style={{ opacity: 0.7 }}> · Refreshing atlas…</em>
+              <span className="bh-pulse__atlas-refreshing" data-testid="industry-pulse-atlas-refreshing"> · Refreshing atlas…</span>
             ) : null}
           </span>
         ) : null}

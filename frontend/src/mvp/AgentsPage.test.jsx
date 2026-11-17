@@ -237,7 +237,7 @@ describe("AgentsPage", () => {
       ...extra,
     });
 
-    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, pass } = {}) {
+    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, coverage, pass } = {}) {
       let settings = autonomy || {
         autonomy_mode: "approval_queue",
         execution_mode: "dry_run",
@@ -261,6 +261,7 @@ describe("AgentsPage", () => {
         } else if (path.startsWith("/api/agents/proposals")) {
           payload = { status: "live", proposals: rows, reload_plans: reloadPlans, autonomy: settings };
           if (summary) payload.compounding_summary = summary;
+          if (coverage) payload.cycle_scan = coverage;
         } else if (path === "/api/agents/run-cycle-pass") {
           payload = pass;
         } else if (path.includes("/api/agents/status")) {
@@ -275,21 +276,26 @@ describe("AgentsPage", () => {
       const summary = {
         freed_usdc_available: 492.19,
         active_ladders_count: 1,
-        realized_extra_coins_by_symbol: { SOL: 0.4529 },
+        realized_extra_coins_by_symbol: { SOL: 0.4529, LTC: -0.1 },
         projected_extra_coins_by_symbol: { SOL: 2.2314, DOT: 1.5 },
         drawdown_avoided_usd: 213.75,
       };
-      const calls = mockDeck({ summary, pass: { status: "ok", proposals: [proposal(), proposal()] } });
+      const calls = mockDeck({
+        summary, coverage: { ready_count: 22, target_universe_size: 120 },
+        pass: { status: "ok", proposals: [proposal(), proposal()] },
+      });
       render(<AgentsPage />);
       const board = await screen.findByRole("region", { name: "Coin-stack compounding scoreboard" });
       expect(within(board).getByText(/492\.19.*1 open ladder$/)).toBeInTheDocument();
       expect(within(board).getByText(/213\.75/)).toBeInTheDocument();
       expect(within(board).getByText(/SOL \+0\.4529 \/ \+2\.2314/)).toBeInTheDocument();
       expect(within(board).getByText(/DOT \+0 \/ \+1\.5/)).toBeInTheDocument();
+      expect(within(board).getByText("LTC -0.1 / +0")).toBeInTheDocument();
+      expect(screen.getByText("Atlas coverage · 22 / 120 coins")).toHaveClass("mw-agents-note");
 
       const listsBefore = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;
       fireEvent.click(screen.getByRole("button", { name: "Run Desk Pass" }));
-      expect(await screen.findByText("Desk pass complete · 2 proposals from this pass")).toBeInTheDocument();
+      expect(await screen.findByText("Desk pass complete · 2 proposals from this pass")).toHaveClass("mw-agents-note");
       const post = calls.find((c) => c.path === "/api/agents/run-cycle-pass");
       expect(post).toMatchObject({ method: "POST", body: {} });
       const lists = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;

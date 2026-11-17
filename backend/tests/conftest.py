@@ -15,6 +15,29 @@ if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 
+@pytest.fixture
+def macro_scan_state(monkeypatch):
+    import app as backend_app
+
+    state = {
+        "payload": None, "computed_at": 0.0, "day": None, "products": (),
+        "running": False, "supplements": {}, "supplement_day": None,
+        "supplement_at": 0.0, "retry_after": 0.0,
+    }
+    monkeypatch.setattr(backend_app, "_MACRO_SCAN_STATE", state)
+    monkeypatch.setattr(backend_app, "_MACRO_ATLAS", None)
+    monkeypatch.setattr(
+        backend_app, "_MACRO_ATLAS_PRIORITY",
+        {"held": (), "watchlist": (), "paper": (), "saved_watchlist": (), "reload": (), "requested": ()},
+    )
+    monkeypatch.setattr(backend_app, "cache", {"data": None, "timestamp": 0, "ttl": 60})
+    monkeypatch.setattr(backend_app, "PRODUCT_IDS", set())
+    monkeypatch.setattr(backend_app, "_load_product_ids", lambda **kwargs: None)
+    monkeypatch.setattr(backend_app, "MACRO_SCAN_EXTRA_INTERVAL_SECONDS", 0)
+    monkeypatch.delenv("COINBASE_PORTFOLIO_OWNER_EMAIL", raising=False)
+    return state
+
+
 # ============================================================================
 # Mock Data Fixtures
 # ============================================================================

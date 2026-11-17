@@ -37,11 +37,12 @@ SCAN = _scan(
 
 
 @pytest.fixture
-def client(monkeypatch, tmp_path):
+def client(monkeypatch, tmp_path, macro_scan_state):
     monkeypatch.setenv("MW_AGENT_OBSERVATIONS_DB", str(tmp_path / "agents.sqlite"))
     monkeypatch.setenv("MW_SMART_ALERTS_DB", str(tmp_path / "smart.sqlite"))
     monkeypatch.setenv("MW_PAPER_EXECUTION_DB", str(tmp_path / "paper.sqlite"))
     monkeypatch.setenv("COINBASE_PORTFOLIO_OWNER_EMAIL", OWNER["email"])
+    monkeypatch.setattr(watchlist, "_WATCHLIST_DB_PATH", tmp_path / "watchlist.sqlite")
     monkeypatch.delenv("MW_NTFY_URL", raising=False)
     monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: OWNER)
     monkeypatch.setattr(backend_app, "_mw_ensure_background_started", lambda: None)
@@ -466,9 +467,6 @@ def cycle_pass(client, monkeypatch):
     monkeypatch.setattr(backend_app, "_cycle_pass_quote_fetcher", quotes)
     monkeypatch.setattr(backend_app, "_cycle_pass_watchlist", lambda user: ["avax-usd", "AVAX"])
     monkeypatch.setattr(backend_app, "_cycle_pass_portfolio_holdings", lambda: state["holdings"])
-    monkeypatch.setattr(
-        backend_app, "_MACRO_ATLAS_PRIORITY", {"held": (), "watchlist": (), "reload": ()}
-    )
     with paper_execution_store._connect() as conn:
         conn.execute(
             "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
@@ -547,13 +545,15 @@ def test_cycle_pass_skips_when_the_cached_scan_is_not_usable(client, cycle_pass)
     assert cycle_pass["quotes"] == []
 
 
-def test_cycle_pass_scan_runs_while_outer_atlas_slices_fill(client, monkeypatch):
+def test_cycle_pass_scan_runs_while_outer_atlas_slices_fill(client, monkeypatch, macro_scan_state):
     from agents.cycle_context import core_and_priority_ready, usable_cycle_scan
 
+    now = backend_app.time.time()
     filling = {
-        "status": "refreshing", "computed_at": NOW, "ttl_seconds": 1800,
+        "status": "ready", "computed_at": now, "ttl_seconds": 1800,
         "industry": {"available": True}, "coins": [_row("SOL", 175.0)],
         "unavailable": ["GONE-USD"], "ready_count": 22, "target_universe_size": 120,
+        "atlas_refreshing": True, "requested": 120,
     }
     assert core_and_priority_ready(filling, ["SOL-USD", "GONE-USD"]) is True
     assert core_and_priority_ready(filling, ["SOL-USD", "AVAX-USD"]) is False
@@ -561,23 +561,40 @@ def test_cycle_pass_scan_runs_while_outer_atlas_slices_fill(client, monkeypatch)
     assert core_and_priority_ready(None, []) is False
 
     monkeypatch.setattr(backend_app, "_macro_scan_snapshot", lambda wanted, allow_inline=True: filling)
-    monkeypatch.setattr(backend_app, "_macro_scan_response", lambda payload, wanted: dict(payload))
+    monkeypatch.setattr(backend_app, "_cycle_pass_positions", lambda user: ([{"symbol": "SOL", "quantity": 10}], "paper"))
+    monkeypatch.setattr(backend_app, "_cycle_pass_watchlist", lambda user: ["GONE"])
+    macro_scan_state.update(
+        payload=filling, computed_at=now, day=backend_app._macro_scan_day(now),
+        products=("SOL-USD", "AVAX-USD", "GONE-USD"),
+    )
     ready = backend_app._cycle_pass_scan(["SOL-USD", "GONE-USD"])
     assert ready["status"] == "ready" and ready["atlas_refreshing"] is True
-    assert usable_cycle_scan(ready, now=NOW + 60) is True
-    assert usable_cycle_scan(ready, now=NOW + 1801) is False  # a stale scan is still refused
+    assert usable_cycle_scan(ready, now=now + 60) is True
+    assert usable_cycle_scan(ready, now=now + 1801) is False
+    body = client.post(PASS_URL, json={}).json
+    assert body["status"] == "ok" and body["cycle_scan"]["atlas_refreshing"] is True
     # An owner symbol that has not been read yet keeps the pass waiting.
     assert backend_app._cycle_pass_scan(["SOL-USD", "AVAX-USD"])["status"] == "refreshing"
     assert backend_app._cycle_scan_prices(ready) == {"SOL": 175.0}
+    # A prior UTC day's snapshot cannot be promoted, even when its age is small.
+    macro_scan_state["day"] -= 1
+    assert backend_app._cycle_pass_scan(["SOL-USD"])["status"] == "refreshing"
 
 
-def test_atlas_priority_is_seeded_from_sqlite_requests_and_movers(client, monkeypatch):
+def test_atlas_priority_is_seeded_from_sqlite_requests_and_movers(client, monkeypatch, macro_scan_state):
     import macro_industry_scanner as mis
 
-    monkeypatch.setattr(
-        backend_app, "_MACRO_ATLAS_PRIORITY",
-        {"held": ("DOT",), "watchlist": (), "reload": (), "requested": ("FET-USD", "NOPE-USD")},
-    )
+    watchlist._ensure_watchlist_schema()
+    monkeypatch.delenv("COINBASE_PORTFOLIO_OWNER_EMAIL")
+    other_client = backend_app.app.test_client()
+    for signup_client, email in ((client, OWNER["email"]), (other_client, "other@example.test")):
+        signup = signup_client.post(
+            "/api/auth/signup", json={"name": email, "email": email, "password": "fixture-password"},
+        )
+        assert signup.status_code == 201
+    monkeypatch.setenv("COINBASE_PORTFOLIO_OWNER_EMAIL", OWNER["email"])
+    watchlist_id = client.get("/api/watchlists").json["watchlists"][0]["id"]
+    assert client.post(f"/api/watchlists/{watchlist_id}/items", json={"symbol": "ARB"}).status_code in (200, 201)
     with paper_execution_store._connect() as conn:
         conn.execute(
             "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
@@ -587,36 +604,28 @@ def test_atlas_priority_is_seeded_from_sqlite_requests_and_movers(client, monkey
             "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             ("t2", 1, "ETH-USD", 1.0, 3000.0, 10.0, int(NOW), int(NOW) + 5, 3100.0, 1.0),
         )
+        conn.execute(
+            "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
+            ("t3", 2, "PRIVATE-USD", 1.0, 30.0, 10.0, int(NOW)),
+        )
     trim = _phase2_run(
         NOW, _row("INJ", 175.0, **PHASE2_SOL), positions=[{"symbol": "INJ", "quantity": 10}]
     )["TRIM_TO_USDC"]
     client.post(f"/api/agents/proposals/{trim['proposal_id']}/approve", json={})
 
-    backend_app._macro_atlas_seed_priority()
-    assert backend_app._MACRO_ATLAS_PRIORITY["held"] == ("DOT", "RENDER")  # closed ETH is not held
-    assert backend_app._MACRO_ATLAS_PRIORITY["reload"] == ("INJ",)
-    assert backend_app._macro_atlas_priority_products() == [
-        "DOT-USD", "RENDER-USD", "INJ-USD", "FET-USD", "NOPE-USD",
-    ]
-
     monkeypatch.setattr(backend_app, "latest_quote_volume_by_product", lambda now: {"AAA-USD": {"quote_volume_usd": 5.0}})
-    monkeypatch.setattr(backend_app, "_macro_scan_known_products", lambda: {"FET-USD"})
-    monkeypatch.setattr(backend_app, "_macro_atlas_movers", lambda: ["PEPE", "usdt", "AAA"])
+    known = {"FET-USD", "USDC-USD", "WBTC-USD"}
+    monkeypatch.setattr(backend_app, "_load_product_ids", lambda **kwargs: setattr(backend_app, "PRODUCT_IDS", known))
+    monkeypatch.setitem(backend_app.cache, "data", {"gainers": [{"symbol": "PEPE"}]})
+    reads = []
+    monkeypatch.setattr(backend_app, "_macro_atlas_fetch", lambda product: reads.append(product) or [])
     core = [*mis.MAJORS, *mis.ALT_INDEX_MEMBERS]
-    universe = backend_app._macro_scan_universe()
-    # Owner symbols, the verified requested symbol, liquidity, then live movers.
-    assert universe == [*core, "RENDER-USD", "FET-USD", "INJ-USD", "AAA-USD", "PEPE-USD"]
-
-
-def test_macro_scan_route_records_requested_symbols_for_the_atlas(client, monkeypatch):
-    monkeypatch.setattr(
-        backend_app, "_MACRO_ATLAS_PRIORITY",
-        {"held": (), "watchlist": (), "reload": (), "requested": ("OLD-USD",)},
-    )
-    monkeypatch.setattr(backend_app, "_macro_scan_snapshot", lambda wanted: None)
-    body = client.get("/api/macro-cycle-scan?symbols=render,FET-USD,bad!sym").json
-    assert body["status"] == "warming"
-    assert backend_app._MACRO_ATLAS_PRIORITY["requested"] == ("RENDER-USD", "FET-USD", "OLD-USD")
+    body = client.get("/api/macro-cycle-scan?symbols=FET,fet-USD,USDC,WBTC,NOPE,bad!sym").json
+    assert body["status"] == "ready"
+    expected = [*core, "RENDER-USD", "ARB-USD", "INJ-USD", "FET-USD", "PEPE-USD", "AAA-USD"]
+    assert reads == expected == list(macro_scan_state["products"])
+    assert backend_app._MACRO_ATLAS_PRIORITY["requested"] == ("FET-USD",)
+    assert body["atlas_refreshing"] is False
 
 
 def test_compounding_summary_tracks_ladders_extra_coins_and_drawdown(client, cycle_pass):
@@ -674,6 +683,57 @@ def test_protective_stop_records_quantity_and_counts_toward_drawdown_avoided(cli
     assert summary["drawdown_priced_symbols"] == ["DOT"]
 
 
+def test_compounding_uses_simulated_fill_and_does_not_count_overlapping_exits(client):
+    store = AgentStore()
+    start = backend_app.time.time() - 3 * DAY
+    trim = _phase2_run(
+        start, _row("SOL", 175.0, **PHASE2_SOL), positions=[{"symbol": "SOL", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    saved, _ = store.route_proposal(
+        trim, lambda *args: ("auto_executed_dry_run", {"fill_price": 160, "base_size": 2.5, "proceeds_usd": 400}),
+        clock=lambda: start,
+    )
+    assert saved["status"] == "auto_executed_dry_run"
+    opened = store.get_compounding_summary({"SOL": 80})
+    assert opened["freed_usdc_available"] == 400 and opened["active_ladders_count"] == 1
+    assert opened["drawdown_avoided_usd"] == 200
+
+    broken = _row("SOL", 90, accumulation_invalidation_stop={"stop_price": 100})
+    for days in (1, 2):
+        stop = _phase2_run(
+            start + days * DAY, broken, positions=[{"symbol": "SOL", "quantity": 10}],
+        )["PROTECTIVE_STOP"]
+        store.decide_proposal(stop["proposal_id"], "approve")
+    # The paper trim covered 2.5 SOL. The stops cover the remaining 7.5 only once.
+    assert store.get_compounding_summary({"SOL": 80})["drawdown_avoided_usd"] == 275
+    summary = store.get_compounding_summary({"SOL": float("nan")})
+    assert summary["drawdown_avoided_usd"] == 0 and summary["drawdown_priced_symbols"] == []
+    assert summary["freed_usdc_available"] == 400
+
+
+def test_compounding_debits_legacy_reload_once_and_ignores_unfunded_fills(client):
+    store = AgentStore()
+    trim = _phase2_run(
+        NOW, _row("SOL", 175.0, **PHASE2_SOL), positions=[{"symbol": "SOL", "quantity": 10}]
+    )["TRIM_TO_USDC"]
+    store.decide_proposal(trim["proposal_id"], "approve")
+    rung = trim["reload_plan"]["tranches"][0]
+    for i, symbol in enumerate(("AVAX", "SOL", "SOL")):
+        # Historical approvals consumed whole rungs. Import stored records
+        # through the ledger to exercise duplicates predating validation.
+        store.route_proposal({
+            "proposal_id": f"legacy-{i}", "agent": "cycle_strategist",
+            "action": "RELOAD_ACCUMULATE", "side": "buy", "symbol": symbol, "product_id": f"{symbol}-USD",
+            "reference_price": 118,
+            "evidence": {"reload_fills": [{"plan_id": trim["proposal_id"], "tranche": rung["index"]}]},
+        }, lambda *args: ("approved", None), clock=lambda: NOW + DAY)
+    summary = store.get_compounding_summary()
+    expected = rung["usdc"] / 118 - rung["usdc"] / 175
+    assert summary["realized_extra_coins_by_symbol"] == {"SOL": pytest.approx(expected)}
+    assert summary["freed_usdc_available"] == 492.19
+    assert summary["projected_extra_coins_by_symbol"]["SOL"] > expected
+
+
 def test_atlas_movers_read_only_the_in_memory_board_snapshot(monkeypatch):
     def boom(*args, **kwargs):
         raise AssertionError("the scan worker must not fetch prices")
@@ -692,4 +752,17 @@ def test_cycle_pass_refuses_to_overlap_another_pass(client, cycle_pass):
         assert busy.status_code == 409 and "no-store" in busy.headers["Cache-Control"]
     finally:
         backend_app._CYCLE_PASS_LOCK.release()
+    assert client.post(PASS_URL, json={}).status_code == 200
+
+
+def test_cycle_pass_releases_lock_after_error(client, cycle_pass, monkeypatch):
+    def fail(*args):
+        raise RuntimeError("injected desk pass failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(backend_app, "_cycle_pass_positions", fail)
+        patch.setitem(backend_app.app.config, "PROPAGATE_EXCEPTIONS", False)
+        response = client.post(PASS_URL, json={})
+        assert response.status_code == 500
+        assert response.headers["Cache-Control"] == "private, no-store"
     assert client.post(PASS_URL, json={}).status_code == 200

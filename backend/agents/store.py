@@ -634,7 +634,7 @@ class AgentStore:
         ).fetchall()
         reloads = conn.execute(
             f"""
-            SELECT proposal_json FROM trade_proposals
+            SELECT symbol, proposal_json FROM trade_proposals
             WHERE action = 'RELOAD_ACCUMULATE' AND status = 'approved' {filters}
             """,
             params,
@@ -646,7 +646,7 @@ class AgentStore:
             for fill in evidence.get("reload_fills") or []:
                 if not isinstance(fill, dict):
                     continue
-                key = (fill.get("plan_id"), fill.get("tranche"))
+                key = (row["symbol"], fill.get("plan_id"), fill.get("tranche"))
                 if evidence.get("reload_allocation_version") == 1:
                     spent[key] = spent.get(key, 0) + usdc_cents(fill.get("usdc"))
                 else:
@@ -655,22 +655,11 @@ class AgentStore:
         for row in trims:
             proposal = self._row_to_proposal(row)
             plan = proposal.get("reload_plan")
-            if not isinstance(plan, dict) or not plan.get("available"):
-                continue
-            rungs = [t for t in plan.get("tranches") or [] if isinstance(t, dict)]
-            allocations = [usdc_cents(t.get("usdc")) for t in rungs]
-            budget = usdc_cents(plan.get("freed_usdc"))
-            if proposal["status"] == "auto_executed_dry_run":
-                execution = proposal.get("execution") or {}
-                budget = min(budget, usdc_cents(execution.get("proceeds_usd")))
-            if budget <= 0 or not any(allocations):
-                continue
-            if sum(allocations) != budget:
-                allocations = split_reload_cents(budget, allocations)
             tranches = []
             remaining = 0
-            for rung, allocated in zip(rungs, allocations):
-                key = (proposal["proposal_id"], rung.get("index"))
+            funded = self._funded_reload_rungs(proposal)
+            for rung, allocated in funded:
+                key = (proposal["symbol"], proposal["proposal_id"], rung.get("index"))
                 balance = 0 if key in closed else max(0, allocated - spent.get(key, 0))
                 remaining += balance
                 tranches.append({
@@ -688,10 +677,26 @@ class AgentStore:
                 "trim_status": proposal["status"],
                 "created_ts": proposal["created_ts"],
                 "tranches": tranches,
-                "funding_usdc": budget / 100,
+                "funding_usdc": sum(cents for _, cents in funded) / 100,
                 "remaining_usdc": remaining / 100,
             })
         return plans
+
+    @staticmethod
+    def _funded_reload_rungs(trim):
+        plan = trim.get("reload_plan")
+        if not isinstance(plan, dict) or not plan.get("available"):
+            return []
+        rungs = [rung for rung in plan.get("tranches") or [] if isinstance(rung, dict)]
+        allocations = [usdc_cents(rung.get("usdc")) for rung in rungs]
+        budget = usdc_cents(plan.get("freed_usdc"))
+        if trim["status"] == "auto_executed_dry_run":
+            budget = min(budget, usdc_cents((trim.get("execution") or {}).get("proceeds_usd")))
+        if budget <= 0 or not any(allocations):
+            return []
+        if sum(allocations) != budget:
+            allocations = split_reload_cents(budget, allocations)
+        return list(zip(rungs, allocations))
 
     def get_compounding_summary(self, prices: dict | None = None) -> dict:
         """What approved and dry-run executed trims, stops and reloads add up to.
@@ -699,22 +704,24 @@ class AgentStore:
         ``prices`` maps a symbol to its current scan price and is only used for
         ``drawdown_avoided_usd``. Extra coins compare what a reload's USDC buys
         at the reload price with what the same USDC bought at the trim's sale
-        price, so no fresh cash is counted. Descriptive, dry-run figures.
+        price, so no fresh cash is counted. Drawdown values each attributable
+        paper exit at its approved reference or simulated fill price, using
+        held snapshots to avoid counting the same exposure twice.
         """
 
         def number(value):
+            if isinstance(value, bool):
+                return None
             try:
                 out = float(value)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return None
             return out if 0 < out < float("inf") else None
 
         def sale_price(proposal):
-            if not proposal:
-                return None
-            return number((proposal.get("execution") or {}).get("fill_price")) or number(
-                proposal.get("reference_price")
-            )
+            if proposal["status"] == "auto_executed_dry_run":
+                return number((proposal.get("execution") or {}).get("fill_price"))
+            return number(proposal.get("reference_price"))
 
         with self._connection() as conn:
             conn.execute("BEGIN")
@@ -724,25 +731,40 @@ class AgentStore:
                 SELECT * FROM trade_proposals
                 WHERE status IN (?, ?)
                   AND action IN ('TRIM_TO_USDC', 'PROTECTIVE_STOP', 'RELOAD_ACCUMULATE')
-                ORDER BY created_ts, proposal_id
+                ORDER BY updated_ts, created_ts, proposal_id
                 """,
                 RELOAD_PLAN_ACTIVE_STATUSES,
             ).fetchall()
             proposals = [self._row_to_proposal(row) for row in rows]
 
         trims = {p["proposal_id"]: p for p in proposals if p["action"] == "TRIM_TO_USDC"}
+        unallocated = {
+            (trim["symbol"], plan_id, rung.get("index")): cents
+            for plan_id, trim in trims.items()
+            for rung, cents in self._funded_reload_rungs(trim)
+        }
         realized: dict[str, float] = {}
         for proposal in proposals:
             if proposal["action"] != "RELOAD_ACCUMULATE" or proposal["status"] != "approved":
                 continue
             bought_at = number(proposal.get("reference_price"))
-            for fill in (proposal.get("evidence") or {}).get("reload_fills") or []:
+            symbol = proposal["symbol"]
+            evidence = proposal.get("evidence") or {}
+            for fill in evidence.get("reload_fills") or []:
                 if not isinstance(fill, dict):
                     continue
-                usdc, sold_at = number(fill.get("usdc")), sale_price(trims.get(fill.get("plan_id")))
-                if bought_at and usdc and sold_at:
-                    symbol = proposal["symbol"]
-                    realized[symbol] = realized.get(symbol, 0.0) + usdc / bought_at - usdc / sold_at
+                key = (symbol, fill.get("plan_id"), fill.get("tranche"))
+                remaining = unallocated.get(key, 0)
+                cents = (
+                    min(remaining, usdc_cents(fill.get("usdc")))
+                    if evidence.get("reload_allocation_version") == 1 else remaining
+                )
+                if cents:
+                    unallocated[key] -= cents
+                    sold_at = sale_price(trims[key[1]])
+                    if bought_at and sold_at:
+                        usdc = cents / 100
+                        realized[symbol] = realized.get(symbol, 0.0) + usdc / bought_at - usdc / sold_at
         projected = dict(realized)
         for plan in plans:
             sold_at = sale_price(trims.get(plan["plan_id"]))
@@ -753,21 +775,37 @@ class AgentStore:
                     projected[symbol] = projected.get(symbol, 0.0) + left / level - left / sold_at
 
         avoided, priced = 0.0, set()
+        exposure = {}
         for proposal in proposals:
             if proposal["action"] == "RELOAD_ACCUMULATE":
                 continue
-            price = number((prices or {}).get(proposal["symbol"]))
+            symbol = proposal["symbol"]
+            price = number((prices or {}).get(symbol))
             sold_at = sale_price(proposal)
+            plan = proposal.get("reload_plan") or {}
+            evidence = proposal.get("evidence") or {}
+            execution = proposal.get("execution") or {}
+            trim_quantity = number(plan.get("trim_quantity"))
             quantity = (
-                number((proposal.get("reload_plan") or {}).get("trim_quantity"))
-                or number((proposal.get("execution") or {}).get("quantity"))
+                number(execution.get("base_size"))
+                or number(execution.get("quantity"))
+                or trim_quantity
                 or number(proposal.get("quantity"))
-                or number((proposal.get("evidence") or {}).get("quantity"))
+                or number(evidence.get("quantity"))
             )
             if price and sold_at and quantity:
-                priced.add(proposal["symbol"])
-                if price < sold_at:
-                    avoided += (sold_at - price) * quantity
+                held = number(evidence.get("held_quantity"))
+                if held is None:
+                    trim_pct = number(proposal.get("trim_pct"))
+                    held = (trim_quantity * 100 / trim_pct) if trim_quantity and trim_pct else quantity
+                # Paper decisions do not change holdings. Only attribute the
+                # part of an exit not already attributed to an earlier one.
+                prior_held, attributed = exposure.get(symbol, (held, 0.0))
+                attributed = max(0.0, attributed - max(0.0, prior_held - held))
+                quantity = min(quantity, max(0.0, held - attributed))
+                exposure[symbol] = (held, attributed + quantity)
+                priced.add(symbol)
+                avoided += max(0.0, sold_at - price) * quantity
         return {
             "freed_usdc_available": sum(usdc_cents(p["remaining_usdc"]) for p in plans) / 100,
             "active_ladders_count": len(plans),

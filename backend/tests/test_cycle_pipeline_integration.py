@@ -18,7 +18,7 @@ from smart_alerts import SmartAlertEngine
 
 
 def test_real_macro_response_drives_proposals_and_smart_alerts(
-    monkeypatch, tmp_path, daily_series, cycle_fixture
+    monkeypatch, tmp_path, daily_series, cycle_fixture, macro_scan_state
 ):
     for key in ("AGENT_OBSERVATIONS", "SMART_ALERTS", "CYCLE_HISTORY"):
         monkeypatch.setenv(f"MW_{key}_DB", str(tmp_path / f"{key}.sqlite"))
@@ -45,11 +45,6 @@ def test_real_macro_response_drives_proposals_and_smart_alerts(
         }
     )
     monkeypatch.setattr(backend_app, "_macro_scan_universe", lambda *a, **kw: sorted(histories))
-    for key, value in {
-        "payload": None, "day": None, "products": (), "running": False, "computed_at": 0.0
-    }.items():
-        monkeypatch.setitem(backend_app._MACRO_SCAN_STATE, key, value)
-
     class Response:
         def __init__(self, rows):
             self.rows = rows
