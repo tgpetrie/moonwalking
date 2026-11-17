@@ -442,3 +442,116 @@ def test_phase_two_evidence_stays_off_public_surfaces(client, monkeypatch):
     monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
     assert client.get("/api/agents/observations").json["observations"] == []
     assert client.get("/api/agents/proposals").status_code == 401
+
+
+# ─── POST /api/agents/run-cycle-pass ─────────────────────────────────────────
+
+PASS_URL = "/api/agents/run-cycle-pass"
+
+
+@pytest.fixture
+def cycle_pass(client, monkeypatch):
+    """The route with a cached scan, a watchlist, no live portfolio and a counted quote fetcher."""
+    state = {"scan": SCAN, "wanted": [], "quotes": [], "holdings": None}
+
+    def scan(wanted):
+        state["wanted"].append(list(wanted))
+        return state["scan"]
+
+    def quotes(products):
+        state["quotes"].append(list(products))
+        return {}
+
+    monkeypatch.setattr(backend_app, "_cycle_pass_scan", scan)
+    monkeypatch.setattr(backend_app, "_cycle_pass_quote_fetcher", quotes)
+    monkeypatch.setattr(backend_app, "_cycle_pass_watchlist", lambda user: ["avax-usd", "AVAX"])
+    monkeypatch.setattr(backend_app, "_cycle_pass_portfolio_holdings", lambda: state["holdings"])
+    monkeypatch.setattr(
+        backend_app, "_MACRO_ATLAS_PRIORITY", {"held": (), "watchlist": (), "reload": ()}
+    )
+    with paper_execution_store._connect() as conn:
+        conn.execute(
+            "INSERT INTO paper_execution_positions VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
+            ("t1", 1, "SOL-USD", 10.0, 150.0, 10.0, int(NOW)),
+        )
+    return state
+
+
+def test_cycle_pass_is_owner_only_and_needs_a_json_body(client, cycle_pass, monkeypatch):
+    for body in ({"data": "{}"}, {"headers": {"Origin": "https://other.example.test"}}):
+        refused = client.post(PASS_URL, **body)
+        assert refused.status_code == 415 and "no-store" in refused.headers["Cache-Control"]
+    assert client.post(PASS_URL, json=[]).status_code == 400
+    assert client.post(PASS_URL, json={"symbols": ["SOL"]}).status_code == 400
+    assert client.get(PASS_URL).status_code == 405
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
+    anonymous = client.post(PASS_URL, json={})
+    assert anonymous.status_code == 401 and "no-store" in anonymous.headers["Cache-Control"]
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: {"id": 2, "email": "x@example.test"})
+    forbidden = client.post(PASS_URL, json={})
+    assert forbidden.status_code == 403 and "no-store" in forbidden.headers["Cache-Control"]
+    # Nothing ran for any refused request.
+    assert cycle_pass["wanted"] == [] and AgentStore().list_proposals(limit=10) == []
+
+
+def test_cycle_pass_runs_strategist_and_alerts_from_paper_positions(client, cycle_pass):
+    response = client.post(PASS_URL, json={})
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "private, no-store"
+    body = response.json
+    assert body["status"] == "ok" and body["dry_run_only"] is True
+    assert body["positions_source"] == "paper" and body["positions"] == 1 and body["watchlist"] == 1
+    assert body["cycle_scan"]["usable"] is True
+    assert body["runs"] == [{"agent": "cycle_strategist", "status": "ok", "observations": 2}]
+    assert {p["action"] for p in body["proposals"]} == {"TRIM_TO_USDC", "BREAKOUT_ENTRY"}
+    assert body["smart_alerts"]["status"] == "ok"
+    assert body["autonomy"]["autonomy_mode"] == "approval_queue"
+    # Held and watchlist symbols are asked of the cached scan, held first.
+    assert cycle_pass["wanted"] == [["SOL-USD", "AVAX-USD"]]
+    # Approval-queue mode never fetches a live quote.
+    assert cycle_pass["quotes"] == []
+    listed = client.get("/api/agents/proposals").json["proposals"]
+    assert {p["action"] for p in listed} == {"TRIM_TO_USDC", "BREAKOUT_ENTRY"}
+    assert all(p["status"] == "pending_approval" for p in listed)
+    # The owner's symbols move to the front of the next atlas universe.
+    assert backend_app._MACRO_ATLAS_PRIORITY["held"] == ("SOL",)
+    assert backend_app._MACRO_ATLAS_PRIORITY["watchlist"] == ("AVAX",)
+
+
+def test_cycle_pass_prefers_the_live_portfolio_and_fetches_quotes_only_in_mode_b(client, cycle_pass):
+    cycle_pass["holdings"] = [
+        {"symbol": "SOL", "quantity": 4.0},
+        {"symbol": "USDC", "quantity": 0.0},
+        "junk",
+    ]
+    first = client.post(PASS_URL, json={}).json
+    assert first["positions_source"] == "portfolio" and first["positions"] == 1
+    assert cycle_pass["quotes"] == []
+
+    AgentStore().set_autonomy_settings(autonomy_mode="auto_protect_exits")
+    cycle_pass["scan"] = _scan(_row("SOL", 176.0, rollover_target_box={"low": 150.0, "high": 200.0}))
+    second = client.post(PASS_URL, json={}).json
+    assert second["status"] == "ok" and second["autonomy"]["autonomy_mode"] == "auto_protect_exits"
+    # Mode B asks for a quote only for the exit it is about to simulate.
+    assert cycle_pass["quotes"] == [["SOL-USD"]]
+    assert AgentStore().count_auto_orders_since(0) == 0  # no quote came back, so nothing executed
+
+
+def test_cycle_pass_skips_when_the_cached_scan_is_not_usable(client, cycle_pass):
+    for scan in (None, {"status": "refreshing", "computed_at": NOW, "ttl_seconds": 1800, "coins": [_row("SOL", 175.0)]}):
+        cycle_pass["scan"] = scan
+        body = client.post(PASS_URL, json={}).json
+        assert body["status"] == "skipped" and body["reason"] == "no_cycle_scan"
+        assert body["cycle_scan"]["usable"] is False and body["proposals"] == [] and body["runs"] == []
+    assert client.get("/api/agents/proposals").json["proposals"] == []
+    assert cycle_pass["quotes"] == []
+
+
+def test_cycle_pass_refuses_to_overlap_another_pass(client, cycle_pass):
+    assert backend_app._CYCLE_PASS_LOCK.acquire(blocking=False)
+    try:
+        busy = client.post(PASS_URL, json={})
+        assert busy.status_code == 409 and "no-store" in busy.headers["Cache-Control"]
+    finally:
+        backend_app._CYCLE_PASS_LOCK.release()
+    assert client.post(PASS_URL, json={}).status_code == 200

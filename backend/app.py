@@ -11893,7 +11893,10 @@ _MAX_SQLITE_ID = 2**63 - 1
 def _prevent_cycle_control_caching(response):
     path = request.path
     if (
-        path in {"/api/agents/proposals", "/api/agents/autonomy", "/api/smart-alerts"}
+        path in {
+            "/api/agents/proposals", "/api/agents/autonomy", "/api/smart-alerts",
+            "/api/agents/run-cycle-pass",
+        }
         or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
     ):
         response.headers["Cache-Control"] = "private, no-store"
@@ -12023,6 +12026,155 @@ def _smart_alert_engine():
     from smart_alerts import SmartAlertEngine
 
     return SmartAlertEngine(dispatcher=alert_delivery_dispatcher)
+
+
+# ─── In-process cycle pass (owner-only, dry-run) ─────────────────────────────
+
+_CYCLE_PASS_LOCK = threading.Lock()
+
+
+def _cycle_pass_portfolio_holdings():
+    """The signed-in owner's live holdings, or None when no live snapshot exists."""
+    from flask import make_response
+    from portfolio_mode import portfolio_snapshot
+
+    try:
+        response = make_response(portfolio_snapshot())
+        snapshot = response.get_json(silent=True) or {}
+        if response.status_code == 200 and snapshot.get("status") == "live":
+            return [row for row in snapshot.get("holdings") or [] if isinstance(row, dict)]
+    except Exception:
+        logging.exception("[CyclePass] portfolio snapshot unavailable")
+    return None
+
+
+def _cycle_pass_positions(user):
+    """(positions, source): the live portfolio if there is one, else open paper positions."""
+    import paper_execution_store
+
+    holdings = _cycle_pass_portfolio_holdings()
+    if holdings is not None:
+        return [
+            {"symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio"}
+            for row in holdings
+            if isinstance(row, dict)
+        ], "portfolio"
+    return paper_execution_store.list_open_positions(user["id"]), "paper"
+
+
+def _cycle_pass_watchlist(user):
+    from watchlist import _db_connect, _serialize_watchlists
+
+    conn = _db_connect()
+    try:
+        watchlists = _serialize_watchlists(conn, user["id"])
+    finally:
+        conn.close()
+    return [
+        str(item.get("itemKey") or "").upper().split("-")[0]
+        for watchlist in watchlists
+        for item in watchlist.get("items", [])
+    ]
+
+
+def _cycle_pass_scan(wanted):
+    """The cached cycle scan. Never computes in the request."""
+    payload = _macro_scan_snapshot(wanted, allow_inline=False)
+    return _macro_scan_response(payload, wanted) if payload else None
+
+
+def _cycle_pass_quote_fetcher(products):
+    # Called by the strategist only for exits Mode B is about to simulate.
+    from agents.cycle_context import fetch_live_quotes
+
+    return fetch_live_quotes(products)
+
+
+@app.post("/api/agents/run-cycle-pass")
+def run_agent_cycle_pass():
+    """Run the Cycle Strategist and the smart alerts once, in this process.
+
+    Reads the cached cycle scan, the owner's watchlist and held positions.
+    Dry-run only: no order is placed.
+    """
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if payload:
+        return jsonify({"error": "Expected an empty JSON object."}), 400
+    if not _CYCLE_PASS_LOCK.acquire(blocking=False):
+        return jsonify({"error": "A cycle pass is already running."}), 409
+    try:
+        from agents.cycle_context import build_cycle_context
+        from agents.cycle_strategist import CycleStrategistAgent
+        from agents.runner import run_once
+        from agents.store import AgentStore
+
+        store = AgentStore()
+        positions, positions_source = _cycle_pass_positions(user)
+        watch = _cycle_pass_watchlist(user)
+        now = time.time()
+        context = {
+            "now_ts": now,
+            **build_cycle_context(
+                None, positions=positions, watchlist=watch,
+                quote_fetcher=_cycle_pass_quote_fetcher, now=now,
+            ),
+        }
+        held = [row["symbol"] for row in context["positions"]]
+        _macro_atlas_set_priority(
+            held=held,
+            watchlist=context["watchlist"],
+            reload=[
+                str(plan.get("symbol") or "") for plan in store.active_reload_plans()
+                if isinstance(plan, dict)
+            ],
+        )
+        wanted = [
+            f"{symbol}-USD" for symbol in dict.fromkeys((*held, *context["watchlist"]))
+        ][:MACRO_SCAN_MAX_REQUESTED]
+        scan = _cycle_pass_scan(wanted)
+        # A warming, refreshing or stale scan becomes None and the pass is skipped.
+        context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
+        scan_summary = {
+            "usable": context["cycle_scan"] is not None,
+            "status": (scan or {}).get("status", "warming"),
+            **{
+                key: (scan or {}).get(key)
+                for key in ("computed_at", "target_universe_size", "ready_count", "coverage_pct")
+            },
+        }
+        body = {
+            "dry_run_only": True,
+            "cycle_scan": scan_summary,
+            "positions_source": positions_source,
+            "positions": len(context["positions"]),
+            "watchlist": len(context["watchlist"]),
+        }
+        if context["cycle_scan"] is None:
+            return _private_json({
+                **body, "status": "skipped", "reason": "no_cycle_scan",
+                "runs": [], "observation_count": 0, "proposals": [],
+                "autonomy": store.get_autonomy_settings(),
+            })
+        agent = CycleStrategistAgent()
+        result = run_once(
+            context, store=store, agents=[agent], smart_alert_engine=_smart_alert_engine()
+        )
+        return _private_json({
+            **body,
+            "status": "ok",
+            "runs": result["runs"],
+            "observation_count": result["observation_count"],
+            "smart_alerts": result.get("smart_alerts"),
+            "proposals": list(getattr(agent, "last_proposals", None) or []),
+            "autonomy": store.get_autonomy_settings(),
+        })
+    finally:
+        _CYCLE_PASS_LOCK.release()
 
 
 @app.route("/api/smart-alerts/rules", methods=["GET", "POST"])
