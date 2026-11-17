@@ -1291,6 +1291,24 @@ def test_cluster_guard_reads_clusters_and_betas_from_real_scan_rows(store):
     assert agent.last_cluster_guard["clusters"]["layer-1"]["symbols"] == ["AVAX", "SOL"]
 
 
+def test_rotation_buy_leg_cannot_enter_a_full_cluster(store):
+    context = _rotation_context(
+        _laggard(), _leader("LINK"),
+        _row("GRT", 1.0), _row("PYTH", 1.0),
+        portfolio_equity_usd=10_000,
+    )
+    context["positions"] += [
+        {"symbol": "grt-usdc", "quantity": 10},
+        {"symbol": "PYTH", "quantity": 10},
+    ]
+    agent = CycleStrategistAgent(store)
+    assert agent.evaluate(context) == []
+    (blocked,) = agent.last_cluster_guard["suppressed_proposals"]
+    assert (blocked["sell_symbol"], blocked["symbol"]) == ("DOT", "LINK")
+    assert blocked["suppression_reason"] == "cluster_count_cap_exceeded"
+    assert agent.last_cluster_guard["clusters"]["oracle-data"]["symbols"] == ["GRT", "PYTH"]
+
+
 def test_cluster_guard_steps_aside_without_equity_and_for_unsized_entries(store):
     agent = CycleStrategistAgent(store)
     rows = [_breakout(symbol) for symbol in ("AVAX", "NEAR", "SOL")]

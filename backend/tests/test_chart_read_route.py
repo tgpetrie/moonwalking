@@ -708,19 +708,35 @@ def test_cycle_replay_is_cached_per_product_day_and_history(monkeypatch):
     assert again == first and calls == [551]
     again["available"] = "mutated"  # callers get a copy
     assert backend_app._cycle_backtest_cached("SOL-USD", daily)["available"] is True
-    # Another product, a new bar, or a new UTC day replays.
+    # Another product, a shorter history, an OHLC correction or a new day replays.
     backend_app._cycle_backtest_cached("ETH-USD", daily)
     shorter = daily[1:]
     backend_app._cycle_backtest_cached("SOL-USD", shorter)
     assert calls == [551, 551, 550]
-    assert len([k for k in backend_app._CYCLE_BACKTEST_CACHE if k[0] == "SOL-USD"]) == 1
-    tomorrow = backend_app.time.time() + 86400
-    monkeypatch.setattr(backend_app.time, "time", lambda: tomorrow)
-    backend_app._cycle_backtest_cached("SOL-USD", shorter)
+    corrected = [list(bar) for bar in shorter]
+    corrected[5][1] /= 2
+    backend_app._cycle_backtest_cached("SOL-USD", corrected)
+    corrected[5][-1] += 1  # Volume does not enter the replay.
+    backend_app._cycle_backtest_cached("SOL-USD", corrected)
     assert calls == [551, 551, 550, 550]
-    monkeypatch.setattr(backend_app, "CYCLE_BACKTEST_CACHE_MAX", 1)
-    backend_app._cycle_backtest_cached("ADA-USD", daily)
-    assert list(k[0] for k in backend_app._CYCLE_BACKTEST_CACHE) == ["ADA-USD"]
+    assert len(backend_app._CYCLE_BACKTEST_CACHE) == 2
+    midnight = (backend_app.time.time() // 86400 + 1) * 86400
+    monkeypatch.setattr(backend_app.time, "time", lambda: midnight - 1)
+    backend_app._cycle_backtest_cached("SOL-USD", corrected)
+    assert calls == [551, 551, 550, 550]
+    monkeypatch.setattr(backend_app.time, "time", lambda: midnight)
+    backend_app._cycle_backtest_cached("SOL-USD", corrected)
+    assert calls == [551, 551, 550, 550, 550]
+
+
+def test_cycle_replay_cache_retains_only_256_products(monkeypatch):
+    monkeypatch.setattr(backend_app, "_CYCLE_BACKTEST_CACHE", {})
+    monkeypatch.setattr(backend_app, "_cycle_backtest_summary", lambda bars: {"available": True})
+    for i in range(257):
+        backend_app._cycle_backtest_cached(f"COIN{i}-USD", [])
+    assert len(backend_app._CYCLE_BACKTEST_CACHE) == 256
+    assert "COIN0-USD" not in backend_app._CYCLE_BACKTEST_CACHE
+    assert "COIN256-USD" in backend_app._CYCLE_BACKTEST_CACHE
 
 
 def test_cycle_replay_failure_never_breaks_the_chart_read(monkeypatch):

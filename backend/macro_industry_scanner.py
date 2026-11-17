@@ -545,8 +545,9 @@ def annotate_cluster_and_beta(
     """Add the coin's narrative cluster and its downside beta against BTC to a row.
 
     ``category_id`` comes from ``coin_clusters`` and is left out for an
-    unmapped coin. Beta uses the closes of the last ``BETA_WINDOW_DAYS`` days
-    that both series traded, matched by timestamp. ``downside_beta`` is the
+    unmapped coin. Beta uses the trailing ``BETA_WINDOW_DAYS`` calendar days
+    ending at the latest BTC close, with returns on consecutive shared UTC
+    dates. ``downside_beta`` is the
     beta on BTC's down days, or the full-sample beta when there are too few
     of them, and is left out when neither can be read. ``btc_beta`` carries the
     detail. Never raises.
@@ -556,9 +557,11 @@ def annotate_cluster_and_beta(
         row["category_id"] = cluster
     try:
         asset, btc = _clean(candles), _clean(btc_candles)
-        shared = sorted(set(asset) & set(btc))[-(BETA_WINDOW_DAYS + 1):]
+        end = max(btc, default=0)
+        dates = range(end - BETA_WINDOW_DAYS * DAY, end + DAY, DAY)
         read = _sibling("portfolio_cluster_guard").compute_downside_btc_beta(
-            [asset[ts][4] for ts in shared], [btc[ts][4] for ts in shared]
+            [asset[ts][4] if ts in asset else None for ts in dates],
+            [btc[ts][4] if ts in btc else None for ts in dates],
         )
     except Exception:
         logging.debug("[MacroScan] beta read failed for %s", row.get("product_id"), exc_info=True)
@@ -777,9 +780,9 @@ class CycleAtlas:
     def histories(self, products: Any) -> dict[str, list[list[Any]]]:
         """Cached candles for the given products, fresh or not."""
         return {
-            product: self.entries[product]["candles"]
+            product: candles
             for product in products
-            if (self.entries.get(product) or {}).get("candles")
+            if (candles := (self.entries.get(product) or {}).get("candles"))
         }
 
     def record_rate_limit(self, now: float) -> None:

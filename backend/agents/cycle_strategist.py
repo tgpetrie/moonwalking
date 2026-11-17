@@ -631,17 +631,17 @@ def build_reload_plan(
     chosen.sort(reverse=True)
     advice = _ladder_advice(invalidation, chosen[0][0], price, freed, daily_candles)
     weights = RELOAD_WEIGHTS[: len(chosen)]
-    # A full three-rung ladder takes the history-tilted split. Without enough
-    # wick history the optimizer returns the plan's own 25/35/40 unchanged.
-    applied = bool(
-        advice.get("available") and advice["regime"] != "default" and len(chosen) == len(RELOAD_WEIGHTS)
-    )
-    if applied:
-        weights = tuple(max(1, round(weight * 10_000)) for weight in advice["weights"])
+    allocation = split_reload_cents(freed_cents, list(weights))
+    applied = False
+    if advice.get("available") and advice["regime"] != "default" and len(chosen) == len(RELOAD_WEIGHTS):
+        tilted_weights = tuple(max(1, round(weight * 10_000)) for weight in advice["weights"])
+        tilted_allocation = split_reload_cents(freed_cents, list(tilted_weights))
+        if tilted_allocation != allocation and all(tilted_allocation):
+            weights, allocation = tilted_weights, tilted_allocation
+            applied = True
     advice["applied_to_tranches"] = applied
     total = sum(weights)
     tranches, coins = [], 0.0
-    allocation = split_reload_cents(freed_cents, list(weights))
     for index, ((level, source), weight, cents) in enumerate(zip(chosen, weights, allocation), start=1):
         usdc = cents / 100
         coins += usdc / level
@@ -1113,11 +1113,10 @@ class _ClusterGuard:
     """Checks each sized entry against cluster and beta-adjusted heat, in rank order.
 
     Wraps ``portfolio_cluster_guard.evaluate_cluster_and_beta_heat``. A coin's
-    cluster comes from its scan row (``category_id`` / ``cluster`` /
-    ``narrative_cluster`` / ``sector``) or ``context["symbol_clusters"]``, and
-    its downside beta from the row or ``context["downside_betas"]``. A coin
-    with neither stands alone with a beta of 1. Entries with no sized risk
-    (equity unknown, or no heat left) pass through: they buy nothing.
+    cluster comes from its scan row, then ``context["symbol_clusters"]``,
+    then the static map. Downside beta comes from the scan or
+    ``context["downside_betas"]``. Unmapped coins stand alone and missing
+    beta uses 1. Entries without a sized buy can still be shown for review.
     """
 
     def __init__(self, context, rows, held, heat) -> None:
@@ -1140,7 +1139,7 @@ class _ClusterGuard:
             self.reason = "guard_unavailable"
             return
         self.existing = [
-            self._item(symbol, risk) for symbol, risk in sorted(heat["_position_risk"].items()) if risk > 0
+            self._item(symbol, heat["_position_risk"].get(symbol)) for symbol in sorted(held)
         ]
 
     def _item(self, symbol: str, risk_usd: float | None) -> dict[str, Any]:
@@ -1151,7 +1150,7 @@ class _ClusterGuard:
                 item[key] = row[key]
                 break
         else:
-            named = self.clusters.get(symbol)
+            named = self.clusters.get(symbol) or _quant_module("coin_clusters").cluster_for(symbol)
             if isinstance(named, str) and named.strip():
                 item["category_id"] = named
         beta = row.get("downside_beta", self.betas.get(symbol))
@@ -1159,13 +1158,12 @@ class _ClusterGuard:
             item["downside_beta"] = beta
         return item
 
-    def admit(self, entry: TradeProposal) -> bool:
-        if self.module is None:
+    def admit(self, entry: TradeProposal, risk: float) -> bool:
+        if self.module is None or risk <= 0:
             return True
-        risk = _num((entry.sizing or {}).get("risk_at_stop_usd"))
-        if risk is None or risk <= 0:
-            return True
-        candidate = self._item(entry.symbol, risk)
+        leader = entry.pair["leader"] if entry.action == ROTATE_TO_LEADER else None
+        symbol = leader["symbol"] if leader else entry.symbol
+        candidate = self._item(symbol, risk)
         verdict = self.module.evaluate_cluster_and_beta_heat(
             self.existing + self.accepted, [candidate], equity_usd=self.equity, **CLUSTER_GUARD_LIMITS
         )
@@ -1175,9 +1173,10 @@ class _ClusterGuard:
             return True
         blocked = verdict["suppressed_proposals"][0]
         self.suppressed.append({
-            "symbol": entry.symbol,
+            "symbol": symbol,
+            **({"sell_symbol": entry.symbol} if leader else {}),
             "action": entry.action,
-            "reference_price": entry.reference_price,
+            "reference_price": leader["reference_price"] if leader else entry.reference_price,
             "suppression_reason": blocked["suppression_reason"],
             "cluster_guard": blocked["cluster_guard"],
             "suggested_notional_usd": (entry.sizing or {}).get("suggested_notional_usd"),
@@ -1243,6 +1242,8 @@ class CycleStrategistAgent:
 
     def evaluate(self, context: Mapping[str, Any]) -> list[TradeProposal]:
         """Proposals for the current inputs, without routing or persistence."""
+        self.last_skipped = []
+        self.last_heat = self.last_cluster_guard = None
         scan = _scan_from_context(context)
         if not scan:
             return []
@@ -1315,8 +1316,6 @@ class CycleStrategistAgent:
             context, held, rows, {symbol: floor_of(symbol) for symbol in held if symbol in rows}
         )
         base_risk = _setting(context, "base_risk_pct", BASE_RISK_PCT)
-        self.last_skipped = []
-
         entries = []
         for symbol in sorted((watch | set(held) | set(plans)) - defended):
             row = rows.get(symbol)
@@ -1361,7 +1360,7 @@ class CycleStrategistAgent:
                 funded_usd=entry.evidence.get("reload_pool_usdc")
                 if entry.action == RELOAD_ACCUMULATE else None,
             )
-            if not guard.admit(entry):
+            if not guard.admit(entry, heat["_reserved_risk"] - reserved_before):
                 # Give the suppressed entry's heat back to the entries after it.
                 heat["_reserved_risk"] = reserved_before
                 continue
@@ -1396,12 +1395,16 @@ class CycleStrategistAgent:
                 row = rows[symbol]
                 rotation = evaluate_rotation(row, _num(row["price"]), held[symbol]["quantity"], leader)
                 rotation.stage = stage
+                reserved_before = heat["_reserved_risk"]
                 rotation.sizing = size_entry(
                     leader["reference_price"], leader["stop_price"], stage, heat, base_risk,
                     funded_usd=rotation.pair["freed_usd"],
                 )
                 notional = rotation.sizing["suggested_notional_usd"]
                 if not notional:
+                    continue
+                if not guard.admit(rotation, heat["_reserved_risk"] - reserved_before):
+                    heat["_reserved_risk"] = reserved_before
                     continue
                 if notional < rotation.pair["freed_usd"]:
                     rotation.trim_pct *= notional / rotation.pair["freed_usd"]

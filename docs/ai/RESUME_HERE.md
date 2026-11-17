@@ -7,6 +7,32 @@ audited commit `464e7f3`, which is also the tip of
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
 it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
 
+## Phase 4 red-team audit · November 17
+
+Reviewed `6d60690..538c67e` and applied the follow-up on
+`claude/elliott-abc-v2-reclaim-20261115`.
+
+| Area | Audit result |
+| --- | --- |
+| Cluster map | The original map contains 118 unique tickers across 11 clusters. The updated map contains 123 across 12. Base symbols and USD/USDC pairs resolve case-insensitively. CELO moves to Layer 2 and XCN to Layer 1. BLUR and TNSR share the NFT marketplace cluster. Vaulta, Sky, Velodrome and Coinbase's ZetaChain ticker are grouped with their corresponding narratives. Legacy tickers still resolve. The map groups narrative exposure and does not measure pairwise correlations. [Celo](https://specs.celo.org/root.html) · [Onyx](https://onyx.org/docs/onyxcoin/about-xcn) · [Blur](https://blur.io/?v=1.0.24) · [Tensor](https://docs.tensor.foundation/governance) · [Coinbase migrations](https://help.coinbase.com/en-bm/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/token-migrations) |
+| Downside beta | The scanner takes 365 calendar days of daily returns ending at the latest BTC close. Both assets must have valid closes on the return date and the previous UTC date. BTC down days are used when there are enough to estimate the slope. The full-sample beta is the fallback and the guard uses a neutral multiplier when beta is unavailable. Supplements use fresh BTC candles. |
+| Cluster guard | Cap checks use unrounded risk and include a rotation's buy leg. Suppressed buys release reserved heat. Live desk passes count USD and USDC balances toward complete marked equity and exclude them from risky positions. Existing position counts use the static map when a scan row lacks a cluster. |
+| Atlas and ladders | The desk pass reads fresh, cached `1D` candles for held coins. Missing or expired history uses the base weights. For a three-rung plan, the optimizer is marked as applied when the wick tilt changes funded cent allocations and every rung still has funding. Fill probabilities and extra coins versus flat weights describe the optimizer's modeled rungs. Actual ladder funding comes from the plan's tranche prices and cent allocations. |
+| Replay | The chart cache keeps up to 256 products with one replay per product. A new UTC day or changed OHLC data recomputes it. Cache population is serialized and transient replay errors can be retried. The replay models deterministic fills without fees or outcome validation. |
+| Strategist deck | Trim proposals and open ladders show their weight source. The deck shows beta-adjusted heat and held-back symbols with the reason for each suppression. Proposal rows also show their beta-adjusted entry risk when supplied. Run-level suppression is available from the owner desk-pass response for the current page session. |
+
+The scope was the paper workflow and recorded candle inputs. Existing
+proposal decisions stay tied to their original ledger records, and a run's
+suppression applies to that run's candidates.
+
+Verification in the isolated worktree passed for the full backend suite
+(1,170 passed and 33 skipped), `npm --prefix frontend test -- --run`
+(624 passed across 48 files), `npm --prefix frontend run build`, the repository
+guardrails and `git diff --check`. The build still reports unresolved references
+to `/background-linear.svg` and `/purple-rabbit-bg.png` and a chunk over 500 kB.
+The tests used temporary databases and excluded connections to ports 5003, 5004,
+5173 and 5174.
+
 ## Phase 4: quant modules wired in · November 16
 
 Built on Codex's audited `6d60690`. Three pure modules, each with its own test

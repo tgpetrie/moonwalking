@@ -1,4 +1,4 @@
-"""Narrative clusters for liquid Coinbase USD coins.
+"""Narrative clusters for Coinbase coins and their legacy tickers.
 
 A hand-kept map used by the strategist's cluster heat guard: coins in one
 cluster tend to fall together, so the guard limits how many of them, and how
@@ -20,18 +20,19 @@ _GROUPS = {
     "layer-1": (
         "SOL", "ADA", "AVAX", "DOT", "NEAR", "ATOM", "SUI", "APT", "SEI", "ALGO",
         "HBAR", "XTZ", "EGLD", "ICP", "KAS", "INJ", "TIA", "FLOW", "MINA", "EOS",
-        "ETC", "KAVA", "CELO", "ROSE", "ZETA",
+        "A", "ETC", "KAVA", "ROSE", "ZETA", "ZETACHAIN", "XCN",
     ),
-    "layer-2": ("ARB", "OP", "POL", "MATIC", "IMX", "STRK", "MNT", "ZK", "METIS", "LRC", "SKL", "BLAST"),
+    "layer-2": ("ARB", "OP", "POL", "MATIC", "IMX", "STRK", "MNT", "ZK", "METIS", "LRC", "SKL", "BLAST", "CELO"),
     "defi": (
         "UNI", "AAVE", "COMP", "MKR", "CRV", "SNX", "LDO", "SUSHI", "1INCH", "BAL",
-        "YFI", "PENDLE", "JUP", "ENA", "MORPHO", "CVX", "DYDX", "RPL", "AERO", "ONDO",
+        "YFI", "PENDLE", "JUP", "ENA", "MORPHO", "CVX", "DYDX", "RPL", "AERO", "ONDO", "SKY", "VELO",
     ),
     "oracle-data": ("LINK", "PYTH", "GRT", "API3", "BAND", "TRB"),
     "ai-compute": ("FET", "RENDER", "RNDR", "TAO", "AKT", "OCEAN", "AGIX", "AIOZ", "IO", "VIRTUAL", "ARKM", "GLM"),
     "meme": ("DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI", "MOG", "POPCAT", "TRUMP", "PENGU", "BRETT", "FARTCOIN"),
-    "gaming-metaverse": ("SAND", "MANA", "AXS", "APE", "GALA", "ENJ", "ILV", "YGG", "PRIME", "SUPER", "BLUR"),
-    "payments": ("XRP", "XLM", "LTC", "BCH", "XCN", "AMP"),
+    "gaming-metaverse": ("SAND", "MANA", "AXS", "APE", "GALA", "ENJ", "ILV", "YGG", "PRIME", "SUPER"),
+    "nft-marketplaces": ("BLUR", "TNSR"),
+    "payments": ("XRP", "XLM", "LTC", "BCH", "AMP"),
     "storage-infra": ("FIL", "AR", "STORJ", "ANKR", "HNT", "THETA", "LPT", "IOTX", "QNT"),
     "privacy": ("ZEC", "DASH", "XMR"),
 }
@@ -42,7 +43,8 @@ COIN_CLUSTERS: dict[str, str] = {
 
 
 def cluster_for(symbol: Any) -> str | None:
-    """The cluster of ``SYMBOL`` or ``SYMBOL-USD``, or ``None`` when unmapped."""
+    """The cluster of a base symbol, USD pair or USDC pair."""
     if not isinstance(symbol, str):
         return None
-    return COIN_CLUSTERS.get(symbol.strip().upper().removesuffix("-USD"))
+    base, sep, quote = symbol.strip().upper().partition("-")
+    return COIN_CLUSTERS.get(base) if not sep or quote in {"USD", "USDC"} else None

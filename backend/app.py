@@ -12046,24 +12046,28 @@ def _cycle_pass_portfolio_holdings():
         response = make_response(portfolio_snapshot())
         snapshot = response.get_json(silent=True) or {}
         if response.status_code == 200 and snapshot.get("status") == "live":
-            return [row for row in snapshot.get("holdings") or [] if isinstance(row, dict)]
+            return snapshot.get("holdings") or []
     except Exception:
         logging.exception("[CyclePass] portfolio snapshot unavailable")
     return None
 
 
 def _cycle_pass_positions(user):
-    """(positions, source): the live portfolio if there is one, else open paper positions."""
+    """Return positions, source and complete marked equity when available."""
     import paper_execution_store
+    from portfolio_mode import USD_EQUIVALENTS
 
     holdings = _cycle_pass_portfolio_holdings()
     if holdings is not None:
+        holdings = [row for row in holdings if isinstance(row, dict)]
+        marks = [_num_or_none(row.get("market_value_usd")) for row in holdings]
+        equity = sum(marks) if all(mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks) else None
         return [
             {"symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio"}
             for row in holdings
-            if isinstance(row, dict)
-        ], "portfolio"
-    return paper_execution_store.list_open_positions(user["id"]), "paper"
+            if not row.get("is_cash") and row.get("symbol") not in USD_EQUIVALENTS
+        ], "portfolio", equity
+    return paper_execution_store.list_open_positions(user["id"]), "paper", None
 
 
 def _cycle_pass_watchlist(user):
@@ -12124,13 +12128,14 @@ def _cycle_pass_quote_fetcher(products):
     return fetch_live_quotes(products)
 
 
-def _cycle_pass_histories(symbols):
-    """Atlas-cached daily candles for these symbols, keyed ``SYMBOL-USD``. Never fetches."""
+def _cycle_pass_histories(symbols, *, now):
+    """Read current 1D Atlas candles for the held symbols without fetching."""
     atlas = _MACRO_ATLAS
     if atlas is None:
         return {}
     try:
-        return atlas.histories([f"{symbol}-USD" for symbol in symbols])
+        products = [f"{symbol}-USD" for symbol in symbols]
+        return atlas.histories([product for product in products if atlas.state(product, now) == "fresh"])
     except Exception:
         logging.debug("[CyclePass] atlas histories unavailable", exc_info=True)
         return {}
@@ -12160,10 +12165,11 @@ def run_agent_cycle_pass():
         from agents.store import AgentStore
 
         store = AgentStore()
-        positions, positions_source = _cycle_pass_positions(user)
+        positions, positions_source, equity = _cycle_pass_positions(user)
         watch = _cycle_pass_watchlist(user)
         context = build_cycle_context(
             None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
+            risk={"portfolio_equity_usd": equity},
         )
         held = [row["symbol"] for row in context["positions"]]
         reload = [plan["symbol"] for plan in store.active_reload_plans()]
@@ -12182,11 +12188,6 @@ def run_agent_cycle_pass():
         now = time.time()
         context["now_ts"] = now
         context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
-        # Held coins' cached daily history, so trim reload ladders can read
-        # past wick depth. Never fetched here.
-        context["cycle_histories"] = _cycle_pass_histories(
-            [row["symbol"] for row in context["positions"]]
-        )
         scan_summary = {
             **_cycle_scan_summary(scan),
             "usable": context["cycle_scan"] is not None,
@@ -12205,6 +12206,7 @@ def run_agent_cycle_pass():
                 "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
                 "autonomy": store.get_autonomy_settings(),
             })
+        context["cycle_histories"] = _cycle_pass_histories(held, now=now)
         agent = CycleStrategistAgent()
         result = run_once(
             context, store=store, agents=[agent], smart_alert_engine=_smart_alert_engine()
@@ -13828,27 +13830,19 @@ _CYCLE_BACKTEST_LOCK = threading.Lock()
 
 
 def _cycle_backtest_cached(product_id, daily_candles):
-    """The replay summary, computed at most once per product, UTC day and history.
-
-    The key holds the bar count and newest timestamp too, so a history that
-    gains a bar within the day is replayed again. The oldest entries are
-    dropped past ``CYCLE_BACKTEST_CACHE_MAX``.
-    """
-    stamps = [bar[0] for bar in daily_candles or [] if isinstance(bar, (list, tuple)) and bar]
-    try:
-        newest = max(float(ts) for ts in stamps) if stamps else None
-    except (TypeError, ValueError):
-        newest = None
-    key = (str(product_id), int(time.time() // 86400), len(stamps), newest)
+    """Keep one replay per product, invalidated by UTC rollover or changed OHLC."""
+    bars = [tuple(bar[:5]) for bar in daily_candles or [] if isinstance(bar, (list, tuple))]
+    fingerprint = hashlib.sha256(repr(bars).encode()).digest()
     with _CYCLE_BACKTEST_LOCK:
-        hit = _CYCLE_BACKTEST_CACHE.get(key)
-    if hit is not None:
-        return dict(hit)
-    summary = _cycle_backtest_summary(daily_candles)
-    with _CYCLE_BACKTEST_LOCK:
-        for stale in [k for k in _CYCLE_BACKTEST_CACHE if k[0] == key[0]]:
-            del _CYCLE_BACKTEST_CACHE[stale]  # one live entry per product
-        _CYCLE_BACKTEST_CACHE[key] = summary
+        key = (_macro_scan_day(time.time()), fingerprint)
+        hit = _CYCLE_BACKTEST_CACHE.get(product_id)
+        if hit is not None and hit[0] == key:
+            return dict(hit[1])
+        summary = _cycle_backtest_summary(bars)
+        if summary.get("reason") == "replay_failed":
+            return summary
+        _CYCLE_BACKTEST_CACHE.pop(product_id, None)
+        _CYCLE_BACKTEST_CACHE[product_id] = (key, summary)
         while len(_CYCLE_BACKTEST_CACHE) > CYCLE_BACKTEST_CACHE_MAX:
             del _CYCLE_BACKTEST_CACHE[next(iter(_CYCLE_BACKTEST_CACHE))]
     return dict(summary)
@@ -14437,7 +14431,10 @@ def _macro_scan_refresh(wanted, refresh_base, day):
                     candles = _macro_atlas_fetch(product)
                     row = scanner.cycle_row(product, candles) if candles else None
                     if row and row.get("available"):
-                        btc = atlas.histories(["BTC-USD"]).get("BTC-USD")
+                        btc = (
+                            atlas.histories(["BTC-USD"]).get("BTC-USD")
+                            if atlas.state("BTC-USD", now) == "fresh" else None
+                        )
                         scanner.annotate_cluster_and_beta(row, candles, btc)
                     rows[product] = row
                 except Exception as exc:

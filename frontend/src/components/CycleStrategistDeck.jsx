@@ -34,6 +34,12 @@ const RUNG_BASIS = {
   daily_higher_low_floor: "Daily higher-low floor",
   fib_confluence_cluster: "Fib confluence cluster",
 };
+const CLUSTER_GUARD_REASON = {
+  cluster_count_cap_exceeded: "Cluster position limit reached",
+  cluster_heat_cap_exceeded: "Cluster heat cap exceeded",
+  beta_adjusted_heat_cap_exceeded: "Beta-adjusted portfolio heat cap exceeded",
+  risk_unavailable: "Risk unavailable",
+};
 const STATUS_LABEL = {
   pending_approval: "Pending approval",
   approved: "Approved",
@@ -65,6 +71,66 @@ const usd = (value) => (finite(value)
 const coins = (value) => (finite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—");
 const signedCoins = (value) => `${value >= 0 ? "+" : ""}${coins(value)}`;
 const signedPct = (value) => (finite(value) ? `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(2)}%` : "—");
+const riskPct = (value) => `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 4 })}%`;
+
+function LadderWeights({ plan, proposal }) {
+  const source = plan?.weight_source ?? proposal?.weight_source;
+  const advice = plan?.ladder_optimizer ?? proposal?.ladder_optimizer;
+  const applied = advice?.applied_to_tranches;
+  const estimate = plan?.expected_extra_coins_vs_flat_weights
+    ?? proposal?.expected_extra_coins_vs_flat_weights ?? advice?.expected_extra_coins_vs_flat_weights;
+  let adaptive;
+  if (source === "ladder_optimizer" || source === "default") adaptive = source === "ladder_optimizer";
+  else if (typeof applied === "boolean") adaptive = applied;
+  else if (finite(estimate)) adaptive = advice?.regime !== "default";
+  else return null;
+
+  if (adaptive) return <span className="mw-agents-chip">Adaptive wick-tilted weights</span>;
+  const partial = plan?.tranches?.length > 0 && plan.tranches.length < 3;
+  return (
+    <span className="mw-agents-chip">
+      {partial ? "Base weights · normalized 25/35/40" : "Base weights · 25/35/40"}
+    </span>
+  );
+}
+
+function readClusterGuard(payload) {
+  if (Array.isArray(payload.suppressed_proposals)) {
+    return {
+      ...payload.cluster_guard,
+      suppressed_proposals: payload.cluster_guard?.suppressed_proposals ?? payload.suppressed_proposals,
+    };
+  }
+  return payload.cluster_guard;
+}
+
+function ClusterGuardNote({ guard }) {
+  const suppressed = Array.isArray(guard?.suppressed_proposals) ? guard.suppressed_proposals : [];
+  const heat = guard?.total_beta_adjusted_risk_pct;
+  const cap = guard?.limits?.max_total_heat_pct;
+  if (!suppressed.length && !finite(heat)) return null;
+  return (
+    <div role="group" aria-label="Cluster guard">
+      <span className="mw-agents-chip">
+        Cluster guard{finite(heat) ? ` · ${riskPct(heat)} beta-adjusted heat` : ""}
+        {finite(heat) && finite(cap) ? ` of ${riskPct(cap)}` : ""}
+      </span>
+      {suppressed.map((entry) => {
+        const action = ACTION_LABEL[entry.action];
+        const cluster = entry.cluster_guard?.cluster;
+        const reason = entry.suppression_reason ?? entry.cluster_guard?.suppression_reason;
+        const label = CLUSTER_GUARD_REASON[reason] || reason?.replaceAll("_", " ") || "Guard limit reached";
+        const symbol = entry.sell_symbol ? `${entry.sell_symbol} → ${entry.symbol}` : entry.symbol;
+        return (
+          <p className="mw-agents-note" key={`${symbol}-${entry.action}-${reason}`}>
+            Held back · {symbol}{action ? ` ${action.toLowerCase()}` : ""}
+            {cluster && !cluster.startsWith("uncategorized:") ? ` (${cluster})` : ""} · {label}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 function TradeLink({ target, children }) {
   const url = getCoinbaseAdvancedSpotUrl(target);
@@ -169,6 +235,7 @@ function ProposalRow({ proposal, busy, onDecide }) {
   const blockReasons = Array.isArray(proposal.execution?.block_reasons) ? proposal.execution.block_reasons : [];
   const heldReason = typeof proposal.execution?.held_reason === "string" ? proposal.execution.held_reason : "";
   const evidence = proposal.evidence && typeof proposal.evidence === "object" ? proposal.evidence : {};
+  const clusterGuard = proposal.cluster_guard ?? evidence.cluster_guard;
   const staleBreak = proposal.breach_state === "stale_floor_break_reassess";
   const pair = proposal.action === "ROTATE_TO_LEADER" && proposal.pair && typeof proposal.pair === "object" ? proposal.pair : null;
   const buySymbol = pair ? String(pair.buy_symbol || "").toUpperCase() : symbol;
@@ -187,6 +254,12 @@ function ProposalRow({ proposal, busy, onDecide }) {
         ) : null}
         {staleBreak ? (
           <span className="mw-agents-chip is-sev-watch" title="Floor broke long ago; reassess instead of selling the low">Reassess</span>
+        ) : null}
+        {proposal.action === "TRIM_TO_USDC" ? <LadderWeights plan={proposal.reload_plan} proposal={proposal} /> : null}
+        {finite(clusterGuard?.beta_adjusted_risk_pct) ? (
+          <span className="mw-agents-chip">
+            {riskPct(clusterGuard.beta_adjusted_risk_pct)} beta-adjusted entry risk
+          </span>
         ) : null}
         <span className={`mw-agents-chip ${STATUS_CHIP[status] || ""}`}>{STATUS_LABEL[status] || status}</span>
       </div>
@@ -253,6 +326,7 @@ export default function CycleStrategistDeck() {
   const [summary, setSummary] = useState(null);
   const [coverage, setCoverage] = useState(null);
   const [passNote, setPassNote] = useState("");
+  const [clusterGuard, setClusterGuard] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -262,6 +336,8 @@ export default function CycleStrategistDeck() {
       setCoverage(payload.cycle_scan ?? null);
       setProposals(Array.isArray(payload.proposals) ? payload.proposals : []);
       setReloadPlans(Array.isArray(payload.reload_plans) ? payload.reload_plans : []);
+      const guard = readClusterGuard(payload);
+      if (guard !== undefined) setClusterGuard(guard);
       if (payload.autonomy && typeof payload.autonomy === "object") {
         setAutonomy(payload.autonomy);
         setCapDraft(String(payload.autonomy.daily_order_cap ?? ""));
@@ -313,6 +389,7 @@ export default function CycleStrategistDeck() {
     setBusy(true);
     setError("");
     setPassNote("Running desk pass…");
+    setClusterGuard(null);
     try {
       const result = await runCycleAgentPass();
       await load();
@@ -320,6 +397,8 @@ export default function CycleStrategistDeck() {
         setError("The desk pass encountered an error running Cycle Strategist or Smart Alerts.");
         setPassNote("");
       } else if (result.status === "ok") {
+        const guard = readClusterGuard(result);
+        if (guard !== undefined) setClusterGuard(guard);
         const count = Array.isArray(result.proposals) ? result.proposals.length : 0;
         setPassNote(`Desk pass complete · ${count} proposal${count === 1 ? "" : "s"} from this pass`);
       } else {
@@ -362,6 +441,7 @@ export default function CycleStrategistDeck() {
           <p className="mw-agents-note">Atlas coverage · {coverage.ready_count} / {coverage.target_universe_size} coins</p>
         ) : null}
         {passNote ? <p className="mw-agents-note" role="status">{passNote}</p> : null}
+        <ClusterGuardNote guard={clusterGuard} />
         {error ? <p className="mw-agents-error" role="alert">{error}</p> : null}
         {autonomy ? (
           <div className="mw-agents-filters">
@@ -466,6 +546,7 @@ export default function CycleStrategistDeck() {
                   <div className="mw-finding__line">
                     <span className="mw-finding__symbol">{symbol}</span>
                     <span className="mw-agents-chip is-sev-watch">{usd(plan.remaining_usdc)} unspent</span>
+                    <LadderWeights plan={plan} />
                   </div>
                   <ReloadPlan plan={plan} symbol={symbol} />
                   <div className="mw-proposal__actions">

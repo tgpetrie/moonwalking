@@ -259,3 +259,11 @@ def test_coins_without_a_cluster_stand_alone_and_positions_without_risk_still_co
 def test_invalid_limits_are_rejected(kwargs):
     with pytest.raises(ValueError):
         pcg.evaluate_cluster_and_beta_heat([], [], **kwargs)
+
+
+def test_cluster_cap_uses_unrounded_risk():
+    existing = [{"symbol": "SOL", "cluster": "layer-1", "risk_usd": 100.002}]
+    candidates = [{"symbol": "AVAX", "cluster": "layer-1", "risk_usd": 100.002}]
+    result = pcg.evaluate_cluster_and_beta_heat(existing, candidates, equity_usd=10_000)
+    assert not result["accepted_proposals"]
+    assert result["suppressed_proposals"][0]["suppression_reason"] == "cluster_heat_cap_exceeded"

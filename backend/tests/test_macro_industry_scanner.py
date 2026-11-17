@@ -391,6 +391,34 @@ def test_beta_uses_only_the_trailing_year():
     assert row["downside_beta"] == pytest.approx(1.0, abs=1e-3)
 
 
+def test_beta_uses_consecutive_shared_dates_and_does_not_backfill_from_old_closes():
+    btc = bars([100, 90, 70, 71, 80, 60, 50, 52], t0=400 * DAY)
+    asset = [bar for i, bar in enumerate(btc) if i not in (2, 6)]
+    asset += bars([50, 130, 90, 60])
+    benchmark = bars([200, 100, 230, 105]) + btc
+    row = mis.annotate_cluster_and_beta({"product_id": " sol-usdc "}, asset, benchmark)
+    assert row["category_id"] == "layer-1"
+    assert row["btc_beta"]["observations"] == 3
+    assert row["btc_beta"]["down_days"] == 2
+    assert row["btc_beta"]["downside_beta"] is None
+    assert row["downside_beta"] == pytest.approx(1.0)
+
+
+def test_cluster_map_has_unique_keys_and_normalizes_supported_products():
+    from coin_clusters import COIN_CLUSTERS, _GROUPS, cluster_for
+
+    assert len(COIN_CLUSTERS) == sum(len(symbols) for symbols in _GROUPS.values())
+    for symbol, cluster in COIN_CLUSTERS.items():
+        for quote in ("", "-usd", "-usdc"):
+            assert cluster_for(f" {symbol.lower()}{quote} ") == cluster
+    assert cluster_for("CELO") == "layer-2"
+    assert cluster_for("XCN") == "layer-1"
+    assert cluster_for("BLUR") == cluster_for("TNSR") == "nft-marketplaces"
+    assert cluster_for("SKY") == cluster_for("MKR") == "defi"
+    for invalid in (None, "", "UNKNOWN-USD", "SOL-EUR", "SOL-USD-USDC"):
+        assert cluster_for(invalid) is None
+
+
 def test_scan_rows_carry_cluster_and_beta(shapes):
     histories = {"BTC-USD": shapes["up"], "SOL-USD": shapes["up"], "ZZZ-USD": shapes["up"]}
     coins = {row["product_id"]: row for row in mis.scan_universe_cycles(histories)["coins"]}

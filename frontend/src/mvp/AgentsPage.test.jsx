@@ -237,7 +237,7 @@ describe("AgentsPage", () => {
       ...extra,
     });
 
-    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, coverage, pass } = {}) {
+    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, coverage, guard, suppressed, pass } = {}) {
       let settings = autonomy || {
         autonomy_mode: "approval_queue",
         execution_mode: "dry_run",
@@ -262,6 +262,8 @@ describe("AgentsPage", () => {
           payload = { status: "live", proposals: rows, reload_plans: reloadPlans, autonomy: settings };
           if (summary) payload.compounding_summary = summary;
           if (coverage) payload.cycle_scan = coverage;
+          if (guard) payload.cluster_guard = guard;
+          if (suppressed) payload.suppressed_proposals = suppressed;
         } else if (path === "/api/agents/run-cycle-pass") {
           payload = pass;
         } else if (path.includes("/api/agents/status")) {
@@ -300,6 +302,47 @@ describe("AgentsPage", () => {
       expect(post).toMatchObject({ method: "POST", body: {} });
       const lists = calls.filter((c) => c.method === "GET" && c.path.startsWith("/api/agents/proposals")).length;
       expect(lists).toBeGreaterThan(listsBefore);
+    });
+
+    it("shows cluster heat and held-back entries from the proposals list and desk pass", async () => {
+      mockDeck({
+        proposals: [proposal({
+          action: "BREAKOUT_ENTRY", symbol: "LINK", side: "buy", trim_pct: null,
+          evidence: { cluster_guard: { beta_adjusted_risk_pct: 0.75 } },
+        })],
+        guard: { total_beta_adjusted_risk_pct: 0 },
+        suppressed: [{
+          symbol: "DOGE", action: "ACCUMULATE_SUPPORT", suppression_reason: "cluster_heat_cap_exceeded",
+          cluster_guard: { cluster: "meme" },
+        }],
+        pass: {
+          status: "ok", proposals: [],
+          cluster_guard: {
+            total_beta_adjusted_risk_pct: 4.6,
+            limits: { max_total_heat_pct: 5 },
+            suppressed_proposals: [
+              {
+                symbol: "SOL", action: "BREAKOUT_ENTRY", suppression_reason: "cluster_count_cap_exceeded",
+                cluster_guard: { cluster: "layer-1" },
+              },
+              {
+                symbol: "RENDER", action: "RELOAD_ACCUMULATE",
+                cluster_guard: { cluster: "ai-compute", suppression_reason: "beta_adjusted_heat_cap_exceeded" },
+              },
+            ],
+          },
+        },
+      });
+      render(<AgentsPage />);
+      expect(await screen.findByText("Cluster guard · 0% beta-adjusted heat")).toHaveClass("mw-agents-chip");
+      expect(screen.getByText("Held back · DOGE accumulate support (meme) · Cluster heat cap exceeded")).toBeInTheDocument();
+      expect(screen.getByText("0.75% beta-adjusted entry risk")).toHaveClass("mw-agents-chip");
+
+      fireEvent.click(screen.getByRole("button", { name: "Run Desk Pass" }));
+      expect(await screen.findByText("Cluster guard · 4.6% beta-adjusted heat of 5%")).toBeInTheDocument();
+      expect(screen.getByText("Held back · SOL breakout entry (layer-1) · Cluster position limit reached")).toBeInTheDocument();
+      expect(screen.getByText("Held back · RENDER reload accumulate (ai-compute) · Beta-adjusted portfolio heat cap exceeded")).toBeInTheDocument();
+      expect(screen.queryByText(/Held back · DOGE/)).not.toBeInTheDocument();
     });
 
     it("says why a desk pass was skipped and hides the scoreboard without a summary", async () => {
@@ -558,6 +601,7 @@ describe("AgentsPage", () => {
     it("lists open reload ladders and marks spent rungs", async () => {
       const open = reloadPlan({
         plan_id: "0123456789abcdef", symbol: "SOL", product_id: "SOL-USD", trim_status: "approved", remaining_usdc: 492.19,
+        weight_source: "ladder_optimizer",
       });
       open.tranches = open.tranches.map((rung) => ({ ...rung, filled: rung.index === 1 }));
       mockDeck({ proposals: [], reloadPlans: [open] });
@@ -565,10 +609,34 @@ describe("AgentsPage", () => {
       const ladders = await screen.findByRole("region", { name: "Open reload ladders" });
       const ladder = within(ladders).getByRole("listitem", { name: "SOL open reload ladder" });
       expect(within(ladder).getByText("$492.19 unspent")).toBeInTheDocument();
+      expect(within(ladder).getByText("Adaptive wick-tilted weights")).toHaveClass("mw-agents-chip");
       expect(within(ladder).getByText("0.618 log-Fib support · spent")).toBeInTheDocument();
       expect(within(ladder).getByRole("link", { name: "Trade" })).toHaveAttribute(
         "href", "https://www.coinbase.com/advanced-trade/spot/SOL-USD"
       );
+    });
+
+    it("labels trim weights from explicit or estimate-only metadata", async () => {
+      mockDeck({
+        proposals: [
+          proposal({ reload_plan: reloadPlan({
+            weight_source: "default",
+            ladder_optimizer: { expected_extra_coins_vs_flat_weights: 0.5 },
+          }) }),
+          proposal({ proposal_id: "bbbbbbbbbbbbbbbb", symbol: "SOL", weight_source: "ladder_optimizer" }),
+          proposal({ proposal_id: "cccccccccccccccc", symbol: "ETH", expected_extra_coins_vs_flat_weights: 0 }),
+          proposal({ proposal_id: "dddddddddddddddd", symbol: "BTC", reload_plan: reloadPlan() }),
+        ],
+      });
+      render(<AgentsPage />);
+      const renderTrim = await screen.findByRole("listitem", { name: "RENDER Trim to USDC" });
+      expect(within(renderTrim).getByText("Base weights · 25/35/40")).toHaveClass("mw-agents-chip");
+      for (const symbol of ["SOL", "ETH"]) {
+        const row = screen.getByRole("listitem", { name: `${symbol} Trim to USDC` });
+        expect(within(row).getByText("Adaptive wick-tilted weights")).toHaveClass("mw-agents-chip");
+      }
+      const legacyTrim = screen.getByRole("listitem", { name: "BTC Trim to USDC" });
+      expect(within(legacyTrim).queryByText(/weights/i)).not.toBeInTheDocument();
     });
 
     it("has no ladders panel when nothing is open, and reloads it after a trim is approved", async () => {

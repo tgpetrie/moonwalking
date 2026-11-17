@@ -138,10 +138,10 @@ def optimize_reload_ladder(
     if isinstance(spread_bps, bool) or not math.isfinite(spread) or not 0 <= spread < 10_000:
         raise ValueError("spread_bps must be from 0 to under 10000")
     try:
-        base = [float(value) for value in base_weights]
-    except (TypeError, ValueError) as exc:
+        base = [_positive(value) for value in base_weights]
+    except TypeError as exc:
         raise ValueError("base_weights must be three positive numbers") from exc
-    if len(base) != len(RUNG_DEPTHS) or any(isinstance(v, bool) or not math.isfinite(v) or v <= 0 for v in base):
+    if len(base) != len(RUNG_DEPTHS) or None in base:
         raise ValueError("base_weights must be three positive numbers")
     base = [value / sum(base) for value in base]
 

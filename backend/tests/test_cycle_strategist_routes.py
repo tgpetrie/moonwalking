@@ -336,7 +336,7 @@ def _phase2_run(now, *rows, positions=(), watchlist=(), **context):
 def test_proposals_expose_reload_plan_sizing_and_reward_to_risk(client):
     seeded = _phase2_run(
         NOW, _row("SOL", 175.0, **PHASE2_SOL), SCAN["coins"][1],
-        positions=[{"symbol": "SOL", "quantity": 10}], watchlist=["AVAX"],
+        positions=[{"symbol": "SOL", "quantity": 10, "stop_price": 165.0}], watchlist=["AVAX"],
     )
     body = client.get("/api/agents/proposals").json
     by_action = {p["action"]: p for p in body["proposals"]}
@@ -520,6 +520,7 @@ def test_cycle_pass_hands_held_coins_cached_history_to_the_reload_ladder(client,
     import macro_industry_scanner as mis
 
     # Without an atlas the pass still runs and the ladder keeps 25/35/40.
+    monkeypatch.setattr(backend_app.time, "time", lambda: NOW)
     monkeypatch.setattr(backend_app, "_MACRO_ATLAS", None)
     cycle_pass["scan"] = _scan(_row("SOL", 175.0, **PHASE2_SOL))
     trim = client.post(PASS_URL, json={}).json["proposals"][0]
@@ -533,20 +534,27 @@ def test_cycle_pass_hands_held_coins_cached_history_to_the_reload_ladder(client,
     atlas = mis.CycleAtlas()
     atlas.entries["SOL-USD"] = {"candles": wicky, "fetched_at": NOW, "checked_at": NOW}
     monkeypatch.setattr(backend_app, "_MACRO_ATLAS", atlas)
-    assert backend_app._cycle_pass_histories(["SOL", "NOPE"]) == {"SOL-USD": wicky}
+    assert backend_app._cycle_pass_histories(["SOL", "NOPE"], now=NOW) == {"SOL-USD": wicky}
     deep = client.post(PASS_URL, json={}).json["proposals"][0]["reload_plan"]
     assert deep["weight_source"] == "ladder_optimizer"
     assert deep["ladder_optimizer"]["regime"] == "deep_wick"
+    atlas.entries["SOL-USD"]["fetched_at"] -= DAY
+    stale = client.post(PASS_URL, json={}).json["proposals"][0]["reload_plan"]
+    assert stale["weight_source"] == "default"
 
 
 def test_cycle_pass_prefers_the_live_portfolio_and_fetches_quotes_only_in_mode_b(client, cycle_pass):
     cycle_pass["holdings"] = [
-        {"symbol": "SOL", "quantity": 4.0},
-        {"symbol": "USDC", "quantity": 0.0},
+        {"symbol": "SOL", "quantity": 4.0, "market_value_usd": 700.0},
+        {"symbol": "USDC", "quantity": 2_000.0, "market_value_usd": 2_000.0, "is_cash": True},
         "junk",
     ]
     first = client.post(PASS_URL, json={}).json
     assert first["positions_source"] == "portfolio" and first["positions"] == 1
+    assert first["cluster_guard"]["limits"]["equity_usd"] == 2700.0
+    (blocked,) = first["cluster_guard"]["suppressed_proposals"]
+    assert blocked["symbol"] == "AVAX" and blocked["suggested_notional_usd"] > 0
+    assert blocked["suppression_reason"] == "cluster_heat_cap_exceeded"
     assert cycle_pass["quotes"] == []
 
     AgentStore().set_autonomy_settings(autonomy_mode="auto_protect_exits")
@@ -584,7 +592,7 @@ def test_cycle_pass_scan_runs_while_outer_atlas_slices_fill(client, monkeypatch,
     assert core_and_priority_ready(None, []) is False
 
     monkeypatch.setattr(backend_app, "_macro_scan_snapshot", lambda wanted, allow_inline=True: filling)
-    monkeypatch.setattr(backend_app, "_cycle_pass_positions", lambda user: ([{"symbol": "SOL", "quantity": 10}], "paper"))
+    monkeypatch.setattr(backend_app, "_cycle_pass_positions", lambda user: ([{"symbol": "SOL", "quantity": 10}], "paper", None))
     monkeypatch.setattr(backend_app, "_cycle_pass_watchlist", lambda user: ["GONE"])
     macro_scan_state.update(
         payload=filling, computed_at=now, day=backend_app._macro_scan_day(now),

@@ -213,10 +213,10 @@ def _measure(item: Any, equity_usd: float) -> dict[str, Any] | None:
     return {
         "symbol": symbol,
         "cluster": _cluster(item, symbol),
-        "risk_usd": round(risk, 2),
-        "risk_pct": round(risk_pct, 4),
-        "beta_multiplier": round(multiplier, 4),
-        "beta_adjusted_risk_pct": round(risk_pct * multiplier, 4),
+        "risk_usd": risk,
+        "risk_pct": risk_pct,
+        "beta_multiplier": multiplier,
+        "beta_adjusted_risk_pct": risk_pct * multiplier,
     }
 
 
@@ -302,7 +302,11 @@ def evaluate_cluster_and_beta_heat(
                 reason = "cluster_heat_cap_exceeded"
             elif adjusted_total + measure["beta_adjusted_risk_pct"] > total_cap + _EPSILON:
                 reason = "beta_adjusted_heat_cap_exceeded"
-        copy = {**proposal, "cluster_guard": dict(measure)}
+        evidence = {
+            key: round(value, 2 if key == "risk_usd" else 4) if isinstance(value, float) else value
+            for key, value in measure.items()
+        }
+        copy = {**proposal, "cluster_guard": evidence}
         if reason is None:
             add(measure)
             accepted.append(copy)
