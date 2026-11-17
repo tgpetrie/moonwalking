@@ -7,6 +7,39 @@ audited commit `464e7f3`, which is also the tip of
 [audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
 it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
 
+## Phase 4: quant modules wired in · November 16
+
+Built on Codex's audited `6d60690`. Three pure modules, each with its own test
+file, are now used by the strategist and the cycle chart read:
+
+| Module | Wired into | What it adds |
+| --- | --- | --- |
+| `backend/portfolio_cluster_guard.py` | `CycleStrategistAgent.evaluate` (`_ClusterGuard`) | Each sized entry, in rank order, is checked against coins per cluster (2), cluster raw heat (2%) and total beta-adjusted heat (5%). Suppressed entries are dropped and their reserved heat is given back. `agent.last_cluster_guard` holds the totals and `suppressed_proposals` with `suppression_reason`; `POST /api/agents/run-cycle-pass` returns it as `cluster_guard`. |
+| `backend/ladder_optimizer.py` | `build_reload_plan` (`_ladder_advice`) | Available trim reload plans carry `ladder_optimizer`: adaptive rung weights, `expected_fill_probability_by_rung`, `net_extra_coins_vs_flat_weights`, `expected_extra_coins_vs_flat_weights`. Box = invalidation stop up to the plan's highest rung; wick history from `context["cycle_histories"]`. Advisory only: the plan's `tranches` still drive the ledger. |
+| `backend/cycle_backtest.py` | `/api/chart-read/<symbol>?horizon=cycle` | `multi_year_context.backtest` summarizes `simulate_cycle_compounding` over the daily history (events left out). `CycleReadSection.jsx` renders the Historical cycle replay strip. |
+
+Open items:
+- No live data source sets a coin's cluster or downside beta yet. Without
+  `category_id` on scan rows or `context["symbol_clusters"]` /
+  `context["downside_betas"]`, each coin is its own cluster with beta 1, so in
+  practice the guard adds a 2% per-coin heat cap and little else.
+- The guard only runs when equity is known, and skips entries with no sized
+  risk.
+- The optimizer's default split (40/35/25, shallow-heavy) is the reverse of the
+  plan's own tranche weights (25/35/40, deep-heavy). The optimizer is advisory
+  and nothing reconciles the two.
+- The replay is a simplified self-contained rule set, not the live strategist,
+  and runs on every cycle chart read (about 1,460 daily bars).
+- The request named `ChartAnalysisModal.jsx`, which does not exist; the cycle
+  section is `CycleReadSection.jsx`, tested in `CycleReadSection.test.jsx`.
+
+Verification: the six targeted backend files (`test_cycle_backtest.py`,
+`test_portfolio_cluster_guard.py`, `test_ladder_optimizer.py`,
+`test_cycle_strategist_agent.py`, `test_cycle_strategist_routes.py`,
+`test_chart_read_route.py`) passed 259 tests; `CycleReadSection.test.jsx`
+passed 4; `npm --prefix frontend run build` passed. The full suites were not
+run.
+
 ## Phase 3 Audit Scorecard
 
 Reviewed `6453bbb..1b300a6` on `claude/elliott-abc-v2-reclaim-20261115`,

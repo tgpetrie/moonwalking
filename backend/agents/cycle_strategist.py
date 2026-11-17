@@ -536,11 +536,59 @@ def _reload_candidates(row, multi_year, floor) -> list[tuple[float, str]]:
     return out
 
 
-def build_reload_plan(row, multi_year, price, trim_quantity, held_quantity, floor=None) -> dict[str, Any]:
+def _quant_module(name: str):
+    """A backend quant module, importable from either working directory."""
+    import importlib
+
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return importlib.import_module(f"backend.{name}")
+
+
+def _ladder_advice(plan: Mapping[str, Any], price: float, daily_candles) -> dict[str, Any]:
+    """Adaptive three-rung read from ``ladder_optimizer`` for an available plan.
+
+    The box runs from the invalidation stop up to the plan's highest rung. The
+    optimizer's rungs and weights are advisory: the plan's own ``tranches``
+    stay the ledger's allocation, so these fill probabilities belong to the
+    optimizer's rungs, not to the tranches.
+    """
+    try:
+        levels = [_num(t.get("level")) for t in plan.get("tranches") or []]
+        levels = [level for level in levels if level is not None and level > 0]
+        low, high = _num(plan.get("invalidation_stop")), max(levels) if levels else None
+        if low is None or high is None or not 0 < low < high:
+            return {"available": False, "reason": "no_support_box"}
+        advice = _quant_module("ladder_optimizer").optimize_reload_ladder(
+            low, high, price, plan["freed_usdc"], daily_candles=daily_candles,
+        )
+    except Exception as exc:  # advice must never sink the trim proposal
+        return {"available": False, "reason": f"optimizer_failed:{type(exc).__name__}"}
+    return {
+        "available": True,
+        "support_box": {"low": low, "high": high},
+        "regime": advice["regime"],
+        "rungs": advice["rungs"],
+        "weights": advice["weights"],
+        "expected_fill_probability_by_rung": advice["expected_fill_probability_by_rung"],
+        "net_extra_coins_vs_flat_weights": advice["net_extra_coins_vs_flat_weights"],
+        "expected_extra_coins_vs_flat_weights": advice["expected_extra_coins_vs_flat_weights"],
+        "wick_events": advice["history"]["events"],
+        "spread_bps": advice["spread_bps"],
+        "advisory_only": True,
+    }
+
+
+def build_reload_plan(
+    row, multi_year, price, trim_quantity, held_quantity, floor=None, daily_candles=None
+) -> dict[str, Any]:
     """Split a trim's USDC across lower support levels and count the coins bought back.
 
     The figures assume each rung fills at its level and leave out fees and
-    slippage. They describe a plan; nothing is ordered.
+    slippage. They describe a plan; nothing is ordered. An available plan also
+    carries ``ladder_optimizer``, an advisory read of adaptive rung weights and
+    fill odds from ``daily_candles`` when given.
     """
     price, trim_quantity, held_quantity = map(_num, (price, trim_quantity, held_quantity))
     if price is None or trim_quantity is None or held_quantity is None or not (
@@ -609,6 +657,7 @@ def build_reload_plan(row, multi_year, price, trim_quantity, held_quantity, floo
         net_coin_gain_pct=_round(gain / held_quantity * 100),
         reloaded_vs_trimmed_pct=_round(gain / trim_quantity * 100),
     )
+    plan["ladder_optimizer"] = _ladder_advice(plan, price, daily_candles)
     return plan
 
 
@@ -705,6 +754,7 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
     """
     risk = value = 0.0
     assumed, unpriced = [], []
+    by_symbol: dict[str, float] = {}
     for symbol in sorted(held):
         position, row = held[symbol], rows.get(symbol) or {}
         price = _num(row.get("price"))
@@ -724,10 +774,11 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
         )
         usable = [stop for stop in stops if stop is not None and 0 < stop < price]
         if usable:
-            risk += quantity * (price - max(usable))
+            by_symbol[symbol] = quantity * (price - max(usable))
         else:
             assumed.append(symbol)
-            risk += marked * (HEAT_ASSUMED_STOP_PCT / 100)
+            by_symbol[symbol] = marked * (HEAT_ASSUMED_STOP_PCT / 100)
+        risk += by_symbol[symbol]
     supplied = _num(context.get("portfolio_equity_usd"))
     if supplied is not None and supplied > 0:
         equity, basis = supplied, "supplied"
@@ -748,6 +799,7 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
         "_equity": equity,
         "_risk": risk,
         "_reserved_risk": 0.0,
+        "_position_risk": by_symbol,
     }
 
 
@@ -1040,6 +1092,105 @@ class GuardedDryRunExitExecutor:
 # ─── agent ───────────────────────────────────────────────────────────────────
 
 
+CLUSTER_GUARD_LIMITS = {
+    "max_total_heat_pct": 5.0,
+    "max_cluster_heat_pct": 2.0,
+    "max_positions_per_cluster": 2,
+}
+
+
+class _ClusterGuard:
+    """Checks each sized entry against cluster and beta-adjusted heat, in rank order.
+
+    Wraps ``portfolio_cluster_guard.evaluate_cluster_and_beta_heat``. A coin's
+    cluster comes from its scan row (``category_id`` / ``cluster`` /
+    ``narrative_cluster`` / ``sector``) or ``context["symbol_clusters"]``, and
+    its downside beta from the row or ``context["downside_betas"]``. A coin
+    with neither stands alone with a beta of 1. Entries with no sized risk
+    (equity unknown, or no heat left) pass through: they buy nothing.
+    """
+
+    def __init__(self, context, rows, held, heat) -> None:
+        self.module = None
+        self.equity = heat.get("_equity")
+        clusters = context.get("symbol_clusters")
+        betas = context.get("downside_betas")
+        self.clusters = clusters if isinstance(clusters, Mapping) else {}
+        self.betas = betas if isinstance(betas, Mapping) else {}
+        self.rows = rows
+        self.accepted: list[dict[str, Any]] = []
+        self.suppressed: list[dict[str, Any]] = []
+        self.reason = None
+        if not self.equity:
+            self.reason = "equity_unknown"
+            return
+        try:
+            self.module = _quant_module("portfolio_cluster_guard")
+        except ImportError:
+            self.reason = "guard_unavailable"
+            return
+        self.existing = [
+            self._item(symbol, risk) for symbol, risk in sorted(heat["_position_risk"].items()) if risk > 0
+        ]
+
+    def _item(self, symbol: str, risk_usd: float | None) -> dict[str, Any]:
+        row = self.rows.get(symbol) or {}
+        item: dict[str, Any] = {"symbol": symbol, "risk_usd": risk_usd}
+        for key in ("category_id", "cluster", "narrative_cluster", "sector"):
+            if isinstance(row.get(key), str) and row[key].strip():
+                item[key] = row[key]
+                break
+        else:
+            named = self.clusters.get(symbol)
+            if isinstance(named, str) and named.strip():
+                item["category_id"] = named
+        beta = row.get("downside_beta", self.betas.get(symbol))
+        if beta is not None:
+            item["downside_beta"] = beta
+        return item
+
+    def admit(self, entry: TradeProposal) -> bool:
+        if self.module is None:
+            return True
+        risk = _num((entry.sizing or {}).get("risk_at_stop_usd"))
+        if risk is None or risk <= 0:
+            return True
+        candidate = self._item(entry.symbol, risk)
+        verdict = self.module.evaluate_cluster_and_beta_heat(
+            self.existing + self.accepted, [candidate], equity_usd=self.equity, **CLUSTER_GUARD_LIMITS
+        )
+        if verdict["accepted_proposals"]:
+            self.accepted.append(candidate)
+            entry.evidence["cluster_guard"] = verdict["accepted_proposals"][0]["cluster_guard"]
+            return True
+        blocked = verdict["suppressed_proposals"][0]
+        self.suppressed.append({
+            "symbol": entry.symbol,
+            "action": entry.action,
+            "reference_price": entry.reference_price,
+            "suppression_reason": blocked["suppression_reason"],
+            "cluster_guard": blocked["cluster_guard"],
+            "suggested_notional_usd": (entry.sizing or {}).get("suggested_notional_usd"),
+        })
+        return False
+
+    def summary(self) -> dict[str, Any]:
+        if self.module is None:
+            return {"available": False, "reason": self.reason, "suppressed_proposals": []}
+        totals = self.module.evaluate_cluster_and_beta_heat(
+            self.existing + self.accepted, [], equity_usd=self.equity, **CLUSTER_GUARD_LIMITS
+        )
+        return {
+            "available": True,
+            "limits": totals["limits"],
+            "clusters": totals["clusters"],
+            "total_risk_pct": totals["total_risk_pct"],
+            "total_beta_adjusted_risk_pct": totals["total_beta_adjusted_risk_pct"],
+            "accepted_symbols": [item["symbol"] for item in self.accepted],
+            "suppressed_proposals": list(self.suppressed),
+        }
+
+
 class CycleStrategistAgent:
     """Emits cycle-driven trade proposals and routes guarded dry-run exits."""
 
@@ -1061,6 +1212,9 @@ class CycleStrategistAgent:
         # the open-risk read it sized against.
         self.last_skipped: list[dict] = []
         self.last_heat: dict[str, Any] | None = None
+        # Cluster and beta heat read for the last ``evaluate``, with the
+        # entries it suppressed and why.
+        self.last_cluster_guard: dict[str, Any] | None = None
 
     def bind_store(self, store: AgentStore) -> None:
         self.store = store
@@ -1139,8 +1293,10 @@ class CycleStrategistAgent:
             if trim:
                 quantity = position["quantity"]
                 trim.evidence["held_quantity"] = quantity
+                histories = context.get("cycle_histories")
                 trim.reload_plan = build_reload_plan(
-                    row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor
+                    row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor,
+                    daily_candles=histories.get(f"{symbol}-USD") if isinstance(histories, dict) else None,
                 )
                 proposals.append(trim)
                 trimming.add(symbol)
@@ -1166,6 +1322,7 @@ class CycleStrategistAgent:
                 entries.append((entry, row, price))
         # Reloads are already funded, so they take heat headroom first.
         entries.sort(key=lambda item: (item[0].action != RELOAD_ACCUMULATE, item[0].symbol))
+        guard = _ClusterGuard(context, rows, held, heat)
         for entry, row, price in entries:
             stop = entry_stop(entry.symbol, price, entry.stop_price)
             target = active_target(row)
@@ -1188,11 +1345,16 @@ class CycleStrategistAgent:
             entry.reasons.append(
                 f"Reward to risk {ratio:.2f} to the {target['tier']} midpoint."
             )
+            reserved_before = heat["_reserved_risk"]
             entry.sizing = size_entry(
                 price, stop, stage, heat, base_risk,
                 funded_usd=entry.evidence.get("reload_pool_usdc")
                 if entry.action == RELOAD_ACCUMULATE else None,
             )
+            if not guard.admit(entry):
+                # Give the suppressed entry's heat back to the entries after it.
+                heat["_reserved_risk"] = reserved_before
+                continue
             if entry.action == RELOAD_ACCUMULATE:
                 remaining = usdc_cents(entry.sizing["suggested_notional_usd"])
                 allocations = []
@@ -1239,6 +1401,7 @@ class CycleStrategistAgent:
                     )
                 proposals.append(rotation)
         self.last_heat = {key: value for key, value in heat.items() if not key.startswith("_")}
+        self.last_cluster_guard = guard.summary()
         return proposals
 
     def _route(self, proposal, settings, held, quotes, now_ms, orders_today):

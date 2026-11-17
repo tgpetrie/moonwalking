@@ -320,6 +320,59 @@ function TargetTiers({ top }) {
   );
 }
 
+const isNum = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+const coinCount = (value) => (isNum(value)
+  ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })
+  : '—');
+
+export function CycleReplayStrip({ backtest }) {
+  if (!backtest?.available) return null;
+  const extra = Number(backtest.extra_coins_pct);
+  const reduction = Number(backtest.drawdown_reduction_pct);
+  const cycles = Number(backtest.completed_trim_reload_cycles) || 0;
+  return (
+    <div className="cycle-read__block" data-testid="cycle-replay">
+      <p className="cycle-read__heading">Historical cycle replay</p>
+      <div className="cycle-read__tiles cycle-read__tiles--replay">
+        <div className="cycle-read__tile" data-testid="cycle-replay-coins">
+          <span className="cycle-read__label">Compounded vs HODL</span>
+          <strong className="cycle-read__number">
+            {coinCount(backtest.compounded_final_coins)} / {coinCount(backtest.hodl_final_coins)}
+          </strong>
+          <span className={`cycle-read__faint${isNum(extra) && extra > 0 ? ' cycle-read__faint--ok' : ''}`}>
+            {isNum(extra) ? `${extra >= 0 ? '+' : ''}${extra.toFixed(1)}% coins` : 'coins held at the end'}
+          </span>
+        </div>
+        <div className="cycle-read__tile" data-testid="cycle-replay-equivalent">
+          <span className="cycle-read__label">Coin-equivalent stack</span>
+          <strong className="cycle-read__number">{coinCount(backtest.strategy_final_coin_equivalent)}</strong>
+          <span className="cycle-read__faint">coins plus any USDC at the last close</span>
+        </div>
+        <div className="cycle-read__tile" data-testid="cycle-replay-drawdown">
+          <span className="cycle-read__label">Max DD reduction</span>
+          <strong className="cycle-read__number">
+            {isNum(reduction) ? `${reduction >= 0 ? '−' : '+'}${Math.abs(reduction).toFixed(1)} pts` : '—'}
+          </strong>
+          <span className="cycle-read__faint">
+            {isNum(backtest.max_drawdown_strategy_pct) && isNum(backtest.max_drawdown_hodl_pct)
+              ? `${Number(backtest.max_drawdown_strategy_pct).toFixed(1)}% vs ${Number(backtest.max_drawdown_hodl_pct).toFixed(1)}% HODL`
+              : 'max drawdown'}
+          </span>
+        </div>
+        <div className="cycle-read__tile" data-testid="cycle-replay-cycles">
+          <span className="cycle-read__label">Completed trim→reload cycles</span>
+          <strong className="cycle-read__number">{cycles}</strong>
+          <span className="cycle-read__faint">all three rungs refilled</span>
+        </div>
+      </div>
+      <p className="cycle-read__faint">
+        Simplified rule replay over this coin&apos;s daily history, starting from 100 coins with no added cash.
+        {backtest.ended_stopped_out ? ' It ends stopped out in USDC.' : ''} Not a forecast and not outcome tested.
+      </p>
+    </div>
+  );
+}
+
 export default function CycleReadSection({ context, top, regime }) {
   if (!context?.available) return null;
   const regimes = context.rsi_regimes || {};
@@ -356,6 +409,8 @@ export default function CycleReadSection({ context, top, regime }) {
           Targets and confirmation levels need a full multi-year history for this coin.
         </p>
       )}
+
+      <CycleReplayStrip backtest={context.backtest} />
 
       <p className="cycle-read__faint">
         {context.is_multi_year === false ? 'Under a year of clean daily history, so these reads are thin. ' : ''}

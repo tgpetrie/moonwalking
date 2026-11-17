@@ -655,3 +655,57 @@ def test_cached_cycle_products_lists_what_the_loader_already_has(monkeypatch, tm
     conn.close()
     assert chart_reader.cached_cycle_products() == ["RENDER-USD", "FET-USD"]
     assert chart_reader.cached_cycle_products(years=3) == ["OLD-USD"]
+
+
+def _boom_bust_daily():
+    """Newest first, like Coinbase: 10 -> 100 -> 20 -> 80 over 550 daily bars."""
+    closes, price = [10.0], 10.0
+    for count, target in ((200, 100.0), (150, 20.0), (200, 80.0)):
+        step = (target / price) ** (1 / count)
+        for _ in range(count):
+            price *= step
+            closes.append(price)
+    t0, bars, prior = 1_600_041_600, [], closes[0]
+    for i, close in enumerate(closes):
+        bars.append([t0 + i * 86400, min(prior, close) * 0.995, max(prior, close) * 1.005, prior, close, 10.0])
+        prior = close
+    return bars[::-1]
+
+
+def test_cycle_read_attaches_the_historical_compounding_replay(monkeypatch):
+    daily = _boom_bust_daily()
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: _history())
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: daily)
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=cycle"):
+        body = backend_app.get_chart_read("SOL").get_json()
+    replay = body["multi_year_context"]["backtest"]
+    assert replay["available"] is True and replay["bars"] == 551
+    assert replay["hodl_final_coins"] == 100.0
+    assert replay["compounded_final_coins"] > replay["hodl_final_coins"]
+    assert replay["extra_coins_pct"] > 0 and replay["completed_trim_reload_cycles"] == 1
+    assert replay["strategy_final_coin_equivalent"] == pytest.approx(replay["compounded_final_coins"], rel=1e-6)
+    assert replay["max_drawdown_strategy_pct"] < replay["max_drawdown_hodl_pct"]
+    assert replay["drawdown_reduction_pct"] > 0
+    assert replay["fresh_cash_added_usd"] == 0.0 and replay["outcome_validated"] is False
+    assert "events" not in replay and replay["event_count"] == 4
+
+
+def test_cycle_replay_failure_never_breaks_the_chart_read(monkeypatch):
+    import cycle_backtest
+
+    def boom(candles):
+        raise RuntimeError("replay bug")
+
+    assert backend_app._cycle_backtest_summary([[0, 1, 1, 1, 1, 1]]) == {
+        "available": False, "reason": "at least two valid daily candles are required",
+    }
+    monkeypatch.setattr(cycle_backtest, "simulate_cycle_compounding", boom)
+    assert backend_app._cycle_backtest_summary(_boom_bust_daily()) == {
+        "available": False, "reason": "replay_failed",
+    }
+    # Other horizons do not run the replay.
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: _history())
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: _boom_bust_daily())
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=swing"):
+        body = backend_app.get_chart_read("SOL").get_json()
+    assert "backtest" not in body["multi_year_context"]

@@ -12199,6 +12199,8 @@ def run_agent_cycle_pass():
             "observation_count": result["observation_count"],
             "smart_alerts": result.get("smart_alerts"),
             "proposals": list(getattr(agent, "last_proposals", None) or []),
+            # Entries the cluster and beta heat guard held back, and the heat it read.
+            "cluster_guard": getattr(agent, "last_cluster_guard", None),
             "compounding_summary": store.get_compounding_summary(_cycle_scan_prices(scan)),
             "autonomy": store.get_autonomy_settings(),
         })
@@ -13783,6 +13785,50 @@ def _closed_candles(candles, step, now):
     return rows
 
 
+_CYCLE_BACKTEST_FIELDS = (
+    "initial_coins",
+    "hodl_final_coins",
+    "compounded_final_coins",
+    "extra_coins_gained",
+    "extra_coins_pct",
+    "strategy_final_coin_equivalent",
+    "hodl_final_value_usd",
+    "strategy_final_value_usd",
+    "max_drawdown_hodl_pct",
+    "max_drawdown_strategy_pct",
+    "drawdown_reduction_pct",
+    "completed_trim_reload_cycles",
+    "ended_stopped_out",
+    "bars",
+    "first_timestamp",
+    "last_timestamp",
+)
+
+
+def _cycle_backtest_summary(daily_candles):
+    """Summary of ``cycle_backtest.simulate_cycle_compounding`` over the daily history.
+
+    The event list is left out to keep the chart read small. Never raises.
+    """
+    try:
+        import cycle_backtest
+
+        replay = cycle_backtest.simulate_cycle_compounding(daily_candles)
+    except ValueError as exc:
+        return {"available": False, "reason": str(exc)[:120]}
+    except Exception:
+        logging.exception("[ChartRead] cycle replay failed")
+        return {"available": False, "reason": "replay_failed"}
+    summary = {key: replay[key] for key in _CYCLE_BACKTEST_FIELDS}
+    summary.update(
+        available=True,
+        event_count=len(replay["events"]),
+        fresh_cash_added_usd=0.0,
+        outcome_validated=False,
+    )
+    return summary
+
+
 @app.route("/api/chart-read/<symbol>")
 def get_chart_read(symbol):
     """Deterministic chart read for a coin — math-derived, basic-user language.
@@ -13903,6 +13949,7 @@ def get_chart_read(symbol):
         result["multi_year_context"]["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
             higher, "1w", [], as_of_ts=now
         )
+        result["multi_year_context"]["backtest"] = _cycle_backtest_summary(history)
     if horizon in {"swing", "cycle"}:
         import chart_reader
         from elliott_wave_engine import resample_candles

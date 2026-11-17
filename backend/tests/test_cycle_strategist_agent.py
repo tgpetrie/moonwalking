@@ -1207,3 +1207,106 @@ def test_scanner_rows_feed_the_reload_ladder_and_reward_to_risk(store, daily_ser
     assert sizing["suggested_notional_usd"] == pytest.approx(
         50.0 / (1 - entry["stop_price"] / entry["reference_price"]), abs=0.01
     )
+
+
+# ─── cluster and beta heat guard, adaptive ladder advice ─────────────────────
+
+
+def _guard_context(*rows, **extra):
+    return {
+        "cycle_scan": _scan(*rows),
+        "watchlist": [row["symbol"] for row in rows],
+        "portfolio_equity_usd": 10_000,
+        **extra,
+    }
+
+
+def test_cluster_guard_suppresses_a_third_coin_in_one_cluster_and_frees_its_heat(store):
+    rows = [_breakout(symbol) for symbol in ("AVAX", "NEAR", "SOL", "UNI")]
+    clusters = {"AVAX": "layer-1", "NEAR": "layer-1", "SOL": "layer-1", "UNI": "defi"}
+    agent = CycleStrategistAgent(store)
+    proposals = agent.evaluate(_guard_context(*rows, symbol_clusters=clusters))
+    assert [p.symbol for p in proposals] == ["AVAX", "NEAR", "UNI"]
+    guard = agent.last_cluster_guard
+    assert guard["available"] is True and guard["accepted_symbols"] == ["AVAX", "NEAR", "UNI"]
+    (blocked,) = guard["suppressed_proposals"]
+    assert blocked["symbol"] == "SOL" and blocked["action"] == BREAKOUT_ENTRY
+    assert blocked["suppression_reason"] == "cluster_count_cap_exceeded"
+    assert blocked["cluster_guard"]["cluster"] == "layer-1"
+    # SOL's reserved heat went back, so UNI was sized at the full 0.5% budget.
+    uni = proposals[-1]
+    assert uni.sizing["risk_at_stop_usd"] == pytest.approx(50.0)
+    assert uni.evidence["cluster_guard"]["cluster"] == "defi"
+    assert guard["clusters"]["layer-1"]["position_count"] == 2
+    assert guard["total_risk_pct"] == pytest.approx(1.5) and guard["limits"]["max_positions_per_cluster"] == 2
+
+
+def test_cluster_guard_caps_beta_adjusted_heat_against_held_risk(store):
+    # ETH holds 4.8% of raw heat; AVAX fits the raw cap with 0.2% but its
+    # downside beta of 5 makes that 0.8%, over the 5% beta-adjusted cap.
+    rows = [_row("ETH", 3000.0), _breakout()]
+    context = _guard_context(
+        *rows, positions=[{"symbol": "ETH", "quantity": 2, "stop_price": 2760.0}],
+        watchlist=["AVAX"], downside_betas={"AVAX": 5.0}, stage="stage_3_alt_index_breakout",
+    )
+    context["cycle_scan"] = _scan(*rows, stage="stage_3_alt_index_breakout")
+    agent = CycleStrategistAgent(store)
+    assert agent.evaluate(context) == []
+    (blocked,) = agent.last_cluster_guard["suppressed_proposals"]
+    assert blocked["suppression_reason"] == "beta_adjusted_heat_cap_exceeded"
+    assert blocked["cluster_guard"]["beta_multiplier"] == 4.0
+    assert agent.last_cluster_guard["total_beta_adjusted_risk_pct"] == pytest.approx(4.8)
+    # With an ordinary beta the same entry fits exactly at the 5% cap.
+    del context["downside_betas"]
+    (entry,) = agent.evaluate(context)
+    assert entry.symbol == "AVAX" and agent.last_cluster_guard["suppressed_proposals"] == []
+    # A cluster or beta on the scan row itself is read too.
+    rows[1] = _breakout(downside_beta=5.0, category_id="layer-1")
+    context["cycle_scan"] = _scan(*rows, stage="stage_3_alt_index_breakout")
+    assert agent.evaluate(context) == []
+    assert agent.last_cluster_guard["suppressed_proposals"][0]["cluster_guard"]["cluster"] == "layer-1"
+
+
+def test_cluster_guard_steps_aside_without_equity_and_for_unsized_entries(store):
+    agent = CycleStrategistAgent(store)
+    rows = [_breakout(symbol) for symbol in ("AVAX", "NEAR", "SOL")]
+    context = {"cycle_scan": _scan(*rows), "watchlist": ["AVAX", "NEAR", "SOL"],
+               "symbol_clusters": dict.fromkeys(("AVAX", "NEAR", "SOL"), "layer-1")}
+    assert len(agent.evaluate(context)) == 3
+    assert agent.last_cluster_guard == {"available": False, "reason": "equity_unknown", "suppressed_proposals": []}
+
+
+def _wicky_daily(wick_low, bars=100):
+    return [[NOW - (bars - i) * DAY, wick_low if i % 7 == 0 else 100.0, 110.0, 100.0, 105.0, 10.0] for i in range(bars)]
+
+
+def test_trim_reload_plan_carries_adaptive_ladder_advice(store):
+    context = {"cycle_scan": _scan(_sol_trim_row()), "positions": [{"symbol": "SOL", "quantity": 10}]}
+    agent, _ = _run(store, context)
+    plan = agent.last_proposals[0]["reload_plan"]
+    advice = plan["ladder_optimizer"]
+    assert advice["available"] is True and advice["advisory_only"] is True
+    assert advice["support_box"] == {"low": pytest.approx(58.8), "high": 120.0}
+    assert advice["regime"] == "default" and advice["weights"] == [0.4, 0.35, 0.25]
+    assert advice["expected_fill_probability_by_rung"] == [0.7, 0.5, 0.3]
+    assert set(advice) >= {"net_extra_coins_vs_flat_weights", "expected_extra_coins_vs_flat_weights"}
+    assert sum(rung["usdc_allocation"] for rung in advice["rungs"]) == pytest.approx(656.25, abs=0.02)
+    # The ledger's own tranches are unchanged by the advice.
+    assert [t["usdc"] for t in plan["tranches"]] == [164.06, 229.69, 262.5]
+
+    deep = CycleStrategistAgent(store).evaluate(
+        {**context, "cycle_histories": {"SOL-USD": _wicky_daily(92.0)}}
+    )[0].reload_plan["ladder_optimizer"]
+    assert deep["regime"] == "deep_wick" and deep["weights"][2] > deep["weights"][0]
+    assert deep["expected_fill_probability_by_rung"] == [0.95, 0.95, 0.95]
+    assert deep["wick_events"] >= 8
+
+
+def test_reload_plan_without_a_support_box_reports_why():
+    from agents.cycle_strategist import _ladder_advice
+
+    assert _ladder_advice({"tranches": [], "invalidation_stop": None}, 100.0, None) == {
+        "available": False, "reason": "no_support_box",
+    }
+    broken = _ladder_advice({"tranches": [{"level": 90.0}], "invalidation_stop": 50.0}, 100.0, None)
+    assert broken["available"] is False and broken["reason"].startswith("optimizer_failed:")
