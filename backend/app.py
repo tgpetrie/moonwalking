@@ -16,7 +16,7 @@ import socket
 import subprocess
 import sys
 import math
-from flask import Flask, jsonify, request, g
+from flask import Flask, copy_current_request_context, jsonify, request, g
 from flask_talisman import Talisman
 from flask_cors import CORS
 import random
@@ -1487,16 +1487,55 @@ def portfolio_with_intel():
     return jsonify(enriched)
 
 
-def _require_portfolio_owner():
-    """Return (user, None) for the configured portfolio owner, else (None, resp).
+_LOCAL_DESK_OWNER_ID = -1  # Reserved for local paper state; account IDs are positive.
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
-    Mirrors the owner gate on /api/portfolio/intel so the cost-basis write
-    routes stay consistent with who can see the portfolio.
-    """
+
+def _is_test_runtime():
+    return app.testing or "PYTEST_CURRENT_TEST" in os.environ
+
+
+def _local_desk_access():
+    if (
+        _is_test_runtime()
+        or _IS_PRODUCTION
+        or (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").strip().lower() == "production"
+        or os.getenv("MOONWALKING_REQUIRE_OWNER_AUTH", "").strip() == "1"
+        or request.remote_addr not in _LOOPBACK_HOSTS
+    ):
+        return False
+    # Vite forwards the original client and host before replacing Host.
+    # Check both ends of the proxy hop, and reject cross-site browser requests.
+    forwarded_clients = request.headers.get("X-Forwarded-For")
+    if forwarded_clients and any(
+        address.strip() not in _LOOPBACK_HOSTS for address in forwarded_clients.split(",")
+    ):
+        return False
+    hosts = [request.host]
+    forwarded_host = request.headers.get("X-Forwarded-Host")
+    if forwarded_host:
+        hosts.extend(forwarded_host.split(","))
+    try:
+        if any(urlparse(f"//{host.strip()}").hostname not in _LOOPBACK_HOSTS for host in hosts):
+            return False
+        for header in ("Origin", "Referer"):
+            if header in request.headers:
+                origin = urlparse(request.headers[header])
+                if origin.scheme not in {"http", "https"} or origin.hostname not in _LOOPBACK_HOSTS:
+                    return False
+    except ValueError:
+        return False
+    return True
+
+
+def _require_portfolio_owner(*, allow_local_desk=False):
+    """Authorize the configured owner, with a loopback fallback for desk routes."""
     from watchlist import get_authenticated_user
 
     user = get_authenticated_user()
     if not user:
+        if allow_local_desk and _local_desk_access():
+            return {"id": _LOCAL_DESK_OWNER_ID}, None
         return None, (jsonify({"error": "Not authenticated"}), 401)
     owner_email = (
         str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
@@ -11816,7 +11855,7 @@ def get_risk_levels_status():
 
 @app.get("/api/agents/status")
 def get_agents_status():
-    """Read-only status for the local agent observation ledger."""
+    """Read the agent ledger and queue a refresh for a stale owner desk."""
     try:
         from agents.catalog import describe
         from agents.runner import DEFAULT_AGENT_FACTORIES
@@ -11827,16 +11866,23 @@ def get_agents_status():
         llm_config = LocalLLMConfig.from_env()
         known = [factory.name for factory in DEFAULT_AGENT_FACTORIES]
         now = int(time.time())
+        user, _ = _require_portfolio_owner(allow_local_desk=True)
+        visibility = {
+            "include_cycle_strategist": user is not None,
+            "include_portfolio_watch": user is not None,
+        }
+        if user is not None:
+            _maybe_start_desk_heartbeat(user, store, now)
         payload = {
             "status": "live",
             "generated_ts": now,
-            **store.status(include_cycle_strategist=False),
+            **store.status(**visibility),
             # Per-agent view for the Agents page; includes agents that have
             # never run here so they are listed rather than silently missing.
             "agent_summaries": [
                 {**summary, **describe(summary["agent"])}
                 for summary in store.agent_summaries(
-                    known, now=now, include_cycle_strategist=False
+                    known, now=now, **visibility
                 )
             ],
             "local_llm": {
@@ -11869,8 +11915,11 @@ def get_agent_observations():
         symbol = request.args.get("symbol") or None
         if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
             return jsonify({"status": "error", "error": "Invalid symbol."}), 400
+        user, _ = _require_portfolio_owner(allow_local_desk=True)
         rows = AgentStore().latest(
-            limit=limit, agent=agent, symbol=symbol, include_cycle_strategist=False
+            limit=limit, agent=agent, symbol=symbol,
+            include_cycle_strategist=user is not None,
+            include_portfolio_watch=user is not None,
         )
         response = jsonify({"status": "live", "observations": rows})
         response.headers["Cache-Control"] = "private, no-store"
@@ -11894,8 +11943,15 @@ def _prevent_cycle_control_caching(response):
     path = request.path
     if (
         path in {
-            "/api/agents/proposals", "/api/agents/autonomy", "/api/agents/settings", "/api/smart-alerts",
+            "/api/agents/status",
+            "/api/agents/observations",
+            "/api/agents/proposals",
+            "/api/agents/autonomy",
+            "/api/agents/settings",
             "/api/agents/run-cycle-pass",
+            "/api/smart-alerts",
+            "/api/execution-agent/mode",
+            "/api/execution-agent/tickets",
         }
         or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
     ):
@@ -11954,7 +12010,7 @@ def _stance_readout(configured, scan=None, resolved=None):
 @app.get("/api/agents/proposals")
 def get_agent_proposals():
     """Cycle Strategist trade proposals plus the current autonomy settings."""
-    user, error = _require_portfolio_owner()
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     from agents.store import AgentStore
@@ -11969,6 +12025,7 @@ def get_agent_proposals():
     if limit is None:
         return jsonify({"error": "Limit must be an integer from 1 to 250."}), 400
     store = AgentStore()
+    _maybe_start_desk_heartbeat(user, store, time.time())
     with _MACRO_SCAN_LOCK:
         scan = _MACRO_SCAN_STATE["payload"]
     autonomy = store.get_autonomy_settings()
@@ -11990,7 +12047,7 @@ def get_agent_proposals():
 @app.post("/api/agents/proposals/<proposal_id>/<decision>")
 def decide_agent_proposal(proposal_id, decision):
     """Record an operator decision. Approval never places an order."""
-    user, error = _require_portfolio_owner()
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     from agents.store import AgentStore
@@ -12029,7 +12086,7 @@ def agent_autonomy_settings():
     ``live_guarded`` is stored but cannot route an order: no live route exists,
     so automatic exits stay blocked in that mode.
     """
-    user, error = _require_portfolio_owner()
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     from agents.store import AgentStore
@@ -12066,6 +12123,49 @@ def _smart_alert_engine():
 # ─── In-process cycle pass (owner-only, dry-run) ─────────────────────────────
 
 _CYCLE_PASS_LOCK = threading.Lock()
+_DESK_FRESHNESS_SECONDS = 15 * 60
+_DESK_HEARTBEAT_RETRY_SECONDS = 60
+_next_desk_heartbeat_attempt = 0.0
+
+
+def _maybe_start_desk_heartbeat(user, store, now):
+    """Start at most one stale desk pass without waiting for it in a GET."""
+    global _next_desk_heartbeat_attempt
+    if _is_test_runtime() or not _CYCLE_PASS_LOCK.acquire(blocking=False):
+        return
+
+    started = False
+    try:
+        if time.monotonic() < _next_desk_heartbeat_attempt:
+            return
+        from agents.runner import DESK_AGENT_NAMES
+
+        last_runs = store.last_successful_runs(DESK_AGENT_NAMES)
+        due = {
+            name for name in DESK_AGENT_NAMES
+            if name not in last_runs or last_runs[name] < now - _DESK_FRESHNESS_SECONDS
+        }
+        if not due:
+            return
+
+        @copy_current_request_context
+        def refresh():
+            try:
+                # The view-only portfolio lookup uses the authorized request's session.
+                _run_desk_pass(user, store, due)
+            except Exception:
+                logging.exception("[CyclePass] automatic desk pass failed")
+            finally:
+                _CYCLE_PASS_LOCK.release()
+
+        _next_desk_heartbeat_attempt = time.monotonic() + _DESK_HEARTBEAT_RETRY_SECONDS
+        threading.Thread(target=refresh, name="desk-heartbeat", daemon=True).start()
+        started = True
+    except Exception:
+        logging.exception("[CyclePass] could not schedule the desk heartbeat")
+    finally:
+        if not started:
+            _CYCLE_PASS_LOCK.release()
 
 
 def _cycle_pass_portfolio_holdings():
@@ -12096,7 +12196,7 @@ def _cycle_pass_positions(user):
     import paper_execution_store
     from portfolio_mode import USD_EQUIVALENTS
 
-    holdings = _cycle_pass_portfolio_holdings()
+    holdings = None if user["id"] == _LOCAL_DESK_OWNER_ID else _cycle_pass_portfolio_holdings()
     if holdings is not None:
         holdings = [row for row in holdings if isinstance(row, dict)]
         cash_rows = [row for row in holdings if row.get("is_cash") or row.get("symbol") in USD_EQUIVALENTS]
@@ -12116,6 +12216,9 @@ def _cycle_pass_positions(user):
 
 
 def _cycle_pass_watchlist(user):
+    if user["id"] == _LOCAL_DESK_OWNER_ID:
+        return []
+
     from watchlist import _db_connect, _serialize_watchlists
 
     conn = _db_connect()
@@ -12199,14 +12302,138 @@ def _cycle_pass_histories(symbols, *, now, scan=None):
         return {}
 
 
+def _desk_board_snapshot():
+    from agents.data_quality import BOARD_TABLES
+    from portfolio_risk import timestamp
+
+    with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        snapshots = {name: _MW_COMPONENT_SNAPSHOTS.get(name) for name in BOARD_TABLES}
+    if not any(snapshots.values()):
+        return None
+    board, table_timestamps = {}, {}
+    for name, snapshot in snapshots.items():
+        board[name], stamp = _wrap_rows_and_ts(snapshot)
+        table_timestamps[name] = timestamp(stamp)
+    board["timestamp"] = max(table_timestamps.values())
+    board["table_timestamps"] = table_timestamps
+    return board
+
+
+def _desk_risk_board(context, positions_source):
+    from portfolio_risk import timestamp
+
+    positions = context["positions"]
+    source = "portfolio" if positions_source == "portfolio" else "watchlist"
+    rows = positions if source == "portfolio" else [
+        {"symbol": symbol}
+        for symbol in dict.fromkeys([*(row["symbol"] for row in positions), *context["watchlist"]])
+    ]
+    quotes = last_current_prices
+    prices = quotes.get("data") or {}
+    holdings = [{**row, "price_usd": prices.get(f"{row['symbol']}-USD")} for row in rows]
+    return _portfolio_risk_payload(
+        holdings, source=source, quote_as_of=timestamp(quotes.get("timestamp")),
+        include_chart=False,
+    )
+
+
+def _desk_sentiment_summaries():
+    from catalyst_sentiment import get_service
+
+    service = get_service()
+    symbols = [
+        symbol for symbol in dict.fromkeys(["BTC", *_macro_atlas_movers()])
+        if re.fullmatch(r"[A-Z0-9]{1,15}", symbol)
+    ][:6]
+    summaries = [service.symbol(symbol) for symbol in symbols]
+    if any(
+        source.get("status") == "ok"
+        for name, source in service.source_health().items() if name != "fear_greed"
+    ):
+        return summaries
+    return []
+
+
+def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
+    from agents.cycle_context import build_cycle_context
+    from agents.cycle_strategist import CycleStrategistAgent
+    from agents.runner import DESK_SUPPORT_FACTORIES, run_once
+    from agents.trading_costs import configured_cost_model
+
+    positions, positions_source, cash = _cycle_pass_positions(user)
+    watch = _cycle_pass_watchlist(user)
+    context = build_cycle_context(
+        None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
+    )
+    held = [row["symbol"] for row in context["positions"]]
+    reload = [plan["symbol"] for plan in store.active_reload_plans()]
+    _macro_atlas_set_priority(held=held, watchlist=context["watchlist"], reload=reload)
+    from macro_industry_scanner import is_atlas_eligible
+
+    known = _macro_scan_known_products()
+    wanted = [
+        product for symbol in dict.fromkeys((*held, *context["watchlist"], *reload))
+        if is_atlas_eligible(product := f"{symbol}-USD") and (not known or product in known)
+    ][:MACRO_SCAN_MAX_PRODUCTS]
+    if names.intersection({"data_quality", "tape_scout"}):
+        context["board_snapshot"] = _desk_board_snapshot()
+    if "portfolio_watch" in names:
+        context["risk_board"] = _desk_risk_board(context, positions_source)
+    if "sentiment_scout" in names:
+        try:
+            context["catalyst_sentiments"] = _desk_sentiment_summaries()
+        except Exception:
+            logging.exception("[CyclePass] catalyst sentiment unavailable")
+
+    scan = _cycle_pass_scan(wanted)
+    # A refresh may complete while the scan is being read.
+    now = time.time()
+    context["now_ts"] = now
+    context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
+    prices = _cycle_scan_prices(scan)
+    if positions_source == "portfolio" and cash is not None and all(sym in prices for sym in held):
+        context["portfolio_equity_usd"] = cash + sum(
+            row["quantity"] * prices[row["symbol"]] for row in context["positions"]
+        )
+
+    agents = [factory() for factory in DESK_SUPPORT_FACTORIES if factory.name in names]
+    run_cycle = context["cycle_scan"] is not None and CycleStrategistAgent.name in names
+    strategist = None
+    if run_cycle:
+        context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
+        strategist = CycleStrategistAgent(costs=configured_cost_model())
+        agents.append(strategist)
+
+    alert_engine = _smart_alert_engine() if run_cycle and evaluate_alerts else None
+    result = run_once(context, store=store, agents=agents, smart_alert_engine=alert_engine)
+    autonomy = store.get_autonomy_settings()
+    body = {
+        **result,
+        "dry_run_only": True,
+        "cycle_scan": {**_cycle_scan_summary(scan), "usable": context["cycle_scan"] is not None},
+        "positions_source": positions_source,
+        "positions": len(context["positions"]),
+        "watchlist": len(context["watchlist"]),
+        "proposals": list(getattr(strategist, "last_proposals", None) or []),
+        "cluster_guard": getattr(strategist, "last_cluster_guard", None),
+        "compounding_summary": store.get_compounding_summary(
+            prices, market_snapshot=(scan or {}).get("market_snapshot"),
+        ),
+        "autonomy": autonomy,
+        **_stance_readout(
+            autonomy["stance"], context["cycle_scan"],
+            resolved=getattr(strategist, "last_stance", None),
+        ),
+    }
+    if CycleStrategistAgent.name in names and not run_cycle:
+        body.update(status="skipped", reason="no_cycle_scan")
+    return body
+
+
 @app.post("/api/agents/run-cycle-pass")
 def run_agent_cycle_pass():
-    """Run the Cycle Strategist and the smart alerts once, in this process.
-
-    Reads the cached cycle scan, the owner's watchlist and held positions.
-    Dry-run only: no order is placed.
-    """
-    user, error = _require_portfolio_owner()
+    """Run the desk agents and evaluate smart alerts when the cycle scan is ready."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     payload, error = _owner_json_body()
@@ -12217,87 +12444,13 @@ def run_agent_cycle_pass():
     if not _CYCLE_PASS_LOCK.acquire(blocking=False):
         return jsonify({"error": "A cycle pass is already running."}), 409
     try:
-        from agents.cycle_context import build_cycle_context
-        from agents.cycle_strategist import CycleStrategistAgent
-        from agents.trading_costs import configured_cost_model
-        from agents.runner import run_once
+        from agents.runner import DESK_AGENT_NAMES
         from agents.store import AgentStore
 
-        store = AgentStore()
-        positions, positions_source, cash = _cycle_pass_positions(user)
-        watch = _cycle_pass_watchlist(user)
-        context = build_cycle_context(
-            None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
-        )
-        held = [row["symbol"] for row in context["positions"]]
-        reload = [plan["symbol"] for plan in store.active_reload_plans()]
-        _macro_atlas_set_priority(
-            held=held, watchlist=context["watchlist"], reload=reload,
-        )
-        from macro_industry_scanner import is_atlas_eligible
-
-        known = _macro_scan_known_products()
-        wanted = [
-            product for symbol in dict.fromkeys((*held, *context["watchlist"], *reload))
-            if is_atlas_eligible(product := f"{symbol}-USD") and (not known or product in known)
-        ][:MACRO_SCAN_MAX_PRODUCTS]
-        scan = _cycle_pass_scan(wanted)
-        # A refresh may complete while the scan is being read.
-        now = time.time()
-        context["now_ts"] = now
-        context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
-        if positions_source == "portfolio" and cash is not None:
-            prices = _cycle_scan_prices(scan)
-            if all(row["symbol"] in prices for row in context["positions"]):
-                context["portfolio_equity_usd"] = cash + sum(
-                    row["quantity"] * prices[row["symbol"]] for row in context["positions"]
-                )
-        scan_summary = {
-            **_cycle_scan_summary(scan),
-            "usable": context["cycle_scan"] is not None,
-        }
-        body = {
-            "dry_run_only": True,
-            "cycle_scan": scan_summary,
-            "positions_source": positions_source,
-            "positions": len(context["positions"]),
-            "watchlist": len(context["watchlist"]),
-        }
-        if context["cycle_scan"] is None:
-            autonomy = store.get_autonomy_settings()
-            return _private_json({
-                **body, "status": "skipped", "reason": "no_cycle_scan",
-                "runs": [], "observation_count": 0, "proposals": [],
-                "compounding_summary": store.get_compounding_summary(
-                    _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
-                ),
-                "autonomy": autonomy,
-                **_stance_readout(autonomy["stance"]),
-            })
-        context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
-        agent = CycleStrategistAgent(costs=configured_cost_model())
-        result = run_once(
-            context, store=store, agents=[agent], smart_alert_engine=_smart_alert_engine()
-        )
-        autonomy = store.get_autonomy_settings()
-        return _private_json({
-            **body,
-            "status": "ok",
-            "runs": result["runs"],
-            "observation_count": result["observation_count"],
-            "smart_alerts": result.get("smart_alerts"),
-            "proposals": list(getattr(agent, "last_proposals", None) or []),
-            # Entries the cluster and beta heat guard held back, and the heat it read.
-            "cluster_guard": getattr(agent, "last_cluster_guard", None),
-            "compounding_summary": store.get_compounding_summary(
-                _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
-            ),
-            "autonomy": autonomy,
-            **_stance_readout(
-                autonomy["stance"], context["cycle_scan"],
-                resolved=getattr(agent, "last_stance", None),
-            ),
-        })
+        return _private_json(_run_desk_pass(
+            user, AgentStore(), set(DESK_AGENT_NAMES),
+            evaluate_alerts=user["id"] != _LOCAL_DESK_OWNER_ID,
+        ))
     finally:
         _CYCLE_PASS_LOCK.release()
 
@@ -12412,7 +12565,7 @@ def smart_alert_test():
 @app.route("/api/execution-agent/mode", methods=["GET", "POST"])
 def execution_agent_mode():
     """Owner-only paper mode; never changes exchange permissions."""
-    user, error = _require_portfolio_owner()
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     import paper_execution_store
@@ -12439,7 +12592,7 @@ def execution_agent_mode():
 @app.route("/api/execution-agent/tickets", methods=["GET", "POST"])
 def execution_agent_tickets():
     """List, preview, stage, or approve local paper tickets only."""
-    user, error = _require_portfolio_owner()
+    user, error = _require_portfolio_owner(allow_local_desk=True)
     if error:
         return error
     import paper_execution_store
@@ -12488,7 +12641,7 @@ def execution_agent_tickets():
             intent.pop("held_position", None)
             intent["position_held"] = False
             mode = paper_execution_store.get_mode(user["id"])
-            if mode == "guardian" and intent.get("side") == "sell":
+            if mode == "guardian" and intent.get("side") == "sell" and user["id"] != _LOCAL_DESK_OWNER_ID:
                 from portfolio_mode import get_portfolio_service, PortfolioModeError
 
                 try:
@@ -12618,7 +12771,7 @@ def get_portfolio_risk_levels():
     """Batch public risk calculations against only the current user's holdings."""
     from flask import make_response
     from portfolio_mode import portfolio_snapshot
-    from portfolio_risk import build_risk_board, normalize_holdings, timestamp
+    from portfolio_risk import timestamp
     from watchlist import get_authenticated_user, _db_connect, _serialize_watchlists
 
     user = get_authenticated_user()
@@ -12676,28 +12829,7 @@ def get_portfolio_risk_levels():
             for symbol in symbols
         ]
 
-    holdings = normalize_holdings(holdings, positions=source == "portfolio")
-    price_map = {
-        row["symbol"]: row["price_usd"]
-        for row in holdings
-        if row["price_usd"] is not None
-    }
-    now = time.time()
-    try:
-        levels = (
-            _gather_levels_for_symbols(set(price_map), price_map, include_chart=True)
-            if 0 < quote_as_of <= now + 30 and now - quote_as_of <= 120
-            else {}
-        )
-    except Exception:
-        logging.exception("Portfolio risk candle batch unavailable")
-        levels = {}
-    contexts = {
-        row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings
-    }
-    payload = build_risk_board(
-        holdings, levels, contexts, source=source, quote_as_of=quote_as_of, now=now
-    )
+    payload = _portfolio_risk_payload(holdings, source=source, quote_as_of=quote_as_of)
     payload["fallback_reason"] = fallback_reason
     for row in payload["rows"]:
         if row["plan"].get("available"):
@@ -12713,6 +12845,28 @@ def get_portfolio_risk_levels():
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Vary"] = "Cookie"
     return response
+
+
+def _portfolio_risk_payload(holdings, *, source, quote_as_of, include_chart=True):
+    from portfolio_risk import build_risk_board, normalize_holdings
+
+    holdings = normalize_holdings(holdings, positions=source == "portfolio")
+    price_map = {
+        row["symbol"]: row["price_usd"]
+        for row in holdings
+        if row["price_usd"] is not None
+    }
+    now = time.time()
+    levels = {}
+    if 0 < quote_as_of <= now + 30 and now - quote_as_of <= 120:
+        try:
+            levels = _gather_levels_for_symbols(set(price_map), price_map, include_chart=include_chart)
+        except Exception:
+            logging.exception("Portfolio risk candle batch unavailable")
+    contexts = {row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings}
+    return build_risk_board(
+        holdings, levels, contexts, source=source, quote_as_of=quote_as_of, now=now
+    )
 
 
 @app.get("/api/risk-levels/<product_id>")
@@ -13957,7 +14111,7 @@ def get_chart_read(symbol):
     built from about a month of 1h history. No predictions, no trading advice.
     """
     try:
-        from chart_reader import analyze_candles
+        import chart_reader
         import chart_structure
     except ImportError as exc:
         logging.error(f"[ChartRead] chart_reader import failed: {exc}")
@@ -13995,63 +14149,58 @@ def get_chart_read(symbol):
     product_id = f"{sym}-USD"
     higher = None  # None lets the reader resample the trend check itself
 
-    def fetch_both(first, second):
-        """Two independent candle requests at once, so a view costs one wait."""
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            a, b = pool.submit(first), pool.submit(second)
-            return a.result(), b.result()
-
-    if horizon == "short":
-        history, hourly = fetch_both(
-            lambda: _fetch_coinbase_candles(product_id, granularity=900, count=300),
-            lambda: _fetch_coinbase_candles(product_id, granularity=3600, count=300),
-        )
+    def fetch_daily():
         try:
-            from elliott_wave_engine import resample_candles
-
-            higher = resample_candles(_closed_candles(hourly, 3600, now), 14400)
-        except Exception as exc:
-            logging.debug(f"[ChartRead] 4h trend bars unavailable for {sym}: {exc}")
-    elif horizon == "cycle":
-        import chart_reader
-        try:
-            history = chart_reader.fetch_multi_year_daily_candles(
+            return chart_reader.fetch_multi_year_daily_candles(
                 product_id, years=chart_reader.CYCLE_HISTORY_YEARS
             )
         except (requests.RequestException, ValueError, OSError, sqlite3.Error):
-            logging.exception("[ChartRead] multi-year history unavailable for %s", sym)
-            return jsonify({"error": f"Multi-year history unavailable for {sym}"}), 503
-        higher = chart_reader.aggregate_weekly_candles(history)
-    elif horizon == "macro":
-        hourly, higher = fetch_both(
-            lambda: _fetch_coinbase_candle_history(product_id, 3600, pages=3),
-            lambda: _fetch_coinbase_candles(product_id, granularity=86400, count=300),
-        )
-        higher = higher or []
-        history = None
-        if hourly:
-            try:
-                from elliott_wave_engine import resample_candles
+            logging.warning("[ChartRead] multi-year history unavailable for %s", sym, exc_info=True)
+            return None
 
-                bars = resample_candles(_closed_candles(hourly, 3600, now), 14400)
-                history = list(reversed(bars))  # newest first, like Coinbase
-            except Exception as exc:
-                logging.warning(f"[ChartRead] 4h bars unavailable for {sym}: {exc}")
+    if horizon == "cycle":
+        daily = fetch_daily()
+        if daily is None:
+            return jsonify({"error": f"Multi-year history unavailable for {sym}"}), 503
+        history = daily
+        higher = chart_reader.aggregate_weekly_candles(daily)
     else:
-        # One request serves both reads: the newest 50 candles feed the basic
-        # read as before, the full history (up to 300) feeds the structure.
-        history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+        from elliott_wave_engine import resample_candles
+
+        # Daily history comes from the day-keyed cache once warm. On a cache
+        # miss, load it alongside the selected view's intraday requests.
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            daily_job = pool.submit(fetch_daily)
+            if horizon == "short":
+                history_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=900, count=300)
+                hourly_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=3600, count=300)
+                history = history_job.result()
+                try:
+                    higher = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                except Exception:
+                    logging.debug("[ChartRead] 4h trend bars unavailable for %s", sym, exc_info=True)
+            elif horizon == "macro":
+                hourly_job = pool.submit(_fetch_coinbase_candle_history, product_id, 3600, pages=3)
+                history = None
+                try:
+                    bars = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                    history = list(reversed(bars))  # newest first, like Coinbase
+                except Exception:
+                    logging.warning("[ChartRead] 4h bars unavailable for %s", sym, exc_info=True)
+            else:
+                history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+            daily = daily_job.result()
+        if horizon == "macro" and history:
+            higher = (daily or _fetch_coinbase_candles(product_id, granularity=86400, count=300) or [])[:300]
     if not history:
         return jsonify({"error": f"No candle data for {sym}"}), 404
     candles = history[:50]
 
-    result = analyze_candles(candles, sym, timeframe, event_context=event_context)
+    result = chart_reader.analyze_candles(candles, sym, timeframe, event_context=event_context)
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
 
     try:
-        import chart_reader
-
         result["wave_analysis"] = chart_reader.build_wave_analysis(
             history, timeframe, higher, as_of_ts=now
         )
@@ -14062,28 +14211,22 @@ def get_chart_read(symbol):
         )
     result["horizon"] = horizon
     result["horizons"] = chart_structure.horizon_list()
+    result["candles"] = chart_reader.chart_candle_series(history, timeframe, as_of_ts=now)
+    cycle = chart_structure.multi_year_context(daily)
+    result["multi_year_context"] = cycle
+    result["multiyear_cycle_anatomy"] = cycle["multiyear_cycle_anatomy"]
     if horizon == "cycle":
-        result["multi_year_context"] = chart_structure.multi_year_context(history)
-        result["multi_year_context"]["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
-            higher, "1w", [], as_of_ts=now
-        )
-        result["multi_year_context"]["backtest"] = _cycle_backtest_cached(product_id, history)
+        cycle["weekly_wave_analysis"] = chart_reader.build_wave_analysis(higher, "1w", [], as_of_ts=now)
+        cycle["backtest"] = _cycle_backtest_cached(product_id, history)
     if horizon in {"swing", "cycle"}:
-        import chart_reader
         from elliott_wave_engine import resample_candles
 
         try:
             if horizon == "cycle":
                 hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300) or []
-                cycle = result["multi_year_context"]
                 wave_1h = chart_reader.build_wave_analysis(hourly, "1h", as_of_ts=now)
             else:
                 hourly = history
-                daily = chart_reader.fetch_multi_year_daily_candles(
-                    product_id, years=chart_reader.CYCLE_HISTORY_YEARS
-                )
-                cycle = chart_structure.multi_year_context(daily)
-                result["multi_year_context"] = cycle
                 wave_1h = result["wave_analysis"]
             closed = _closed_candles(hourly, 3600, now)
             four_hour = resample_candles(closed, 14400)
@@ -14106,10 +14249,6 @@ def get_chart_read(symbol):
         )
         if horizon == "cycle":
             result["macro_industry_regime"] = regime
-    if isinstance(result.get("multi_year_context"), dict):
-        result["multiyear_cycle_anatomy"] = result["multi_year_context"].get(
-            "multiyear_cycle_anatomy"
-        ) or {"available": False, "reason": "no_daily_history"}
 
     try:
         from catalyst_sentiment import get_service, structure_sentiment_posture
@@ -14134,7 +14273,7 @@ def get_chart_read(symbol):
         logging.exception("[ChartRead] catalyst context unavailable for %s", sym)
         result["catalyst_sentiment"] = {"status": "unavailable", "posture": None}
 
-    user, owner_error = _require_portfolio_owner()
+    user, owner_error = _require_portfolio_owner(allow_local_desk=True)
     if not owner_error:
         import paper_execution_store
 

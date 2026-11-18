@@ -4,10 +4,6 @@ import PaperExecutionControls from "../components/PaperExecutionControls.jsx";
 import CycleStrategistDeck from "../components/CycleStrategistDeck.jsx";
 import "../styles/agents-page.css";
 
-// Read-only view of the local agent ledger (/api/agents/*). Nothing on this
-// page runs an agent, edits code, or changes board data: agents run on demand
-// from scripts/run_local_agents.py and only record findings with evidence.
-
 const POLL_MS = 30000;
 const SEVERITY_ORDER = ["critical", "warning", "watch", "info"];
 const SEVERITY_LABEL = { critical: "Critical", warning: "Warning", watch: "Watch", info: "Info" };
@@ -149,8 +145,9 @@ export default function AgentsPage() {
   const [showExpired, setShowExpired] = useState(false);
   const active = useRef(null);
 
-  const load = useCallback(async () => {
-    if (active.current) return;
+  const load = useCallback(async (force = false) => {
+    if (active.current && !force) return;
+    active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
     setLoading(true);
@@ -159,16 +156,21 @@ export default function AgentsPage() {
         getJson("/api/agents/status", controller.signal),
         getJson("/api/agents/observations?limit=250", controller.signal),
       ]);
+      if (active.current !== controller) return;
       setStatus(nextStatus);
       setObservations(Array.isArray(nextObservations.observations) ? nextObservations.observations : []);
       setError("");
     } catch (cause) {
-      if (cause.name !== "AbortError") setError(cause.message || "The agent ledger is unavailable.");
+      if (active.current === controller && cause.name !== "AbortError") {
+        setError(cause.message || "The agent ledger is unavailable.");
+      }
     } finally {
       // Only clear the slot if it's still ours: an unmount may already have
       // aborted this request and let a newer one start.
-      if (active.current === controller) active.current = null;
-      setLoading(false);
+      if (active.current === controller) {
+        active.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -195,6 +197,8 @@ export default function AgentsPage() {
   const attention = current.filter((o) => o.severity === "critical" || o.severity === "warning").length;
   const ranCount = summaries.filter((s) => s.state !== "never_run").length;
   const lastPass = status?.last_run?.finished_ts || status?.last_run?.started_ts || null;
+  const cycleRun = summaries.find((summary) => summary.agent === "cycle_strategist")?.latest_run;
+  const lastCycleRun = cycleRun?.finished_ts ? cycleRun.id : null;
 
   const visible = observations
     .filter((o) => o.agent !== "audit_triage")
@@ -220,7 +224,7 @@ export default function AgentsPage() {
         <h2>Agent ledger unavailable</h2>
         <p className="mw-agents-error">{error}</p>
         <p>The page reads the backend at <code>/api/agents/status</code>. Make sure the local backend is running.</p>
-        <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={load}>Try again</button>
+        <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={() => load()}>Try again</button>
       </section>
     );
   }
@@ -233,15 +237,14 @@ export default function AgentsPage() {
         <div>
           <p className="mw-eyebrow">Local agents</p>
           <p>
-            Agents run on demand on this machine and record what they find, with evidence. They don&apos;t change the
-            app, fix code, or place orders. Between runs every agent is idle.
+            Desk agents refresh while Mission Control is open for the owner. Run Desk Pass refreshes them on demand.
           </p>
         </div>
         <div className="mw-agents-intro__actions">
           <span className="mw-agents-updated" role="status">
             {error ? `${error} Showing the last snapshot.` : loading ? "Refreshing…" : `Updated ${ago(status?.generated_ts)}`}
           </span>
-          <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={load} disabled={loading}>
+          <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={() => load()} disabled={loading}>
             Refresh
           </button>
         </div>
@@ -249,7 +252,7 @@ export default function AgentsPage() {
 
       <PaperExecutionControls />
 
-      <CycleStrategistDeck />
+      <CycleStrategistDeck lastCycleRun={lastCycleRun} onPassComplete={() => load(true)} />
 
       <section className="mw-stat-grid mw-agents-stats" aria-label="Agent summary">
         <article className="mw-panel mw-stat-card"><span>Agents</span><strong>{summaries.length}</strong><small>{ranCount} have run here</small></article>

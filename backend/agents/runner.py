@@ -22,6 +22,15 @@ except ImportError:
     from catalyst_sentiment import CatalystSentimentAgent
 
 
+# The other agents take explicit audit, repository, or trade-intent input.
+DESK_SUPPORT_FACTORIES = (
+    DataQualityAgent, TapeScoutAgent, CatalystSentimentAgent, PortfolioWatchAgent,
+)
+DESK_AGENT_NAMES = tuple(
+    factory.name for factory in (*DESK_SUPPORT_FACTORIES, CycleStrategistAgent)
+)
+
+
 DEFAULT_AGENT_FACTORIES = (
     DataQualityAgent,
     AuditTriageAgent,

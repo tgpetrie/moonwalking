@@ -327,6 +327,7 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
   if (!data) return afterSetup;
 
   const { summary, direction, lower_area, upper_area, trading_activity, confidence, watch_next, timeframe, window_hours, wave_analysis } = data;
+  const anatomy = data.multiyear_cycle_anatomy || data.multi_year_context?.multiyear_cycle_anatomy;
   const dirColor = DIRECTION_COLOR[direction?.label] || 'var(--sentiment-subtext)';
   const wLabel = windowLabel(window_hours, timeframe);
   const volColor = VOLUME_COLOR[trading_activity?.label] || 'var(--sentiment-subtext)';
@@ -343,8 +344,8 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
         {(horizon || data.horizon || 'swing') === 'swing' && (!wave_analysis?.available || wave_analysis.active_pattern === 'none') && onHorizonChange ? (
           <button type="button" className="mini-toggle-btn" onClick={() => onHorizonChange('cycle')}>No clear swing setup · View Cycle (Multi-Year)</button>
         ) : null}
-        {(horizon || data.horizon) === 'cycle' ? <CycleAnatomy anatomy={data.multiyear_cycle_anatomy || data.multi_year_context?.multiyear_cycle_anatomy} /> : null}
         <StructureSection wave={wave_analysis} />
+        {anatomy ? <CycleAnatomy anatomy={anatomy} /> : null}
         {(data.horizon === 'swing' || data.horizon === 'cycle') && data.top_down_confluence?.available ? (
           <div data-testid="top-down-confluence">
             <p style={styles.watchLabel}>Multi-degree context</p>

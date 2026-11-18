@@ -36,6 +36,7 @@ OPEN_PROPOSAL_STATUSES = frozenset({"pending_approval", "blocked_by_guard"})
 # A trim in one of these states has freed USDC for its reload ladder.
 RELOAD_PLAN_ACTIVE_STATUSES = ("approved", "auto_executed_dry_run")
 PRIVATE_AGENT = "cycle_strategist"
+_PORTFOLIO_WATCH_AGENT = "portfolio_watch"
 
 
 def usdc_cents(value, *, round_down=False) -> int:
@@ -258,6 +259,7 @@ class AgentStore:
         agent: str | None = None,
         symbol: str | None = None,
         include_cycle_strategist: bool = True,
+        include_portfolio_watch: bool = True,
     ) -> list[dict]:
         limit = min(max(int(limit), 1), 250)
         filters = []
@@ -265,6 +267,9 @@ class AgentStore:
         if not include_cycle_strategist:
             filters.append("agent != ?")
             params.append(PRIVATE_AGENT)
+        if not include_portfolio_watch:
+            filters.append("agent != ?")
+            params.append(_PORTFOLIO_WATCH_AGENT)
         if agent:
             filters.append("agent = ?")
             params.append(agent)
@@ -285,9 +290,15 @@ class AgentStore:
             ).fetchall()
         return [self._row_to_observation(row) for row in rows]
 
-    def status(self, *, include_cycle_strategist: bool = True) -> dict:
-        where = "" if include_cycle_strategist else "WHERE agent != ?"
-        params = () if include_cycle_strategist else (PRIVATE_AGENT,)
+    def status(
+        self, *, include_cycle_strategist: bool = True, include_portfolio_watch: bool = True,
+    ) -> dict:
+        params = []
+        if not include_cycle_strategist:
+            params.append(PRIVATE_AGENT)
+        if not include_portfolio_watch:
+            params.append(_PORTFOLIO_WATCH_AGENT)
+        where = "WHERE " + " AND ".join("agent != ?" for _ in params) if params else ""
         with self._connection() as conn:
             total_observations = conn.execute(
                 f"SELECT COUNT(*) FROM agent_observations {where}", params
@@ -320,6 +331,21 @@ class AgentStore:
             "agents": [dict(row) for row in agents],
         }
 
+    def last_successful_runs(self, agents: Iterable[str]) -> dict[str, int]:
+        names = tuple(agents)
+        with self._connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT agent, MAX(finished_ts) AS finished_ts
+                FROM agent_runs
+                WHERE status = 'ok' AND finished_ts IS NOT NULL
+                  AND agent IN ({",".join("?" for _ in names)})
+                GROUP BY agent
+                """,
+                names,
+            ).fetchall()
+        return {row["agent"]: row["finished_ts"] for row in rows}
+
     # A run still marked "running" this long after it started almost certainly
     # died without calling finish_run (crash, closed terminal). One agent pass
     # takes seconds; fifteen minutes is generous.
@@ -331,6 +357,7 @@ class AgentStore:
         *,
         now: int | None = None,
         include_cycle_strategist: bool = True,
+        include_portfolio_watch: bool = True,
     ) -> list[dict]:
         """One row per agent: latest run, derived state, and that run's findings.
 
@@ -358,7 +385,10 @@ class AgentStore:
             names = list(dict.fromkeys([*known_agents, *seen]))
             summaries = []
             for name in names:
-                if name == PRIVATE_AGENT and not include_cycle_strategist:
+                if (
+                    (name == PRIVATE_AGENT and not include_cycle_strategist)
+                    or (name == _PORTFOLIO_WATCH_AGENT and not include_portfolio_watch)
+                ):
                     if name in known_agents:
                         summaries.append(self._summarize(name, None, 0, {}, now))
                     continue

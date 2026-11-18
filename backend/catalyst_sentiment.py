@@ -742,7 +742,10 @@ class CatalystSentimentAgent:
 
     def run(self, context: dict | None) -> list:
         context = context or {}
-        summary = context.get("catalyst_sentiment")
+        summaries = context.get("catalyst_sentiments") or [context.get("catalyst_sentiment")]
+        return [finding for summary in summaries for finding in self._read_symbol(context, summary)]
+
+    def _read_symbol(self, context, summary):
         if not isinstance(summary, dict) or not summary.get("symbol"):
             return []
         posture = structure_sentiment_posture(

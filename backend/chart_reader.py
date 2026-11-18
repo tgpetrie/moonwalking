@@ -25,6 +25,7 @@ import requests
 
 __all__ = [
     "analyze_candles",
+    "chart_candle_series",
     "build_wave_analysis",
     "fetch_multi_year_daily_candles",
     "aggregate_weekly_candles",
@@ -160,6 +161,31 @@ def _normalize_candles(
         rows.append((ts, low, high, open_, close, vol))
     rows.sort(key=lambda r: r[0])
     return rows
+
+
+def chart_candle_series(
+    raw: list[list[Any]], timeframe: str, *, as_of_ts: float
+) -> list[dict[str, float]]:
+    """Chronological OHLCV for the selected timeframe, even without a wave read."""
+    step = _SECONDS[timeframe]
+    bars = {}
+    for ts, low, high, opening, close, volume in _normalize_candles(raw):
+        if not all(math.isfinite(value) for value in (ts, low, high, opening, close, volume)):
+            continue
+        if (
+            ts < 0 or ts + step > as_of_ts or volume < 0
+            or not low <= min(opening, close) <= max(opening, close) <= high
+        ):
+            continue
+        bars[ts] = {
+            "timestamp": ts,
+            "open": opening,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+    return [bars[ts] for ts in sorted(bars)]
 
 
 def _price_fmt(value: float) -> float:

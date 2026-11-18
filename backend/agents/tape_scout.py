@@ -41,7 +41,10 @@ class TapeScoutAgent:
         created_ts = int(time.time())
         observations: list[AgentObservation] = []
         seen: set[tuple[str, str]] = set()
+        table_timestamps = snapshot.get("table_timestamps")
         for table in TABLES:
+            if isinstance(table_timestamps, dict) and created_ts - table_timestamps.get(table, 0) > 180:
+                continue
             rows = snapshot.get(table)
             if not isinstance(rows, list):
                 continue
@@ -51,8 +54,8 @@ class TapeScoutAgent:
                 symbol = _symbol(row)
                 if not symbol:
                     continue
-                pct_1m = _num(row.get("pct_1m"))
-                pct_3m = _num(row.get("pct_3m"))
+                pct_1m = _num(row.get("pct_1m", row.get("price_change_percentage_1min")))
+                pct_3m = _num(row.get("pct_3m", row.get("price_change_percentage_3min")))
                 reasons = []
                 if pct_1m is not None and abs(pct_1m) >= self.one_min_threshold:
                     reasons.append("1m")

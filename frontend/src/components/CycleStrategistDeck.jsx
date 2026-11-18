@@ -126,7 +126,7 @@ function FlightManual() {
         <li><strong>Off</strong> — tick Emergency Pause. The strategist still records proposals but nothing auto-executes.</li>
         <li><strong>Mode A · Recommend</strong> (Approval Queue) — every proposal waits for you. Approval records the decision; it never places an order.</li>
         <li><strong>Mode B · Auto Paper</strong> (Auto-Protect Exits) — trims and protective stops run through the guarded dry-run exit path; entries, reloads and rotations still wait for approval.</li>
-        <li>Press <strong>Run Desk Pass</strong> to evaluate the cached cycle scan once.</li>
+        <li>Press <strong>Run Desk Pass</strong> to refresh desk findings and evaluate the cached cycle scan.</li>
         <li>Approve a <strong>TRIM_TO_USDC</strong>: the freed USDC opens a 3-rung reload ladder under Open Reload Ladders. Approve each <strong>RELOAD_ACCUMULATE</strong> as price reaches a rung.</li>
       </ol>
       <h4>2 · Mission Stances</h4>
@@ -416,7 +416,7 @@ const PASS_SKIP_REASONS = {
   no_cycle_scan: "the cycle scan is still warming or out of date",
 };
 
-export default function CycleStrategistDeck() {
+export default function CycleStrategistDeck({ lastCycleRun, onPassComplete } = {}) {
   const [autonomy, setAutonomy] = useState(null);
   const [proposals, setProposals] = useState([]);
   const [reloadPlans, setReloadPlans] = useState([]);
@@ -454,7 +454,7 @@ export default function CycleStrategistDeck() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, lastCycleRun]);
 
   const save = async (changes) => {
     setBusy(true);
@@ -498,9 +498,9 @@ export default function CycleStrategistDeck() {
     setClusterGuard(null);
     try {
       const result = await runCycleAgentPass();
-      await load();
+      await Promise.all([load(), onPassComplete?.()]);
       if (result.runs?.some((run) => run.status === "error") || result.smart_alerts?.status === "error") {
-        setError("The desk pass encountered an error running Cycle Strategist or Smart Alerts.");
+        setError("The desk pass encountered an error. Check the agent summaries for details.");
         setPassNote("");
       } else if (result.status === "ok") {
         const guard = readClusterGuard(result);
@@ -510,7 +510,8 @@ export default function CycleStrategistDeck() {
         const count = Array.isArray(result.proposals) ? result.proposals.length : 0;
         setPassNote(`Desk pass complete · ${count} proposal${count === 1 ? "" : "s"} from this pass`);
       } else {
-        setPassNote(`Desk pass skipped · ${PASS_SKIP_REASONS[result.reason] || result.reason || "no reason given"}`);
+        const activity = result.runs?.length ? "Desk agents refreshed · Cycle Strategist skipped" : "Desk pass skipped";
+        setPassNote(`${activity} · ${PASS_SKIP_REASONS[result.reason] || result.reason || "no reason given"}`);
       }
     } catch (cause) {
       setPassNote("");
@@ -540,7 +541,7 @@ export default function CycleStrategistDeck() {
           {autonomy?.emergency_pause ? <span className="mw-agents-chip is-sev-critical">Paused</span> : null}
           {autonomy ? (
             <button type="button" className="mw-pill" disabled={busy} onClick={runPass}
-              title="Run the Cycle Strategist and smart alerts once from the cached cycle scan. Dry-run only.">
+              title="Refresh the desk agents once. Cycle Strategist and smart alerts use the cached cycle scan.">
               Run Desk Pass
             </button>
           ) : null}

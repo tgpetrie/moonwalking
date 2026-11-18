@@ -1,16 +1,19 @@
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from threading import Event
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app as backend_app
+import catalyst_sentiment
 import paper_execution_store
 import watchlist
 from agents.contracts import AgentObservation
 from agents.cycle_context import build_cycle_context, evaluate_smart_alerts
 from agents.cycle_strategist import CycleStrategistAgent
-from agents.runner import run_once
+from agents.runner import DESK_AGENT_NAMES, run_once
 from agents.store import AgentStore
 from smart_alerts import DEFAULT_RULES, SmartAlertEngine
 
@@ -46,6 +49,15 @@ def client(monkeypatch, tmp_path, macro_scan_state):
     monkeypatch.delenv("MW_NTFY_URL", raising=False)
     monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: OWNER)
     monkeypatch.setattr(backend_app, "_mw_ensure_background_started", lambda: None)
+    class UnavailableSentiment:
+        def symbol(self, symbol):
+            return {}
+
+        def source_health(self):
+            return {}
+
+    monkeypatch.setattr(catalyst_sentiment, "get_service", UnavailableSentiment)
+    monkeypatch.setattr(backend_app, "last_current_prices", {"data": {}, "timestamp": 0})
     monkeypatch.setitem(backend_app.app.config, "TESTING", True)
     return backend_app.app.test_client()
 
@@ -225,7 +237,7 @@ def test_invalid_json_has_no_store_and_leaves_settings_unchanged(client):
 
 def test_public_observations_and_status_exclude_strategist(client, monkeypatch):
     store = AgentStore()
-    for agent in ("tape_scout", "cycle_strategist"):
+    for agent in ("tape_scout", "cycle_strategist", "portfolio_watch"):
         run_id = store.begin_run(agent, model_version="test")
         store.record_observations(
             run_id, [AgentObservation(agent=agent, kind="test", summary="test", symbol="SOL")]
@@ -239,7 +251,7 @@ def test_public_observations_and_status_exclude_strategist(client, monkeypatch):
     status = client.get("/api/agents/status").json
     assert status["total_observations"] == 1
     assert status["last_run"]["agent"] == "tape_scout"
-    assert "cycle_strategist" not in {row["agent"] for row in status["agents"]}
+    assert {row["agent"] for row in status["agents"]} == {"tape_scout"}
     catalog = next(row for row in status["agent_summaries"] if row["agent"] == "cycle_strategist")
     assert catalog["latest_run"] is None and catalog["latest_findings_by_severity"] == {}
 
@@ -502,7 +514,11 @@ def test_cycle_pass_runs_strategist_and_alerts_from_paper_positions(client, cycl
     assert body["status"] == "ok" and body["dry_run_only"] is True
     assert body["positions_source"] == "paper" and body["positions"] == 1 and body["watchlist"] == 1
     assert body["cycle_scan"]["usable"] is True
-    assert body["runs"] == [{"agent": "cycle_strategist", "status": "ok", "observations": 2}]
+    assert {run["agent"] for run in body["runs"]} == set(DESK_AGENT_NAMES)
+    assert body["runs"][-1] == {"agent": "cycle_strategist", "status": "ok", "observations": 2}
+    status = client.get("/api/agents/status").json
+    assert status["last_run"]["agent"] == "cycle_strategist"
+    assert status["generated_ts"] - status["last_run"]["finished_ts"] < 5
     assert {p["action"] for p in body["proposals"]} == {"TRIM_TO_USDC", "BREAKOUT_ENTRY"}
     assert body["smart_alerts"]["status"] == "ok"
     assert body["autonomy"]["autonomy_mode"] == "approval_queue"
@@ -516,6 +532,131 @@ def test_cycle_pass_runs_strategist_and_alerts_from_paper_positions(client, cycl
     # The owner's symbols move to the front of the next atlas universe.
     assert backend_app._MACRO_ATLAS_PRIORITY["held"] == ("SOL",)
     assert backend_app._MACRO_ATLAS_PRIORITY["watchlist"] == ("AVAX",)
+
+
+def test_desk_pass_feeds_the_support_agents_and_keeps_portfolio_findings_private(
+    client, cycle_pass, monkeypatch,
+):
+    now = backend_app.time.time()
+    stamp = datetime.fromtimestamp(now, timezone.utc).isoformat()
+    stale = datetime.fromtimestamp(now - 400, timezone.utc).isoformat()
+    monkeypatch.setattr(backend_app, "_MW_COMPONENT_SNAPSHOTS", {
+        "gainers_1m": {
+            "last_updated": stamp,
+            "data": [{"symbol": "AVAX", "currentPrice": 30.0, "price_change_percentage_1min": 2.5}],
+        },
+        "gainers_3m": {
+            "last_updated": stale,
+            "data": [{"symbol": "SOL", "currentPrice": 175.0, "price_change_percentage_3min": 9.0}],
+        },
+        "banner_1h_price": {"last_updated": stamp, "data": [{"symbol": "BTC"}]},
+    })
+    monkeypatch.setattr(backend_app, "_macro_atlas_movers", lambda: ["AVAX"])
+
+    class Sentiment:
+        def symbol(self, symbol):
+            return {"symbol": symbol, "severe_negative": ["exploit"]}
+
+        def source_health(self):
+            return {"news": {"status": "ok"}}
+
+    monkeypatch.setattr(catalyst_sentiment, "get_service", Sentiment)
+    assert client.post(PASS_URL, json={}).json["status"] == "ok"
+    store = AgentStore()
+    assert {row["symbol"] for row in store.latest(agent="tape_scout")} == {"AVAX"}
+    assert {row["symbol"] for row in store.latest(agent="sentiment_scout")} == {"BTC", "AVAX"}
+    assert "missing_or_invalid_price" in {row["kind"] for row in store.latest(agent="data_quality")}
+    portfolio = client.get("/api/agents/observations?agent=portfolio_watch").json["observations"]
+    assert any(row["kind"] == "risk_plan_unavailable" for row in portfolio)
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
+    assert client.get("/api/agents/observations?agent=portfolio_watch").json["observations"] == []
+
+
+def test_heartbeat_is_nonblocking_and_retries_only_the_agent_that_missed_the_pass(
+    client, cycle_pass, monkeypatch,
+):
+    real_run = backend_app._run_desk_pass
+    started, resume = Event(), Event()
+    calls = []
+
+    def run(user, store, due, **kwargs):
+        calls.append(due)
+        started.set()
+        assert resume.wait(5), "GET did not return while the worker was waiting"
+        return real_run(user, store, due, **kwargs)
+
+    monkeypatch.setattr(backend_app, "_run_desk_pass", run)
+    monkeypatch.setattr(backend_app, "_next_desk_heartbeat_attempt", 0)
+    assert client.get("/api/agents/proposals").status_code == 200
+    assert not started.is_set()  # Test requests never start the worker by default.
+    monkeypatch.setattr(backend_app, "_is_test_runtime", lambda: False)
+    cycle_pass["scan"] = None
+    try:
+        assert client.get("/api/agents/proposals").json["proposals"] == []
+        assert started.wait(5)
+        assert client.get("/api/agents/status").json["last_run"] is None
+        assert client.post(PASS_URL, json={}).status_code == 409
+    finally:
+        resume.set()
+        assert backend_app._CYCLE_PASS_LOCK.acquire(timeout=5)
+        backend_app._CYCLE_PASS_LOCK.release()
+
+    assert calls == [set(DESK_AGENT_NAMES)]
+    assert client.get("/api/agents/status").json["last_run"]["status"] == "ok"
+    assert calls == [set(DESK_AGENT_NAMES)]  # Warming retries are throttled.
+    cycle_pass["scan"] = SCAN
+    monkeypatch.setattr(backend_app, "_next_desk_heartbeat_attempt", 0)
+    started.clear()
+    assert client.get("/api/agents/status").status_code == 200
+    assert started.wait(5)
+    assert backend_app._CYCLE_PASS_LOCK.acquire(timeout=5)
+    backend_app._CYCLE_PASS_LOCK.release()
+    assert calls[-1] == {"cycle_strategist"}
+    assert AgentStore().last_successful_runs(DESK_AGENT_NAMES).keys() == set(DESK_AGENT_NAMES)
+    monkeypatch.setattr(backend_app, "_next_desk_heartbeat_attempt", 0)
+    assert client.get("/api/agents/status").json["last_run"]["agent"] == "cycle_strategist"
+    assert not backend_app._CYCLE_PASS_LOCK.locked()
+
+
+def test_loopback_development_can_use_stances_paper_controls_and_the_desk(client, monkeypatch):
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: None)
+    monkeypatch.setattr(backend_app, "_is_test_runtime", lambda: False)
+    monkeypatch.setattr(backend_app, "_maybe_start_desk_heartbeat", lambda *args: None)
+    monkeypatch.setattr(backend_app, "_cycle_pass_scan", lambda wanted: None)
+    monkeypatch.delenv("MOONWALKING_REQUIRE_OWNER_AUTH", raising=False)
+    monkeypatch.setenv("FLASK_ENV", "development")
+    forwarded = {
+        "Origin": "http://localhost:5173", "X-Forwarded-For": "127.0.0.1",
+        "X-Forwarded-Host": "localhost:5173",
+    }
+    assert client.post("/api/agents/settings", json={"stance": "bunker"}, headers=forwarded).json[
+        "configured_stance"
+    ] == "bunker"
+    paper = client.post("/api/execution-agent/mode", json={"mode": "guardian"}, headers=forwarded)
+    assert paper.json["mode"] == "guardian" and paper.json["paper"] is True
+    assert paper_execution_store.get_mode(1) == "advisory"
+    assert client.get("/api/execution-agent/tickets", headers=forwarded).json["tickets"] == []
+    assert client.post(PASS_URL, json={}, headers=forwarded).json["positions_source"] == "paper"
+    assert client.get("/api/smart-alerts/rules", headers=forwarded).status_code == 401
+
+    for request_args in (
+        {"environ_overrides": {"REMOTE_ADDR": "192.0.2.10"}},
+        {"base_url": "http://external.test"},
+        {"headers": {"Origin": "https://external.test"}},
+        {"headers": {"X-Forwarded-Host": "192.0.2.10:5173"}},
+        {"headers": {"X-Forwarded-For": "192.0.2.10"}},
+    ):
+        assert client.get("/api/agents/proposals", **request_args).status_code == 401
+
+    with monkeypatch.context() as patch:
+        patch.setenv("MOONWALKING_REQUIRE_OWNER_AUTH", "1")
+        assert client.post(PASS_URL, json={}, headers=forwarded).status_code == 401
+        assert client.get("/api/execution-agent/mode", headers=forwarded).status_code == 401
+    with monkeypatch.context() as patch:
+        patch.setenv("FLASK_ENV", "production")
+        assert client.get("/api/agents/settings", headers=forwarded).status_code == 401
+    monkeypatch.setattr(watchlist, "get_authenticated_user", lambda: {"id": 2, "email": "other@example.test"})
+    assert client.get("/api/agents/settings", headers=forwarded).status_code == 403
 
 
 def test_cycle_pass_hands_held_coins_cached_history_to_the_reload_ladder(client, cycle_pass, monkeypatch):
@@ -605,7 +746,9 @@ def test_cycle_pass_skips_when_the_cached_scan_is_not_usable(client, cycle_pass)
         cycle_pass["scan"] = scan
         body = client.post(PASS_URL, json={}).json
         assert body["status"] == "skipped" and body["reason"] == "no_cycle_scan"
-        assert body["cycle_scan"]["usable"] is False and body["proposals"] == [] and body["runs"] == []
+        assert body["cycle_scan"]["usable"] is False and body["proposals"] == []
+        assert {run["agent"] for run in body["runs"]} == set(DESK_AGENT_NAMES) - {"cycle_strategist"}
+        assert client.get("/api/agents/status").json["last_run"]["finished_ts"]
     assert client.get("/api/agents/proposals").json["proposals"] == []
     assert cycle_pass["quotes"] == []
 

@@ -135,7 +135,8 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
             continue
         by_ts[ts] = tuple(values)
     if not by_ts:
-        return {"available": False, "reason": "no_daily_history"}
+        unavailable = {"available": False, "reason": "no_daily_history"}
+        return {**unavailable, "multiyear_cycle_anatomy": unavailable}
     history = [by_ts[ts] for ts in sorted(by_ts)]
     window_start = history[-1][0] - (analysis.CYCLE_WINDOW_DAYS - 1) * analysis.DAY
     rows = [bar for bar in history if bar[0] >= window_start]

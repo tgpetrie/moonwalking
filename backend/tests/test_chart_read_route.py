@@ -19,6 +19,7 @@ def offline_catalyst(monkeypatch):
             return {"trending": {"status": "unavailable"}}
 
     monkeypatch.setattr(catalyst_sentiment, "get_service", lambda: Unavailable())
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: None)
     monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda product, years=3: [])
 
 
@@ -195,6 +196,7 @@ def test_chart_read_route_survives_a_wave_failure(monkeypatch):
     assert body["symbol"] == "SOL" and body["candle_count"] == 50
     assert body["wave_analysis"]["available"] is False
     assert body["wave_analysis"]["reason"] == "engine_error"
+    assert len(body["candles"]) == len(_history())
 
 
 # ─── horizons ─────────────────────────────────────────────────────────────────
@@ -243,6 +245,57 @@ def test_swing_and_cycle_expose_top_down_context(monkeypatch, horizon):
     # The anatomy is lifted to the top level for the chart and the dossier.
     assert body["multiyear_cycle_anatomy"] == body["multi_year_context"]["multiyear_cycle_anatomy"]
     assert body["multiyear_cycle_anatomy"]["outcome_validated"] is False
+
+
+def test_all_horizons_share_cycle_levels_and_return_complete_ohlcv(monkeypatch, cycle_fixture):
+    daily = cycle_fixture("fet_channel_fixture")[::-1]
+    hourly = _history(count=300)
+    quarter = _history(count=300, step=900)
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", lambda *a, **k: daily)
+    monkeypatch.setattr(
+        backend_app, "_fetch_coinbase_candles",
+        lambda product_id, granularity, count: {900: quarter, 3600: hourly}[granularity][:count],
+    )
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candle_history", lambda *a, **k: hourly)
+
+    anatomy = None
+    for horizon in ("short", "swing", "macro", "cycle"):
+        with backend_app.app.test_request_context(f"/api/chart-read/FET?horizon={horizon}"):
+            body = backend_app.get_chart_read("FET").get_json()
+        current = body["multiyear_cycle_anatomy"]
+        assert current == body["multi_year_context"]["multiyear_cycle_anatomy"]
+        assert current["available"] and current["pivot_keys"] == ["peak", "A", "B", "C", "D", "E"]
+        assert current["accumulation_base"]["ceiling"] > current["accumulation_base"]["floor"]
+        assert next(level for level in current["projections"] if level["key"] == "target_1")["price"] > 0
+        assert anatomy is None or current == anatomy
+        anatomy = current
+        last = body["candles"][-1]
+        assert set(last) == {"timestamp", "open", "high", "low", "close", "volume"}
+        assert [bar["timestamp"] for bar in body["candles"]] == sorted(
+            {bar["timestamp"] for bar in body["candles"]}
+        )
+        if horizon == "macro":
+            assert last["timestamp"] == hourly[0][0] - 3 * 3600
+            assert last["open"] == hourly[3][3] and last["close"] == hourly[0][4]
+            assert last["low"] == min(bar[1] for bar in hourly[:4])
+            assert last["high"] == max(bar[2] for bar in hourly[:4])
+            assert last["volume"] == sum(bar[5] for bar in hourly[:4])
+        else:
+            ts, low, high, opening, close, volume = {"short": quarter, "swing": hourly, "cycle": daily}[horizon][0]
+            assert last == dict(timestamp=ts, open=opening, high=high, low=low, close=close, volume=volume)
+
+
+def test_intraday_chart_keeps_candles_when_daily_history_fails(monkeypatch):
+    def unavailable(*args, **kwargs):
+        raise OSError("history unavailable")
+
+    monkeypatch.setattr(chart_reader, "fetch_multi_year_daily_candles", unavailable)
+    monkeypatch.setattr(backend_app, "_fetch_coinbase_candles", lambda *a, **k: _history())
+    with backend_app.app.test_request_context("/api/chart-read/SOL?horizon=short"):
+        response = backend_app.get_chart_read("SOL")
+    assert response.status_code == 200
+    assert response.json["candles"]
+    assert response.json["multiyear_cycle_anatomy"] == {"available": False, "reason": "no_daily_history"}
 
 
 def test_short_horizon_reads_15m_candles_with_a_4h_trend_check(monkeypatch):

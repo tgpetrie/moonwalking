@@ -55,7 +55,7 @@ export default defineConfig({
     },
     proxy: {
       '/data': { target, changeOrigin: true, configure: attachProxyErrorHandler },
-      '/api': { target, changeOrigin: true, ws: true, configure: attachProxyErrorHandler },
+      '/api': { target, changeOrigin: true, xfwd: true, ws: true, configure: attachProxyErrorHandler },
       // Keep legacy sentiment paths working, but route through the main backend proxy target.
       '/api/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },
       '/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },
