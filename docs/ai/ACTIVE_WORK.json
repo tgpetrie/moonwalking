@@ -4,6 +4,7 @@
     "branch": "claude/elliott-abc-v2-reclaim-20261115",
     "baseline_commit": "c2b4ce3",
     "implementation_commit": "f17f2c300f52bbdca204830c6c22d027438a21d3",
+    "followup_commits": ["03c59c39bb61f3e682d503ed51c431832b12f704 (Coin Dossier levels 3-column grid at every width)"],
     "documentation_checkpoint": "Later documentation-only commits on this branch preserve the Lane 3 handoff",
     "status": "implemented_targeted_checks_passed_owner_visual_review_next",
     "evidence": "docs/ai/RESUME_HERE.md",

@@ -36,9 +36,10 @@ handoff checkpoints, not additional code changes.
   change (1H, falling back to 3M or 1M). The right side shows the Composite
   Conviction Score, via the shared `computeCoinDossierScore`. The setup
   sentence is a full-width bordered `p.cp-strip__status` below the title,
-  no longer an `h2`. Levels are `repeat(3, minmax(0,1fr))` at widths of
-  521px and up, and the existing mobile stack is kept. Live rows use
-  `tabular-nums`.
+  no longer an `h2`. Levels are `repeat(3, minmax(0,1fr))` at every width.
+  Follow-up `03c59c39bb61f3e682d503ed51c431832b12f704` overrides the legacy
+  720px single-column rule. Below 520px each cell stacks its label over
+  its value, so the prices still fit. Live rows use `tabular-nums`.
 
 Verification at the implementation commit:
 
