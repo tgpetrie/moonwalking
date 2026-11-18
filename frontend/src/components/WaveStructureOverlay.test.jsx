@@ -153,6 +153,26 @@ const cycleData = (overrides = {}) => read({
 });
 
 describe("interactive chart", () => {
+  it("uses the browser time zone for daily ticks and the candle inspector", () => {
+    const timeZone = "America/Los_Angeles";
+    const browserZone = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({ timeZone });
+    try {
+      const bars = dailyBars.slice(0, 2);
+      render(<ChartReadPanel data={cycleData({ candles: bars })} horizon="cycle" />);
+      const chart = screen.getByTestId("chart-read-chart");
+      const firstDate = new Date(bars[0].timestamp * 1000);
+      const lastDate = new Date(bars[1].timestamp * 1000);
+      expect(within(chart).getByText(firstDate.toLocaleDateString(undefined, {
+        month: "short", day: "numeric", timeZone,
+      }))).toBeInTheDocument();
+      expect(screen.getByTestId("chart-hud-date")).toHaveTextContent(lastDate.toLocaleDateString(undefined, {
+        year: "numeric", month: "short", day: "numeric", timeZone,
+      }));
+    } finally {
+      browserZone.mockRestore();
+    }
+  });
+
   it("draws OHLC candlesticks with a volume histogram by default and toggles to an area line", () => {
     render(<ChartReadPanel data={cycleData()} horizon="cycle" />);
     const chart = screen.getByTestId("chart-read-chart");

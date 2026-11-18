@@ -235,6 +235,16 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
     vi.mocked(fetchData).mockReset();
   });
 
+  it.each(["America/New_York", undefined])("sets the TradingView time zone from the browser (%s)", async (timeZone) => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({ timeZone });
+    vi.mocked(fetchData).mockResolvedValue(null);
+    await act(async () => {
+      render(<SentimentPopupAdvanced isOpen onClose={vi.fn()} symbol="SOL" />);
+    });
+    const src = screen.getByTitle("SOL chart").getAttribute("src");
+    expect(new URL(src).searchParams.get("timezone")).toBe(timeZone || "America/Los_Angeles");
+  });
+
   it("opens RENDER's exact USD spot page from the modal Trade link", () => {
     vi.mocked(useData).mockReturnValue({});
     vi.mocked(fetchData).mockResolvedValue(null);

@@ -4,6 +4,7 @@ import WaveStructureOverlay, {
   pctFrom, plainPrice, signedPctText, waveIsDrawable, wavePrices,
 } from './WaveStructureOverlay.jsx';
 import SwingHistoryOverlay, { swingsInView } from './SwingHistoryOverlay.jsx';
+import { getBrowserTimeZone } from '../utils/browserTimeZone.js';
 import '../styles/chart-read-chart.css';
 
 /*
@@ -83,19 +84,19 @@ function barStep(candles, fallback) {
   return gaps.length ? Math.max(1, gaps[Math.floor(gaps.length / 2)]) : 3600;
 }
 
-function formatWhen(ts, step, withTime = true) {
+function formatWhen(ts, step, timeZone) {
   const date = new Date(ts * 1000);
-  if (step >= 86400 || !withTime) {
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  if (step >= 86400) {
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone });
   }
-  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone });
 }
 
-function axisWhen(ts, step, spanSeconds) {
+function axisWhen(ts, step, spanSeconds, timeZone) {
   const date = new Date(ts * 1000);
-  if (spanSeconds > 200 * 86400) return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
-  if (step >= 86400 || spanSeconds > 6 * 86400) return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: step >= 86400 ? 'UTC' : undefined });
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (spanSeconds > 200 * 86400) return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone });
+  if (step >= 86400 || spanSeconds > 6 * 86400) return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone });
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone });
 }
 
 export function volumeText(value) {
@@ -122,7 +123,7 @@ function ToggleButton({ active, onClick, children, label, testId }) {
   );
 }
 
-function Hud({ bar, prev, latest, anatomy, step }) {
+function Hud({ bar, prev, latest, anatomy, step, timeZone }) {
   if (!bar) return null;
   const levels = cycleLevels(anatomy);
   const ceiling = levels.find((l) => l.key === 'ceiling');
@@ -142,7 +143,7 @@ function Hud({ bar, prev, latest, anatomy, step }) {
     <div className="chart-hud" data-testid="chart-hud" data-latest={latest ? 'true' : 'false'} aria-live="polite">
       <span className="chart-hud__cell chart-hud__when" data-testid="chart-hud-date">
         <span className="chart-hud__label">{latest ? 'Latest' : 'Candle'}</span>
-        <span className="chart-hud__value">{formatWhen(bar.t, step)}</span>
+        <span className="chart-hud__value">{formatWhen(bar.t, step, timeZone)}</span>
       </span>
       {bar.closeOnly ? cell('Close', priceText(bar.c), 'chart-hud-ohlc') : (
         <span className="chart-hud__cell" data-testid="chart-hud-ohlc">
@@ -201,6 +202,7 @@ export default function ChartReadChart({
   data, anatomy, horizon, busy = false, busyLabel = 'Loading this view…',
 }) {
   const candles = useMemo(() => chartCandles(data, horizon === 'cycle' ? anatomy : null), [data, anatomy, horizon]);
+  const timeZone = getBrowserTimeZone();
   const n = candles.length;
   const closeOnly = Boolean(candles[0]?.closeOnly);
   const step = useMemo(() => barStep(candles, data?.wave_analysis?.chart?.granularity_seconds), [candles, data]);
@@ -484,7 +486,7 @@ export default function ChartReadChart({
         </span>
       </div>
 
-      <Hud bar={hudBar} prev={hudPrev} latest={!hoverBar} anatomy={hasAnatomy ? anatomy : null} step={step} />
+      <Hud bar={hudBar} prev={hudPrev} latest={!hoverBar} anatomy={hasAnatomy ? anatomy : null} step={step} timeZone={timeZone} />
 
       <div className="chart-read-chart__stage" style={{ opacity: busy ? 0.55 : 1 }}>
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="chart-read-chart__svg" role="group" aria-roledescription="interactive chart" tabIndex={0}
@@ -509,7 +511,7 @@ export default function ChartReadChart({
           )) : null}
           <line x1={PLOT_L} x2={PLOT_R} y1={VOL_T - 4} y2={VOL_T - 4} stroke={GRID} />
           {timeTicks.map((i) => (
-            <text key={i} x={xi(i)} y={AXIS_Y} fill={AXIS_TEXT} fontSize="9.5" textAnchor="middle">{axisWhen(candles[i].t, step, spanSeconds)}</text>
+            <text key={i} x={xi(i)} y={AXIS_Y} fill={AXIS_TEXT} fontSize="9.5" textAnchor="middle">{axisWhen(candles[i].t, step, spanSeconds, timeZone)}</text>
           ))}
 
           <g clipPath={`url(#${clipId})`}>

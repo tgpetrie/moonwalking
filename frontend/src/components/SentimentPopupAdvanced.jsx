@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { getBrowserTimeZone } from '../utils/browserTimeZone.js';
 import { useMarketHeat } from '../hooks/useMarketHeat';
 import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
@@ -67,7 +68,7 @@ const buildTradingViewEmbedUrl = (tvSymbol) => {
     interval: '15',
     theme: 'dark',
     style: '1',
-    timezone: 'Etc/UTC',
+    timezone: getBrowserTimeZone(),
     withdateranges: '1',
     hide_side_toolbar: '0',
     allow_symbol_change: '1',
