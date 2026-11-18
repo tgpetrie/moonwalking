@@ -1,5 +1,61 @@
 # Resume Moonwalking from anywhere
 
+## Phase 6 · Focused Workspace, Coin Dossier and Multi-Year Anatomy · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`.
+Implementation: `07370001302b6ed7e3ab083dfeb5b02f707272cb`, built directly
+on the pushed Phase 5 commit `249846f`. Later documentation-only commits
+are handoff checkpoints, not additional code changes.
+
+- **Workspace:** the root dashboard defaults to Live Tape (1H price,
+  1M ignition, side-by-side 3M confirmation and live 1H volume).
+  Cycle Atlas & Pulse owns Industry Pulse, Live Strength, the intelligence
+  log and watchlist. Mission Control (Agents) mounts the existing Agents
+  page, including Mission Stances and the Compounding Scoreboard.
+- **Coin Dossier:** one always-visible card with a Composite Conviction
+  Score and Tape Momentum, Cycle Position and Volume & Sentiment gauges.
+  The composite requires all three gauges; missing evidence is not turned
+  into a neutral score. Pulse, Risk Levels and Intel are inline expandable
+  sections. Owner paper controls are collapsed; 401/403 responses render
+  nothing, while operational failures remain visible.
+- **Chart anatomy:** `multiyear_cycle_anatomy` is available inside
+  `multi_year_context` and at the top level of swing/cycle chart reads.
+  It uses all loaded daily history, preserving the existing three-year
+  indicator window. Flash-filtered exact daily Peak/A/B/C/D/E dates,
+  prices and signed moves feed the chart, chronological story, base box,
+  prior-B target, arithmetic 0.382/0.618 targets and invalidation floor.
+  Established weekly five-leg channels take precedence; unestablished
+  waves are explicitly missing. The base is a documented structural
+  estimate, not outcome-validated accumulation.
+- **Atlas confluence:** readable rows now emit a deterministic 0-100
+  `confluence_score` and component evidence (35% structure, 25% weekly
+  RSI, 25% volume/SMA alignment, 15% downside-beta resilience).
+  Scores are recomputed after BTC-beta annotation. Bunker's >=75 and
+  Full Burn's >=55 low-confirmation-breakout paths now consume live scan
+  evidence. The legacy `confluence` fraction remains supported; a
+  `confluence_score` of 1 is 1/100, never 100/100.
+
+Verification at the implementation commit:
+
+- Targeted backend files only: `test_chart_structure.py`,
+  `test_macro_industry_scanner.py`, `test_cycle_strategist_agent.py`,
+  `test_cycle_strategist_routes.py`, `test_chart_read_route.py`:
+  **310 passed** using the shared local virtualenv Python.
+- Targeted frontend files only: `DashboardShell.test.jsx`,
+  `SentimentPopupAdvanced.test.jsx`, `WaveStructureOverlay.test.jsx`,
+  `CoinHeaderStrip.test.jsx`, `AgentsPage.test.jsx`: **112 passed**.
+- `npm --prefix frontend run build`: passed. Existing Browserslist,
+  unresolved background-image references and chunk-size warnings remain.
+  Popup tests also report asynchronous React `act` warnings.
+- `git diff --check`: passed. No full pytest suite, running-server
+  changes, new services or access to ports 5003/5004/5173/5174.
+
+Next: owner UX/stance review using the pushed checkpoint. No production
+restart or deployment was performed. The Instant Radar research lane and
+other agents' ownership/status remain unchanged in `ACTIVE_WORK.json`.
+The original Phase 5 handoff below is preserved as historical context;
+its "no confluence emitted" limitation is superseded by Phase 6.
+
 ## Phase 5 · Mission Stances, Auto-Pilot and Flight Manual · November 17
 
 Built on `fbe4cec` in `claude/elliott-abc-v2-reclaim-20261115`. VS Code Copilot
