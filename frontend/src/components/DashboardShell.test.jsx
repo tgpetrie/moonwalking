@@ -75,15 +75,46 @@ describe("DashboardShell market status", () => {
 });
 
 describe("DashboardShell brand alignment", () => {
-  it("renders the bundled BHABIT wordmark and underline workspace tabs", () => {
+  it("renders the 2026 vector BHABIT lockup and moon-rabbit brand mark", () => {
+    const { container } = render(<DashboardShell />);
+
+    const hero = screen.getByRole("img", { name: "BHABIT" });
+    expect(hero.getAttribute("src")).toMatch(/bhabit-header-logo.*\.svg/);
+    expect(hero).toHaveClass("bh-brand-hero__logo");
+    expect(hero.closest(".bh-brand-hero--compact")).not.toBeNull();
+
+    const brand = screen.getByRole("link", { name: "BHABIT home" });
+    const [mark, wordmark] = brand.querySelectorAll("img");
+    expect(mark.getAttribute("src")).toMatch(/moon-rabbit-mark.*\.svg/);
+    expect(wordmark.getAttribute("src")).toMatch(/bhabit-wordmark.*\.svg/);
+    expect(container.querySelector('img[src*="bhabit-logo"], img[src$=".png"]')).toBeNull();
+  });
+
+  it("puts the workspace views and desk pages in one top navigation row", () => {
     render(<DashboardShell />);
 
-    const logo = screen.getByRole("img", { name: "BHABIT" });
-    expect(logo.getAttribute("src")).toMatch(/bhabit-logo/);
-    expect(logo.getAttribute("src")).not.toBe("/bhabit-logo.png");
-    const tabs = screen.getByRole("navigation", { name: "Workspace views" });
-    expect(tabs).toHaveClass("bh-utabs");
+    const header = screen.getByRole("banner");
+    const views = screen.getByRole("navigation", { name: "Workspace views" });
+    const desk = screen.getByRole("navigation", { name: "Desk pages" });
+    expect(header).toContainElement(views);
+    expect(header).toContainElement(desk);
+    expect(views).toHaveClass("bh-utabs");
+    expect(desk).toHaveClass("bh-utabs");
+    expect(views.parentElement).toBe(desk.parentElement);
+    expect(views.nextElementSibling).toHaveClass("bh-topnav__divider");
+
+    expect(Array.from(views.querySelectorAll("button"), (b) => b.textContent)).toEqual([
+      "Live Tape",
+      "Cycle Atlas & Pulse",
+      "Mission Control",
+    ]);
     expect(screen.getByRole("button", { name: "Live Tape" })).toHaveAttribute("aria-pressed", "true");
+    expect(Array.from(desk.querySelectorAll("a"), (a) => [a.textContent, a.getAttribute("href")])).toEqual([
+      ["Watchlists", "/app/watchlists"],
+      ["Portfolio", "/app/portfolio"],
+      ["Scorecard", "/app/scorecard"],
+    ]);
+    expect(document.querySelector(".board-core .bh-workspace-tabs")).toBeNull();
   });
 
   it("labels the assistant ASK BHABIT", async () => {
@@ -109,7 +140,7 @@ describe("DashboardShell industry pulse", () => {
     expect(pulse).toHaveAttribute("data-clickable", "yes");
     expect(pulse.closest(".bh-rail-stack")).not.toBeNull();
     expect(screen.queryByText("IGNITION (1M)")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mission Control (Agents)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mission Control" }));
     expect(screen.getByText("Mission Control deck")).toBeInTheDocument();
     expect(screen.queryByTestId("industry-pulse-mount")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Live Tape" }));

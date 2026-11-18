@@ -4,7 +4,7 @@ import { IntelligenceProvider } from "./context/IntelligenceContext.jsx";
 import { DataProvider } from "./context/DataContext.jsx";
 import DashboardShell from "./components/DashboardShell.jsx";
 import MvpApp from "./mvp/MvpApp.jsx";
-import bhabitRabbitStencil from "./assets/brand/bhabit-rabbit-stencil.png";
+import bhabitRabbitStencil from "./assets/brand/moon-rabbit-silhouette.svg";
 
 const mvpRouteSet = new Set([
   "/login",

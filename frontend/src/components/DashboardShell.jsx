@@ -21,8 +21,21 @@ import IndustryPulse from "./IndustryPulse.jsx";
 import AgentsPage from "../mvp/AgentsPage.jsx";
 import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
 import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
-import bhabitLogo from "../assets/brand/bhabit-logo.png";
-import bhabitRabbitStencil from "../assets/brand/bhabit-rabbit-stencil.png";
+import bhabitHeaderLogo from "../assets/brand/bhabit-header-logo.svg";
+import bhabitWordmark from "../assets/brand/bhabit-wordmark.svg";
+import moonRabbitMark from "../assets/brand/moon-rabbit-mark.svg";
+
+// One navigation row: live radar views on the left, desk pages after the divider.
+const WORKSPACE_VIEWS = [
+  ["live", "Live Tape"],
+  ["atlas", "Cycle Atlas & Pulse"],
+  ["agents", "Mission Control"],
+];
+const DESK_PAGES = [
+  ["/app/watchlists", "Watchlists"],
+  ["/app/portfolio", "Portfolio"],
+  ["/app/scorecard", "Scorecard"],
+];
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -436,14 +449,12 @@ export default function DashboardShell({ onInfo }) {
 
   return (
     <div className="bh-app">
-      <header className="bh-topbar">
+      <header className="bh-topbar bh-topbar--unified">
         <div className="bh-logo">
-          <span
-            className="bh-logo-rabbit bh-logo-rabbit--stencil"
-            aria-hidden="true"
-            style={{ "--bh-rabbit-stencil": `url(${bhabitRabbitStencil})` }}
-          />
-          <span className="bh-logo-text">BHABIT CB INSIGHT</span>
+          <a className="bh-brand" href="/" aria-label="BHABIT home">
+            <img className="bh-brand__mark" src={moonRabbitMark} alt="" width="28" height="28" />
+            <img className="bh-brand__wordmark" src={bhabitWordmark} alt="" />
+          </a>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
             <span className="live-updated">
@@ -459,34 +470,31 @@ export default function DashboardShell({ onInfo }) {
             ) : null}
           </div>
         </div>
-        <nav className="bh-topbar-right">
-          <a href="/app/portfolio" className="bh-topbar-link bh-topbar-link--ghost">
-            Portfolio
-          </a>
-          <a href="/app/scorecard" className="bh-topbar-link bh-topbar-link--ghost">
-            Scorecard
-          </a>
-          <a href="/app/watchlists" className="bh-topbar-link bh-topbar-link--ghost">
-            Watchlists
-          </a>
-        </nav>
+        <div className="bh-topnav">
+          <nav className="bh-workspace-tabs bh-utabs bh-topnav__views" aria-label="Workspace views">
+            {WORKSPACE_VIEWS.map(([key, label]) => (
+              <button type="button" key={key} aria-pressed={workspaceView === key}
+                onClick={() => setWorkspaceView(key)}>{label}</button>
+            ))}
+          </nav>
+          <span className="bh-topnav__divider" aria-hidden="true" />
+          <nav className="bh-utabs bh-topnav__desk" aria-label="Desk pages">
+            {DESK_PAGES.map(([href, label]) => (
+              <a key={href} href={href} className="bh-topbar-link">{label}</a>
+            ))}
+          </nav>
+        </div>
       </header>
 
-      <section className="bh-brand-hero" aria-label="BHABIT">
+      <section className="bh-brand-hero bh-brand-hero--compact" aria-label="BHABIT">
         <img
-          src={bhabitLogo}
+          src={bhabitHeaderLogo}
           alt="BHABIT"
           className="bh-brand-hero__logo"
         />
       </section>
 
       <div ref={boardRef} className="board-core mw-board" data-board="1">
-        <nav className="bh-workspace-tabs bh-utabs" aria-label="Workspace views">
-          {[["live", "Live Tape"], ["atlas", "Cycle Atlas & Pulse"], ["agents", "Mission Control (Agents)"]].map(([key, label]) => (
-            <button type="button" key={key} aria-pressed={workspaceView === key}
-              onClick={() => setWorkspaceView(key)}>{label}</button>
-          ))}
-        </nav>
         {workspaceView === "agents" ? <div className="mw-app"><AgentsPage /></div> : null}
         {workspaceView !== "agents" ? <>
         {/* 1 Hour Price Change Banner - Full Width */}

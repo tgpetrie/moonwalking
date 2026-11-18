@@ -10,7 +10,7 @@ import LosersTable3Min from "./components/LosersTable3Min.jsx";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import InsightsTabbed from "./components/InsightsTabbed.jsx";
 import AlertsIndicator from "./components/AlertsIndicator.jsx";
-import bhabitLogo from "./assets/brand/bhabit-logo.png";
+import bhabitLogo from "./assets/brand/bhabit-header-logo.svg";
 
 function WatchlistSync({ bySymbol }) {
   const { refreshFromData } = useWatchlist();

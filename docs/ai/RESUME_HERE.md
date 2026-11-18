@@ -1,5 +1,49 @@
 # Resume Moonwalking from anywhere
 
+## Lane 3 · 2026 vector brand and one navigation row · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`, built on `81b9264`
+(everything from that commit is kept).
+
+- **Design pass source:** `docs/claude-design-pass/` is copied unchanged from
+  `Moonwalking-Claude` commit `929fdf1` (the Claude design canvas export: SVGs,
+  PNG renders, `css/tokens.css`, `css/moon-theme.css`, `BUILD_BRIEF.md`).
+- **Brand assets:** the 2025 raster `frontend/src/assets/brand/bhabit-logo.png`
+  and `bhabit-rabbit-stencil.png` are deleted. The replacements in the same
+  folder are copies of the design pass SVGs: `bhabit-header-logo.svg` (hero
+  lockup: BHABIT, three corner stars, small moon), `bhabit-wordmark.svg`,
+  `moon-rabbit-mark.svg` (header mark) and `moon-rabbit-silhouette.svg`
+  (the fixed-centre stencil in `App.jsx`). The stencil keeps the existing
+  0.045 opacity and the row-hover `backdrop-filter` reveal unchanged.
+  `AppRoot.jsx` is not imported anywhere, but now points at the SVG too.
+- **One navigation row:** `DashboardShell.jsx` renders a single
+  `header.bh-topbar--unified`. It holds the brand link (mark + wordmark,
+  `aria-label="BHABIT home"`) and status, freshness and pressure on the left.
+  Next comes `nav[aria-label="Workspace views"]` (Live Tape, Cycle Atlas &
+  Pulse, Mission Control), then a 1px `rgba(255,255,255,0.12)` divider, then
+  `nav[aria-label="Desk pages"]` (Watchlists, Portfolio, Scorecard) on the
+  right. Both navs use the underline-tab style. The old second tab row inside
+  `.board-core` is gone, and the tab is now labelled "Mission Control". Below
+  780px the brand and status wrap and the nav stays one row that scrolls
+  sideways.
+- **Hero:** `.bh-brand-hero--compact` shows the vector lockup at 40px (34px
+  below 640px), with no breathe animation, so `1H PRICE` sits right under it.
+- Styles are in section 5 of `frontend/src/styles/bhabit-alignment.css`.
+
+Verification:
+
+- `npm --prefix frontend test -- --run src/components/DashboardShell.test.jsx`:
+  **6 passed**, including the new single-row navigation test.
+- `npm --prefix frontend run build`: passed, with the existing Browserslist,
+  public-image and chunk-size warnings.
+- Visual check on a throwaway `vite preview` at port 4318 (since stopped):
+  - at 1440 both navs sit on one 73px header row, the hero is 40px and no
+    image fails to load;
+  - at 375 there is no horizontal page overflow;
+  - the stencil resolves to `moon-rabbit-silhouette.svg`.
+  Ports 5003, 5004, 5173 and 5174 were not restarted or changed, and no
+  backend tests ran.
+
 ## Lane 3 · BHABIT Design-System Alignment · November 18
 
 Continue on `claude/elliott-abc-v2-reclaim-20261115`.
