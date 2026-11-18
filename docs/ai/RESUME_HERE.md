@@ -67,7 +67,7 @@ retired.
 | --- | --- |
 | Settings | `agent_autonomy_settings.stance` is persisted with a migration and defaults to `orbit`. The five stances are `autopilot`, `bunker`, `orbit`, `gravity_assist` and `full_burn`. `AgentStore.set_autonomy_settings` raises on an unknown stance. |
 | Stance profiles | `STANCE_PROFILES` in `backend/agents/cycle_strategist.py` sets the heat caps, coins per cluster, risk per entry, trim fraction and base ladder weights. Orbit reproduces the pre-stance behaviour exactly. Trims scale the dynamic 25–50% trim by `trim_fraction / 0.35`, capped at 90%. The plan reports `base_ladder_weights` only when they differ from 25/35/40. |
-| Entry rules | Bunker allows new non-reload entries only from `deep_accumulation_exhaustion` or with confluence of at least 75, and it filters rotation leaders. Full Burn adds `low_confirmation_breakout` and `early_markup` entries with confluence of at least 55. The Atlas scan emits no confluence and has no `early_markup` bucket, so both confluence paths stay inert until it does. |
+| Entry rules | Bunker allows new non-reload entries only from `deep_accumulation_exhaustion` or with confluence of at least 75, and it filters rotation leaders. Full Burn adds `low_confirmation_breakout` and `early_markup` entries with confluence of at least 55. Since Phase 6 the Atlas scan emits `confluence_score`, so both confluence gates are live; it still has no `early_markup` bucket, so that Full Burn path stays inert. |
 | Auto-Pilot | The pure function `resolve_autopilot_stance(cycle_scan)` returns `{configured_stance, effective_stance, reason, metrics}`, and its first matching rule wins. A missing regime, `risk_off_headwind`, or a rollover share of at least 40% selects bunker. Stage 3 or 4 with `risk_on_aligned`, an expansion share of at least 50% and a rollover share under 25% selects full burn. Stage 3 or 4 with `risk_on_aligned` alone selects gravity assist. Everything else selects orbit. Bucket shares need at least 10 readable rows. |
 | Evidence and API | Every proposal records `configured_stance` and `effective_stance` in `evidence`. `/api/agents/settings` is an alias of `/api/agents/autonomy`; its GET and POST are owner-only, `no-store`, and return 400 on an invalid stance. GET proposals and both run-cycle-pass outcomes return `configured_stance`, `effective_stance`, `effective_stance_reason`, `effective_stance_metrics` and `stance_profiles`. |
 | Frontend | `CycleStrategistDeck.jsx` adds the owner-gated five-pill Mission Stance selector, which saves through `updateAgentSettings`. The deck also shows the active stance limits, the Auto-Pilot status callout, and a toggleable Flight Manual & Settings Guide drawer. The ladder display uses the plan's `base_ladder_weights`. |
@@ -83,7 +83,7 @@ and 5174 were not touched):
 Next actions:
 
 - Have the owner review the stance limits and Auto-Pilot thresholds.
-- Emit a per-row confluence score, and an `early_markup` bucket if wanted, from the Atlas scan to open the Bunker and Full Burn confluence paths.
+- Optionally add an `early_markup` bucket to the Atlas scan to open the remaining Full Burn entry path (per-row `confluence_score` shipped in Phase 6).
 - Run the full suite before merging.
 
 For the November 16 cycle lane, continue from
