@@ -58,6 +58,9 @@ describe("coin header strip", () => {
     const headline = screen.getByTestId("coin-strip-headline");
     expect(headline.textContent).toBe("Inside dip zone ($0.1314–$0.1348) · watching for a bounce toward $0.1368");
     expect(headline).toHaveAttribute("data-source", "chart");
+    // A full-width status bar ahead of the pills, not a heading competing with the coin title.
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByTestId("coin-strip").firstElementChild).toBe(headline);
 
     const cells = within(screen.getByTestId("coin-strip-levels")).getAllByRole("definition").map((dd) => dd.textContent);
     expect(cells).toEqual(["$0.1314–$0.1348", "$0.120903 / $0.120661", "$0.1368 / $0.14643"]);

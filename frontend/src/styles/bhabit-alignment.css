@@ -1,0 +1,299 @@
+/* =========================================================
+   BHABIT DESIGN-SYSTEM ALIGNMENT (Lane 3) — loaded last from main.jsx.
+   1. One fixed-centre rabbit stencil behind the boards; rows reveal the
+      slice beneath them on hover with pure CSS compositing (no JS).
+   2. CTAs and badges: 4px radius, 1px hairline border, uppercase mono.
+   3. Tabbed headers: borderless text with a 2px underline on the active tab.
+   4. Coin dossier identity header and tabular live rows.
+   ========================================================= */
+
+/* ---------- 1. Rabbit stencil + hover reveal ---------- */
+
+.bh-rabbit-stencil {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(960px, 82vw);
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--bh-rabbit-stencil) center / contain no-repeat;
+  opacity: 0.045;
+}
+
+/* The stencil above replaces every earlier rabbit layer. */
+.bh-shell::before,
+.board-core .rabbit-bg {
+  content: none !important;
+  display: none !important;
+}
+
+/* Board containers stay see-through and never become backdrop roots, so the
+   row backdrop-filter samples the fixed stencil directly. */
+.board-core,
+.board-core .bh-main,
+.board-core .bh-board-shell,
+.board-core .bh-board,
+.board-core .bh-panel,
+.board-core .board-section,
+.board-core .bh-1m-grid,
+.board-core .bh-3m-grid {
+  background: transparent !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.board-core .bh-row.bh-row-grid {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.board-core .bh-row.bh-row-grid::after,
+.board-core .bh-row.bh-row-grid[data-side="loser"]::after,
+.board-core .bh-row.bh-row-grid[data-side="loss"]::after {
+  inset: 1px 4px !important;
+  border-radius: 4px !important;
+  background: rgba(168, 139, 250, 0.06) !important;
+  -webkit-backdrop-filter: brightness(1.85) contrast(1.25) !important;
+  backdrop-filter: brightness(1.85) contrast(1.25) !important;
+  mix-blend-mode: plus-lighter !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-core .bh-row.bh-row-grid::after { transition: none !important; }
+}
+
+/* Header mark: the same stencil, small. */
+.bh-logo-rabbit--stencil {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  background: var(--bh-rabbit-stencil) center / contain no-repeat;
+}
+
+/* ---------- 2. CTAs & badges ---------- */
+
+.bh-ask-btn,
+.bh-alerts-notify-btn,
+.bh-alerts-btn,
+.mini-toggle:not(.bh-utabs) .mini-toggle-btn,
+.chart-chip,
+.mw-pill,
+.coinbase-trade-cta {
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  font-family: "Fragment Mono", "JetBrains Mono", ui-monospace, monospace !important;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  box-shadow: none !important;
+}
+
+.bh-ask-btn:hover,
+.bh-alerts-notify-btn:hover:not(:disabled),
+.bh-alerts-btn:hover,
+.mini-toggle:not(.bh-utabs) .mini-toggle-btn:hover,
+.chart-chip:hover,
+.mw-pill:hover:not(:disabled),
+.coinbase-trade-cta:hover {
+  border-color: rgba(255, 255, 255, 0.32) !important;
+}
+
+.bh-alerts-notify-btn[data-enabled="true"],
+.mini-toggle:not(.bh-utabs) .mini-toggle-btn.active,
+.chart-chip.is-active,
+.mw-pill.is-active {
+  border-color: rgba(255, 255, 255, 0.42) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #fff !important;
+}
+
+.chart-chip.is-offchart { border-style: dashed !important; }
+
+.mini-toggle:not(.bh-utabs) {
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 3. Underline tabs ---------- */
+
+.bh-utabs,
+.mini-toggle.bh-utabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px !important;
+  width: auto;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.bh-utabs > button,
+.bh-utabs .mini-toggle-btn,
+.bh-utabs .bh-intel-pill {
+  padding: 7px 0 8px !important;
+  margin-bottom: -1px;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(245, 243, 240, 0.58) !important;
+  font-family: "Raleway", sans-serif;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.bh-utabs > button:hover,
+.bh-utabs .mini-toggle-btn:hover,
+.bh-utabs .bh-intel-pill:hover {
+  color: #fff !important;
+}
+
+.bh-utabs > button[aria-pressed="true"],
+.bh-utabs .mini-toggle-btn.active,
+.bh-utabs .bh-intel-pill.is-active,
+.bh-utabs .bh-intel-pill[aria-pressed="true"] {
+  color: #fff !important;
+  border-bottom-color: var(--bh-gain, #f97316) !important;
+}
+
+.bh-utabs > button:focus-visible,
+.bh-utabs .mini-toggle-btn:focus-visible,
+.bh-utabs .bh-intel-pill:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.5) !important;
+  outline-offset: 3px;
+}
+
+/* Top-right header links set the underline-tab reference style. */
+.bh-topbar-link,
+.bh-topbar-link--ghost,
+.bh-topbar-link--primary {
+  min-height: 24px;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+.bh-topbar-link:hover,
+.bh-topbar-link[aria-current="page"] {
+  border-bottom-color: var(--bh-gain, #f97316);
+  color: #fff;
+}
+
+/* ---------- 4. Coin dossier identity + tabular rows ---------- */
+
+.popup-header .cp-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.popup-header .cp-identity__ticker {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+}
+
+.cp-identity__quote {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: "Raleway", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-identity__price {
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-identity__change {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cp-identity__change small {
+  margin-left: 2px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+}
+
+.cp-identity__change--up { color: var(--bh-gain, #f97316); }
+.cp-identity__change--down { color: var(--bh-loss, #a78bfa); }
+
+.cp-identity__score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.cp-identity__score-label {
+  color: rgba(255, 255, 255, 0.5);
+  font: 600 0.56rem/1.2 "Fragment Mono", "JetBrains Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cp-identity__score-value {
+  color: #fff;
+  font: 700 1.3rem/1.1 "Raleway", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-identity__score-value small {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.62rem;
+}
+
+/* Setup sentence: a full-width status bar under the title, not a heading. */
+.cp-strip .cp-strip__status {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--sentiment-text, #f5f3f0);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cp-strip .cp-strip__top { justify-content: flex-end; }
+
+.cp-strip .cp-strip__levels {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 521px) {
+  .cp-strip .cp-strip__levels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.board-core .bh-row.bh-row-grid,
+.board-core .bh-row.bh-row-grid > * {
+  font-variant-numeric: tabular-nums;
+}

@@ -127,8 +127,8 @@ export default function CoinHeaderStrip(props) {
   };
   return (
     <section className={`cp-strip cp-strip--${tape.tone}`} data-testid="coin-strip" aria-label="Coin summary">
+      <p className="cp-strip__headline cp-strip__status" data-testid="coin-strip-headline" data-source={strip.source}>{strip.headline}</p>
       <div className="cp-strip__top">
-        <h2 className="cp-strip__headline" data-testid="coin-strip-headline" data-source={strip.source}>{strip.headline}</h2>
         {catalystLabels[catalyst?.key] ? (
           <span className="cp-strip__tape" title={catalyst.detail || ''} data-testid="catalyst-posture">
             {catalystLabels[catalyst.key]}

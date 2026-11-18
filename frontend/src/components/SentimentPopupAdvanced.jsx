@@ -1132,7 +1132,7 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen,
 
 // ---------------------------------------------------------------------------
 
-export function CoinDossierScore({ change1m, change3m, ranking, cycle, volumeChange, persistence, exhausted, trigger, sentiment }) {
+export function computeCoinDossierScore({ change1m, change3m, ranking, cycle, volumeChange, persistence, exhausted }) {
   const mean = (values) => {
     const known = values.filter(Number.isFinite);
     return known.length ? known.reduce((sum, value) => sum + value, 0) / known.length : null;
@@ -1160,9 +1160,14 @@ export function CoinDossierScore({ change1m, change3m, ranking, cycle, volumeCha
     { label: 'Volume & Sentiment Confirmation', score: exhausted && confirmation !== null ? Math.min(confirmation, 35) : confirmation, detail: `${persistence ? `${persistence}-update persistence` : 'Persistence unconfirmed'} · ${exhausted ? 'Exhaustion / reversal warning' : Number.isFinite(rsi) ? `Weekly RSI ${Math.round(rsi)}` : 'RSI unavailable'}` },
   ];
   const complete = gauges.every((gauge) => gauge.score !== null);
+  return { gauges, complete, composite: complete ? scoreMean(gauges.map((gauge) => gauge.score)) : null };
+}
+
+export function CoinDossierScore({ trigger, sentiment, ...inputs }) {
+  const { gauges, complete, composite } = computeCoinDossierScore(inputs);
   return (
     <section className="cp-dossier-score" aria-label="Composite Conviction Score">
-      <h3>Coin Dossier · Composite Conviction Score <strong>{complete ? `${scoreMean(gauges.map((gauge) => gauge.score))}/100` : 'Pending evidence'}</strong></h3>
+      <h3>Coin Dossier · Composite Conviction Score <strong>{complete ? `${composite}/100` : 'Pending evidence'}</strong></h3>
       <p>Equal-weight evidence summary, not a probability or an entry instruction. Missing inputs are excluded; all three gauges are required for a composite.</p>
       <div className="cp-dossier-gauges">
         {gauges.map(({ label, score, detail }) => <article key={label}>
@@ -2366,6 +2371,20 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
 
   if (!isOpen) return null;
 
+  const dossierInputs = {
+    change1m, change3m, ranking: coinLiveRanking,
+    cycle: chartReads.cycle?.multi_year_context || swingChartRead?.multi_year_context,
+    volumeChange: volumeChange1h, persistence: persistenceStreak,
+    exhausted: signalFlags.hasExhaustion || signalFlags.hasReversal,
+  };
+  const headerScore = coinSymbol ? computeCoinDossierScore(dossierInputs) : null;
+  const headerPrice = toNumber(
+    riskLevels?.plan?.current_price ?? riskLevels?.entry?.current_price
+      ?? coinLiveRanking?.current_price ?? coinLiveRanking?.price ?? launchContext?.price ?? null
+  );
+  const headerChange = [[change1h, '1H'], [change3m, '3M'], [change1m, '1M']].find(([value]) => value !== null) || null;
+  const headerChangeTone = headerChange ? (headerChange[0] >= 0 ? 'up' : 'down') : 'flat';
+
   return (
     <div
       className={`sentiment-overlay ${isOpen ? 'active' : ''}`}
@@ -2384,19 +2403,32 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
               aria-hidden="true"
               onError={(e) => { e.currentTarget.style.display = "none"; }}
             />
-            <div className="header-text">
-              <h1 id="sentimentTitle">Coin Pressure {coinSymbol ? `· ${coinSymbol}` : ''}</h1>
-              <p className="subtitle">
-                Coin-scoped state, tape, and context.
-                {(() => {
-                  const currentPrice = riskLevels?.plan?.current_price ?? riskLevels?.entry?.current_price ?? null;
-                  return currentPrice != null ? ` Current price ${formatPlanPrice(currentPrice)}.` : '';
-                })()}
-              </p>
+            <div className="header-text cp-identity" data-testid="coin-identity">
+              <h1 id="sentimentTitle" className="cp-identity__ticker">{coinSymbol || 'Coin Dossier'}</h1>
+              <div className="cp-identity__quote">
+                <span className="cp-identity__price" data-testid="coin-identity-price">
+                  {headerPrice !== null ? formatPlanPrice(headerPrice) : '—'}
+                </span>
+                {headerChange ? (
+                  <span className={`cp-identity__change cp-identity__change--${headerChangeTone}`} data-testid="coin-identity-change">
+                    {formatPercent(headerChange[0])} <small>{headerChange[1]}</small>
+                  </span>
+                ) : null}
+              </div>
+              <p className="subtitle">Coin Dossier · coin-scoped state, tape, and context.</p>
             </div>
           </div>
 
           <div className="header-right">
+            {headerScore ? (
+              <div className="cp-identity__score" data-testid="coin-header-conviction" title="Composite Conviction Score: equal-weight evidence summary, not a probability or an entry instruction.">
+                <span className="cp-identity__score-label">Conviction</span>
+                <strong className="cp-identity__score-value">
+                  {headerScore.complete ? headerScore.composite : '—'}
+                  <small>/100</small>
+                </strong>
+              </div>
+            ) : null}
             {coinbaseTradeUrl ? (
               <a
                 className="coinbase-trade-cta"
@@ -2434,10 +2466,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
               ) : (
                 <>
                   <CoinDossierScore
-                    change1m={change1m} change3m={change3m} ranking={coinLiveRanking}
-                    cycle={chartReads.cycle?.multi_year_context || swingChartRead?.multi_year_context}
-                    volumeChange={volumeChange1h} persistence={persistenceStreak}
-                    exhausted={signalFlags.hasExhaustion || signalFlags.hasReversal}
+                    {...dossierInputs}
                     trigger={simpleCoinRead.upgrade} sentiment={intelHero.detail}
                   />
                   {/* One compact strip: the chart read leads, the levels sit in one

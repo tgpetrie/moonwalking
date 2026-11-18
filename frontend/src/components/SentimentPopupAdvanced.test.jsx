@@ -392,6 +392,14 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Composite Conviction Score" })).toBeInTheDocument();
+    // Identity leads on the left (ticker + live quote); the composite score sits on the right.
+    expect(screen.getByRole("heading", { level: 1, name: "BTC" })).toBeInTheDocument();
+    expect(screen.queryByText(/Coin Pressure ·/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("coin-identity").closest(".header-left")).not.toBeNull();
+    expect(screen.getByTestId("coin-header-conviction").closest(".header-right")).not.toBeNull();
+    // The setup sentence is a status bar below the title, never a competing heading.
+    expect(headline.tagName).toBe("P");
+    expect(headline).toHaveClass("cp-strip__status");
     fireEvent.click(screen.getByText("Pulse evidence"));
 
     const actionBias = screen.getByText("Action Bias").closest(".cp-hero");

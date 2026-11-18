@@ -70,7 +70,7 @@ function HorizonSwitcher({ horizons, horizon, onChange, busy }) {
   const active = list.find((h) => h.key === horizon) || list.find((h) => h.key === 'swing') || list[0];
   return (
     <div style={styles.horizonRow}>
-      <div className="mini-toggle" role="group" aria-label="Chart read time horizon" style={{ marginTop: 0 }} data-testid="chart-read-horizons">
+      <div className="mini-toggle bh-utabs" role="group" aria-label="Chart read time horizon" style={{ marginTop: 0 }} data-testid="chart-read-horizons">
         {list.map((h) => (
           <button key={h.key} type="button" className={`mini-toggle-btn ${active.key === h.key ? 'active' : ''}`}
             aria-pressed={active.key === h.key} title={h.detail} onClick={() => onChange(h.key)}>

@@ -74,6 +74,29 @@ describe("DashboardShell market status", () => {
   });
 });
 
+describe("DashboardShell brand alignment", () => {
+  it("renders the bundled BHABIT wordmark and underline workspace tabs", () => {
+    render(<DashboardShell />);
+
+    const logo = screen.getByRole("img", { name: "BHABIT" });
+    expect(logo.getAttribute("src")).toMatch(/bhabit-logo/);
+    expect(logo.getAttribute("src")).not.toBe("/bhabit-logo.png");
+    const tabs = screen.getByRole("navigation", { name: "Workspace views" });
+    expect(tabs).toHaveClass("bh-utabs");
+    expect(screen.getByRole("button", { name: "Live Tape" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("labels the assistant ASK BHABIT", async () => {
+    const { default: AskBhabitPanel } = await vi.importActual("./AskBhabitPanel.jsx");
+    render(<AskBhabitPanel />);
+
+    expect(screen.getByText("ASK BHABIT")).toBeInTheDocument();
+    expect(screen.queryByText(/codex/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Ask Bhabit"));
+    expect(screen.getByRole("dialog", { name: "Ask Bhabit" })).toBeInTheDocument();
+  });
+});
+
 describe("DashboardShell industry pulse", () => {
   it("mounts the cycle scanner on the board with the watchlist symbols and a coin opener", () => {
     render(<DashboardShell />);

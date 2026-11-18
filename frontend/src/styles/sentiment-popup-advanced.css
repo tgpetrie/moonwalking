@@ -51,19 +51,29 @@
 .bh-workspace-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    padding: 14px 0;
+    gap: 22px;
+    padding: 10px 0 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .bh-workspace-tabs button {
-    padding: 12px 20px;
-    border: 1px solid var(--accent-primary);
-    border-radius: 24px;
-    background: var(--surface-void);
-    color: var(--text-primary);
+    padding: 8px 0 9px;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(245, 243, 240, 0.58);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease;
 }
-.bh-workspace-tabs button[aria-pressed="true"] { border-color: var(--signal-positive); background: var(--sentiment-glass); }
-.bh-workspace-tabs button:focus-visible { outline: 2px solid var(--signal-positive); outline-offset: 3px; }
+.bh-workspace-tabs button:hover { color: #fff; }
+.bh-workspace-tabs button[aria-pressed="true"] { color: #fff; border-bottom-color: var(--bh-gain, #f97316); }
+.bh-workspace-tabs button:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: 3px; }
 
 /* CSS Variables - Design Tokens */
 :root {

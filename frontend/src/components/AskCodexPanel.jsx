@@ -20,7 +20,7 @@ export default function AskCodexPanel({ onClose }) {
       });
       setReply(data.reply || 'No reply available');
     } catch (e2) {
-      setError(e2.message || 'Failed to get response from Codex');
+      setError(e2.message || 'Failed to get response from Bhabit');
     } finally {
       setLoading(false);
     }
@@ -30,7 +30,7 @@ export default function AskCodexPanel({ onClose }) {
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-xl bg-gray-950 border border-purple-800 rounded-xl shadow-lg flex flex-col max-h-full">
         <div className="flex items-center justify-between px-4 py-3 border-b border-purple-900/50">
-          <h2 className="text-sm font-bold tracking-wide text-purple-200">ASK CODEX</h2>
+          <h2 className="text-sm font-bold tracking-wide text-purple-200">ASK BHABIT</h2>
           <button onClick={onClose} className="px-2 py-1 text-xs rounded bg-purple-700/40 hover:bg-purple-600 text-purple-100 border border-purple-600">Close</button>
         </div>
         <form onSubmit={submit} className="p-4 flex flex-col gap-3 overflow-auto">

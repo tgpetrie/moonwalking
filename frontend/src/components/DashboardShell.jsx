@@ -21,6 +21,8 @@ import IndustryPulse from "./IndustryPulse.jsx";
 import AgentsPage from "../mvp/AgentsPage.jsx";
 import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
 import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
+import bhabitLogo from "../assets/brand/bhabit-logo.png";
+import bhabitRabbitStencil from "../assets/brand/bhabit-rabbit-stencil.png";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -436,7 +438,11 @@ export default function DashboardShell({ onInfo }) {
     <div className="bh-app">
       <header className="bh-topbar">
         <div className="bh-logo">
-          <img src="/purple-rabbit-bg.png" alt="" className="bh-logo-rabbit" />
+          <span
+            className="bh-logo-rabbit bh-logo-rabbit--stencil"
+            aria-hidden="true"
+            style={{ "--bh-rabbit-stencil": `url(${bhabitRabbitStencil})` }}
+          />
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
@@ -468,14 +474,14 @@ export default function DashboardShell({ onInfo }) {
 
       <section className="bh-brand-hero" aria-label="BHABIT">
         <img
-          src="/bhabit-logo.png"
+          src={bhabitLogo}
           alt="BHABIT"
           className="bh-brand-hero__logo"
         />
       </section>
 
       <div ref={boardRef} className="board-core mw-board" data-board="1">
-        <nav className="bh-workspace-tabs" aria-label="Workspace views">
+        <nav className="bh-workspace-tabs bh-utabs" aria-label="Workspace views">
           {[["live", "Live Tape"], ["atlas", "Cycle Atlas & Pulse"], ["agents", "Mission Control (Agents)"]].map(([key, label]) => (
             <button type="button" key={key} aria-pressed={workspaceView === key}
               onClick={() => setWorkspaceView(key)}>{label}</button>

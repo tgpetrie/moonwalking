@@ -10,6 +10,7 @@ import LosersTable3Min from "./components/LosersTable3Min.jsx";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import InsightsTabbed from "./components/InsightsTabbed.jsx";
 import AlertsIndicator from "./components/AlertsIndicator.jsx";
+import bhabitLogo from "./assets/brand/bhabit-logo.png";
 
 function WatchlistSync({ bySymbol }) {
   const { refreshFromData } = useWatchlist();
@@ -71,7 +72,7 @@ export default function AppRoot() {
         </header>
 
         <section className="bh-hero">
-          <img src="/bhabit-logo.png" alt="BHABIT" className="bh-hero-logo" />
+          <img src={bhabitLogo} alt="BHABIT" className="bh-hero-logo" />
           <img src="/pbi.png" alt="Profits Buy Impulse" className="bh-hero-subtitle" />
         </section>
 

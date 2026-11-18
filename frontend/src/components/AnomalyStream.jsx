@@ -405,7 +405,7 @@ export default function AnomalyStream({
 
       {!isCollapsed ? (
         <div className="bh-intel-filters">
-          <div className="bh-intel-pills" role="group" aria-label="Intelligence log filter">
+          <div className="bh-intel-pills bh-utabs" role="group" aria-label="Intelligence log filter">
             {TAPE_FILTERS.map((f) => (
               <button
                 key={f.key}
