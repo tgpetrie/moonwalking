@@ -1,5 +1,59 @@
 # Resume Moonwalking from anywhere
 
+## Lane 3 · BHABIT Design-System Alignment · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`.
+Implementation: `f17f2c300f52bbdca204830c6c22d027438a21d3`, built directly
+on `c2b4ce3` (Phase 6 handoff). Later documentation-only commits are
+handoff checkpoints, not additional code changes.
+
+- **Logo recovery:** the broken `<img alt="BHABIT">` was caused by sparse
+  checkouts (`frontend/src`, `backend`, `docs`, `scripts`, `tests`) that
+  omit the tracked `frontend/public/`, so `/bhabit-logo.png` 404'd. The
+  canonical rebuilt wordmark (`public/bhabit-logo.png`) and rabbit art
+  (`public/purple-rabbit-bg.png`, resized to 960px) are now bundled from
+  `frontend/src/assets/brand/` via Vite imports in `DashboardShell.jsx`,
+  `App.jsx` and `AppRoot.jsx`. The `images/bhabit-rabbit*.svg` files are
+  placeholder orbs, not the stencil.
+- **ASK BHABIT:** all user-facing `ASK CODEX` / `Ask CODEX` labels are now
+  `ASK BHABIT` / `Ask Bhabit`. The backend route stays `/api/ask-codex`.
+- **Rabbit stencil:** one `div.bh-rabbit-stencil` in `App.jsx`, fixed and
+  centred (`translate(-50%,-50%)`, `z-index: 0`, `pointer-events: none`,
+  opacity 0.045). It disables `.bh-shell::before` and `.rabbit-bg`. Board
+  containers are transparent with no filter/backdrop-filter. The row hover
+  `::after` uses `backdrop-filter: brightness(1.85) contrast(1.25)`, a
+  `rgba(168,139,250,0.06)` tint and `mix-blend-mode: plus-lighter`.
+  There are no JS listeners.
+- **CTAs and tabs:** `styles/bhabit-alignment.css` loads last from
+  `main.jsx`. It gives ASK BHABIT, NOTIFY, ALERTS, chart toolbar buttons,
+  pivot chips, `.mw-pill` (including Mission Stances) and the Trade CTA a
+  4px radius, 1px `rgba(255,255,255,0.14)` hairline border and uppercase
+  monospace. It also removes the 999px capsules. The workspace switch,
+  chart horizons (`.mini-toggle.bh-utabs`), the Confluence & Desk / Watchlist /
+  Raw Tape filters and the top-right header links are borderless text with
+  a 2px active underline.
+- **Coin Dossier header:** the left side shows `h1` ticker, live price and %
+  change (1H, falling back to 3M or 1M). The right side shows the Composite
+  Conviction Score, via the shared `computeCoinDossierScore`. The setup
+  sentence is a full-width bordered `p.cp-strip__status` below the title,
+  no longer an `h2`. Levels are `repeat(3, minmax(0,1fr))` at widths of
+  521px and up, and the existing mobile stack is kept. Live rows use
+  `tabular-nums`.
+
+Verification at the implementation commit:
+
+- Targeted frontend only: `DashboardShell`, `SentimentPopupAdvanced`,
+  `WaveStructureOverlay`, `CoinHeaderStrip`, `AgentsPage` tests:
+  **123 passed**.
+- `npm --prefix frontend run build`: passed with the existing Browserslist,
+  public-image and chunk-size warnings.
+- Visual check on a throwaway `vite preview` at port 4317 (since stopped):
+  - the logo loads, and the stencil is fixed-centre at 0.045;
+  - the active tab has a 2px underline;
+  - ASK BHABIT has a 4px radius and hairline border;
+  - the row hover backdrop-filter and plus-lighter blend are confirmed.
+  Ports 5003, 5004, 5173 and 5174 were not touched, and no backend tests ran.
+
 ## Phase 6 · Focused Workspace, Coin Dossier and Multi-Year Anatomy · November 18
 
 Continue on `claude/elliott-abc-v2-reclaim-20261115`.
