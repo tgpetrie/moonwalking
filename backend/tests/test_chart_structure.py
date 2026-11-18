@@ -1055,3 +1055,74 @@ def test_cycle_fixtures_match_their_generator(cycle_fixture):
         assert len(stored["candles"]) == 1096 and stored["synthetic"] is True
         times = [c[0] for c in stored["candles"]]
         assert times == sorted(times) and times[-1] - times[0] == 1095 * 86400
+
+
+def test_multiyear_cycle_anatomy_maps_peak_abc_base_and_projected_targets(cycle_fixture):
+    context = cs.multi_year_context(cycle_fixture("render_cycle_fixture"))
+    anatomy = context["multiyear_cycle_anatomy"]
+    assert anatomy["available"] is True
+    assert anatomy["pivot_keys"] == ["peak", "A", "B", "C", "D", "E"]
+    pivots = {p["key"]: p for p in anatomy["pivots"]}
+    assert pivots["peak"]["price"] == context["cycle_high"]["price"]
+    assert pivots["C"]["price"] == context["macro_drawdown"]["low"]["price"]
+    assert [p["timestamp"] for p in anatomy["pivots"]] == sorted(p["timestamp"] for p in anatomy["pivots"])
+    # Highs and lows alternate down the A-B-C retreat; each move is signed.
+    assert pivots["A"]["price"] < pivots["B"]["price"] < pivots["peak"]["price"]
+    assert pivots["A"]["move_pct"] < 0 < pivots["B"]["move_pct"] and pivots["C"]["move_pct"] < 0
+    assert pivots["peak"]["move_pct"] is None and pivots["C"]["date"] == "2026-09-07"
+
+    base = anatomy["accumulation_base"]
+    assert base["floor"] == pivots["C"]["price"] < anatomy["current_price"] < base["ceiling"]
+    assert base["stage"] == "deep_accumulation" and base["duration_months"] > 1
+    assert base["stage_label"].startswith("Deep Accumulation · ") and base["stage_label"].endswith(" mo base")
+
+    targets = {t["key"]: t for t in anatomy["projections"]}
+    peak, floor = pivots["peak"]["price"], base["floor"]
+    assert targets["breakout_trigger"]["price"] == base["ceiling"]
+    assert targets["target_1"]["price"] == pivots["B"]["price"]
+    assert targets["target_2"]["price"] == pytest.approx(floor + 0.382 * (peak - floor))
+    assert targets["target_3"]["price"] == pytest.approx(floor + 0.618 * (peak - floor))
+    assert targets["invalidation"]["price"] == floor and targets["invalidation"]["distance_pct"] < 0
+    assert [s["step"] for s in anatomy["story"]] == [
+        "macro_top", "abc_retreat", "base", "current_stage", "upside_targets",
+    ]
+    assert anatomy["outcome_validated"] is False
+
+
+def test_multiyear_cycle_anatomy_needs_a_macro_drawdown(daily_series):
+    anatomy = cs.multi_year_context(daily_series(10, [(1096, 60)]))["multiyear_cycle_anatomy"]
+    assert anatomy["available"] is False and anatomy["reason"]
+
+
+def test_anatomy_uses_full_history_without_changing_the_three_year_range(daily_series):
+    candles = daily_series(20, [(100, 100), (400, 10), (961, 15)])
+    context = cs.multi_year_context(candles)
+    anatomy = context["multiyear_cycle_anatomy"]
+    assert anatomy["history_start"] == candles[0][0]
+    assert anatomy["history_start"] < context["first_timestamp"]
+    peak = next(p for p in anatomy["pivots"] if p["key"] == "peak")
+    assert peak["price"] > context["cycle_high"]["price"]
+    assert len(anatomy["chart_closes"]) <= 601
+
+
+def test_anatomy_preserves_the_weekly_abcde_channel_and_daily_pivot_dates(cycle_fixture):
+    candles = cycle_fixture("fet_channel_fixture")
+    anatomy = cs.multi_year_context(candles)["multiyear_cycle_anatomy"]
+    assert anatomy["pivot_keys"] == ["peak", "A", "B", "C", "D", "E"]
+    pivots = anatomy["pivots"]
+    assert [p["timestamp"] for p in pivots] == sorted(p["timestamp"] for p in pivots)
+    for pivot in pivots:
+        bar = next(bar for bar in candles if bar[0] == pivot["timestamp"])
+        assert pivot["price"] == bar[1 if pivot["kind"] == "low" else 2]
+    c, e = pivots[3], pivots[5]
+    assert c["timestamp"] < e["timestamp"]
+    assert anatomy["accumulation_base"]["floor"] == min(c["price"], e["price"])
+
+
+def test_multiyear_cycle_anatomy_reads_a_breakout_above_the_base(daily_series):
+    # Peak, crash, a long tight base, then a fresh push through its ceiling.
+    candles = daily_series(10, [(150, 40), (300, 8), (500, 10), (40, 7), (100, 9.5), (6, 13)])
+    anatomy = cs.multi_year_context(candles)["multiyear_cycle_anatomy"]
+    base = anatomy["accumulation_base"]
+    assert base["stage"] == "breakout_reclaim" and anatomy["current_price"] > base["ceiling"]
+    assert base["duration_months"] > 12

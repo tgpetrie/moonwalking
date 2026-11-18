@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
+import PaperExecutionControls from "./PaperExecutionControls.jsx";
 import { fetchData } from "../api";
 import { useData } from "../context/DataContext";
-import SentimentPopupAdvanced, { CoinOutcomeHistory, RiskLevelsPanel } from "./SentimentPopupAdvanced";
+import SentimentPopupAdvanced, { CoinDossierScore, CoinOutcomeHistory, RiskLevelsPanel } from "./SentimentPopupAdvanced";
 
 // Keep the popup's broad dependency surface deterministic for both the pure
 // CoinOutcomeHistory tests and the rendered popup regression below.
@@ -18,6 +19,59 @@ vi.mock("./CoinPositioning.jsx", () => ({ default: () => null }));
 vi.mock("./AlertsTab", () => ({ default: () => null }));
 vi.mock("./ChartReadPanel.jsx", () => ({ default: () => null }));
 vi.mock("../config/api.js", () => ({ getBackendBase: () => "" }));
+
+describe("Coin Dossier score and owner controls", () => {
+  it("combines measured sub-gauges into a bounded composite without hiding risk warnings", () => {
+    render(<CoinDossierScore change1m={2} change3m={4}
+      ranking={{ live_rank: 1, universe_size: 120 }}
+      cycle={{ cycle_range_position_pct: 10, rsi_regimes: { "1w": { value: 50 } },
+        multiyear_cycle_anatomy: { accumulation_base: { stage_label: "Deep Accumulation · 21 mo base" } } }}
+      volumeChange={80} persistence={4} exhausted trigger="Wait for a reclaim." sentiment="Tape-led." />);
+    expect(screen.getByText("73/100")).toBeInTheDocument();
+    expect(screen.getByText("Deep Accumulation · 21 mo base")).toBeInTheDocument();
+    expect(screen.getByText(/Exhaustion \/ reversal warning/)).toBeInTheDocument();
+    const gauges = screen.getAllByRole("meter");
+    expect(gauges).toHaveLength(3);
+    for (const gauge of gauges) expect(Number(gauge.getAttribute("value"))).toBeLessThanOrEqual(100);
+    expect(screen.getByText("Wait for a reclaim.")).toBeInTheDocument();
+  });
+
+  it("does not turn absent data into a neutral conviction score", () => {
+    render(<CoinDossierScore />);
+    expect(screen.getByText("Pending evidence")).toBeInTheDocument();
+    expect(screen.queryAllByRole("meter")).toHaveLength(0);
+  });
+
+  it("uses fractional tape velocity and the actual weekly RSI payload", () => {
+    render(<CoinDossierScore change1m={0.25} change3m={0.25}
+      cycle={{ cycle_range_position_pct: 10, rsi_regimes: { "1w": { value: 40 } } }} />);
+    expect(screen.getByRole("meter", { name: "Tape Momentum" })).toHaveAttribute("value", "53");
+    expect(screen.getByRole("meter", { name: "Volume & Sentiment Confirmation" })).toHaveAttribute("value", "80");
+    expect(screen.getByText("74/100")).toBeInTheDocument();
+  });
+
+  it("keeps operational errors visible rather than treating them as anonymous access", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false, status: 500, json: async () => ({ error: "Paper store unavailable" }),
+    }));
+    try {
+      render(<PaperExecutionControls collapsible />);
+      expect(await screen.findByRole("alert")).toHaveTextContent("Paper store unavailable");
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it.each([401, 403])("hides paper boilerplate on HTTP %s", async (status) => {
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status, json: async () => ({ error: "Not authenticated" }) });
+    vi.stubGlobal("fetch", fetch);
+    try {
+      render(<PaperExecutionControls collapsible />);
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      expect(screen.queryByText("Paper execution")).not.toBeInTheDocument();
+      expect(screen.queryByText("Owner paper controls")).not.toBeInTheDocument();
+      expect(screen.queryByText("Not authenticated")).not.toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); }
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -293,14 +347,17 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
     expect(screen.getByTestId("coin-strip").compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("Chart & Read")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Composite Conviction Score" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Pulse evidence"));
 
     const actionBias = screen.getByText("Action Bias").closest(".cp-hero");
     expect(actionBias).toHaveClass("cp-hero--negative");
     expect(actionBias).not.toHaveClass("cp-hero--positive");
     expect(within(actionBias).getByText("Stand aside")).toBeInTheDocument();
 
-    const fragileSetup = screen.getByText("Fragile").closest(".cp-support-pill");
+    const pulse = screen.getByText("Pulse evidence").closest("details");
+    const fragileSetup = within(pulse).getByText("Fragile").closest(".cp-support-pill");
     expect(fragileSetup).toHaveClass("cp-support-pill--negative");
 
     const freshTrigger = screen.getByText("Fresh 30s").closest(".cp-support-pill");

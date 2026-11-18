@@ -87,6 +87,35 @@ const read = (overrides = {}) => ({
   timeframe: "1h", window_hours: 50, wave_analysis: wave(), ...overrides,
 });
 
+describe("multi-year cycle anatomy", () => {
+  it("offers immediate cycle access when the swing setup is unclear", () => {
+    const onChange = vi.fn();
+    render(<ChartReadPanel data={read({ wave_analysis: { available: false, active_pattern: "none" } })}
+      horizon="swing" onHorizonChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: /No clear swing setup/ }));
+    expect(onChange).toHaveBeenCalledWith("cycle");
+  });
+
+  it("draws the historical pivots, base boundaries and Wave B target with the cycle story", () => {
+    const anatomy = {
+      available: true, accumulation_base: { floor: 10, ceiling: 25, duration_months: 21, stage_label: "Deep Accumulation · 21 mo base" },
+      pivots: ["peak", "A", "B", "C", "D", "E"].map((key, i) => ({
+        key, label: key, timestamp: i * 86400, date: `2020-01-0${i + 1}`, price: [100, 30, 60, 10, 25, 12][i],
+      })),
+      chart_closes: [[0, 100], [5 * 86400, 12]],
+      story: [{ step: "base", text: "21-month base after the A-B-C retreat." }],
+      projections: [{ key: "target_1", label: "Target 1", price: 60, distance_pct: 400 }],
+    };
+    render(<ChartReadPanel data={read({ horizon: "cycle", multiyear_cycle_anatomy: anatomy })} horizon="cycle" />);
+    const chart = screen.getByTestId("cycle-anatomy-chart");
+    for (const label of ["PEAK", "A", "B", "C", "D", "E"]) expect(within(chart).getByText(label)).toBeInTheDocument();
+    for (const label of [/Accumulation Floor/, /Breakout Ceiling/, /Wave B Target/]) expect(within(chart).getByText(label)).toBeInTheDocument();
+    expect(chart.querySelectorAll('line[stroke-dasharray]')).toHaveLength(3);
+    expect(screen.getByText("21-month base after the A-B-C retreat.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Multi-Year Cycle Story & Projected Targets" })).toBeInTheDocument();
+  });
+});
+
 // Words a reader without charting vocabulary would not know.
 const JARGON = /\bwave\b|a-b-c|\bfib|0\.618|1\.618|\bB \/ A\b|\bC \/ A\b|\bRSI\b|\bEMA\b|Bollinger|impulse/i;
 

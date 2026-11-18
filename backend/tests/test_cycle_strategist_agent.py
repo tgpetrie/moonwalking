@@ -1537,16 +1537,19 @@ def test_bunker_holds_one_coin_per_cluster(store):
 
 
 def test_full_burn_enters_early_breakouts_with_confluence_of_55(store):
-    def early(confluence, bucket="low_confirmation_breakout"):
-        return _row("AVAX", 30.0, bucket=bucket, confluence_score=confluence, **BREAKOUT_LEVELS)
+    def early(confluence, bucket="low_confirmation_breakout", key="confluence_score"):
+        return _row("AVAX", 30.0, bucket=bucket, **{key: confluence}, **BREAKOUT_LEVELS)
 
     agent = CycleStrategistAgent(store)
     (entry,) = agent.evaluate({"cycle_scan": _scan(early(55)), "watchlist": ["AVAX"], "stance": "full_burn"})
     assert entry.action == BREAKOUT_ENTRY and entry.reward_to_risk_ratio == 7.5
     assert entry.evidence["stance_entry"] == "full_burn_early_breakout"
     assert entry.evidence["effective_stance"] == "full_burn"
-    (entry,) = agent.evaluate({"cycle_scan": _scan(early(0.6, "early_markup")), "watchlist": ["AVAX"], "stance": "full_burn"})
+    # The legacy ``confluence`` key may still arrive as a 0-1 fraction.
+    (entry,) = agent.evaluate({"cycle_scan": _scan(early(0.6, "early_markup", "confluence")), "watchlist": ["AVAX"], "stance": "full_burn"})
     assert entry.evidence["confluence"] == 60.0
+    # The Atlas ``confluence_score`` is always 0-100, so 1 means 1, not 100.
+    assert agent.evaluate({"cycle_scan": _scan(early(1)), "watchlist": ["AVAX"], "stance": "full_burn"}) == []
     assert agent.evaluate({"cycle_scan": _scan(early(54)), "watchlist": ["AVAX"], "stance": "full_burn"}) == []
     assert agent.evaluate({"cycle_scan": _scan(early(90)), "watchlist": ["AVAX"], "stance": "orbit"}) == []
 

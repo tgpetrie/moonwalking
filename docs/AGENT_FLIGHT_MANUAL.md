@@ -109,13 +109,61 @@ The deck shows the selected gear and its plain-English reason in the
 **Auto-Pilot status** callout. The metrics behind the choice are in
 `effective_stance_metrics`.
 
-> **Confluence note.** The confluence gates read a row's `confluence_score`
-> (or `confluence`). The current Atlas scan does not emit either key, and it
-> has no `early_markup` bucket. So Bunker admits only
-> `deep_accumulation_exhaustion` entries, and Full Burn's early-breakout path
-> stays closed until the scan supplies confluence.
+> **Confluence note.** The confluence gates read a row's `confluence_score`.
+> Every readable Atlas row now carries one: a deterministic 0–100 blend of
+> structure position in the multi-year range (35%), weekly RSI (25%),
+> volume trend and 50-week SMA / MACD alignment (25%) and downside-BTC-beta
+> resilience (15%). The parts are in `confluence_components`. So Bunker's
+> ≥ 75 path and Full Burn's ≥ 55 low-confirmation-breakout path are live.
+> The scan has no `early_markup` bucket, so that Full Burn path stays closed.
+> A legacy `confluence` key given as a 0–1 fraction is still scaled to 100.
 
 ---
+
+## Workspace and Coin Dossier
+
+The home board has three focused views:
+
+- **Live Tape** (default): 1H price, 1M ignition and side-by-side 3M
+  confirmation gainers/losers, with the live 1H volume banner.
+- **Cycle Atlas & Pulse**: Industry Pulse cycle buckets, Live Strength,
+  the intelligence log and watchlist.
+- **Mission Control (Agents)**: the strategist deck, Mission Stances,
+  Compounding Scoreboard and agent evidence.
+
+Open any coin for its unified **Coin Dossier Card**. Its Composite
+Conviction Score is an equal-weight average of Tape Momentum, Cycle
+Position and Volume & Sentiment Confirmation. Each gauge is 0–100;
+missing inputs are excluded, and a composite requires all three gauges.
+This is an explanatory evidence summary, not a calibrated probability.
+Tape Momentum blends 1M/3M velocity and relative-strength rank.
+Cycle Position favors the lower end of the observed multi-year range.
+Confirmation combines volume change, persistence and weekly RSI proximity
+to neutral; an active exhaustion/reversal warning caps it at 35.
+Sentiment and the next trigger are stated in plain English, not assigned
+invented numeric values. Pulse evidence, Risk Levels and Intel expand
+within this card. Owner paper controls are collapsed and absent on
+unauthenticated/forbidden responses.
+
+Choose **Cycle (Multi-Year)** for the historical PEAK / A / B / C / D / E
+map, dated pivots, base boundaries and projected structural levels. A
+one-click shortcut appears when the swing read has no clear setup.
+Anatomy uses all loaded daily history with flash-wick filtering; the
+existing range indicators retain their trailing three-year window.
+An established weekly five-leg channel supplies the A–E pivots, resolved
+to exact daily extrema; otherwise the largest counter-rally before the
+macro low supplies A/B and a later rally/retest supplies D/E. Unestablished
+pivots remain missing rather than being fabricated.
+
+The base starts no earlier than A, within a maximum 2×-floor range, and
+excludes the latest seven bars from its ceiling so a fresh breakout can
+be recognized. Its duration is a deterministic structural estimate, not
+proof that every intervening month accumulated. Targets show the prior B
+high and arithmetic 0.382 / 0.618 retracements from the macro high to C.
+They are named structural references, not necessarily ascending prices
+or guaranteed upside. The floor includes a lower E retest if present.
+The story and target distances refer to the latest daily close, not an
+executable live quote.
 
 ## 3. Risk concepts in plain English
 

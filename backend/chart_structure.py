@@ -29,6 +29,7 @@ __all__ = [
     "DEFAULT_HORIZON",
     "horizon_list",
     "multi_year_context",
+    "multiyear_cycle_anatomy",
     "top_down_confluence",
     "apply_macro_regime",
     "swing_history",
@@ -198,6 +199,219 @@ def multi_year_context(candles: list[list[Any]] | None) -> dict[str, Any]:
         "first_timestamp": rows[0][0],
         "last_timestamp": rows[-1][0],
         **extras,
+        "multiyear_cycle_anatomy": _full_history_anatomy(history),
+        "outcome_validated": False,
+    }
+
+
+# A D-wave needs this much lift off the C low to count as a separate pivot.
+ANATOMY_MIN_D_RALLY = 0.10
+# The base box may span up to this multiple of its floor; the last few bars
+# are the current move, not part of the base.
+ANATOMY_BASE_MAX_WIDTH = 2.0
+ANATOMY_RECENT_BARS = 7
+_MONTH_SECONDS = 30.44 * 86400
+_ANATOMY_STAGES = {
+    "breakout_reclaim": "Breakout Reclaim",
+    "upper_base": "Upper Base",
+    "mid_base": "Mid Base",
+    "deep_accumulation": "Deep Accumulation",
+}
+
+
+def _iso_day(ts: float) -> str:
+    from datetime import datetime, timezone
+
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def _move_pct(price: float, ref: float) -> float | None:
+    return round((price / ref - 1.0) * 100.0, 2) if ref else None
+
+
+def _full_history_anatomy(history) -> dict[str, Any]:
+    grids = _cycle_analysis().fib_structure(history)
+    rows, index = grids.pop("_rows"), grids.pop("_index")
+    return multiyear_cycle_anatomy(rows, grids, index)
+
+
+def multiyear_cycle_anatomy(
+    rows: list[tuple], grids: dict[str, Any], index: dict[str, Any]
+) -> dict[str, Any]:
+    """Name the Peak -> A -> B -> C -> D -> E pivots of the multi-year cycle.
+
+    ``rows`` are the flash-wick-filtered daily bars of the full loaded history,
+    ``grids`` and ``index`` come from ``cycle_analysis.fib_structure``. The
+    result also carries the accumulation base box after the C low and the
+    structural targets projected from the past pivots. Descriptive only.
+    """
+    drawdown = grids.get("macro_drawdown") or {}
+    peak_i, c_i = index.get("high"), index.get("drawdown_low")
+    if not rows or peak_i is None or c_i is None or not drawdown.get("available"):
+        return {
+            "available": False,
+            "reason": drawdown.get("reason") or "no_macro_drawdown",
+            "outcome_validated": False,
+        }
+    lows = [row[1] for row in rows]
+    highs = [row[2] for row in rows]
+    price = rows[-1][4]
+    last_ts = rows[-1][0]
+
+    # A and B: the deepest first leg and the strongest counter-rally before C.
+    a_i = b_i = None
+    wave_x = grids.get("secondary_wave_x_high")
+    if wave_x:
+        by_ts = {row[0]: i for i, row in enumerate(rows)}
+        a_i = by_ts.get(wave_x["first_leg_low"]["timestamp"])
+        b_i = by_ts.get(wave_x["timestamp"])
+    # D and E: the highest rally off C, then the lowest retest after it. The
+    # last week is "now", so it can break out of the base but not define it.
+    n = len(rows)
+    settled = max(c_i + 1, n - ANATOMY_RECENT_BARS)
+    d_i = e_i = None
+    if c_i + 1 < settled:
+        d_i = max(range(c_i + 1, settled), key=lambda i: highs[i])
+        if highs[d_i] < lows[c_i] * (1.0 + ANATOMY_MIN_D_RALLY):
+            d_i = None
+    if d_i is not None:
+        e_i = min(range(d_i + 1, n), key=lambda i: lows[i])
+
+    corrective = _cycle_analysis().corrective_structure(rows, peak_i)
+    swings = corrective.get("swings") or []
+    if corrective.get("kind") == "abcde_channel" and len(swings) == 5:
+        daily_indices = []
+        for swing in swings:
+            candidates = [
+                i for i, row in enumerate(rows)
+                if swing["timestamp"] <= row[0] < swing["timestamp"] + 7 * 86400
+            ]
+            if not candidates:
+                break
+            values = lows if swing["kind"] == "low" else highs
+            daily_indices.append(min(candidates, key=lambda i: abs(values[i] - swing["price"])))
+        if len(daily_indices) == 5 and peak_i < daily_indices[0]:
+            a_i, b_i, c_i, d_i, e_i = daily_indices
+
+    labels = {
+        "peak": "Prior Cycle Macro High",
+        "A": "Wave A Crash Low",
+        "B": "Wave B Bull-Trap High",
+        "C": "Wave C Capitulation Low",
+        "D": "Wave D Compression High",
+        "E": "Wave E Compression Low",
+    }
+    order = [("peak", peak_i, "high"), ("A", a_i, "low"), ("B", b_i, "high"),
+             ("C", c_i, "low"), ("D", d_i, "high"), ("E", e_i, "low")]
+    pivots, previous = [], None
+    for key, i, kind in order:
+        if i is None:
+            continue
+        level = highs[i] if kind == "high" else lows[i]
+        pivots.append({
+            "key": key,
+            "label": labels[key],
+            "kind": kind,
+            "timestamp": rows[i][0],
+            "date": _iso_day(rows[i][0]),
+            "price": level,
+            "move_pct": _move_pct(level, previous) if previous else None,
+        })
+        previous = level
+
+    peak, c_low = highs[peak_i], lows[c_i]
+    floor = min(c_low, lows[e_i]) if e_i is not None else c_low
+    # The base starts no earlier than the wave A low (the end of the crash
+    # leg), at the earliest bar from which price never again traded above
+    # ANATOMY_BASE_MAX_WIDTH x the floor.
+    start_after = a_i if a_i is not None else peak_i + 1
+    base_i = c_i
+    cap = floor * ANATOMY_BASE_MAX_WIDTH
+    running = 0.0
+    for i in range(settled - 1, start_after - 1, -1):
+        running = max(running, highs[i])
+        if running > cap:
+            break
+        base_i = min(base_i, i)
+    base_highs = highs[base_i:settled]
+    ceiling = highs[d_i] if d_i is not None else max(base_highs) if base_highs else floor
+    ceiling = max(ceiling, max(base_highs) if base_highs else floor)
+    months = round((last_ts - rows[base_i][0]) / _MONTH_SECONDS, 1)
+    width = ceiling - floor
+    percentile = round((price - floor) / width * 100.0, 1) if width > 0 else None
+    if price > ceiling and width > 0:
+        stage = "breakout_reclaim"
+    elif percentile is None or percentile <= 33.0:
+        stage = "deep_accumulation"
+    elif percentile <= 66.0:
+        stage = "mid_base"
+    else:
+        stage = "upper_base"
+    stage_label = f"{_ANATOMY_STAGES[stage]} · {int(round(months))} mo base"
+
+    def target(key: str, label: str, level: float | None, basis: str) -> dict | None:
+        if level is None or level <= 0:
+            return None
+        return {"key": key, "label": label, "price": level,
+                "distance_pct": _move_pct(level, price), "basis": basis}
+
+    projections = [p for p in (
+        target("breakout_trigger", "Breakout Reclaim Trigger", ceiling if width > 0 else None,
+               "accumulation ceiling"),
+        target("target_1", "Target 1 · Prior Wave B High", highs[b_i] if b_i is not None else None,
+               "wave B counter-trend high"),
+        target("target_2", "Target 2 · 0.382 Macro Retrace", c_low + 0.382 * (peak - c_low),
+               "0.382 retracement of macro high to wave C low"),
+        target("target_3", "Target 3 · 0.618 Macro Retrace", c_low + 0.618 * (peak - c_low),
+               "0.618 retracement of macro high to wave C low"),
+        target("invalidation", "Invalidated Support · Accumulation Floor", floor,
+               "accumulation floor / wave C low"),
+    ) if p]
+
+    upside = sorted(
+        (p for p in projections if p["key"].startswith("target") and p["price"] > price),
+        key=lambda p: p["price"],
+    )
+    story = [
+        {"step": "macro_top", "text": f"Macro top {_money(peak)} on {_iso_day(rows[peak_i][0])}"},
+        {"step": "abc_retreat",
+         "text": f"{'A-B-C retreat' if a_i is not None and b_i is not None else 'Macro drawdown (A/B unconfirmed)'} "
+                 f"{round((c_low / peak - 1) * 100)}% to {_money(c_low)} on {_iso_day(rows[c_i][0])}"},
+        {"step": "base", "text": f"{int(round(months))}-month base {_money(floor)} – {_money(ceiling)}"},
+        {"step": "current_stage", "text": f"Now {_money(price)} · {stage_label}"
+         + (f" · {percentile:.0f}% of the base range" if percentile is not None else "")},
+        {"step": "upside_targets",
+         "text": "Upside targets " + ", ".join(_money(p["price"]) for p in upside) if upside
+         else "Price is above every projected upside target"},
+    ]
+    return {
+        "available": True,
+        "pivots": pivots,
+        "pivot_keys": [p["key"] for p in pivots],
+        "missing_pivots": [key for key, i, _ in order if i is None],
+        "history_start": rows[0][0],
+        "history_end": last_ts,
+        "chart_closes": [
+            [row[0], row[4]] for i, row in enumerate(rows)
+            if i % max(1, math.ceil(len(rows) / 600)) == 0 or i == len(rows) - 1
+        ],
+        "accumulation_base": {
+            "floor": floor,
+            "ceiling": ceiling,
+            "duration_months": months,
+            "price_percentile": percentile,
+            "stage": stage,
+            "stage_label": stage_label,
+            "start_timestamp": rows[base_i][0],
+            "start_date": _iso_day(rows[base_i][0]),
+        },
+        "projections": projections,
+        "current_price": price,
+        "story": story,
+        "method": "flash-wick-filtered daily bars; peak = cycle high, C = lowest low after it, "
+                  "A/B = deepest first leg and strongest counter-rally before C, "
+                  "D/E = highest rally after C and lowest retest after D; "
+                  "an established five-leg weekly channel takes precedence, with exact daily extrema",
         "outcome_validated": False,
     }
 

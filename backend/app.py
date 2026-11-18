@@ -14106,6 +14106,10 @@ def get_chart_read(symbol):
         )
         if horizon == "cycle":
             result["macro_industry_regime"] = regime
+    if isinstance(result.get("multi_year_context"), dict):
+        result["multiyear_cycle_anatomy"] = result["multi_year_context"].get(
+            "multiyear_cycle_anatomy"
+        ) or {"available": False, "reason": "no_daily_history"}
 
     try:
         from catalyst_sentiment import get_service, structure_sentiment_posture

@@ -18,6 +18,7 @@ import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
 import IndustryPulse from "./IndustryPulse.jsx";
+import AgentsPage from "../mvp/AgentsPage.jsx";
 import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
 import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
 
@@ -265,6 +266,7 @@ function BoardEvidenceLine({ summary }) {
 }
 
 export default function DashboardShell({ onInfo }) {
+  const [workspaceView, setWorkspaceView] = useState("live");
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
   const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
@@ -473,11 +475,19 @@ export default function DashboardShell({ onInfo }) {
       </section>
 
       <div ref={boardRef} className="board-core mw-board" data-board="1">
+        <nav className="bh-workspace-tabs" aria-label="Workspace views">
+          {[["live", "Live Tape"], ["atlas", "Cycle Atlas & Pulse"], ["agents", "Mission Control (Agents)"]].map(([key, label]) => (
+            <button type="button" key={key} aria-pressed={workspaceView === key}
+              onClick={() => setWorkspaceView(key)}>{label}</button>
+          ))}
+        </nav>
+        {workspaceView === "agents" ? <div className="mw-app"><AgentsPage /></div> : null}
+        {workspaceView !== "agents" ? <>
         {/* 1 Hour Price Change Banner - Full Width */}
-        <div className="bh-banner-block">
+        {workspaceView === "live" ? <div className="bh-banner-block">
           <div className="bh-banner-label">1H PRICE</div>
           <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
-        </div>
+        </div> : null}
 
         <main className="bh-main">
           <BoardWrapper>
@@ -485,14 +495,13 @@ export default function DashboardShell({ onInfo }) {
               <div className="bh-board">
                 <div className="bh-rail">
                   <div className="bh-rail-stack">
+                    {workspaceView === "atlas" ? <>
+                      <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
+                      <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} scanState={cycleScanState} />
+                    </> : <>
                     <div className="bh-board-legend-bar">
                       <BoardRowLegend />
                     </div>
-
-                    <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
-
-                    {/* Multi-year cycle context. It never filters or ranks the boards below. */}
-                    <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} scanState={cycleScanState} />
 
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
@@ -549,6 +558,8 @@ export default function DashboardShell({ onInfo }) {
                       </section>
                     </div>
 
+                    </>}
+                    {workspaceView === "atlas" ? <>
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail">
                         <AnomalyStream
@@ -574,6 +585,7 @@ export default function DashboardShell({ onInfo }) {
                         </div>
                       </div>
                     </section>
+                    </> : null}
                   </div>
                 </div>
               </div>
@@ -582,10 +594,11 @@ export default function DashboardShell({ onInfo }) {
         </main>
 
         {/* 1 Hour Volume Banner - Full Width */}
-        <div className="bh-banner-block">
+        {workspaceView === "live" ? <div className="bh-banner-block">
           <div className="bh-banner-label">1H VOLUME</div>
           <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
-        </div>
+        </div> : null}
+        </> : null}
       </div>
 
       {/* Insights floating card aligned to board rails */}

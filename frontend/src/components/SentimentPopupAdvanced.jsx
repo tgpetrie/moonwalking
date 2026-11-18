@@ -1128,6 +1128,51 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen,
 
 // ---------------------------------------------------------------------------
 
+export function CoinDossierScore({ change1m, change3m, ranking, cycle, volumeChange, persistence, exhausted, trigger, sentiment }) {
+  const mean = (values) => {
+    const known = values.filter(Number.isFinite);
+    return known.length ? known.reduce((sum, value) => sum + value, 0) / known.length : null;
+  };
+  const scoreMean = (values) => {
+    const value = mean(values);
+    return value === null ? null : Math.round(value);
+  };
+  const velocity = mean([change1m, change3m]);
+  const rankScore = Number.isFinite(ranking?.live_rank) && ranking?.universe_size > 1
+    ? clamp(100 * (1 - (ranking.live_rank - 1) / (ranking.universe_size - 1)), 0, 100) : null;
+  const tape = scoreMean([velocity === null ? null : clamp(50 + velocity * 12, 0, 100), rankScore]);
+  const base = cycle?.multiyear_cycle_anatomy?.accumulation_base;
+  const position = cycle?.cycle_range_position_pct;
+  const cycleScore = Number.isFinite(position) ? Math.round(clamp(100 - position, 0, 100)) : null;
+  const rsi = cycle?.rsi_regimes?.['1w']?.value;
+  const confirmation = scoreMean([
+    Number.isFinite(volumeChange) ? clamp(50 + volumeChange / 2, 0, 100) : null,
+    Number.isFinite(persistence) ? clamp(persistence * 25, 0, 100) : null,
+    Number.isFinite(rsi) ? clamp(100 - Math.abs(rsi - 50) * 2, 0, 100) : null,
+  ]);
+  const gauges = [
+    { label: 'Tape Momentum', score: tape, detail: `${Number.isFinite(change1m) ? `${change1m.toFixed(2)}% 1M` : '1M unavailable'} / ${Number.isFinite(change3m) ? `${change3m.toFixed(2)}% 3M` : '3M unavailable'}${rankScore !== null ? ` · RS #${ranking.live_rank}/${ranking.universe_size}` : ''}` },
+    { label: 'Cycle Position', score: cycleScore, detail: base?.stage_label || (Number.isFinite(position) ? `${Math.round(position)}% of multi-year range` : 'Multi-year history unavailable') },
+    { label: 'Volume & Sentiment Confirmation', score: exhausted && confirmation !== null ? Math.min(confirmation, 35) : confirmation, detail: `${persistence ? `${persistence}-update persistence` : 'Persistence unconfirmed'} · ${exhausted ? 'Exhaustion / reversal warning' : Number.isFinite(rsi) ? `Weekly RSI ${Math.round(rsi)}` : 'RSI unavailable'}` },
+  ];
+  const complete = gauges.every((gauge) => gauge.score !== null);
+  return (
+    <section className="cp-dossier-score" aria-label="Composite Conviction Score">
+      <h3>Coin Dossier · Composite Conviction Score <strong>{complete ? `${scoreMean(gauges.map((gauge) => gauge.score))}/100` : 'Pending evidence'}</strong></h3>
+      <p>Equal-weight evidence summary, not a probability or an entry instruction. Missing inputs are excluded; all three gauges are required for a composite.</p>
+      <div className="cp-dossier-gauges">
+        {gauges.map(({ label, score, detail }) => <article key={label}>
+          <strong>{label} · {score === null ? 'Unavailable' : `${score}/100`}</strong>
+          {score !== null ? <meter aria-label={label} min="0" max="100" value={score} /> : null}
+          <p>{detail}</p>
+        </article>)}
+      </div>
+      <p>{trigger}</p>
+      <p>{sentiment}</p>
+    </section>
+  );
+}
+
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', launchContext = null }) => {
   const {
     error,
@@ -2353,70 +2398,27 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
           </div>
         </header>
 
-        <nav className="tab-nav" role="tablist">
-          <button
-            className={`tab-btn ${activeTab === 'coin' ? 'active' : ''}`}
-            onClick={() => setActiveTab('coin')}
-            role="tab"
-            aria-selected={activeTab === 'coin'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 19h16M7 15l3-3 3 2 4-5" />
-            </svg>
-            Coin
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'pulse' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pulse')}
-            role="tab"
-            aria-selected={activeTab === 'pulse'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M4 12h16M12 3v18"/>
-            </svg>
-            Pulse
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'levels' ? 'active' : ''}`}
-            onClick={() => setActiveTab('levels')}
-            role="tab"
-            aria-selected={activeTab === 'levels'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 7h16M4 12h10M4 17h7" />
-              <path d="M18 11v8M15 16l3 3 3-3" />
-            </svg>
-            Risk Levels
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'intel' ? 'active' : ''}`}
-            onClick={() => setActiveTab('intel')}
-            role="tab"
-            aria-selected={activeTab === 'intel'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L10 6"/>
-              <path d="M14 11a5 5 0 01-7.07 0L4.81 8.88a5 5 0 017.07-7.07L14 4"/>
-            </svg>
-            Intel
-          </button>
-        </nav>
-
         <main className="tab-content">
           {error ? (
             <div className="coin-history-note error mw-fetch-note">Pulse feed temporarily unavailable. Showing last known tape snapshot.</div>
           ) : null}
 
-          {activeTab === 'coin' && (
-            <section className="tab-panel active" role="tabpanel">
+            <section className="tab-panel active" aria-label="Coin Dossier Card">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
+                  <CoinDossierScore
+                    change1m={change1m} change3m={change3m} ranking={coinLiveRanking}
+                    cycle={chartReads.cycle?.multi_year_context || swingChartRead?.multi_year_context}
+                    volumeChange={volumeChange1h} persistence={persistenceStreak}
+                    exhausted={signalFlags.hasExhaustion || signalFlags.hasReversal}
+                    trigger={simpleCoinRead.upgrade} sentiment={intelHero.detail}
+                  />
                   {/* One compact strip: the chart read leads, the levels sit in one
                       row and the live tape is a pill. */}
                   <CoinHeaderStrip
+                    hideScoreDetails
                     wave={swingChartRead?.wave_analysis}
                     plan={riskLevels?.plan}
                     posture={simpleCoinRead}
@@ -2430,14 +2432,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     chartLoading={chartReadLoading && !swingChartRead}
                     formatPlanPrice={formatPlanPrice}
                   />
-                  <PaperExecutionControls
-                    productId={`${coinSymbol}-USD`}
-                    preview={swingChartRead?.paper_order_ticket ? {
-                      ...swingChartRead.paper_order_ticket,
-                      multi_year_context: chartReads.cycle?.multi_year_context,
-                    } : null}
-                  />
-
                   {alertBanner ? (
                     <div className="mw-alert-banner" data-tone={alertBanner.tone}>
                       <span className="mw-alert-banner__headline">{alertBanner.headline}</span>
@@ -2588,10 +2582,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
-
-          {activeTab === 'pulse' && (
-            <section className="tab-panel active" role="tabpanel">
+            <details className="cp-dossier-section" open={activeTab === 'pulse'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'pulse' ? 'coin' : 'pulse'); }}>Pulse evidence</summary>
+            <section className="tab-panel active">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its tactical read.</div>
               ) : (
@@ -2650,10 +2643,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
+            </details>
 
-          {activeTab === 'levels' && (
-            <section className="tab-panel active cp-risk-levels-panel" role="tabpanel">
+            <details className="cp-dossier-section" open={activeTab === 'levels'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'levels' ? 'coin' : 'levels'); }}>Risk Levels</summary>
+            <section className="tab-panel active cp-risk-levels-panel">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Select a coin to build its risk levels.</div>
               ) : (
@@ -2665,10 +2659,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 />
               )}
             </section>
-          )}
+            </details>
 
-          {activeTab === 'intel' && (
-            <section className="tab-panel active cp-intel-panel" role="tabpanel">
+            <details className="cp-dossier-section" open={activeTab === 'intel'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'intel' ? 'coin' : 'intel'); }}>Intel &amp; sentiment sources</summary>
+            <section className="tab-panel active cp-intel-panel">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Select a coin to load external context.</div>
               ) : (
@@ -2859,7 +2854,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
+            </details>
+          {coinSymbol ? <PaperExecutionControls collapsible
+            productId={`${coinSymbol}-USD`}
+            preview={swingChartRead?.paper_order_ticket ? {
+              ...swingChartRead.paper_order_ticket,
+              multi_year_context: chartReads.cycle?.multi_year_context,
+            } : null}
+          /> : null}
         </main>
 
         <footer className="popup-footer">

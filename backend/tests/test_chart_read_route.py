@@ -240,6 +240,9 @@ def test_swing_and_cycle_expose_top_down_context(monkeypatch, horizon):
         body = backend_app.get_chart_read("SOL").get_json()
     assert body["top_down_confluence"]["available"] is True
     assert body["multi_year_context"]["log_fib_retracements"]["0.5"] == pytest.approx(100)
+    # The anatomy is lifted to the top level for the chart and the dossier.
+    assert body["multiyear_cycle_anatomy"] == body["multi_year_context"]["multiyear_cycle_anatomy"]
+    assert body["multiyear_cycle_anatomy"]["outcome_validated"] is False
 
 
 def test_short_horizon_reads_15m_candles_with_a_4h_trend_check(monkeypatch):

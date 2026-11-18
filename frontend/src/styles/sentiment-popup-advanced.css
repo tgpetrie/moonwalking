@@ -4,6 +4,67 @@
    BHABIT Integration
    ============================================================ */
 
+.cp-dossier-score,
+.cp-cycle-story {
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--sentiment-border);
+    border-radius: 12px;
+    background: var(--sentiment-card-bg);
+}
+.cp-dossier-score p,
+.cp-cycle-story p {
+    color: var(--sentiment-subtext);
+    font-size: 0.8rem;
+}
+.cp-dossier-gauges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+.cp-dossier-gauges article {
+    padding: 10px;
+    background: var(--sentiment-glass);
+}
+.cp-dossier-gauges meter {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+}
+.cp-dossier-section {
+    border-top: 1px solid var(--sentiment-border);
+    padding: 12px 0;
+}
+.cp-dossier-section > summary,
+.cp-cycle-story summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 10px;
+}
+.cp-cycle-story svg { width: 100%; color: var(--sentiment-text); }
+.cp-cycle-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.cp-cycle-layout > * { min-width: 0; }
+@media (max-width: 760px) {
+    .cp-cycle-layout { grid-template-columns: minmax(0, 1fr); }
+}
+.cp-cycle-story li { margin-bottom: 8px; }
+.bh-workspace-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 0;
+}
+.bh-workspace-tabs button {
+    padding: 12px 20px;
+    border: 1px solid var(--accent-primary);
+    border-radius: 24px;
+    background: var(--surface-void);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.bh-workspace-tabs button[aria-pressed="true"] { border-color: var(--signal-positive); background: var(--sentiment-glass); }
+.bh-workspace-tabs button:focus-visible { outline: 2px solid var(--signal-positive); outline-offset: 3px; }
+
 /* CSS Variables - Design Tokens */
 :root {
     /* Primary Colors */

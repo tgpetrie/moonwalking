@@ -212,11 +212,13 @@ def stance_profiles() -> dict[str, dict[str, Any]]:
 def row_confluence(row: Mapping[str, Any]) -> float | None:
     """A row's confluence on a 0-100 scale, when the scan supplies one.
 
-    Reads ``confluence_score`` (or ``confluence``). Values from 0 to 1 are
-    fractions and are scaled to 100. The current Atlas scan does not emit
-    either key, so confluence-only paths stay closed until it does.
+    ``confluence_score`` is the Atlas scanner's 0-100 read and is used as is.
+    The legacy ``confluence`` key may be a 0-1 fraction, which is scaled.
     """
-    value = _num(row.get("confluence_score", row.get("confluence")))
+    score = _num(row.get("confluence_score"))
+    if score is not None:
+        return score if 0 <= score <= 100 else None
+    value = _num(row.get("confluence"))
     if value is None or value < 0:
         return None
     if value <= 1:

@@ -627,3 +627,31 @@ def test_atlas_failed_reads_wait_an_hour_and_keep_the_last_good_candles():
     mis.refresh_cycle_atlas_slice(atlas, ["EMPTY-USD"], lambda p: [], now=tomorrow)
     assert set(atlas.entries) == {"EMPTY-USD"}
     assert mis.atlas_coverage(mis.CycleAtlas(), [], NOON)["coverage_pct"] == 0.0
+
+
+def test_confluence_score_is_a_deterministic_0_to_100_read(shapes):
+    render = mis.cycle_row("RENDER-USD", shapes["render"])
+    rollover = mis.cycle_row("ROLL-USD", shapes["rollover"])
+    for row in (render, rollover):
+        assert isinstance(row["confluence_score"], int) and 0 <= row["confluence_score"] <= 100
+        assert set(row["confluence_components"]) == set(mis.CONFLUENCE_WEIGHTS)
+    assert render["confluence_score"] == mis.cycle_row("RENDER-USD", shapes["render"])["confluence_score"]
+    # A coin at multi-year support outranks one sitting in its rollover zone.
+    assert render["confluence_score"] > rollover["confluence_score"]
+    assert render["cycle_stage_label"].startswith("Deep Accumulation")
+
+
+def test_confluence_rewards_btc_beta_resilience():
+    base = {"cycle_range_position_pct": 20.0, "weekly_rsi": 45.0, "volume_trend_ratio": 1.2,
+            "above_50w_sma": True, "at_multi_year_support": True}
+    calm = mis.confluence_score({**base, "downside_beta": 0.7})
+    wild = mis.confluence_score({**base, "downside_beta": 2.4})
+    assert abs(calm - wild - 15) <= 1  # the full beta weight, rounded
+    assert mis.confluence_components({**base, "downside_beta": 1.4})["beta_resilience"] == 0.5
+
+
+def test_scan_rows_carry_a_confluence_score_after_the_beta_read(shapes):
+    scan = mis.scan_universe_cycles({"BTC-USD": shapes["up"], "RENDER-USD": shapes["render"]})
+    render = next(row for row in scan["coins"] if row["symbol"] == "RENDER")
+    assert "downside_beta" in render
+    assert render["confluence_score"] == mis.confluence_score(render)

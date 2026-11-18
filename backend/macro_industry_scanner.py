@@ -443,7 +443,7 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None, *, as_of_ts=None
         if isinstance(value, (int, float)) and value > 0
     ] if extension.get("available") else []
     support = context.get("log_fib_retracements") or {}
-    return {
+    row = {
         "symbol": symbol,
         "product_id": product_id,
         "available": True,
@@ -512,12 +512,104 @@ def cycle_row(product_id: str, candles: list[list[Any]] | None, *, as_of_ts=None
         if extension_levels
         else None,
         "active_target_tier": top.get("active_target_tier"),
+        "cycle_range_position_pct": context.get("cycle_range_position_pct"),
+        "volume_trend_ratio": _volume_trend_ratio(candles),
+        "cycle_stage_label": (context.get("multiyear_cycle_anatomy") or {})
+        .get("accumulation_base", {}).get("stage_label"),
         "_tiers": {
             tier: bool((top.get(tier) or {}).get("available"))
             for tier in ("rollover_target_box", "full_extension_targets")
         },
     }
+    return _with_confluence(row)
 
+
+# ─── confluence score ─────────────────────────────────────────────────────────
+#
+# One deterministic 0-100 read per coin that the cycle strategist's stance
+# gates use (Lunar Bunker >= 75, Full Burn >= 55). Each component is 0..1.
+
+CONFLUENCE_WEIGHTS = {
+    "structure": 0.35,
+    "weekly_rsi": 0.25,
+    "volume_trend": 0.25,
+    "beta_resilience": 0.15,
+}
+VOLUME_FAST_DAYS = 30
+VOLUME_SLOW_DAYS = 180
+
+
+def _volume_trend_ratio(candles: list) -> float | None:
+    volumes = [float(bar[5]) for bar in candles or [] if len(bar) >= 6]
+    if len(volumes) < VOLUME_SLOW_DAYS:
+        return None
+    slow = sum(volumes[-VOLUME_SLOW_DAYS:]) / VOLUME_SLOW_DAYS
+    fast = sum(volumes[-VOLUME_FAST_DAYS:]) / VOLUME_FAST_DAYS
+    return round(fast / slow, 3) if slow > 0 else None
+
+
+def _clip(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def confluence_components(row: dict[str, Any]) -> dict[str, float]:
+    """Structure, weekly RSI, volume/SMA alignment and BTC beta resilience, each 0..1."""
+    position = row.get("cycle_range_position_pct")
+    structure = 0.5 if position is None else _clip(1.0 - float(position) / 100.0)
+    if row.get("at_multi_year_support"):
+        structure += 0.2
+    if row.get("breaking_confirmation_pivot"):
+        structure += 0.25
+    if row.get("bucket") == "rollover_profit_zone":
+        structure -= 0.4
+
+    rsi = row.get("weekly_rsi")
+    if rsi is None:
+        rsi_part = 0.5
+    elif rsi < 30:
+        rsi_part = 0.85  # washed out: the exhaustion side of the cycle
+    elif rsi <= 55:
+        rsi_part = 0.75 + (rsi - 30) / 25 * 0.25  # recovering toward neutral
+    elif rsi <= 70:
+        rsi_part = 1.0 - (rsi - 55) / 15 * 0.4
+    else:
+        rsi_part = max(0.0, 0.6 - (rsi - 70) / 15 * 0.6)  # stretched
+
+    volume = 0.0
+    ratio = row.get("volume_trend_ratio")
+    if ratio is not None:
+        volume += 0.4 * _clip((float(ratio) - 0.6) / 0.8)
+    else:
+        volume += 0.2
+    if row.get("above_50w_sma"):
+        volume += 0.3
+    for flag, bonus in (("weekly_macd_bullish_cross", 0.15), ("daily_macd_kiss", 0.1),
+                        ("daily_bullish_divergence", 0.05)):
+        if row.get(flag):
+            volume += bonus
+    if row.get("weekly_stoch_direction") == "oversold_turn_up":
+        volume += 0.1
+
+    beta = row.get("downside_beta")
+    beta_part = 0.5 if beta is None else _clip((2.0 - float(beta)) / 1.2)
+    return {
+        "structure": round(_clip(structure), 3),
+        "weekly_rsi": round(_clip(rsi_part), 3),
+        "volume_trend": round(_clip(volume), 3),
+        "beta_resilience": round(beta_part, 3),
+    }
+
+
+def confluence_score(row: dict[str, Any]) -> int:
+    """Weighted 0-100 confluence for one readable cycle row."""
+    parts = confluence_components(row)
+    return int(round(sum(CONFLUENCE_WEIGHTS[k] * v for k, v in parts.items()) * 100))
+
+
+def _with_confluence(row: dict[str, Any]) -> dict[str, Any]:
+    row["confluence_components"] = confluence_components(row)
+    row["confluence_score"] = confluence_score(row)
+    return row
 
 def _share(rows: list[dict[str, Any]], known, hit) -> dict[str, Any]:
     pool = [row for row in rows if known(row)]
@@ -641,6 +733,7 @@ def scan_universe_cycles(
             row = cycle_row(product_id, histories[product_id], as_of_ts=as_of_ts)
             if row.get("available"):
                 annotate_cluster_and_beta(row, histories[product_id], btc_history)
+                _with_confluence(row)  # the beta read is part of the score
             rows.append(row)
         except Exception:  # one bad series must not sink the scan
             logging.exception("[MacroScan] cycle read failed for %s", product_id)

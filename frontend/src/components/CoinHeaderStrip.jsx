@@ -134,10 +134,10 @@ export default function CoinHeaderStrip(props) {
             {catalystLabels[catalyst.key]}
           </span>
         ) : null}
-        {cycleText ? <span className="cp-strip__tape" data-testid="cycle-range">{cycleText}</span> : null}
+        {cycleText && !props.hideScoreDetails ? <span className="cp-strip__tape" data-testid="cycle-range">{cycleText}</span> : null}
         <div className={`cp-strip__tape cp-strip__tape--${tape.tone}`} data-testid="coin-strip-tape" title={tape.title}>
           {tape.label ? <strong className="cp-strip__posture">{tape.label}</strong> : null}
-          <span>{tape.rank}</span>
+          {!props.hideScoreDetails ? <span>{tape.rank}</span> : null}
           {tape.lean ? <span style={{ color: LEAN_COLOR[tape.lean.tone] || LEAN_COLOR.neutral }} title={tape.lean.note}>{tape.lean.label}</span> : null}
           {tape.support ? <span>{tape.support}</span> : null}
         </div>

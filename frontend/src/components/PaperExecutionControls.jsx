@@ -14,18 +14,23 @@ async function request(path, options = {}) {
     headers: { Accept: "application/json", ...options.headers },
   });
   const data = await response.json();
-  if (!response.ok || data.status !== "live") throw new Error(data.error || `HTTP ${response.status}`);
+  if (!response.ok || data.status !== "live") {
+    const error = new Error(data.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
 const display = (value) => value === null || value === undefined ? "—" : String(value);
 
-export default function PaperExecutionControls({ productId = null, preview = null }) {
+export default function PaperExecutionControls({ productId = null, preview = null, collapsible = false }) {
   const [mode, setMode] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [paperPrice, setPaperPrice] = useState("");
+  const [restricted, setRestricted] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,10 +43,12 @@ export default function PaperExecutionControls({ productId = null, preview = nul
         throw new Error("Paper execution state unavailable.");
       }
       setMode(settings.mode);
+      setRestricted(false);
       setTickets(result.tickets);
       setError("");
     }).catch((cause) => {
-      if (cause.name !== "AbortError") setError(cause.message);
+      if ([401, 403].includes(cause.status)) setRestricted(true);
+      else if (cause.name !== "AbortError") setError(cause.message);
     });
     return () => controller.abort();
   }, [productId]);
@@ -62,13 +69,15 @@ export default function PaperExecutionControls({ productId = null, preview = nul
       }
       setError("");
     } catch (cause) {
-      setError(cause.message);
+      if ([401, 403].includes(cause.status)) setRestricted(true);
+      else setError(cause.message);
     } finally {
       setBusy(false);
     }
   };
 
-  return (
+  if (restricted || (!mode && !error)) return null;
+  const controls = (
     <section className="mw-panel" aria-label="Paper execution">
       <h3>Paper execution</h3>
       <p>Paper simulation only. No Coinbase orders are submitted.</p>
@@ -129,4 +138,5 @@ export default function PaperExecutionControls({ productId = null, preview = nul
       ) : mode ? <p>No paper ticket available.</p> : null}
     </section>
   );
+  return collapsible ? <details className="cp-dossier-section"><summary>Owner paper controls</summary>{controls}</details> : controls;
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../hooks/useDashboardData", () => ({
@@ -58,6 +58,7 @@ vi.mock("./GainersTable3Min.jsx", () => ({ default: () => null }));
 vi.mock("./LosersTable3Min.jsx", () => ({ default: () => null }));
 vi.mock("./WatchlistPanel.jsx", () => ({ default: () => null }));
 vi.mock("./LiveLeaderboard.jsx", () => ({ default: () => null }));
+vi.mock("../mvp/AgentsPage.jsx", () => ({ default: () => <div>Mission Control deck</div> }));
 vi.mock("./MarketSignalCard.jsx", () => ({
   default: () => <div>Unsupported market verdict</div>,
 }));
@@ -77,15 +78,25 @@ describe("DashboardShell industry pulse", () => {
   it("mounts the cycle scanner on the board with the watchlist symbols and a coin opener", () => {
     render(<DashboardShell />);
 
+    expect(screen.queryByTestId("industry-pulse-mount")).not.toBeInTheDocument();
+    expect(screen.getByText("IGNITION (1M)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cycle Atlas & Pulse" }));
     const pulse = screen.getByTestId("industry-pulse-mount");
     expect(pulse).toHaveAttribute("data-symbols", "RENDER,FET");
     expect(pulse).toHaveAttribute("data-clickable", "yes");
     expect(pulse.closest(".bh-rail-stack")).not.toBeNull();
+    expect(screen.queryByText("IGNITION (1M)")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mission Control (Agents)" }));
+    expect(screen.getByText("Mission Control deck")).toBeInTheDocument();
+    expect(screen.queryByTestId("industry-pulse-mount")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Live Tape" }));
+    expect(screen.getByText("IGNITION (1M)")).toBeInTheDocument();
   });
 
   it("feeds Coinbase holdings and the watchlist into the intelligence log", () => {
     render(<DashboardShell />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Cycle Atlas & Pulse" }));
     const stream = screen.getByTestId("anomaly-stream-mount");
     expect(stream).toHaveAttribute("data-held", "ATOM,LTC");
     expect(stream).toHaveAttribute("data-watch", "RENDER,FET");
