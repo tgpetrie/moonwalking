@@ -100,6 +100,131 @@ export function wavePlainLabels(wave) {
   };
 }
 
+// ─── multi-year cycle anatomy (PEAK → A → B → C → D → E) ────────────────────
+// The backend's chart_structure.cycle_anatomy names the cycle's pivots and the
+// accumulation base. These helpers turn it into chart overlays and plain words,
+// so every horizon of the Chart Read can show where price sits inside the
+// multi-year box. Descriptive only, never a forecast.
+
+export const CYCLE_FLOOR_COLOR = '#5fdbad';
+export const CYCLE_CEILING_COLOR = '#f1b43a';
+export const CYCLE_TARGET_COLOR = '#c58bff';
+export const CYCLE_PIVOT_COLOR = '#8fc7ff';
+const DAY_SECONDS = 86400;
+const MONTH_SECONDS = 30.44 * DAY_SECONDS;
+export const CYCLE_PIVOT_ORDER = ['peak', 'A', 'B', 'C', 'D', 'E'];
+
+export const CYCLE_PIVOT_TEXT = {
+  peak: 'The cycle high: the top of the last bull run. Every later move is measured from it.',
+  A: 'The first leg down from the peak: the crash that ended the bull run.',
+  B: 'A relief rally against the decline that failed well below the peak (a bull trap). Its high is the first upside target once the base breaks out.',
+  C: 'The capitulation low: the deepest point of the decline. The accumulation base is built from here.',
+  D: 'The strongest rally inside the base. Its high caps the base and sets the breakout ceiling.',
+  E: 'The retest of the floor after the wave D rally. It held, which completes the base.',
+};
+
+export const CYCLE_LEVEL_TEXT = {
+  ceiling: 'Top of the multi-year accumulation base. A daily close back above it is the breakout trigger.',
+  wave_b_target: 'The wave B relief-rally high: the first upside target once price breaks out of the base.',
+  floor: 'Bottom of the multi-year accumulation base (the wave C / E low). A close below it invalidates the accumulation read.',
+};
+
+// What price was doing after each pivot, until the next one.
+const CYCLE_LEG_AFTER = {
+  peak: 'Wave A Decline',
+  A: 'Wave B Relief Rally',
+  B: 'Wave C Retreat',
+  C: 'Wave D Compression Rally',
+  D: 'Wave E Retest',
+  E: 'Base complete · awaiting breakout',
+};
+
+export const cyclePivotBadge = (key) => (key === 'peak' ? 'PEAK' : key);
+
+export function cyclePivots(anatomy) {
+  if (!anatomy?.available) return [];
+  return (anatomy.pivots || [])
+    .filter((p) => p && CYCLE_PIVOT_ORDER.includes(p.key) && finite(p.timestamp) && positive(p.price))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+// The three reference lines, highest first.
+export function cycleLevels(anatomy) {
+  if (!anatomy?.available) return [];
+  const base = anatomy.accumulation_base || {};
+  const target = (anatomy.projections || []).find((p) => p?.key === 'target_1');
+  return [
+    { key: 'ceiling', label: 'Breakout Ceiling', price: base.ceiling, color: CYCLE_CEILING_COLOR },
+    { key: 'wave_b_target', label: 'Wave B Target', price: target?.price, color: CYCLE_TARGET_COLOR },
+    { key: 'floor', label: 'Accumulation Floor', price: base.floor, color: CYCLE_FLOOR_COLOR },
+  ].filter((level) => positive(level.price)).sort((a, b) => b.price - a.price);
+}
+
+export function cycleBaseStart(anatomy) {
+  const base = anatomy?.accumulation_base || {};
+  if (finite(base.start_timestamp)) return base.start_timestamp;
+  return cyclePivots(anatomy).find((p) => p.key === 'C')?.timestamp ?? null;
+}
+
+// Plain name of the cycle phase a candle at `ts` (closing at `close`) sits in,
+// e.g. "Wave C Retreat" or "Month 14 of Accumulation Base".
+export function cyclePhaseAt(anatomy, ts, close) {
+  const pivots = cyclePivots(anatomy);
+  if (!pivots.length || !finite(ts)) return null;
+  const base = anatomy.accumulation_base || {};
+  const baseStart = cycleBaseStart(anatomy);
+  let previous = null;
+  for (const pivot of pivots) if (ts >= pivot.timestamp) previous = pivot;
+  const leg = previous ? CYCLE_LEG_AFTER[previous.key] : null;
+  if (finite(baseStart) && ts >= baseStart) {
+    if (positive(base.ceiling) && positive(close) && close > base.ceiling) return 'Breakout above the accumulation base';
+    const month = Math.floor((ts - baseStart) / MONTH_SECONDS) + 1;
+    const inside = leg && previous.key !== 'E' ? ` · ${leg}` : '';
+    return `Month ${month} of Accumulation Base${inside}`;
+  }
+  if (!previous) return pivots[0].key === 'peak' ? 'Advance into the cycle peak' : 'Before the mapped cycle';
+  return leg;
+}
+
+// Signed percentage from `from` to `to`, rounded to one decimal.
+export function pctFrom(from, to) {
+  if (!positive(from) || !positive(to)) return null;
+  return Math.round((to / from - 1) * 1000) / 10;
+}
+
+export function signedPctText(value) {
+  if (!finite(value)) return '';
+  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`;
+}
+
+// Everything the inspect card says about one pivot or level.
+export function cycleInspection(anatomy, item, currentPrice) {
+  if (!item) return null;
+  if (item.type === 'pivot') {
+    const pivots = cyclePivots(anatomy);
+    const index = pivots.findIndex((p) => p.key === item.key);
+    const pivot = pivots[index];
+    if (!pivot) return null;
+    const prior = index > 0 ? pivots[index - 1] : null;
+    const move = finite(pivot.move_pct) ? pivot.move_pct : prior ? pctFrom(prior.price, pivot.price) : null;
+    return {
+      type: 'pivot', key: pivot.key, badge: cyclePivotBadge(pivot.key), title: pivot.label || cyclePivotBadge(pivot.key),
+      date: pivot.date || new Date(pivot.timestamp * 1000).toISOString().slice(0, 10), price: pivot.price,
+      move, moveFrom: prior ? cyclePivotBadge(prior.key) : null,
+      fromNow: pctFrom(pivot.price, currentPrice), text: CYCLE_PIVOT_TEXT[pivot.key] || '',
+    };
+  }
+  const level = cycleLevels(anatomy).find((l) => l.key === item.key);
+  if (!level) return null;
+  const base = anatomy.accumulation_base || {};
+  return {
+    type: 'level', key: level.key, badge: level.label, title: level.label, color: level.color,
+    date: level.key === 'wave_b_target' ? cyclePivots(anatomy).find((p) => p.key === 'B')?.date || null : base.start_date || null,
+    price: level.price, move: pctFrom(currentPrice, level.price), moveFrom: 'price now',
+    text: CYCLE_LEVEL_TEXT[level.key] || '',
+  };
+}
+
 const HOVER_NAME = {
   start: 'Start of the prior move',
   0: 'End of the prior move',
@@ -237,6 +362,103 @@ export default function WaveStructureOverlay({
           <g key={`${point.label}-${point.ts}`} data-testid={`wave-node-${point.label}`}>
             <title>{`${hover}${isOpen ? ', still forming' : ''} · ${priceText(point.price)}`}</title>
             <circle cx={x(point.ts)} cy={y(point.price)} r="3.2" fill={isOpen ? INK : color} stroke={color} strokeWidth="1.4" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function inspectHandlers(item, onInspect, onHover) {
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'data-inspect': `${item.type}:${item.key}`,
+    style: { cursor: 'pointer', outline: 'none' },
+    onClick: (event) => { event.stopPropagation(); onInspect?.(item); },
+    onMouseDown: (event) => event.stopPropagation(),
+    onMouseEnter: () => onHover?.(item),
+    onMouseLeave: () => onHover?.(null),
+    onFocus: () => onHover?.(item),
+    onBlur: () => onHover?.(null),
+    onKeyDown: (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onInspect?.(item); }
+    },
+  };
+}
+
+// The multi-year anatomy drawn on any chart: the base's floor and ceiling, the
+// wave B target, and the PEAK/A/B/C/D/E pivots that fall inside the plotted
+// time range. Levels outside the plotted price range are pinned to the top or
+// bottom edge with their distance, so a short-term chart still shows where it
+// sits inside the multi-year box. Every pivot and level can be inspected.
+export function CycleStructureOverlay({
+  anatomy, x, y, xMin, xMax, yTop, yBottom, inView = () => true, priceText = defaultPriceText,
+  currentPrice, selected = null, showPivots = true, showLevels = true, onInspect, onHover,
+}) {
+  const levels = showLevels ? cycleLevels(anatomy) : [];
+  const pivots = showPivots ? cyclePivots(anatomy).filter((p) => inView(p.timestamp)) : [];
+  if (!levels.length && !pivots.length) return null;
+  const isSelected = (type, key) => selected?.type === type && selected?.key === key;
+  const above = [];
+  const below = [];
+  const drawn = [];
+  for (const level of levels) {
+    const ly = y(level.price);
+    if (ly < yTop) above.push(level);
+    else if (ly > yBottom) below.push(level);
+    else drawn.push({ ...level, ly });
+  }
+  const halo = { stroke: INK, strokeWidth: 3, paintOrder: 'stroke' };
+  const tag = (level, ty, arrow) => {
+    const distance = signedPctText(pctFrom(currentPrice, level.price));
+    const item = { type: 'level', key: level.key };
+    return (
+      <g key={level.key} data-testid={`cycle-level-${level.key}`} data-offscale="true" {...inspectHandlers(item, onInspect, onHover)}
+        aria-label={`${level.label} ${priceText(level.price)}${distance ? `, ${distance} from price` : ''}. Inspect level.`}>
+        <text x={xMax - 4} y={ty} fill={level.color} fontSize="10" fontWeight={isSelected('level', level.key) ? 800 : 700} textAnchor="end" {...halo}>
+          {`${arrow} ${level.label} ${priceText(level.price)}${distance ? ` (${distance})` : ''}`}
+        </text>
+      </g>
+    );
+  };
+  return (
+    <g className="cycle-overlay" data-testid="cycle-overlay">
+      {drawn.map((level) => {
+        const active = isSelected('level', level.key);
+        const item = { type: 'level', key: level.key };
+        return (
+          <g key={level.key} data-testid={`cycle-level-${level.key}`} data-offscale="false" {...inspectHandlers(item, onInspect, onHover)}
+            aria-label={`${level.label} ${priceText(level.price)}. Inspect level.`}>
+            <line x1={xMin} x2={xMax} y1={level.ly} y2={level.ly} stroke="transparent" strokeWidth="9" />
+            <line x1={xMin} x2={xMax} y1={level.ly} y2={level.ly} stroke={level.color} strokeWidth={active ? 2 : 1.1}
+              strokeDasharray="6 4" strokeOpacity={active ? 1 : 0.85} />
+            <text x={xMin + 4} y={level.ly - 4} fill={level.color} fontSize="10" fontWeight="700" {...halo}>
+              {`${level.label} ${priceText(level.price)}`}
+            </text>
+          </g>
+        );
+      })}
+      {above.map((level, i) => tag(level, yTop + 11 + i * 13, '▲'))}
+      {below.map((level, i) => tag(level, yBottom - 5 - (below.length - 1 - i) * 13, '▼'))}
+      {pivots.map((pivot) => {
+        const high = pivot.kind ? pivot.kind === 'high' : ['peak', 'B', 'D'].includes(pivot.key);
+        const px = x(pivot.timestamp);
+        const py = y(pivot.price);
+        const badge = cyclePivotBadge(pivot.key);
+        const width = badge.length * 6.6 + 9;
+        const by = Math.min(Math.max(high ? py - 19 : py + 7, yTop), yBottom - 13);
+        const active = isSelected('pivot', pivot.key);
+        const item = { type: 'pivot', key: pivot.key };
+        return (
+          <g key={pivot.key} data-testid={`cycle-pivot-${pivot.key}`} {...inspectHandlers(item, onInspect, onHover)}
+            aria-label={`${pivot.label || badge}: ${pivot.date || ''} ${priceText(pivot.price)}. Inspect pivot.`}>
+            {active && <line x1={px} x2={px} y1={yTop} y2={yBottom} stroke={CYCLE_PIVOT_COLOR} strokeDasharray="2 3" strokeOpacity="0.7" />}
+            <line x1={px} x2={px} y1={py} y2={high ? by + 13 : by} stroke={CYCLE_PIVOT_COLOR} strokeOpacity="0.6" />
+            <circle cx={px} cy={py} r={active ? 4.6 : 3.4} fill={CYCLE_PIVOT_COLOR} stroke={INK} strokeWidth="1.2" />
+            <rect x={px - width / 2} y={by} width={width} height="13" rx="3" fill={active ? CYCLE_PIVOT_COLOR : INK}
+              stroke={CYCLE_PIVOT_COLOR} strokeWidth="1" />
+            <text x={px} y={by + 9.6} fill={active ? INK : CYCLE_PIVOT_COLOR} fontSize="9.5" fontWeight="800" textAnchor="middle">{badge}</text>
           </g>
         );
       })}

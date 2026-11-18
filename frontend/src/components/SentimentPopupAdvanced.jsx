@@ -21,6 +21,10 @@ import PaperExecutionControls from './PaperExecutionControls.jsx';
 import RiskLevelsChart from './RiskLevelsChart.jsx';
 import '../styles/sentiment-popup-advanced.css';
 
+// The Coin Dossier chart opens on the multi-year cycle: PEAK → A → B → C → D → E,
+// the accumulation base and the upside targets are the first thing on screen.
+export const DEFAULT_CHART_HORIZON = 'cycle';
+
 const REFRESH_MS = 15000;
 const COIN_REFRESH_MS = 30000;
 const INTEL_REFRESH_MS = 60000;
@@ -1207,11 +1211,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const [coinPositioning, setCoinPositioning] = useState(null);
   const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
 
-  // One chart read per time horizon, kept so switching back is instant.
-  const [chartHorizon, setChartHorizon] = useState('swing');
+  // One chart read per time horizon, kept so switching back is instant. The
+  // dossier opens on the multi-year cycle, the most informative structural
+  // view; the swing read loads alongside it for the header strip and levels.
+  const [chartHorizon, setChartHorizon] = useState(DEFAULT_CHART_HORIZON);
   const [chartReads, setChartReads] = useState({});
-  const [chartReadLoading, setChartReadLoading] = useState(false);
-  const [chartReadError, setChartReadError] = useState(null);
+  const [chartErrors, setChartErrors] = useState({});
+  const chartCacheRef = useRef({});
+  const chartInflightRef = useRef(new Set());
+  const chartGenerationRef = useRef(0);
+  const chartReadLoading = Boolean(isOpen && normalizeSymbol(symbol))
+    && !(chartHorizon in chartReads) && !chartErrors[chartHorizon];
+  const chartReadError = chartErrors[chartHorizon] || null;
   const chartRead = chartReads[chartHorizon] || null;
   // While another view loads, the panel keeps showing the last read (dimmed).
   const lastChartReadRef = useRef(null);
@@ -1282,41 +1293,55 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol, coinLiveRanking]);
 
-  useEffect(() => {
-    // A different coin starts again from the default view with nothing cached.
-    setChartReads({});
-    lastChartReadRef.current = null;
-    setChartHorizon('swing');
-    setChartReadError(null);
-  }, [isOpen, coinSymbol, chartEventContext]);
-
-  useEffect(() => {
-    if (!isOpen || !coinSymbol) return undefined;
-    let cancelled = false;
-    setChartReadLoading(true);
-    setChartReadError(null);
-    const horizon = chartHorizon;
+  // Fetch one horizon's read unless it is cached or already on its way. A
+  // response for a coin the modal has since left is dropped by generation, not
+  // by the horizon switch, so switching views never strands a request.
+  const loadChartHorizon = useCallback((horizon) => {
+    if (!isOpen || !coinSymbol) return;
+    if (horizon in chartCacheRef.current || chartInflightRef.current.has(horizon)) return;
+    const generation = chartGenerationRef.current;
+    const inflight = chartInflightRef.current;
+    inflight.add(horizon);
+    setChartErrors((errors) => {
+      if (!errors[horizon]) return errors;
+      const next = { ...errors };
+      delete next[horizon];
+      return next;
+    });
     const endpoint = API_ENDPOINTS.chartRead
       ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext, horizon)
       : `/api/chart-read/${encodeURIComponent(coinSymbol)}${horizon === 'swing' ? '' : `?horizon=${horizon}`}`;
     fetchData(endpoint)
-      .then((d) => { if (!cancelled) setChartReads((reads) => ({ ...reads, [horizon]: d })); })
-      .catch(() => { if (!cancelled) setChartReadError('unavailable'); })
-      .finally(() => { if (!cancelled) setChartReadLoading(false); });
-    return () => { cancelled = true; };
-  }, [isOpen, coinSymbol, chartEventContext, chartHorizon]);
+      .then((read) => {
+        if (generation !== chartGenerationRef.current) return;
+        chartCacheRef.current = { ...chartCacheRef.current, [horizon]: read };
+        setChartReads(chartCacheRef.current);
+      })
+      .catch(() => {
+        if (generation !== chartGenerationRef.current) return;
+        setChartErrors((errors) => ({ ...errors, [horizon]: 'unavailable' }));
+      })
+      .finally(() => { inflight.delete(horizon); });
+  }, [isOpen, coinSymbol, chartEventContext]);
 
   useEffect(() => {
-    if (!isOpen || !coinSymbol) return undefined;
-    let cancelled = false;
-    const endpoint = API_ENDPOINTS.chartRead
-      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext, 'cycle')
-      : `/api/chart-read/${encodeURIComponent(coinSymbol)}?horizon=cycle`;
-    fetchData(endpoint)
-      .then((data) => { if (!cancelled) setChartReads((reads) => ({ ...reads, cycle: data })); })
-      .catch((error) => { if (!cancelled) console.warn('Cycle chart unavailable:', error); });
-    return () => { cancelled = true; };
+    // A different coin starts again from the default view with nothing cached.
+    chartGenerationRef.current += 1;
+    chartCacheRef.current = {};
+    chartInflightRef.current = new Set();
+    lastChartReadRef.current = null;
+    setChartReads({});
+    setChartErrors({});
+    setChartHorizon(DEFAULT_CHART_HORIZON);
   }, [isOpen, coinSymbol, chartEventContext]);
+
+  useEffect(() => {
+    // The view on screen first, then the swing read (header strip, risk levels,
+    // paper ticket) and the cycle read (multi-year levels on every view).
+    loadChartHorizon(chartHorizon);
+    loadChartHorizon('swing');
+    loadChartHorizon('cycle');
+  }, [chartHorizon, loadChartHorizon]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -2429,7 +2454,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     } : null}
                     earlyRead={earlyRead}
                     liveRanking={coinLiveRanking}
-                    chartLoading={chartReadLoading && !swingChartRead}
+                    chartLoading={Boolean(isOpen && coinSymbol) && !('swing' in chartReads) && !chartErrors.swing}
                     formatPlanPrice={formatPlanPrice}
                   />
                   {alertBanner ? (
@@ -2447,6 +2472,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       error={chartReadError}
                       horizon={chartHorizon}
                       onHorizonChange={setChartHorizon}
+                      cycleAnatomy={chartReads.cycle?.multiyear_cycle_anatomy || chartReads.cycle?.multi_year_context?.multiyear_cycle_anatomy || null}
                       afterSetup={(
                         // The four order-placing prices sit right under the chart.
                         <RiskLevelsPanel

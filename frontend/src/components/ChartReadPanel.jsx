@@ -1,12 +1,13 @@
 import React from 'react';
-import WaveStructureOverlay, {
+import {
   WAVE_ADVANCE_COLOR, WAVE_BREAK_COLOR, WAVE_COLOR, WAVE_DECLINE_COLOR,
-  plainPrice, waveIsDrawable, wavePatternLabel, wavePrices,
+  cyclePivotBadge, cyclePivots, plainPrice, waveIsDrawable, wavePatternLabel,
 } from './WaveStructureOverlay.jsx';
-import SwingHistoryOverlay, {
+import {
   SWING_DOWN_COLOR, SWING_FLAT_COLOR, SWING_UP_COLOR, swingsInView,
 } from './SwingHistoryOverlay.jsx';
 import CycleReadSection from './CycleReadSection.jsx';
+import ChartReadChart from './ChartReadChart.jsx';
 
 function windowLabel(window_hours, timeframe) {
   const h = Math.round(window_hours || 0);
@@ -79,41 +80,6 @@ function HorizonSwitcher({ horizons, horizon, onChange, busy }) {
       </div>
       <span style={styles.meta} data-testid="chart-read-horizon-detail">{busy ? 'Reading this view…' : active.detail}</span>
     </div>
-  );
-}
-
-// Close line of the candles the read used, with every confirmed swing marked
-// and the setup drawn on top.
-function StructureChart({ wave }) {
-  const bars = (wave.chart?.candles || []).filter((c) => Array.isArray(c) && c.length >= 5
-    && c.slice(0, 5).every(Number.isFinite) && c[1] > 0).sort((a, b) => a[0] - b[0]);
-  const drawable = waveIsDrawable(wave);
-  const history = wave.swing_history;
-  const pointTimes = [...(wave.wave_points || []), ...(history?.swings || [])].map((p) => p.ts).filter(Number.isFinite);
-  const firstTime = bars.length ? bars[0][0] : Math.min(...pointTimes);
-  const lastTime = bars.length ? bars[bars.length - 1][0] : Math.max(...pointTimes);
-  const prices = [...bars.flatMap((c) => [c[1], c[2]]), ...wavePrices(wave, firstTime),
-    ...swingsInView(history, firstTime).map((s) => s.price)];
-  if (!prices.length || !Number.isFinite(firstTime) || !Number.isFinite(lastTime)) return null;
-  const low = Math.min(...prices);
-  const high = Math.max(...prices);
-  const pad = Math.max((high - low) * 0.14, high * 0.001);
-  const floor = Math.max(0, low - pad);
-  const ceiling = high + pad;
-  const x = (time) => 12 + (time - firstTime) / Math.max(lastTime - firstTime, 1) * 616;
-  const y = (price) => 18 + (ceiling - price) / (ceiling - floor) * 224;
-  const day = (time) => new Date(time * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return (
-    <svg viewBox="0 0 640 276" style={styles.waveSvg} role="img"
-      aria-label={`Price chart with the setup drawn on it: ${wave.story?.headline || history?.headline || 'recent swings'}`} data-testid="chart-read-wave-chart">
-      {bars.map((c) => <line key={c[0]} x1={x(c[0])} x2={x(c[0])} y1={y(c[2])} y2={y(c[1])} stroke="#ffffff1c" />)}
-      {bars.length >= 2 && <polyline fill="none" stroke="#e6edf588" strokeWidth="1.1"
-        points={bars.map((c) => `${x(c[0])},${y(c[4])}`).join(' ')} />}
-      <SwingHistoryOverlay history={history} x={x} y={y} firstTime={firstTime} xMax={628} priceText={wavePrice} compact />
-      {drawable && <WaveStructureOverlay wave={wave} x={x} y={y} xMin={12} xMax={628} firstTime={firstTime} priceText={wavePrice} compact />}
-      <text x="12" y="268" fill="#a3acb9" fontSize="10">{day(firstTime)}</text>
-      <text x="628" y="268" fill="#a3acb9" fontSize="10" textAnchor="end">{day(lastTime)}</text>
-    </svg>
   );
 }
 
@@ -212,20 +178,16 @@ function StructureSection({ wave }) {
         {drawable ? story.headline || wave.summary : 'No clear setup in the recent swings.'}
       </p>
       {drawable && <StoryStrip story={story} up={up} />}
-      {/* On a wide modal the chart and the reasons for the read sit side by side,
-          so both are on screen without scrolling (see .chart-read__split). */}
+      {/* The setup is drawn on the interactive chart above; these are the
+          reasons for the read, side by side on a wide modal. */}
       <div className="chart-read__split">
-        <div className="chart-read__chart">
-          <StructureChart wave={wave} />
-          <ChartLegend history={history} />
-        </div>
+        {hasHistory && history.headline && (
+          <div style={styles.historyBlock} data-testid="chart-read-history">
+            <p style={styles.watchLabel}>The bigger picture</p>
+            <p style={styles.summary}><strong>{history.headline}</strong>{history.why ? ` ${history.why}` : ''}</p>
+          </div>
+        )}
         <div className="chart-read__context">
-          {hasHistory && history.headline && (
-            <div style={styles.historyBlock} data-testid="chart-read-history">
-              <p style={styles.watchLabel}>The bigger picture</p>
-              <p style={styles.summary}><strong>{history.headline}</strong>{history.why ? ` ${history.why}` : ''}</p>
-            </div>
-          )}
           {drawable && <WhyItMatters items={story.why_it_matters} />}
           {drawable && (
             <div style={styles.chips}>
@@ -240,62 +202,54 @@ function StructureSection({ wave }) {
   );
 }
 
-// `afterSetup` is rendered between the setup block and the range read, so the
-// caller can keep something (the sell-side price row) right under the chart.
-function CycleAnatomy({ anatomy }) {
-  if (!anatomy?.available) return <p>Multi-year cycle anatomy unavailable: {anatomy?.reason || 'not enough history'}.</p>;
-  const pivots = (anatomy.pivots || []).filter((p) => Number.isFinite(p.price) && Number.isFinite(p.timestamp));
+// The multi-year story in words. The pivots, the base and the Wave B target
+// are drawn on the interactive chart; this lists them with dates and moves.
+function CycleAnatomy({ anatomy, compact = false }) {
+  if (!anatomy?.available) {
+    return <p style={styles.meta} data-testid="cycle-anatomy-unavailable">Multi-year cycle anatomy unavailable: {anatomy?.reason || 'not enough history'}.</p>;
+  }
+  const pivots = cyclePivots(anatomy);
   const base = anatomy.accumulation_base || {};
-  const target = anatomy.projections?.find((p) => p.key === 'target_1');
-  const lines = [
-    { label: 'Accumulation Floor', price: base.floor },
-    { label: 'Breakout Ceiling', price: base.ceiling },
-    { label: 'Wave B Target', price: target?.price },
-  ].filter((p) => Number.isFinite(p.price));
-  const closes = (anatomy.chart_closes || []).filter((p) => p.length >= 2 && p.every(Number.isFinite));
-  const points = [...closes, ...pivots.map((p) => [p.timestamp, p.price])];
-  const prices = [...points.map((p) => p[1]), ...lines.map((p) => p.price)];
-  const start = Math.min(...points.map((p) => p[0]));
-  const end = Math.max(...points.map((p) => p[0]));
-  const low = Math.min(...prices);
-  const high = Math.max(...prices);
-  const x = (ts) => 38 + (ts - start) / (end - start || 1) * 584;
-  const y = (price) => 245 - (price - low) / (high - low || 1) * 205;
-  return (
-    <section aria-label="Multi-Year Cycle Story & Projected Targets" className="cp-cycle-story">
-      <h3>Multi-Year Cycle Story &amp; Projected Targets</h3>
+  const story = (
+    <>
       <div className="cp-cycle-layout">
-      {points.length ? <svg viewBox="0 0 660 285" role="img" aria-label="Multi-year cycle price history with Peak A B C D E pivots" data-testid="cycle-anatomy-chart">
-        <polyline points={closes.map(([ts, price]) => `${x(ts)},${y(price)}`).join(' ')}
-          fill="none" stroke="var(--accent-primary)" strokeWidth="1.5" />
-        {lines.map((line, i) => <g key={line.label}>
-          <line x1="38" x2="622" y1={y(line.price)} y2={y(line.price)} stroke={['var(--price-current)', 'var(--signal-positive)', 'var(--accent-primary)'][i]} strokeDasharray="5 4" />
-          <text x="42" y={y(line.price) - 5 - i * 11} fill="currentColor" fontSize="10">{line.label} {wavePrice(line.price)}</text>
-        </g>)}
-        {pivots.map((p, i) => <g key={p.key}>
-          <circle cx={x(p.timestamp)} cy={y(p.price)} r="4" fill="var(--signal-positive)"><title>{p.label}: {p.date} · {wavePrice(p.price)}</title></circle>
-          <text x={x(p.timestamp)} y={y(p.price) + (i % 2 ? 19 : -12)} textAnchor="middle" fill="currentColor" fontSize="12">{p.key === 'peak' ? 'PEAK' : p.key}</text>
-        </g>)}
-        <text x="38" y="278" fill="currentColor" fontSize="10">{pivots[0]?.date}</text>
-        <text x="622" y="278" textAnchor="end" fill="currentColor" fontSize="10">{Number.isFinite(end) ? new Date(end * 1000).toISOString().slice(0, 10) : ''}</text>
-      </svg> : null}
-      <div>
-      <ol>{(anatomy.story || []).map((step) => <li key={step.step}>{step.text}</li>)}</ol>
+        <ol>{(anatomy.story || []).map((step) => <li key={step.step}>{step.text}</li>)}</ol>
+        <dl className="cp-dossier-gauges">
+          {(anatomy.projections || []).map((p) => <div key={p.key}><dt>{p.label}</dt><dd>{wavePrice(p.price)}{Number.isFinite(p.distance_pct) ? ` (${p.distance_pct > 0 ? '+' : ''}${p.distance_pct}%)` : ''}</dd></div>)}
+        </dl>
+      </div>
       <details><summary>Historical pivot dates, prices &amp; moves</summary>
-        <ul>{pivots.map((p) => <li key={p.key}>{p.label}: {p.date} · {wavePrice(p.price)}{Number.isFinite(p.move_pct) ? ` · ${p.move_pct > 0 ? '+' : ''}${p.move_pct}%` : ''}</li>)}</ul>
+        <ul data-testid="cycle-anatomy-pivots">{pivots.map((p) => <li key={p.key}><strong>{cyclePivotBadge(p.key)}</strong> {p.label}: {p.date} · {wavePrice(p.price)}{Number.isFinite(p.move_pct) ? ` · ${p.move_pct > 0 ? '+' : ''}${p.move_pct}%` : ''}</li>)}</ul>
       </details>
       {anatomy.missing_pivots?.length ? <p>Not yet established: {anatomy.missing_pivots.join(', ')}. Missing waves are not invented.</p> : null}
-      <dl className="cp-dossier-gauges">
-        {(anatomy.projections || []).map((p) => <div key={p.key}><dt>{p.label}</dt><dd>{wavePrice(p.price)}{Number.isFinite(p.distance_pct) ? ` (${p.distance_pct > 0 ? '+' : ''}${p.distance_pct}%)` : ''}</dd></div>)}
-      </dl>
-      </div>
-      </div>
       <p>Structural scenarios, not forecasts or guaranteed targets. Base duration: {base.duration_months} months. {base.stage_label}</p>
+    </>
+  );
+  return (
+    <section aria-label="Multi-Year Cycle Story & Projected Targets" className="cp-cycle-story" data-testid="cycle-anatomy">
+      {compact ? (
+        // On the shorter views the box stays on the chart; the full story folds away.
+        <details>
+          <summary><h3 style={styles.inlineHeading}>Multi-Year Cycle Story &amp; Projected Targets</h3>{base.stage_label ? ` · ${base.stage_label}` : ''}</summary>
+          {story}
+        </details>
+      ) : (
+        <>
+          <h3>Multi-Year Cycle Story &amp; Projected Targets</h3>
+          {story}
+        </>
+      )}
     </section>
   );
 }
 
-export default function ChartReadPanel({ data, loading, error, horizon, onHorizonChange, afterSetup = null }) {
+const usableAnatomy = (...candidates) => candidates.find((a) => a?.available) || candidates.find(Boolean) || null;
+
+// `afterSetup` is rendered between the setup block and the range read, so the
+// caller can keep something (the sell-side price row) right under the chart.
+// `cycleAnatomy` is the multi-year anatomy from the cycle read, used whenever
+// the view on screen did not carry its own, so the box never drops off.
+export default function ChartReadPanel({ data, loading, error, horizon, onHorizonChange, afterSetup = null, cycleAnatomy = null }) {
   // Title and time-horizon switcher share one row to keep the chart high on screen.
   const head = (
     <div style={styles.header}>
@@ -304,30 +258,31 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
     </div>
   );
 
-  if (loading && !data) {
+  if (!data && !loading && !error) return afterSetup;
+
+  const anatomy = usableAnatomy(data?.multiyear_cycle_anatomy, data?.multi_year_context?.multiyear_cycle_anatomy, cycleAnatomy);
+  const shownHorizon = data?.horizon || horizon || 'swing';
+  const requested = horizon || shownHorizon;
+  const requestedLabel = (data?.horizons || CHART_HORIZONS).find((h) => h.key === requested)?.label || requested;
+  // The chart is the same element in every state (loading, error, any view),
+  // so switching horizons never unmounts it or drops its levels and settings.
+  const chart = (
+    <ChartReadChart key="chart-read-chart" data={data} anatomy={anatomy} horizon={shownHorizon}
+      busy={Boolean(loading)} busyLabel={`Loading ${requestedLabel} view…`} />
+  );
+
+  if (!data) {
     return (
       <div style={styles.wrapper}>
         {head}
-        <p style={styles.loading}>Reading the chart…</p>
+        {loading ? <p style={styles.loading}>Reading the chart…</p> : <p style={styles.errorText}>Chart data temporarily unavailable.</p>}
+        {chart}
         {afterSetup}
       </div>
     );
   }
-
-  if (error && !loading) {
-    return (
-      <div style={styles.wrapper}>
-        {head}
-        <p style={styles.errorText}>Chart data temporarily unavailable.</p>
-        {afterSetup}
-      </div>
-    );
-  }
-
-  if (!data) return afterSetup;
 
   const { summary, direction, lower_area, upper_area, trading_activity, confidence, watch_next, timeframe, window_hours, wave_analysis } = data;
-  const anatomy = data.multiyear_cycle_anatomy || data.multi_year_context?.multiyear_cycle_anatomy;
   const dirColor = DIRECTION_COLOR[direction?.label] || 'var(--sentiment-subtext)';
   const wLabel = windowLabel(window_hours, timeframe);
   const volColor = VOLUME_COLOR[trading_activity?.label] || 'var(--sentiment-subtext)';
@@ -337,15 +292,18 @@ export default function ChartReadPanel({ data, loading, error, horizon, onHorizo
   return (
     <div style={styles.wrapper}>
       {head}
+      {error && !loading ? <p style={styles.errorText}>This view is temporarily unavailable · showing the last read.</p> : null}
+      {chart}
+      <ChartLegend history={wave_analysis?.swing_history} />
 
       {/* A view that is still loading keeps the previous read on screen, dimmed.
-          The setup, its chart and the bigger picture lead; the range read follows. */}
+          The setup and the bigger picture lead; the range read follows. */}
       <div style={dim} aria-busy={Boolean(loading)}>
-        {(horizon || data.horizon || 'swing') === 'swing' && (!wave_analysis?.available || wave_analysis.active_pattern === 'none') && onHorizonChange ? (
+        {requested === 'swing' && shownHorizon === 'swing' && (!wave_analysis?.available || wave_analysis.active_pattern === 'none') && onHorizonChange ? (
           <button type="button" className="mini-toggle-btn" onClick={() => onHorizonChange('cycle')}>No clear swing setup · View Cycle (Multi-Year)</button>
         ) : null}
         <StructureSection wave={wave_analysis} />
-        {anatomy ? <CycleAnatomy anatomy={anatomy} /> : null}
+        {anatomy ? <CycleAnatomy anatomy={anatomy} compact={shownHorizon !== 'cycle'} /> : null}
         {(data.horizon === 'swing' || data.horizon === 'cycle') && data.top_down_confluence?.available ? (
           <div data-testid="top-down-confluence">
             <p style={styles.watchLabel}>Multi-degree context</p>
@@ -458,6 +416,11 @@ const styles = {
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     color: 'var(--sentiment-subtext)',
+  },
+  inlineHeading: {
+    display: 'inline',
+    margin: 0,
+    fontSize: 'inherit',
   },
   meta: {
     fontSize: '0.67rem',

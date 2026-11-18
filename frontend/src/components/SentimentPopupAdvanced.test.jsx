@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import PaperExecutionControls from "./PaperExecutionControls.jsx";
 import { fetchData } from "../api";
 import { useData } from "../context/DataContext";
-import SentimentPopupAdvanced, { CoinDossierScore, CoinOutcomeHistory, RiskLevelsPanel } from "./SentimentPopupAdvanced";
+import SentimentPopupAdvanced, { CoinDossierScore, CoinOutcomeHistory, DEFAULT_CHART_HORIZON, RiskLevelsPanel } from "./SentimentPopupAdvanced";
+import ChartReadPanel from "./ChartReadPanel.jsx";
 
 // Keep the popup's broad dependency surface deterministic for both the pure
 // CoinOutcomeHistory tests and the rendered popup regression below.
@@ -17,7 +18,7 @@ vi.mock("../utils/coinHistoryCache", async (importOriginal) => ({
 vi.mock("../utils/marketPressure", () => ({ getMarketPressure: vi.fn() }));
 vi.mock("./CoinPositioning.jsx", () => ({ default: () => null }));
 vi.mock("./AlertsTab", () => ({ default: () => null }));
-vi.mock("./ChartReadPanel.jsx", () => ({ default: () => null }));
+vi.mock("./ChartReadPanel.jsx", () => ({ default: vi.fn(() => null) }));
 vi.mock("../config/api.js", () => ({ getBackendBase: () => "" }));
 
 describe("Coin Dossier score and owner controls", () => {
@@ -244,6 +245,48 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
+  it("opens the dossier chart on the multi-year cycle and never loses it when switching views", async () => {
+    vi.mocked(useData).mockReturnValue({});
+    vi.mocked(ChartReadPanel).mockClear();
+    const anatomy = { available: true, pivots: [], accumulation_base: { floor: 10, ceiling: 25 } };
+    const reads = {
+      cycle: { horizon: "cycle", multiyear_cycle_anatomy: anatomy },
+      swing: { horizon: "swing", wave_analysis: { available: false } },
+      short: { horizon: "short" },
+    };
+    vi.mocked(fetchData).mockImplementation(async (endpoint) => {
+      const url = String(endpoint);
+      if (!url.includes("/api/chart-read/")) return null;
+      return reads[url.match(/horizon=(\w+)/)?.[1] || "swing"];
+    });
+    const chartCalls = () => vi.mocked(fetchData).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/api/chart-read/"));
+    const props = () => vi.mocked(ChartReadPanel).mock.calls.at(-1)[0];
+
+    render(<SentimentPopupAdvanced isOpen onClose={vi.fn()} symbol="SOL" />);
+    expect(DEFAULT_CHART_HORIZON).toBe("cycle");
+    expect(props().horizon).toBe("cycle");
+    // The cycle view is asked for first; the swing read loads beside it.
+    expect(chartCalls()[0]).toBe("/api/chart-read/SOL?horizon=cycle");
+    expect(chartCalls()).toContain("/api/chart-read/SOL");
+    await waitFor(() => expect(props().data).toBe(reads.cycle));
+    expect(props().loading).toBe(false);
+
+    // Switching keeps the last read on screen while the next one loads...
+    act(() => props().onHorizonChange("short"));
+    expect(props().horizon).toBe("short");
+    expect(props().loading).toBe(true);
+    expect(props().data).toBe(reads.cycle);
+    // ...and every view carries the cycle anatomy for the multi-year levels.
+    await waitFor(() => expect(props().data).toBe(reads.short));
+    expect(props().cycleAnatomy).toBe(anatomy);
+
+    // Back to a cached view: instant, no second request.
+    act(() => props().onHorizonChange("cycle"));
+    expect(props().data).toBe(reads.cycle);
+    expect(props().loading).toBe(false);
+    expect(chartCalls().filter((url) => url.endsWith("horizon=cycle"))).toHaveLength(1);
+    expect(chartCalls().filter((url) => url === "/api/chart-read/SOL")).toHaveLength(1);
+  });
   it("keeps Reversal Risk negative when positive 3m tape activates bullish fallbacks", async () => {
     const nowMs = 1_800_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(nowMs);

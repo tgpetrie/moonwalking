@@ -2,7 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ChartReadPanel from "./ChartReadPanel.jsx";
 import RiskLevelsChart from "./RiskLevelsChart.jsx";
-import { waveIsDrawable, wavePlainLabels, wavePrices } from "./WaveStructureOverlay.jsx";
+import { chartCandles } from "./ChartReadChart.jsx";
+import { cycleLevels, cyclePhaseAt, waveIsDrawable, wavePlainLabels, wavePrices } from "./WaveStructureOverlay.jsx";
 import { runLabel, swingColor, SWING_DOWN_COLOR, SWING_UP_COLOR } from "./SwingHistoryOverlay.jsx";
 
 const HOUR = 3600;
@@ -96,7 +97,7 @@ describe("multi-year cycle anatomy", () => {
     expect(onChange).toHaveBeenCalledWith("cycle");
   });
 
-  it("draws the historical pivots, base boundaries and Wave B target with the cycle story", () => {
+  it("draws the historical pivots, base boundaries and Wave B target on the one chart with the cycle story", () => {
     const anatomy = {
       available: true, accumulation_base: { floor: 10, ceiling: 25, duration_months: 21, stage_label: "Deep Accumulation · 21 mo base" },
       pivots: ["peak", "A", "B", "C", "D", "E"].map((key, i) => ({
@@ -106,13 +107,197 @@ describe("multi-year cycle anatomy", () => {
       story: [{ step: "base", text: "21-month base after the A-B-C retreat." }],
       projections: [{ key: "target_1", label: "Target 1", price: 60, distance_pct: 400 }],
     };
-    render(<ChartReadPanel data={read({ horizon: "cycle", multiyear_cycle_anatomy: anatomy })} horizon="cycle" />);
-    const chart = screen.getByTestId("cycle-anatomy-chart");
-    for (const label of ["PEAK", "A", "B", "C", "D", "E"]) expect(within(chart).getByText(label)).toBeInTheDocument();
+    render(<ChartReadPanel data={read({ horizon: "cycle", multiyear_cycle_anatomy: anatomy, wave_analysis: { available: false } })} horizon="cycle" />);
+    const chart = screen.getByTestId("chart-read-chart");
+    // With no candles the cycle view falls back to the anatomy's close line.
+    expect(chart.getAttribute("data-mode")).toBe("line");
+    for (const key of ["peak", "A", "B", "C", "D", "E"]) {
+      expect(within(chart).getByTestId(`cycle-pivot-${key}`).textContent).toBe(key === "peak" ? "PEAK" : key);
+    }
     for (const label of [/Accumulation Floor/, /Breakout Ceiling/, /Wave B Target/]) expect(within(chart).getByText(label)).toBeInTheDocument();
-    expect(chart.querySelectorAll('line[stroke-dasharray]')).toHaveLength(3);
+    expect(within(chart).getByTestId("cycle-overlay").querySelectorAll('line[stroke-dasharray="6 4"]')).toHaveLength(3);
     expect(screen.getByText("21-month base after the A-B-C retreat.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Multi-Year Cycle Story & Projected Targets" })).toBeInTheDocument();
+  });
+});
+
+// A small daily cycle: peak, three-leg decline, then a base between $10 and $25.
+const DAY = 86400;
+const cyclePath = [100, 90, 100, 80, 60, 45, 38, 33, 31, 30, 30, 34, 40, 46, 52, 57, 59, 60, 60, 52, 40, 30, 22, 16, 12, 11, 10, 11, 13, 15,
+  17, 19, 20, 22, 23, 24, 24, 25, 25, 25, 25, 22, 19, 16, 14, 13, 12, 12, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+const dailyBars = cyclePath.map((close, i) => {
+  const open = i ? cyclePath[i - 1] : close;
+  return { timestamp: i * DAY, open, high: Math.max(open, close) * 1.02, low: Math.min(open, close) * 0.98, close, volume: 1000 + i * 10 };
+});
+const pivotSpec = [["peak", 2, 100, "high"], ["A", 9, 30, "low"], ["B", 17, 60, "high"], ["C", 26, 10, "low"], ["D", 37, 25, "high"], ["E", 46, 12, "low"]];
+const dailyAnatomy = {
+  available: true,
+  pivots: pivotSpec.map(([key, day, price, kind], i) => ({
+    key, kind, label: { peak: "Macro Cycle Peak", A: "Wave A Crash Low", B: "Wave B Bull-Trap High", C: "Wave C Capitulation Low", D: "Wave D Compression High", E: "Wave E Compression Low" }[key],
+    timestamp: day * DAY, date: new Date(day * DAY * 1000).toISOString().slice(0, 10), price,
+    move_pct: i ? Math.round((price / pivotSpec[i - 1][2] - 1) * 1000) / 10 : null,
+  })),
+  accumulation_base: { floor: 10, ceiling: 25, duration_months: 1.1, stage: "mid_base", stage_label: "Mid Base · 1 mo base", start_timestamp: 26 * DAY, start_date: "1970-01-27" },
+  projections: [
+    { key: "breakout_trigger", label: "Breakout Reclaim Trigger", price: 25, distance_pct: 19 },
+    { key: "target_1", label: "Target 1 · Prior Wave B High", price: 60, distance_pct: 185.7 },
+  ],
+  chart_closes: dailyBars.map((bar) => [bar.timestamp, bar.close]),
+  story: [{ step: "base", text: "1-month base $10 – $25" }],
+};
+const SLOT = (652 - 8) / dailyBars.length;
+const candleX = (i) => 8 + (i + 0.5) * SLOT;
+const cycleData = (overrides = {}) => read({
+  horizon: "cycle", timeframe: "1d", candles: dailyBars, multiyear_cycle_anatomy: dailyAnatomy,
+  wave_analysis: { available: false, active_pattern: "none" }, ...overrides,
+});
+
+describe("interactive chart", () => {
+  it("draws OHLC candlesticks with a volume histogram by default and toggles to an area line", () => {
+    render(<ChartReadPanel data={cycleData()} horizon="cycle" />);
+    const chart = screen.getByTestId("chart-read-chart");
+    expect(chart.getAttribute("data-mode")).toBe("candles");
+    expect(within(chart).getAllByTestId("chart-candle")).toHaveLength(dailyBars.length);
+    expect(within(chart).getByTestId("chart-volume").querySelectorAll("rect")).toHaveLength(dailyBars.length);
+    fireEvent.click(screen.getByTestId("chart-mode-line"));
+    expect(chart.getAttribute("data-mode")).toBe("line");
+    expect(within(chart).queryAllByTestId("chart-candle")).toHaveLength(0);
+    expect(within(chart).getByTestId("chart-line").querySelector("polyline")).toBeTruthy();
+    expect(within(chart).getByTestId("chart-volume").querySelectorAll("rect")).toHaveLength(dailyBars.length);
+  });
+
+  it("snaps a crosshair to the candle under the cursor and fills the HUD", () => {
+    render(<ChartReadPanel data={cycleData()} horizon="cycle" />);
+    const chart = screen.getByTestId("chart-read-chart");
+    // At rest the HUD reads the latest candle.
+    expect(screen.getByTestId("chart-hud").getAttribute("data-latest")).toBe("true");
+    expect(screen.getByTestId("chart-hud-phase").textContent).toContain("Month 2 of Accumulation Base");
+
+    fireEvent.mouseMove(chart, { clientX: candleX(22) + 2, clientY: 120 });
+    expect(within(chart).getByTestId("chart-crosshair")).toBeTruthy();
+    const hud = screen.getByTestId("chart-hud");
+    expect(hud.getAttribute("data-latest")).toBe("false");
+    expect(screen.getByTestId("chart-hud-date").textContent).toContain("1970");
+    expect(screen.getByTestId("chart-hud-ohlc").textContent).toBe("O / H / L / C$30.00 / $30.60 / $21.56 / $22.00");
+    expect(screen.getByTestId("chart-hud-change").textContent).toContain("−26.7%");
+    expect(screen.getByTestId("chart-hud-volume").textContent).toContain("1.2K");
+    expect(screen.getByTestId("chart-hud-phase").textContent).toContain("Wave C Retreat");
+    expect(screen.getByTestId("chart-hud-ceiling").textContent).toContain("+13.6%");
+    expect(screen.getByTestId("chart-hud-floor").textContent).toContain("−54.5%");
+
+    fireEvent.mouseMove(chart, { clientX: candleX(30), clientY: 120 });
+    expect(screen.getByTestId("chart-hud-phase").textContent).toContain("Month 1 of Accumulation Base · Wave D Compression Rally");
+    fireEvent.keyDown(chart, { key: "ArrowLeft" });
+    expect(screen.getByTestId("chart-hud-ohlc").textContent).toContain("$15.00");
+    fireEvent.mouseLeave(chart);
+    expect(within(chart).queryByTestId("chart-crosshair")).toBeNull();
+  });
+
+  it("inspects a pivot badge or a level line with its date, price, move and explanation", () => {
+    render(<ChartReadPanel data={cycleData()} horizon="cycle" />);
+    expect(screen.getByTestId("chart-inspect-hint")).toBeTruthy();
+    fireEvent.mouseEnter(screen.getByTestId("cycle-pivot-C"));
+    expect(screen.getByTestId("chart-inspect").getAttribute("data-key")).toBe("C");
+    fireEvent.mouseLeave(screen.getByTestId("cycle-pivot-C"));
+
+    fireEvent.click(screen.getByTestId("cycle-pivot-B"));
+    const card = screen.getByTestId("chart-inspect");
+    expect(card.textContent).toContain("Wave B Bull-Trap High");
+    expect(screen.getByTestId("chart-inspect-date").textContent).toBe("1970-01-18");
+    expect(screen.getByTestId("chart-inspect-price").textContent).toBe("$60.00");
+    expect(screen.getByTestId("chart-inspect-move").textContent).toBe("+100.0% from A");
+    expect(screen.getByTestId("chart-inspect-text").textContent).toContain("bull trap");
+    expect(screen.getByTestId("chart-chip-B").getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(screen.getByTestId("cycle-level-ceiling"));
+    expect(screen.getByTestId("chart-inspect").getAttribute("data-key")).toBe("ceiling");
+    expect(screen.getByTestId("chart-inspect-move").textContent).toBe("+19.0% from price now");
+    expect(screen.getByTestId("chart-inspect-text").textContent).toContain("breakout trigger");
+    fireEvent.click(screen.getByRole("button", { name: "Close inspector" }));
+    expect(screen.getByTestId("chart-inspect-hint")).toBeTruthy();
+  });
+
+  it("zooms with the buttons and the wheel, pans by drag, and resets", () => {
+    render(<ChartReadPanel data={cycleData()} horizon="cycle" />);
+    const chart = screen.getByTestId("chart-read-chart");
+    const range = () => screen.getByTestId("chart-read-chart-range").textContent;
+    expect(range()).toBe("60 of 60 candles");
+    fireEvent.click(screen.getByTestId("chart-zoom-in"));
+    expect(range()).toBe("48 of 60 candles · zoomed");
+    fireEvent.wheel(chart, { deltaY: -100, clientX: candleX(59) });
+    expect(within(chart).getAllByTestId("chart-candle").length).toBeLessThan(48);
+    const before = within(chart).getAllByTestId("chart-candle").length;
+    fireEvent.mouseDown(chart, { button: 0, clientX: 300, clientY: 100 });
+    fireEvent.mouseMove(chart, { clientX: 420, clientY: 100 });
+    fireEvent.mouseUp(chart);
+    expect(within(chart).getAllByTestId("chart-candle")).toHaveLength(before);
+    fireEvent.click(screen.getByTestId("chart-zoom-reset"));
+    expect(range()).toBe("60 of 60 candles");
+  });
+
+  it("keeps the multi-year levels on a short-term chart, pinned to the edge with their distance", () => {
+    render(<ChartReadPanel data={read({ horizon: "swing" })} horizon="swing" cycleAnatomy={dailyAnatomy} />);
+    const chart = screen.getByTestId("chart-read-chart");
+    for (const key of ["ceiling", "wave_b_target", "floor"]) {
+      expect(within(chart).getByTestId(`cycle-level-${key}`).getAttribute("data-offscale")).toBe("true");
+    }
+    expect(within(chart).getByTestId("cycle-level-floor").textContent).toMatch(/▼ Accumulation Floor \$10\.00 \(−\d+\.\d%\)/);
+    // The pivots are years before these candles: they stay inspectable as chips.
+    expect(within(chart).queryByTestId("cycle-pivot-B")).toBeNull();
+    expect(screen.getByTestId("chart-chip-B").className).toContain("is-offchart");
+    expect(screen.getByTestId("chart-hud-ceiling")).toBeTruthy();
+    // The swing setup is drawn on the same chart.
+    expect(within(chart).getByTestId("wave-overlay")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("chart-toggle-fit"));
+    expect(within(chart).getByTestId("cycle-level-floor").getAttribute("data-offscale")).toBe("false");
+    fireEvent.click(screen.getByTestId("chart-toggle-levels"));
+    expect(within(chart).queryByTestId("cycle-overlay")).toBeNull();
+    expect(screen.queryByTestId("chart-pivot-chips")).toBeNull();
+  });
+
+  it("keeps the same chart mounted, with its settings, across every horizon switch and while loading", () => {
+    const { rerender } = render(<ChartReadPanel data={null} loading horizon="cycle" onHorizonChange={() => {}} />);
+    const frame = screen.getByTestId("chart-read-chart-frame");
+    expect(screen.getByTestId("chart-read-chart-busy").textContent).toBe("Loading Cycle (Multi-Year) view…");
+    rerender(<ChartReadPanel data={cycleData()} horizon="cycle" onHorizonChange={() => {}} />);
+    expect(screen.getByTestId("chart-read-chart-frame")).toBe(frame);
+    fireEvent.click(screen.getByTestId("chart-mode-line"));
+
+    for (const horizon of ["short", "swing", "macro"]) {
+      // Switching: the previous read stays on screen, dimmed, while the next loads.
+      rerender(<ChartReadPanel data={cycleData()} loading horizon={horizon} onHorizonChange={() => {}} />);
+      expect(screen.getByTestId("chart-read-chart-frame")).toBe(frame);
+      expect(screen.getByTestId("chart-read-chart-busy")).toBeTruthy();
+      rerender(<ChartReadPanel data={read({ horizon })} horizon={horizon} cycleAnatomy={dailyAnatomy} onHorizonChange={() => {}} />);
+      expect(screen.getByTestId("chart-read-chart-frame")).toBe(frame);
+      expect(frame.getAttribute("data-horizon")).toBe(horizon);
+      expect(screen.getByTestId("chart-read-chart").getAttribute("data-mode")).toBe("line");
+      expect(screen.getByTestId("cycle-level-ceiling")).toBeTruthy();
+    }
+    rerender(<ChartReadPanel data={null} error="unavailable" horizon="short" onHorizonChange={() => {}} />);
+    expect(screen.getByTestId("chart-read-chart-frame")).toBe(frame);
+  });
+
+  it("names the cycle phase of any date from the pivots and the base", () => {
+    expect(cyclePhaseAt(dailyAnatomy, 0, 100)).toBe("Advance into the cycle peak");
+    expect(cyclePhaseAt(dailyAnatomy, 5 * DAY, 45)).toBe("Wave A Decline");
+    expect(cyclePhaseAt(dailyAnatomy, 12 * DAY, 40)).toBe("Wave B Relief Rally");
+    expect(cyclePhaseAt(dailyAnatomy, 20 * DAY, 40)).toBe("Wave C Retreat");
+    expect(cyclePhaseAt(dailyAnatomy, 26 * DAY, 10)).toBe("Month 1 of Accumulation Base · Wave D Compression Rally");
+    expect(cyclePhaseAt(dailyAnatomy, (26 + 400) * DAY, 15)).toBe("Month 14 of Accumulation Base");
+    expect(cyclePhaseAt(dailyAnatomy, 58 * DAY, 30)).toBe("Breakout above the accumulation base");
+    expect(cyclePhaseAt({ available: false }, 0, 1)).toBeNull();
+    expect(cycleLevels(dailyAnatomy).map((l) => l.key)).toEqual(["wave_b_target", "ceiling", "floor"]);
+  });
+
+  it("builds candles from the full OHLCV series, the wave candles, or the cycle close line", () => {
+    expect(chartCandles({ candles: dailyBars })).toHaveLength(60);
+    expect(chartCandles({ wave_analysis: { chart: { candles } } })[0]).toMatchObject({ t: 0, l: candles[0][1], h: candles[0][2], o: candles[0][3], c: candles[0][4] });
+    const closes = chartCandles({}, dailyAnatomy);
+    expect(closes).toHaveLength(60);
+    expect(closes[0].closeOnly).toBe(true);
+    expect(chartCandles({ candles: [{ timestamp: 1, open: 0, high: 1, low: 1, close: 1, volume: 1 }] })).toEqual([]);
   });
 });
 
@@ -280,7 +465,7 @@ describe("chart read panel in plain English", () => {
     expect(history.textContent).toContain("The last dip stopped at a higher price");
     expect(history.textContent).toContain("Holding above $102.00");
     expect(screen.getByTestId("chart-read-legend").textContent).toContain("dip that held higher");
-    expect(within(screen.getByTestId("chart-read-wave-chart")).getAllByTestId("swing-marker")).toHaveLength(4);
+    expect(within(screen.getByTestId("chart-read-chart")).getAllByTestId("swing-marker")).toHaveLength(4);
   });
 
   it("still shows the bigger picture when there is no active setup", () => {
