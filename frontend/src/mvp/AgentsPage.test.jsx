@@ -237,7 +237,7 @@ describe("AgentsPage", () => {
       ...extra,
     });
 
-    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, coverage, guard, suppressed, pass } = {}) {
+    function mockDeck({ proposals = [proposal()], autonomy, reloadPlans = [], summary, coverage, guard, suppressed, pass, stanceFor } = {}) {
       let settings = autonomy || {
         autonomy_mode: "approval_queue",
         execution_mode: "dry_run",
@@ -254,6 +254,9 @@ describe("AgentsPage", () => {
         if (path.startsWith("/api/agents/autonomy")) {
           settings = { ...settings, ...body };
           payload = { status: "live", autonomy: settings };
+        } else if (path.startsWith("/api/agents/settings")) {
+          settings = { ...settings, ...body };
+          payload = { status: "live", autonomy: settings, ...(stanceFor ? stanceFor(settings.stance) : {}) };
         } else if (/\/api\/agents\/proposals\/[^/]+\/(approve|reject)$/.test(path)) {
           const decision = path.endsWith("approve") ? "approved" : "rejected";
           rows = rows.map((row) => ({ ...row, status: decision }));
@@ -448,6 +451,56 @@ describe("AgentsPage", () => {
         { daily_order_cap: 5 },
       ]);
       expect(screen.getByText(/No proposals yet/)).toBeInTheDocument();
+    });
+
+    it("selects a mission stance, shows its limits and the Auto-Pilot gear", async () => {
+      const calls = mockDeck({
+        proposals: [],
+        autonomy: { autonomy_mode: "approval_queue", execution_mode: "dry_run", emergency_pause: false, daily_order_cap: 3, stance: "orbit" },
+        stanceFor: (value) => (value === "autopilot"
+          ? { configured_stance: "autopilot", effective_stance: "bunker", effective_stance_reason: "The macro gate reads a risk-off headwind." }
+          : { configured_stance: value, effective_stance: value, effective_stance_reason: "Manual stance." }),
+      });
+      render(<AgentsPage />);
+      const deck = await screen.findByRole("region", { name: "Autonomy control deck" });
+      const stances = await within(deck).findByRole("group", { name: "Mission stance" });
+      expect(within(stances).getAllByRole("button").map((b) => b.textContent)).toEqual([
+        "Auto-Pilot (AI)", "Lunar Bunker", "Low-Lunar Orbit", "Gravity Assist", "Full Burn",
+      ]);
+      expect(within(stances).getByRole("button", { name: "Low-Lunar Orbit" })).toHaveAttribute("aria-pressed", "true");
+      const limits = within(deck).getByLabelText("Active stance limits");
+      expect(within(limits).getByText("Heat Cap").nextSibling).toHaveTextContent("5% of equity");
+      expect(within(limits).getByText("Base Ladder Split").nextSibling).toHaveTextContent("25% / 35% / 40%");
+
+      fireEvent.click(within(stances).getByRole("button", { name: "Full Burn" }));
+      expect(await within(limits).findByText("15%")).toBeInTheDocument();
+      expect(within(limits).getByText("Cluster Limit").nextSibling).toHaveTextContent("4 coins · 4% heat");
+
+      fireEvent.click(within(stances).getByRole("button", { name: "Auto-Pilot (AI)" }));
+      const callout = await within(deck).findByRole("status", { name: "Auto-Pilot status" });
+      expect(callout).toHaveTextContent("Auto-Pilot engaged · flying Lunar Bunker · The macro gate reads a risk-off headwind.");
+      expect(within(deck).getByLabelText("Active stance limits")).toHaveTextContent("2.5% of equity");
+
+      const posts = calls.filter((c) => c.method === "POST");
+      expect(posts.map((c) => [c.path, c.body])).toEqual([
+        ["/api/agents/settings", { stance: "full_burn" }],
+        ["/api/agents/settings", { stance: "autopilot" }],
+      ]);
+    });
+
+    it("toggles the flight manual and settings guide", async () => {
+      mockDeck({ proposals: [] });
+      render(<AgentsPage />);
+      const toggle = await screen.findByRole("button", { name: "Flight Manual & Settings Guide" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByLabelText("Flight manual and settings guide")).not.toBeInTheDocument();
+      fireEvent.click(toggle);
+      const manual = screen.getByLabelText("Flight manual and settings guide");
+      expect(within(manual).getByText("Downside BTC Beta Heat")).toBeInTheDocument();
+      expect(within(manual).getByText(/60 bps fee plus 10 bps slippage/)).toBeInTheDocument();
+      expect(within(manual).getByRole("table")).toHaveTextContent("Gravity Assist");
+      fireEvent.click(screen.getByRole("button", { name: "Hide Flight Manual & Settings Guide" }));
+      expect(screen.queryByLabelText("Flight manual and settings guide")).not.toBeInTheDocument();
     });
 
     const reloadPlan = (extra = {}) => ({

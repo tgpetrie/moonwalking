@@ -68,6 +68,8 @@ def _seed_proposals():
         ("post", "/api/agents/proposals/0123456789abcdef/approve"),
         ("get", "/api/agents/autonomy"),
         ("post", "/api/agents/autonomy"),
+        ("get", "/api/agents/settings"),
+        ("post", "/api/agents/settings"),
         ("get", "/api/smart-alerts/rules"),
         ("post", "/api/smart-alerts/rules"),
         ("patch", "/api/smart-alerts/rules/1"),
@@ -829,3 +831,65 @@ def test_cycle_pass_releases_lock_after_error(client, cycle_pass, monkeypatch):
         assert response.status_code == 500
         assert response.headers["Cache-Control"] == "private, no-store"
     assert client.post(PASS_URL, json={}).status_code == 200
+
+
+# ─── Phase 5: mission stances ────────────────────────────────────────────────
+
+SETTINGS_URL = "/api/agents/settings"
+STANCE_KEYS = {"configured_stance", "effective_stance", "effective_stance_reason", "stance_profiles"}
+
+
+def test_settings_route_validates_and_round_trips_the_stance(client):
+    first = client.get(SETTINGS_URL)
+    assert first.status_code == 200 and first.headers["Cache-Control"] == "private, no-store"
+    assert first.json["autonomy"]["stance"] == "orbit" and STANCE_KEYS <= set(first.json)
+    assert set(first.json["stance_profiles"]) == {"autopilot", "bunker", "orbit", "gravity_assist", "full_burn"}
+
+    saved = client.post(SETTINGS_URL, json={"stance": "gravity_assist"})
+    assert saved.status_code == 200
+    assert saved.json["autonomy"]["stance"] == "gravity_assist"
+    assert saved.json["configured_stance"] == saved.json["effective_stance"] == "gravity_assist"
+    assert saved.json["stance_profiles"]["gravity_assist"]["max_total_heat_pct"] == 7.5
+
+    for bad in ("moon", "", None, 1, ["orbit"], "Full_Burn"):
+        refused = client.post(SETTINGS_URL, json={"stance": bad})
+        assert refused.status_code == 400, bad
+        assert "stance" in refused.json["error"] and "no-store" in refused.headers["Cache-Control"]
+    # The autonomy route is the same store.
+    assert client.get("/api/agents/autonomy").json["autonomy"]["stance"] == "gravity_assist"
+    both = client.post(SETTINGS_URL, json={"stance": "bunker", "emergency_pause": True}).json
+    assert both["autonomy"]["stance"] == "bunker" and both["autonomy"]["emergency_pause"] is True
+
+
+def test_proposals_list_exposes_the_configured_and_effective_stance(client):
+    body = client.get("/api/agents/proposals").json
+    assert body["configured_stance"] == body["effective_stance"] == "orbit"
+    assert body["effective_stance_reason"] == "Manual stance: Low-Lunar Orbit."
+    assert body["stance_profiles"]["bunker"]["base_ladder_weights"] == [0.15, 0.3, 0.55]
+
+    AgentStore().set_autonomy_settings(stance="autopilot")
+    body = client.get("/api/agents/proposals").json
+    # Without a usable cycle scan Auto-Pilot holds the bunker.
+    assert body["configured_stance"] == "autopilot" and body["effective_stance"] == "bunker"
+    assert "unavailable" in body["effective_stance_reason"]
+
+
+def test_cycle_pass_runs_the_autopilot_gear_and_reports_it(client, cycle_pass):
+    AgentStore().set_autonomy_settings(stance="autopilot")
+    risk_off = _scan(*SCAN["coins"])
+    risk_off["industry"]["macro_regime_gate"] = "risk_off_headwind"
+    cycle_pass["scan"] = risk_off
+    body = client.post(PASS_URL, json={}).json
+    assert body["status"] == "ok"
+    assert body["configured_stance"] == "autopilot" and body["effective_stance"] == "bunker"
+    assert "risk-off" in body["effective_stance_reason"] and STANCE_KEYS <= set(body)
+    # Bunker trims harder and its entry gate holds back the plain AVAX breakout.
+    (trim,) = body["proposals"]
+    assert trim["action"] == "TRIM_TO_USDC" and trim["trim_pct"] == 53.6
+    assert trim["evidence"]["configured_stance"] == "autopilot"
+    assert trim["evidence"]["effective_stance"] == "bunker"
+
+    cycle_pass["scan"] = None
+    skipped = client.post(PASS_URL, json={}).json
+    assert skipped["status"] == "skipped"
+    assert skipped["configured_stance"] == "autopilot" and skipped["effective_stance"] == "bunker"

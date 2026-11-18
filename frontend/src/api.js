@@ -297,6 +297,9 @@ export const runCycleAgentPass = () =>
 export const updateAgentAutonomy = (changes) =>
   ownerRequest("/api/agents/autonomy", { method: "POST", body: changes });
 
+export const updateAgentSettings = (changes) =>
+  ownerRequest("/api/agents/settings", { method: "POST", body: changes });
+
 export const fetchSmartAlertRules = () => ownerRequest("/api/smart-alerts/rules");
 
 export const createSmartAlertRule = (rule) =>

@@ -5,6 +5,7 @@ import {
   rejectAgentProposal,
   runCycleAgentPass,
   updateAgentAutonomy,
+  updateAgentSettings,
 } from "../api.js";
 import { getCoinbaseAdvancedSpotUrl } from "../utils/coinbaseUrl.js";
 
@@ -57,6 +58,102 @@ const STATUS_CHIP = {
 };
 const DECIDABLE = new Set(["pending_approval", "blocked_by_guard"]);
 const MAX_CAP = 20;
+const MISSION_STANCES = [
+  ["autopilot", "Auto-Pilot (AI)"],
+  ["bunker", "Lunar Bunker"],
+  ["orbit", "Low-Lunar Orbit"],
+  ["gravity_assist", "Gravity Assist"],
+  ["full_burn", "Full Burn"],
+];
+const STANCE_LABEL = Object.fromEntries(MISSION_STANCES);
+// Mirrors backend STANCE_PROFILES until the API readout arrives.
+const FALLBACK_STANCE_PROFILES = {
+  bunker: { max_total_heat_pct: 2.5, max_cluster_heat_pct: 1.0, max_positions_per_cluster: 1, risk_per_trade_pct: 0.5, trim_fraction: 0.5, base_ladder_weights: [0.15, 0.3, 0.55] },
+  orbit: { max_total_heat_pct: 5.0, max_cluster_heat_pct: 2.0, max_positions_per_cluster: 2, risk_per_trade_pct: 1.0, trim_fraction: 0.35, base_ladder_weights: [0.25, 0.35, 0.4] },
+  gravity_assist: { max_total_heat_pct: 7.5, max_cluster_heat_pct: 3.0, max_positions_per_cluster: 3, risk_per_trade_pct: 1.5, trim_fraction: 0.25, base_ladder_weights: [0.4, 0.35, 0.25] },
+  full_burn: { max_total_heat_pct: 10.0, max_cluster_heat_pct: 4.0, max_positions_per_cluster: 4, risk_per_trade_pct: 2.0, trim_fraction: 0.15, base_ladder_weights: [0.5, 0.3, 0.2] },
+};
+
+function readStance(payload) {
+  if (!payload || typeof payload.effective_stance !== "string") return undefined;
+  return {
+    configured: payload.configured_stance,
+    effective: payload.effective_stance,
+    reason: payload.effective_stance_reason,
+    profiles: payload.stance_profiles && typeof payload.stance_profiles === "object" ? payload.stance_profiles : null,
+  };
+}
+
+const pct = (value) => `${Math.round(Number(value) * 100)}%`;
+
+function MissionStance({ autonomy, stance, busy, onSelect }) {
+  const configured = stance?.configured ?? autonomy?.stance ?? "orbit";
+  const effective = stance?.effective ?? (configured === "autopilot" ? null : configured);
+  const profile = effective ? (stance?.profiles?.[effective] ?? FALLBACK_STANCE_PROFILES[effective]) : null;
+  return (
+    <div className="mw-mission-stance">
+      <div className="mw-pill-row" role="group" aria-label="Mission stance">
+        {MISSION_STANCES.map(([value, label]) => (
+          <button key={value} type="button" disabled={busy}
+            className={`mw-pill${configured === value ? " is-active" : ""}`}
+            aria-pressed={configured === value}
+            onClick={() => onSelect(value)}>{label}</button>
+        ))}
+      </div>
+      {configured === "autopilot" ? (
+        <p className="mw-agents-note" role="status" aria-label="Auto-Pilot status">
+          Auto-Pilot engaged · {effective ? `flying ${STANCE_LABEL[effective] || effective}` : "awaiting a cycle scan"}
+          {stance?.reason ? ` · ${stance.reason}` : ""}
+        </p>
+      ) : null}
+      {profile ? (
+        <dl className="mw-agents-scoreboard" aria-label="Active stance limits">
+          <div><dt>Heat Cap</dt><dd>{profile.max_total_heat_pct}% of equity</dd></div>
+          <div><dt>Cluster Limit</dt><dd>{profile.max_positions_per_cluster} coins · {profile.max_cluster_heat_pct}% heat</dd></div>
+          <div><dt>Trim</dt><dd>{pct(profile.trim_fraction)}</dd></div>
+          <div><dt>Base Ladder Split</dt><dd>{(profile.base_ladder_weights || []).map(pct).join(" / ")}</dd></div>
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
+function FlightManual() {
+  return (
+    <div className="mw-flight-manual" aria-label="Flight manual and settings guide">
+      <h4>1 · Workflow</h4>
+      <ol>
+        <li><strong>Off</strong> — tick Emergency Pause. The strategist still records proposals but nothing auto-executes.</li>
+        <li><strong>Mode A · Recommend</strong> (Approval Queue) — every proposal waits for you. Approval records the decision; it never places an order.</li>
+        <li><strong>Mode B · Auto Paper</strong> (Auto-Protect Exits) — trims and protective stops run through the guarded dry-run exit path; entries, reloads and rotations still wait for approval.</li>
+        <li>Press <strong>Run Desk Pass</strong> to evaluate the cached cycle scan once.</li>
+        <li>Approve a <strong>TRIM_TO_USDC</strong>: the freed USDC opens a 3-rung reload ladder under Open Reload Ladders. Approve each <strong>RELOAD_ACCUMULATE</strong> as price reaches a rung.</li>
+      </ol>
+      <h4>2 · Mission Stances</h4>
+      <table className="mw-flight-manual__table">
+        <thead>
+          <tr><th>Stance</th><th>Heat cap</th><th>Cluster</th><th>Risk / trade</th><th>Trim</th><th>Ladder</th><th>Use when</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Lunar Bunker</td><td>2.5%</td><td>1 coin · 1%</td><td>0.5%</td><td>50%</td><td>15/30/55</td><td>Risk-off or rollover; new entries only from deep accumulation or confluence ≥ 75.</td></tr>
+          <tr><td>Low-Lunar Orbit</td><td>5%</td><td>2 coins · 2%</td><td>1%</td><td>35%</td><td>25/35/40</td><td>Default, mixed or choppy regime.</td></tr>
+          <tr><td>Gravity Assist</td><td>7.5%</td><td>3 coins · 3%</td><td>1.5%</td><td>25%</td><td>40/35/25</td><td>Alt rotation with aligned breadth.</td></tr>
+          <tr><td>Full Burn</td><td>10%</td><td>4 coins · 4%</td><td>2%</td><td>15%</td><td>50/30/20</td><td>Broad expansion; also low-confirmation breakout / early markup at confluence ≥ 55.</td></tr>
+          <tr><td>Auto-Pilot (AI)</td><td colSpan={5}>Uses the selected gear&apos;s limits</td><td>Lets the macro regime and Atlas bucket mix pick the gear on every pass.</td></tr>
+        </tbody>
+      </table>
+      <h4>3 · Risk concepts</h4>
+      <ul>
+        <li><strong>Downside BTC Beta Heat</strong> — each position&apos;s risk-to-stop is multiplied by max(1, downside BTC beta ÷ 1.25), so an alt that falls harder than BTC on red days uses more of the heat cap.</li>
+        <li><strong>11-Cluster Concentration Caps</strong> — coins are grouped into 11 narrative sector clusters plus majors (an unmapped coin is its own cluster); the stance caps coins and raw heat per cluster so one narrative cannot dominate.</li>
+        <li><strong>Adaptive Wick-Tilted Ladders</strong> — <code>weight_source: ladder_optimizer</code> means past wick depth tilted the rung weights; <code>default</code> means the stance&apos;s base split was used.</li>
+        <li><strong>Cost modeling</strong> — every paper fill assumes a 60 bps fee plus 10 bps slippage per side.</li>
+        <li><strong>Net-of-Fees Coin-Stack Compounding</strong> — extra coins are counted only after both the trim&apos;s and each reload&apos;s fees and slippage.</li>
+      </ul>
+      <p className="mw-agents-note">Full manual: docs/AGENT_FLIGHT_MANUAL.md</p>
+    </div>
+  );
+}
 
 const price = (value) => {
   const n = Number(value);
@@ -87,9 +184,11 @@ function LadderWeights({ plan, proposal }) {
 
   if (adaptive) return <span className="mw-agents-chip">Adaptive wick-tilted weights</span>;
   const partial = plan?.tranches?.length > 0 && plan.tranches.length < 3;
+  const base = Array.isArray(plan?.base_ladder_weights) && plan.base_ladder_weights.length
+    ? plan.base_ladder_weights.join("/") : "25/35/40";
   return (
     <span className="mw-agents-chip">
-      {partial ? "Base weights · normalized 25/35/40" : "Base weights · 25/35/40"}
+      {partial ? `Base weights · normalized ${base}` : `Base weights · ${base}`}
     </span>
   );
 }
@@ -328,6 +427,8 @@ export default function CycleStrategistDeck() {
   const [coverage, setCoverage] = useState(null);
   const [passNote, setPassNote] = useState("");
   const [clusterGuard, setClusterGuard] = useState(null);
+  const [stance, setStance] = useState(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -339,6 +440,8 @@ export default function CycleStrategistDeck() {
       setReloadPlans(Array.isArray(payload.reload_plans) ? payload.reload_plans : []);
       const guard = readClusterGuard(payload);
       if (guard !== undefined) setClusterGuard(guard);
+      const readout = readStance(payload);
+      if (readout !== undefined) setStance(readout);
       if (payload.autonomy && typeof payload.autonomy === "object") {
         setAutonomy(payload.autonomy);
         setCapDraft(String(payload.autonomy.daily_order_cap ?? ""));
@@ -356,11 +459,13 @@ export default function CycleStrategistDeck() {
   const save = async (changes) => {
     setBusy(true);
     try {
-      const payload = await updateAgentAutonomy(changes);
+      const payload = await ("stance" in changes ? updateAgentSettings : updateAgentAutonomy)(changes);
       if (payload.autonomy) {
         setAutonomy(payload.autonomy);
         setCapDraft(String(payload.autonomy.daily_order_cap ?? ""));
       }
+      const readout = readStance(payload);
+      if (readout !== undefined) setStance(readout);
       setError("");
     } catch (cause) {
       setError(cause.message);
@@ -400,6 +505,8 @@ export default function CycleStrategistDeck() {
       } else if (result.status === "ok") {
         const guard = readClusterGuard(result);
         if (guard !== undefined) setClusterGuard(guard);
+        const readout = readStance(result);
+        if (readout !== undefined) setStance(readout);
         const count = Array.isArray(result.proposals) ? result.proposals.length : 0;
         setPassNote(`Desk pass complete · ${count} proposal${count === 1 ? "" : "s"} from this pass`);
       } else {
@@ -476,6 +583,15 @@ export default function CycleStrategistDeck() {
             </label>
           </div>
         ) : null}
+        {autonomy ? (
+          <MissionStance autonomy={autonomy} stance={stance} busy={busy}
+            onSelect={(value) => save({ stance: value })} />
+        ) : null}
+        <button type="button" className="mw-button mw-button--ghost mw-button--sm"
+          aria-expanded={manualOpen} onClick={() => setManualOpen((open) => !open)}>
+          {manualOpen ? "Hide Flight Manual & Settings Guide" : "Flight Manual & Settings Guide"}
+        </button>
+        {manualOpen ? <FlightManual /> : null}
         {autonomy?.execution_mode === "live_guarded" ? (
           <p className="mw-agents-note">
             Live Guarded has no live order route yet, so automatic exits stay blocked. Use Dry-Run to simulate them.

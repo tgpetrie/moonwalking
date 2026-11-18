@@ -1451,3 +1451,173 @@ def test_reload_plan_without_a_support_box_reports_why():
     assert _ladder_advice(95.0, 90.0, 100.0, 500.0, None)["reason"] == "no_support_box"
     broken = _ladder_advice(50.0, 90.0, 100.0, 0, None)
     assert broken["available"] is False and broken["reason"] == "optimizer_failed:ValueError"
+
+# ─── Phase 5: mission stances and Auto-Pilot ─────────────────────────────────
+
+from agents.cycle_strategist import (  # noqa: E402
+    STANCE_PROFILES,
+    resolve_autopilot_stance,
+    resolve_stance,
+    stance_profiles,
+)
+
+
+def _stance_trim(store, stance):
+    agent = CycleStrategistAgent(store)
+    (trim,) = agent.evaluate({
+        "cycle_scan": _scan(_sol_trim_row()), "positions": [{"symbol": "SOL", "quantity": 10}], "stance": stance,
+    })
+    return agent, trim
+
+
+def test_orbit_is_the_default_stance_and_tags_every_proposal(store):
+    assert store.get_autonomy_settings()["stance"] == "orbit"
+    agent, _ = _run(store, {"cycle_scan": _scan(_sol_trim_row()), "positions": [{"symbol": "SOL", "quantity": 10}]})
+    (proposal,) = agent.last_proposals
+    assert proposal["trim_pct"] == 37.5
+    assert proposal["evidence"]["configured_stance"] == "orbit"
+    assert proposal["evidence"]["effective_stance"] == "orbit"
+    assert "stance_trim_scale" not in proposal["evidence"]
+    assert "base_ladder_weights" not in proposal["reload_plan"]
+    assert agent.last_stance["effective_stance"] == "orbit"
+
+
+def test_bunker_trims_harder_and_back_loads_the_reload_ladder(store):
+    agent, trim = _stance_trim(store, "bunker")
+    assert trim.trim_pct == 53.6  # 37.5 x 0.50 / 0.35
+    assert trim.evidence["effective_stance"] == "bunker"
+    plan = trim.reload_plan
+    assert plan["base_ladder_weights"] == [15, 30, 55]
+    assert [t["weight_pct"] for t in plan["tranches"]] == [15.0, 30.0, 55.0]
+
+    _, burn = _stance_trim(store, "full_burn")
+    assert burn.trim_pct == 16.1  # 37.5 x 0.15 / 0.35
+    assert [t["weight_pct"] for t in burn.reload_plan["tranches"]] == [50.0, 30.0, 20.0]
+
+
+@pytest.mark.parametrize(
+    "stance,risk_pct,heat_cap,notional",
+    [("bunker", 0.5, 2.5, 750.0), ("orbit", 1.0, 5.0, 1500.0), ("gravity_assist", 1.5, 7.5, 2250.0)],
+)
+def test_stance_sets_risk_per_trade_and_the_heat_cap(store, stance, risk_pct, heat_cap, notional):
+    row = _breakout(confluence_score=80)
+    context = {
+        "cycle_scan": _scan(row, stage="stage_3_alt_index_breakout"),
+        "watchlist": ["AVAX"], "portfolio_equity_usd": 10_000, "stance": stance,
+    }
+    (entry,) = CycleStrategistAgent(store).evaluate(context)
+    assert entry.sizing["base_risk_pct"] == risk_pct
+    assert entry.sizing["max_open_risk_pct"] == heat_cap
+    assert entry.sizing["suggested_notional_usd"] == notional
+    # An oversized knob still cannot lift the stance's heat cap.
+    (entry,) = CycleStrategistAgent(store).evaluate({**context, "max_open_risk_pct": 50})
+    assert entry.sizing["max_open_risk_pct"] == heat_cap
+
+
+def test_bunker_gates_new_entries_to_deep_accumulation_or_high_confluence(store):
+    agent = CycleStrategistAgent(store)
+    assert agent.evaluate({"cycle_scan": _scan(_breakout()), "watchlist": ["AVAX"], "stance": "bunker"}) == []
+    (skip,) = agent.last_skipped
+    assert skip["reason"] == "stance_entry_gate" and skip["action"] == BREAKOUT_ENTRY
+    (entry,) = agent.evaluate({"cycle_scan": _scan(_breakout(confluence_score=75)), "watchlist": ["AVAX"], "stance": "bunker"})
+    assert entry.action == BREAKOUT_ENTRY
+    (entry,) = agent.evaluate({"cycle_scan": _scan(_accumulation_row()), "watchlist": ["LINK"], "stance": "bunker"})
+    assert entry.action == ACCUMULATE_SUPPORT and entry.evidence["effective_stance"] == "bunker"
+
+
+def test_bunker_holds_one_coin_per_cluster(store):
+    rows = [_breakout(symbol, confluence_score=90) for symbol in ("AVAX", "NEAR", "UNI")]
+    clusters = {"AVAX": "layer-1", "NEAR": "layer-1", "UNI": "defi"}
+    agent = CycleStrategistAgent(store)
+    proposals = agent.evaluate(_guard_context(*rows, symbol_clusters=clusters, stance="bunker"))
+    assert [p.symbol for p in proposals] == ["AVAX", "UNI"]
+    guard = agent.last_cluster_guard
+    assert guard["limits"]["max_positions_per_cluster"] == 1
+    assert guard["suppressed_proposals"][0]["symbol"] == "NEAR"
+
+
+def test_full_burn_enters_early_breakouts_with_confluence_of_55(store):
+    def early(confluence, bucket="low_confirmation_breakout"):
+        return _row("AVAX", 30.0, bucket=bucket, confluence_score=confluence, **BREAKOUT_LEVELS)
+
+    agent = CycleStrategistAgent(store)
+    (entry,) = agent.evaluate({"cycle_scan": _scan(early(55)), "watchlist": ["AVAX"], "stance": "full_burn"})
+    assert entry.action == BREAKOUT_ENTRY and entry.reward_to_risk_ratio == 7.5
+    assert entry.evidence["stance_entry"] == "full_burn_early_breakout"
+    assert entry.evidence["effective_stance"] == "full_burn"
+    (entry,) = agent.evaluate({"cycle_scan": _scan(early(0.6, "early_markup")), "watchlist": ["AVAX"], "stance": "full_burn"})
+    assert entry.evidence["confluence"] == 60.0
+    assert agent.evaluate({"cycle_scan": _scan(early(54)), "watchlist": ["AVAX"], "stance": "full_burn"}) == []
+    assert agent.evaluate({"cycle_scan": _scan(early(90)), "watchlist": ["AVAX"], "stance": "orbit"}) == []
+
+
+def _atlas(stage, gate, **buckets):
+    rows = [
+        _row(f"C{bucket[:3]}{index}", 1.0, bucket=bucket)
+        for bucket, count in buckets.items() for index in range(count)
+    ]
+    scan = _scan(*rows, stage=stage)
+    if gate:
+        scan["industry"]["macro_regime_gate"] = gate
+    return scan
+
+
+@pytest.mark.parametrize(
+    "scan,expected",
+    [
+        (None, "bunker"),
+        ({"industry": {"available": False}, "coins": []}, "bunker"),
+        (_atlas("stage_4_alt_season_expansion", "risk_off_headwind", growth_expansion_ride=20), "bunker"),
+        (_atlas("stage_2_btc_majors_lead", "neutral_chop", rollover_profit_zone=4, deep_accumulation_exhaustion=6), "bunker"),
+        (_atlas("stage_3_alt_index_breakout", "risk_on_aligned", growth_expansion_ride=5, low_confirmation_breakout=1, deep_accumulation_exhaustion=4), "full_burn"),
+        (_atlas("stage_3_alt_index_breakout", "risk_on_aligned", growth_expansion_ride=4, deep_accumulation_exhaustion=6), "gravity_assist"),
+        (_atlas("stage_3_alt_index_breakout", "risk_on_aligned", growth_expansion_ride=9), "gravity_assist"),
+        (_atlas("stage_2_btc_majors_lead", "neutral_chop", deep_accumulation_exhaustion=10), "orbit"),
+        (_atlas("stage_3_alt_index_breakout", None, growth_expansion_ride=10), "orbit"),
+    ],
+)
+def test_autopilot_resolves_a_stance_from_regime_and_atlas_distribution(scan, expected):
+    result = resolve_autopilot_stance(scan)
+    assert result["configured_stance"] == "autopilot"
+    assert result["effective_stance"] == expected
+    assert result["reason"]
+    assert resolve_autopilot_stance(scan) == result  # deterministic
+
+
+def test_autopilot_metrics_read_the_bucket_shares():
+    scan = _atlas("stage_3_alt_index_breakout", "risk_on_aligned", growth_expansion_ride=6, rollover_profit_zone=2, deep_accumulation_exhaustion=2)
+    metrics = resolve_autopilot_stance(scan)["metrics"]
+    assert metrics["rows_read"] == 10 and metrics["distribution_readable"] is True
+    assert metrics["expansion_share_pct"] == 60.0 and metrics["rollover_share_pct"] == 20.0
+    assert metrics["accumulation_share_pct"] == 20.0
+
+
+def test_autopilot_runs_the_selected_gear_and_tags_both_stances(store):
+    store.set_autonomy_settings(stance="autopilot")
+    scan = _atlas("stage_2_btc_majors_lead", "risk_off_headwind", deep_accumulation_exhaustion=10)
+    scan["coins"].append(_sol_trim_row())
+    agent, _ = _run(store, {"cycle_scan": scan, "positions": [{"symbol": "SOL", "quantity": 10}]})
+    (proposal,) = agent.last_proposals
+    assert agent.last_stance["configured_stance"] == "autopilot"
+    assert agent.last_stance["effective_stance"] == "bunker"
+    assert proposal["evidence"]["configured_stance"] == "autopilot"
+    assert proposal["evidence"]["effective_stance"] == "bunker"
+    assert proposal["trim_pct"] == 53.6
+
+
+def test_store_persists_and_validates_the_stance(store, tmp_path):
+    for stance in ("autopilot", "bunker", "orbit", "gravity_assist", "full_burn"):
+        assert store.set_autonomy_settings(stance=stance)["stance"] == stance
+    assert AgentStore(tmp_path / "agents.sqlite").get_autonomy_settings()["stance"] == "full_burn"
+    for bad in ("moon", "", None, 3, "ORBIT"):
+        with pytest.raises(ValueError):
+            store.set_autonomy_settings(stance=bad)
+    assert store.get_autonomy_settings()["stance"] == "full_burn"
+
+
+def test_unknown_stance_falls_back_to_orbit_and_profiles_cover_every_stance():
+    assert resolve_stance("warp")["effective_stance"] == "orbit"
+    profiles = stance_profiles()
+    assert list(profiles) == ["autopilot", "bunker", "orbit", "gravity_assist", "full_burn"]
+    assert profiles["bunker"]["base_ladder_weights"] == [0.15, 0.30, 0.55]
+    assert sum(STANCE_PROFILES["full_burn"]["base_ladder_weights"]) == pytest.approx(1.0)

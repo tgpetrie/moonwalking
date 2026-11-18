@@ -125,6 +125,220 @@ SEVERITY = {
 }
 
 
+# ─── mission stances ─────────────────────────────────────────────────────────
+#
+# A stance sets the risk envelope of the whole desk: portfolio and cluster
+# heat caps, coins per cluster, risk per entry, trim size and the base split
+# of a reload ladder. Orbit reproduces the pre-stance defaults exactly.
+
+AUTOPILOT = "autopilot"
+STANCE_PROFILES: dict[str, dict[str, Any]] = {
+    "bunker": {
+        "label": "Lunar Bunker",
+        "posture": "Defensive",
+        "max_total_heat_pct": 2.5,
+        "max_cluster_heat_pct": 1.0,
+        "max_positions_per_cluster": 1,
+        "risk_per_trade_pct": 0.5,
+        "trim_fraction": 0.50,
+        "base_ladder_weights": (0.15, 0.30, 0.55),
+        "entry_rule": "New accumulation and breakout entries only from deep accumulation exhaustion or confluence of 75 or more.",
+    },
+    "orbit": {
+        "label": "Low-Lunar Orbit",
+        "posture": "Balanced",
+        "max_total_heat_pct": 5.0,
+        "max_cluster_heat_pct": 2.0,
+        "max_positions_per_cluster": 2,
+        "risk_per_trade_pct": 1.0,
+        "trim_fraction": 0.35,
+        "base_ladder_weights": (0.25, 0.35, 0.40),
+        "entry_rule": "Standard accumulation, breakout and reload entries.",
+    },
+    "gravity_assist": {
+        "label": "Gravity Assist",
+        "posture": "Bullish conviction",
+        "max_total_heat_pct": 7.5,
+        "max_cluster_heat_pct": 3.0,
+        "max_positions_per_cluster": 3,
+        "risk_per_trade_pct": 1.5,
+        "trim_fraction": 0.25,
+        "base_ladder_weights": (0.40, 0.35, 0.25),
+        "entry_rule": "Standard accumulation, breakout and reload entries.",
+    },
+    "full_burn": {
+        "label": "Full Burn",
+        "posture": "Aggressive",
+        "max_total_heat_pct": 10.0,
+        "max_cluster_heat_pct": 4.0,
+        "max_positions_per_cluster": 4,
+        "risk_per_trade_pct": 2.0,
+        "trim_fraction": 0.15,
+        "base_ladder_weights": (0.50, 0.30, 0.20),
+        "entry_rule": "Also enters low-confirmation breakout and early-markup coins with confluence of 55 or more.",
+    },
+}
+AUTOPILOT_PROFILE = {
+    "label": "Auto-Pilot (AI)",
+    "posture": "Regime-adaptive",
+    "entry_rule": "Selects Lunar Bunker, Low-Lunar Orbit, Gravity Assist or Full Burn from the macro regime and the Atlas bucket distribution on each pass.",
+}
+# The trim size each stance scales from. Orbit keeps the dynamic 25-50% trim.
+ORBIT_TRIM_FRACTION = STANCE_PROFILES["orbit"]["trim_fraction"]
+MAX_STANCE_TRIM_PCT = 90.0
+BUNKER_MIN_CONFLUENCE = 75.0
+FULL_BURN_MIN_CONFLUENCE = 55.0
+FULL_BURN_BUCKETS = ("low_confirmation_breakout", "early_markup")
+
+# Auto-Pilot reads. Shares are of the scan rows that could be read.
+AUTOPILOT_MIN_ROWS = 10  # fewer readable rows leaves the distribution unread
+AUTOPILOT_BUNKER_ROLLOVER_PCT = 40.0
+AUTOPILOT_FULL_BURN_EXPANSION_PCT = 50.0
+AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT = 25.0
+EXPANSION_BUCKETS = ("low_confirmation_breakout", "growth_expansion_ride", "early_markup")
+ACCUMULATION_BUCKET = "deep_accumulation_exhaustion"
+ROLLOVER_BUCKET = "rollover_profit_zone"
+RISK_ON_STAGES = frozenset({"stage_3_alt_index_breakout", "stage_4_alt_season_expansion"})
+
+
+def stance_profiles() -> dict[str, dict[str, Any]]:
+    """Every stance's limits and labels, for API readouts and the manual."""
+    out = {AUTOPILOT: dict(AUTOPILOT_PROFILE)}
+    for key, profile in STANCE_PROFILES.items():
+        out[key] = {**profile, "base_ladder_weights": list(profile["base_ladder_weights"])}
+    return out
+
+
+def row_confluence(row: Mapping[str, Any]) -> float | None:
+    """A row's confluence on a 0-100 scale, when the scan supplies one.
+
+    Reads ``confluence_score`` (or ``confluence``). Values from 0 to 1 are
+    fractions and are scaled to 100. The current Atlas scan does not emit
+    either key, so confluence-only paths stay closed until it does.
+    """
+    value = _num(row.get("confluence_score", row.get("confluence")))
+    if value is None or value < 0:
+        return None
+    if value <= 1:
+        return value * 100
+    return value if value <= 100 else None
+
+
+def _bunker_entry_allowed(row: Mapping[str, Any]) -> bool:
+    if row.get("bucket") == ACCUMULATION_BUCKET:
+        return True
+    confluence = row_confluence(row)
+    return confluence is not None and confluence >= BUNKER_MIN_CONFLUENCE
+
+
+def resolve_autopilot_stance(cycle_scan: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Pick a stance from the macro regime and the Atlas bucket distribution.
+
+    Deterministic, first match wins:
+
+    1. No macro regime read: ``bunker``.
+    2. Risk-off headwind gate: ``bunker``.
+    3. At least 40% of readable coins in the rollover profit zone: ``bunker``.
+    4. Stage 3 or 4 with a risk-on aligned gate, at least 50% of readable
+       coins in breakout or expansion buckets and under 25% in rollover:
+       ``full_burn``. The distribution needs ``AUTOPILOT_MIN_ROWS`` rows.
+    5. Stage 3 or 4 with a risk-on aligned gate: ``gravity_assist``.
+    6. Otherwise: ``orbit``.
+    """
+    scan = cycle_scan if isinstance(cycle_scan, Mapping) else {}
+    industry = scan.get("industry") if isinstance(scan.get("industry"), Mapping) else {}
+    rows = [
+        row for row in scan.get("coins") or []
+        if isinstance(row, Mapping) and row.get("available") is True
+    ]
+    counts: dict[str, int] = {}
+    for row in rows:
+        bucket = row.get("bucket") if isinstance(row.get("bucket"), str) else "unclassified"
+        counts[bucket] = counts.get(bucket, 0) + 1
+    readable = len(rows) >= AUTOPILOT_MIN_ROWS
+
+    def share(buckets) -> float | None:
+        if not readable:
+            return None
+        return round(sum(counts.get(name, 0) for name in buckets) / len(rows) * 100, 1)
+
+    stage = industry.get("liquidity_rotation_stage") if industry.get("available") else None
+    gate = industry.get("macro_regime_gate") if industry.get("available") else None
+    breadth = scan.get("breadth") if isinstance(scan.get("breadth"), Mapping) else {}
+    above = breadth.get("pct_above_50w_sma")
+    metrics = {
+        "liquidity_rotation_stage": stage,
+        "macro_regime_gate": gate,
+        "rows_read": len(rows),
+        "distribution_readable": readable,
+        "bucket_counts": dict(sorted(counts.items())),
+        "accumulation_share_pct": share((ACCUMULATION_BUCKET,)),
+        "expansion_share_pct": share(EXPANSION_BUCKETS),
+        "rollover_share_pct": share((ROLLOVER_BUCKET,)),
+        "pct_above_50w_sma": above.get("pct") if isinstance(above, Mapping) else None,
+        "thresholds": {
+            "min_rows": AUTOPILOT_MIN_ROWS,
+            "bunker_rollover_pct": AUTOPILOT_BUNKER_ROLLOVER_PCT,
+            "full_burn_expansion_pct": AUTOPILOT_FULL_BURN_EXPANSION_PCT,
+            "full_burn_max_rollover_pct": AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT,
+        },
+    }
+    rollover, expansion = metrics["rollover_share_pct"], metrics["expansion_share_pct"]
+    if not stage:
+        effective, reason = "bunker", "The macro cycle regime is unavailable, so Auto-Pilot holds the defensive bunker."
+    elif gate == "risk_off_headwind":
+        effective, reason = "bunker", "The macro gate reads a risk-off headwind; Auto-Pilot shelters in the bunker."
+    elif rollover is not None and rollover >= AUTOPILOT_BUNKER_ROLLOVER_PCT:
+        effective, reason = "bunker", (
+            f"{rollover:g}% of Atlas coins sit in the rollover profit zone; Auto-Pilot trims harder and shelters."
+        )
+    elif stage in RISK_ON_STAGES and gate == "risk_on_aligned":
+        if (
+            expansion is not None and expansion >= AUTOPILOT_FULL_BURN_EXPANSION_PCT
+            and rollover is not None and rollover < AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT
+        ):
+            effective, reason = "full_burn", (
+                f"Alt liquidity has rotated with aligned breadth and {expansion:g}% of Atlas coins "
+                "breaking out or expanding; Auto-Pilot goes to full burn."
+            )
+        else:
+            effective, reason = "gravity_assist", (
+                "Alt liquidity has rotated and breadth is aligned; Auto-Pilot takes the gravity assist."
+            )
+    else:
+        effective, reason = "orbit", (
+            "No risk-off signal and no aligned alt rotation; Auto-Pilot holds low-lunar orbit."
+        )
+    return {
+        "configured_stance": AUTOPILOT,
+        "effective_stance": effective,
+        "reason": reason,
+        "metrics": metrics,
+    }
+
+
+def resolve_stance(configured: Any, cycle_scan: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """The stance a pass runs under. An unknown stance falls back to orbit."""
+    if configured == AUTOPILOT:
+        return resolve_autopilot_stance(cycle_scan)
+    if configured not in STANCE_PROFILES:
+        configured = "orbit"
+    return {
+        "configured_stance": configured,
+        "effective_stance": configured,
+        "reason": f"Manual stance: {STANCE_PROFILES[configured]['label']}.",
+        "metrics": None,
+    }
+
+
+def _ladder_weights(profile: Mapping[str, Any]) -> tuple[int, ...]:
+    return tuple(round(weight * 100) for weight in profile["base_ladder_weights"])
+
+
+def _cluster_limits(profile: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: profile[key] for key in CLUSTER_GUARD_LIMITS}
+
+
 def _round(value: float | None, digits: int = 2) -> float | None:
     return None if value is None else round(value, digits)
 
@@ -255,7 +469,8 @@ def _overhead_sma(ladder: Mapping[str, Any], price: float) -> dict[str, Any] | N
     return None
 
 
-def evaluate_trim(row, multi_year, stage, price) -> TradeProposal | None:
+def evaluate_trim(row, multi_year, stage, price, trim_scale=1.0) -> TradeProposal | None:
+    """``trim_scale`` is the stance's trim fraction over Orbit's; 1 keeps 25-50%."""
     if stage not in TRIM_STAGES:
         return None
     reasons, evidence = [], {}
@@ -274,6 +489,9 @@ def evaluate_trim(row, multi_year, stage, price) -> TradeProposal | None:
         evidence["overhead_sma"] = sma
     if trim is None:
         return None
+    if trim_scale != 1.0:
+        trim = min(trim * trim_scale, MAX_STANCE_TRIM_PCT)
+        evidence["stance_trim_scale"] = _round(trim_scale, 4)
     reasons.append(f"Liquidity rotation is {stage}; trim to USDC to rebuy lower.")
     return TradeProposal(
         action=TRIM_TO_USDC,
@@ -514,6 +732,30 @@ def evaluate_breakout(row, price) -> TradeProposal | None:
     )
 
 
+def evaluate_early_breakout(row, price) -> TradeProposal | None:
+    """Full Burn only: a low-confirmation breakout or early-markup coin with confluence of 55+."""
+    confluence = row_confluence(row)
+    if row.get("bucket") not in FULL_BURN_BUCKETS or confluence is None or confluence < FULL_BURN_MIN_CONFLUENCE:
+        return None
+    stop = row.get("accumulation_invalidation_stop") or {}
+    return TradeProposal(
+        action=BREAKOUT_ENTRY,
+        symbol=row["symbol"],
+        side="buy",
+        reference_price=price,
+        stop_price=_num(stop.get("stop_price")),
+        reasons=[
+            f"Full Burn: {row['bucket']} with confluence {confluence:.0f}.",
+        ],
+        evidence={
+            "stance_entry": "full_burn_early_breakout",
+            "bucket": row["bucket"],
+            "confluence": _round(confluence, 1),
+            "weekly_rsi": _num(row.get("weekly_rsi")),
+        },
+    )
+
+
 # ─── reload ladder ───────────────────────────────────────────────────────────
 
 
@@ -550,7 +792,7 @@ def _quant_module(name: str):
         return importlib.import_module(f"backend.{name}")
 
 
-def _ladder_advice(low, high, price, freed_usdc, daily_candles) -> dict[str, Any]:
+def _ladder_advice(low, high, price, freed_usdc, daily_candles, base_weights=RELOAD_WEIGHTS) -> dict[str, Any]:
     """Adaptive three-rung read from ``ladder_optimizer``.
 
     The box runs from the invalidation stop (``low``) up to the plan's highest
@@ -564,7 +806,7 @@ def _ladder_advice(low, high, price, freed_usdc, daily_candles) -> dict[str, Any
     try:
         advice = _quant_module("ladder_optimizer").optimize_reload_ladder(
             low, high, price, freed_usdc, daily_candles=daily_candles,
-            base_weights=RELOAD_WEIGHTS,
+            base_weights=base_weights,
         )
     except Exception as exc:  # advice must never sink the trim proposal
         return {"available": False, "reason": f"optimizer_failed:{type(exc).__name__}"}
@@ -584,7 +826,7 @@ def _ladder_advice(low, high, price, freed_usdc, daily_candles) -> dict[str, Any
 
 def build_reload_plan(
     row, multi_year, price, trim_quantity, held_quantity, floor=None, daily_candles=None,
-    costs=None,
+    costs=None, base_weights=None,
 ) -> dict[str, Any]:
     """Split a trim's USDC across lower support levels and count the coins bought back.
 
@@ -592,9 +834,10 @@ def build_reload_plan(
     rung. An available plan also
     carries ``ladder_optimizer``: rung weights tilted by past wick depth in
     ``daily_candles``. With three rungs and enough history those weights split
-    the USDC (``weight_source: "ladder_optimizer"``); otherwise the fixed
-    25/35/40 split is used.
+    the USDC (``weight_source: "ladder_optimizer"``); otherwise the stance's
+    base split (``base_weights``, default 25/35/40) is used.
     """
+    base_weights = tuple(base_weights or RELOAD_WEIGHTS)
     price, trim_quantity, held_quantity = map(_num, (price, trim_quantity, held_quantity))
     if price is None or trim_quantity is None or held_quantity is None or not (
         price > 0 and 0 < trim_quantity <= held_quantity
@@ -622,7 +865,7 @@ def build_reload_plan(
         if any(abs(level / kept - 1) * 100 < RELOAD_LEVEL_MERGE_PCT for kept, _ in chosen):
             continue
         chosen.append((level, source))
-        if len(chosen) == min(len(RELOAD_WEIGHTS), freed_cents):
+        if len(chosen) == min(len(base_weights), freed_cents):
             break
     plan: dict[str, Any] = {
         "available": bool(chosen and freed_cents),
@@ -636,15 +879,17 @@ def build_reload_plan(
         "sale_costs": sale,
         "assumptions": "Each rung fills with the recorded paper fee and slippage assumptions.",
     }
+    if base_weights != RELOAD_WEIGHTS:
+        plan["base_ladder_weights"] = list(base_weights)
     if not chosen or not freed_cents:
         plan["reason"] = "no_support_level_between_stop_and_price" if freed_cents else "insufficient_trim_proceeds"
         return plan
     chosen.sort(reverse=True)
-    advice = _ladder_advice(invalidation, chosen[0][0], price, freed, daily_candles)
-    weights = RELOAD_WEIGHTS[: len(chosen)]
+    advice = _ladder_advice(invalidation, chosen[0][0], price, freed, daily_candles, base_weights)
+    weights = base_weights[: len(chosen)]
     allocation = split_reload_cents(freed_cents, list(weights))
     applied = False
-    if advice.get("available") and advice["regime"] != "default" and len(chosen) == len(RELOAD_WEIGHTS):
+    if advice.get("available") and advice["regime"] != "default" and len(chosen) == len(base_weights):
         tilted_weights = tuple(max(1, round(weight * 10_000)) for weight in advice["weights"])
         tilted_allocation = split_reload_cents(freed_cents, list(tilted_weights))
         if tilted_allocation != allocation and all(tilted_allocation):
@@ -766,7 +1011,7 @@ def _setting(context, key, default) -> float:
     return value if value is not None and 0 < value <= 100 else default
 
 
-def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
+def portfolio_heat(context, held, rows, floors, max_heat_pct=MAX_OPEN_RISK_PCT) -> dict[str, Any]:
     """Open risk across held coins: the loss if every stop is hit.
 
     A held coin with no stop under its price is counted at
@@ -814,7 +1059,7 @@ def portfolio_heat(context, held, rows, floors) -> dict[str, Any]:
         "open_risk_usd": _round(risk, 2),
         "open_risk_pct": _round(risk / equity * 100) if equity else None,
         "max_open_risk_pct": min(
-            _setting(context, "max_open_risk_pct", MAX_OPEN_RISK_PCT), MAX_OPEN_RISK_PCT
+            _setting(context, "max_open_risk_pct", max_heat_pct), max_heat_pct
         ),
         "assumed_stop_symbols": assumed,
         "unpriced_symbols": unpriced,
@@ -1159,8 +1404,9 @@ class _ClusterGuard:
     beta uses 1. Entries without a sized buy can still be shown for review.
     """
 
-    def __init__(self, context, rows, held, heat) -> None:
+    def __init__(self, context, rows, held, heat, limits=None) -> None:
         self.module = None
+        self.limits = dict(limits or CLUSTER_GUARD_LIMITS)
         self.equity = heat.get("_equity")
         clusters = context.get("symbol_clusters")
         betas = context.get("downside_betas")
@@ -1205,7 +1451,7 @@ class _ClusterGuard:
         symbol = leader["symbol"] if leader else entry.symbol
         candidate = self._item(symbol, risk)
         verdict = self.module.evaluate_cluster_and_beta_heat(
-            self.existing + self.accepted, [candidate], equity_usd=self.equity, **CLUSTER_GUARD_LIMITS
+            self.existing + self.accepted, [candidate], equity_usd=self.equity, **self.limits
         )
         if verdict["accepted_proposals"]:
             self.accepted.append(candidate)
@@ -1227,7 +1473,7 @@ class _ClusterGuard:
         if self.module is None:
             return {"available": False, "reason": self.reason, "suppressed_proposals": []}
         totals = self.module.evaluate_cluster_and_beta_heat(
-            self.existing + self.accepted, [], equity_usd=self.equity, **CLUSTER_GUARD_LIMITS
+            self.existing + self.accepted, [], equity_usd=self.equity, **self.limits
         )
         return {
             "available": True,
@@ -1268,9 +1514,21 @@ class CycleStrategistAgent:
         # Cluster and beta heat read for the last ``evaluate``, with the
         # entries it suppressed and why.
         self.last_cluster_guard: dict[str, Any] | None = None
+        # The configured and effective mission stance of the last ``evaluate``.
+        self.last_stance: dict[str, Any] | None = None
 
     def bind_store(self, store: AgentStore) -> None:
         self.store = store
+
+    def _configured_stance(self, context: Mapping[str, Any]) -> str:
+        from .store import DEFAULT_STANCE, STANCES
+
+        stance = context.get("stance")
+        if stance in STANCES:
+            return stance
+        if self.store is not None:
+            return self.store.get_autonomy_settings().get("stance", DEFAULT_STANCE)
+        return DEFAULT_STANCE
 
     def _reload_plans(self, context: Mapping[str, Any]) -> dict[str, list[dict]]:
         """Open reload plans by symbol, from the context or the ledger."""
@@ -1289,8 +1547,14 @@ class CycleStrategistAgent:
         self.last_skipped = []
         self.last_heat = self.last_cluster_guard = None
         scan = _scan_from_context(context)
+        stance = resolve_stance(self._configured_stance(context), scan)
+        self.last_stance = stance
         if not scan:
             return []
+        effective = stance["effective_stance"]
+        profile = STANCE_PROFILES[effective]
+        trim_scale = profile["trim_fraction"] / ORBIT_TRIM_FRACTION
+        ladder_weights = _ladder_weights(profile)
         industry = scan.get("industry")
         stage = industry.get("liquidity_rotation_stage") if isinstance(industry, dict) else None
         rows = {}
@@ -1344,7 +1608,7 @@ class CycleStrategistAgent:
                 proposals.append(stop)
                 defended.add(symbol)
                 continue  # defend first; a stop is no time to trim or add
-            trim = evaluate_trim(row, multi_year, stage, price)
+            trim = evaluate_trim(row, multi_year, stage, price, trim_scale)
             if trim:
                 quantity = position["quantity"]
                 trim.evidence["held_quantity"] = quantity
@@ -1352,15 +1616,16 @@ class CycleStrategistAgent:
                 trim.reload_plan = build_reload_plan(
                     row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor,
                     daily_candles=histories.get(f"{symbol}-USD") if isinstance(histories, dict) else None,
-                    costs=self.costs,
+                    costs=self.costs, base_weights=ladder_weights,
                 )
                 proposals.append(trim)
                 trimming.add(symbol)
 
         heat = portfolio_heat(
-            context, held, rows, {symbol: floor_of(symbol) for symbol in held if symbol in rows}
+            context, held, rows, {symbol: floor_of(symbol) for symbol in held if symbol in rows},
+            max_heat_pct=profile["max_total_heat_pct"],
         )
-        base_risk = _setting(context, "base_risk_pct", BASE_RISK_PCT)
+        base_risk = _setting(context, "base_risk_pct", profile["risk_per_trade_pct"])
         entries = []
         for symbol in sorted((watch | set(held) | set(plans)) - defended):
             row = rows.get(symbol)
@@ -1371,12 +1636,22 @@ class CycleStrategistAgent:
                 evaluate_reload(row, price, plans.get(symbol))
                 or evaluate_accumulate(row, price)
                 or evaluate_breakout(row, price)
+                or (evaluate_early_breakout(row, price) if effective == "full_burn" else None)
             )
-            if entry:
-                entries.append((entry, row, price))
+            if not entry:
+                continue
+            if effective == "bunker" and entry.action != RELOAD_ACCUMULATE and not _bunker_entry_allowed(row):
+                self.last_skipped.append({
+                    "symbol": entry.symbol,
+                    "action": entry.action,
+                    "reason": "stance_entry_gate",
+                    "effective_stance": effective,
+                })
+                continue
+            entries.append((entry, row, price))
         # Reloads are already funded, so they take heat headroom first.
         entries.sort(key=lambda item: (item[0].action != RELOAD_ACCUMULATE, item[0].symbol))
-        guard = _ClusterGuard(context, rows, held, heat)
+        guard = _ClusterGuard(context, rows, held, heat, _cluster_limits(profile))
         for entry, row, price in entries:
             stop = entry_stop(entry.symbol, price, entry.stop_price)
             target = active_target(row)
@@ -1433,6 +1708,8 @@ class CycleStrategistAgent:
         ]
         if laggards:
             leaders = rank_leaders(rows, entry_stop, excluded=defended)
+            if effective == "bunker":
+                leaders = [lead for lead in leaders if _bunker_entry_allowed(rows[lead["symbol"]])]
             for symbol in laggards:
                 leader = next((lead for lead in leaders if lead["symbol"] != symbol), None)
                 if leader is None:
@@ -1465,6 +1742,8 @@ class CycleStrategistAgent:
         for proposal in proposals:
             proposal.market_snapshot = cycle_evidence(scan, proposal.symbol)
             proposal.cost_model = self.costs
+            proposal.evidence["configured_stance"] = stance["configured_stance"]
+            proposal.evidence["effective_stance"] = effective
             position = held.get(proposal.symbol)
             if position:
                 proposal.evidence["position_snapshot"] = {
@@ -1548,6 +1827,8 @@ class CycleStrategistAgent:
         if not isinstance(plans, list):
             # Read open ladders from the ledger this run writes to, bound or not.
             plans = store.active_reload_plans()
+        if "stance" not in context:
+            context["stance"] = store.get_autonomy_settings().get("stance")
         proposals = self.evaluate({**context, "now_ts": now, "reload_plans": plans})
         self.last_proposals = []
         if not proposals:

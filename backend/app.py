@@ -11894,7 +11894,7 @@ def _prevent_cycle_control_caching(response):
     path = request.path
     if (
         path in {
-            "/api/agents/proposals", "/api/agents/autonomy", "/api/smart-alerts",
+            "/api/agents/proposals", "/api/agents/autonomy", "/api/agents/settings", "/api/smart-alerts",
             "/api/agents/run-cycle-pass",
         }
         or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
@@ -11931,6 +11931,26 @@ def _private_json(payload, status=200):
     return response, status
 
 
+def _stance_readout(configured, scan=None, resolved=None):
+    """The configured and effective mission stance plus every stance profile."""
+    from agents.cycle_strategist import resolve_stance, stance_profiles
+
+    if resolved is None:
+        if scan:
+            from agents.cycle_context import usable_cycle_scan
+
+            if not usable_cycle_scan(scan, now=time.time()):
+                scan = None
+        resolved = resolve_stance(configured, scan)
+    return {
+        "configured_stance": resolved["configured_stance"],
+        "effective_stance": resolved["effective_stance"],
+        "effective_stance_reason": resolved["reason"],
+        "effective_stance_metrics": resolved.get("metrics"),
+        "stance_profiles": stance_profiles(),
+    }
+
+
 @app.get("/api/agents/proposals")
 def get_agent_proposals():
     """Cycle Strategist trade proposals plus the current autonomy settings."""
@@ -11951,6 +11971,7 @@ def get_agent_proposals():
     store = AgentStore()
     with _MACRO_SCAN_LOCK:
         scan = _MACRO_SCAN_STATE["payload"]
+    autonomy = store.get_autonomy_settings()
     return _private_json({
         "status": "live",
         "dry_run_only": True,
@@ -11961,7 +11982,8 @@ def get_agent_proposals():
             _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
         ),
         "cycle_scan": _cycle_scan_summary(scan),
-        "autonomy": store.get_autonomy_settings(),
+        "autonomy": autonomy,
+        **_stance_readout(autonomy["stance"], scan),
     })
 
 
@@ -11998,9 +12020,12 @@ def decide_agent_proposal(proposal_id, decision):
 
 
 @app.route("/api/agents/autonomy", methods=["GET", "POST"])
+@app.route("/api/agents/settings", methods=["GET", "POST"])
 def agent_autonomy_settings():
-    """Read or update the Cycle Strategist autonomy settings.
+    """Read or update the Cycle Strategist autonomy settings and mission stance.
 
+    ``/api/agents/settings`` is the same handler. ``stance`` must be one of
+    autopilot, bunker, orbit, gravity_assist or full_burn.
     ``live_guarded`` is stored but cannot route an order: no live route exists,
     so automatic exits stay blocked in that mode.
     """
@@ -12018,10 +12043,14 @@ def agent_autonomy_settings():
             store.set_autonomy_settings(**payload)
         except (TypeError, ValueError) as exc:
             return jsonify({"error": str(exc)}), 400
+    autonomy = store.get_autonomy_settings()
+    with _MACRO_SCAN_LOCK:
+        scan = _MACRO_SCAN_STATE["payload"]
     return _private_json({
         "status": "live",
         "dry_run_only": True,
-        "autonomy": store.get_autonomy_settings(),
+        "autonomy": autonomy,
+        **_stance_readout(autonomy["stance"], scan),
     })
 
 
@@ -12235,19 +12264,22 @@ def run_agent_cycle_pass():
             "watchlist": len(context["watchlist"]),
         }
         if context["cycle_scan"] is None:
+            autonomy = store.get_autonomy_settings()
             return _private_json({
                 **body, "status": "skipped", "reason": "no_cycle_scan",
                 "runs": [], "observation_count": 0, "proposals": [],
                 "compounding_summary": store.get_compounding_summary(
                     _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
                 ),
-                "autonomy": store.get_autonomy_settings(),
+                "autonomy": autonomy,
+                **_stance_readout(autonomy["stance"]),
             })
         context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
         agent = CycleStrategistAgent(costs=configured_cost_model())
         result = run_once(
             context, store=store, agents=[agent], smart_alert_engine=_smart_alert_engine()
         )
+        autonomy = store.get_autonomy_settings()
         return _private_json({
             **body,
             "status": "ok",
@@ -12260,7 +12292,11 @@ def run_agent_cycle_pass():
             "compounding_summary": store.get_compounding_summary(
                 _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
             ),
-            "autonomy": store.get_autonomy_settings(),
+            "autonomy": autonomy,
+            **_stance_readout(
+                autonomy["stance"], context["cycle_scan"],
+                resolved=getattr(agent, "last_stance", None),
+            ),
         })
     finally:
         _CYCLE_PASS_LOCK.release()

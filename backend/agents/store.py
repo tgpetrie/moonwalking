@@ -18,11 +18,16 @@ DEFAULT_DB_PATH = (
 
 AUTONOMY_MODES = ("approval_queue", "auto_protect_exits")
 EXECUTION_MODES = ("dry_run", "live_guarded")
+# Mission stances, from Auto-Pilot through most defensive to most aggressive.
+# Their risk profiles live in ``cycle_strategist.STANCE_PROFILES``.
+STANCES = ("autopilot", "bunker", "orbit", "gravity_assist", "full_burn")
+DEFAULT_STANCE = "orbit"
 DEFAULT_AUTONOMY_SETTINGS = {
     "autonomy_mode": "approval_queue",
     "execution_mode": "dry_run",
     "emergency_pause": False,
     "daily_order_cap": 3,
+    "stance": DEFAULT_STANCE,
 }
 MAX_DAILY_ORDER_CAP = 20
 # Proposal states an operator or the strategist can no longer change.
@@ -132,10 +137,24 @@ class AgentStore:
                     execution_mode TEXT NOT NULL,
                     emergency_pause INTEGER NOT NULL,
                     daily_order_cap INTEGER NOT NULL,
-                    updated_ts INTEGER NOT NULL
+                    updated_ts INTEGER NOT NULL,
+                    stance TEXT NOT NULL DEFAULT 'orbit'
                 )
                 """
             )
+            columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(agent_autonomy_settings)")
+            }
+            if "stance" not in columns:
+                try:
+                    conn.execute(
+                        "ALTER TABLE agent_autonomy_settings "
+                        f"ADD COLUMN stance TEXT NOT NULL DEFAULT '{DEFAULT_STANCE}'"
+                    )
+                except sqlite3.OperationalError as exc:
+                    # Another process may have migrated the table first.
+                    if "duplicate column" not in str(exc).lower():
+                        raise
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS trade_proposals (
@@ -421,6 +440,7 @@ class AgentStore:
             "execution_mode": row["execution_mode"],
             "emergency_pause": bool(row["emergency_pause"]),
             "daily_order_cap": int(row["daily_order_cap"]),
+            "stance": row["stance"] if row["stance"] in STANCES else DEFAULT_STANCE,
             "updated_ts": int(row["updated_ts"]),
         }
 
@@ -441,20 +461,23 @@ class AgentStore:
                 raise ValueError(
                     f"daily_order_cap must be an integer from 0 to {MAX_DAILY_ORDER_CAP}"
                 )
+            if type(settings["stance"]) is not str or settings["stance"] not in STANCES:
+                raise ValueError(f"stance must be one of {list(STANCES)}")
             updated_ts = int(time.time())
             conn.execute(
                 """
                 INSERT INTO agent_autonomy_settings(
                     id, autonomy_mode, execution_mode, emergency_pause,
-                    daily_order_cap, updated_ts
+                    daily_order_cap, updated_ts, stance
                 )
-                VALUES (1, ?, ?, ?, ?, ?)
+                VALUES (1, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     autonomy_mode = excluded.autonomy_mode,
                     execution_mode = excluded.execution_mode,
                     emergency_pause = excluded.emergency_pause,
                     daily_order_cap = excluded.daily_order_cap,
-                    updated_ts = excluded.updated_ts
+                    updated_ts = excluded.updated_ts,
+                    stance = excluded.stance
                 """,
                 (
                     settings["autonomy_mode"],
@@ -462,6 +485,7 @@ class AgentStore:
                     int(settings["emergency_pause"]),
                     cap,
                     updated_ts,
+                    settings["stance"],
                 ),
             )
             return {**settings, "updated_ts": updated_ts}
