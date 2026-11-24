@@ -4833,6 +4833,33 @@ _CANDLE_VOLUME_CACHE_LOCK = threading.Lock()
 # product_id -> list of (timestamp, volume) tuples, most-recent first, max ~70 entries
 _CANDLE_MINUTE_VOLUMES = {}  # populated alongside _CANDLE_VOLUME_CACHE
 MAX_CANDLE_SYMBOLS = 60  # Cap to avoid rate limits
+# Product ids being fetched right now, guarded by _CANDLE_VOLUME_CACHE_LOCK.
+_CANDLE_REFRESH_INFLIGHT = set()
+_CANDLE_REFRESH_THREAD = None  # the price loop's background refresh
+
+# One pooled session for Coinbase Exchange ticker and candle calls. The price
+# loop's workers and the candle refresh reuse its warm TLS connections instead
+# of paying a fresh handshake for every coin on every cycle.
+_COINBASE_HTTP_POOL_SIZE = 16
+_COINBASE_HTTP = None
+_COINBASE_HTTP_LOCK = threading.Lock()
+
+
+def _coinbase_http():
+    global _COINBASE_HTTP
+    session = _COINBASE_HTTP
+    if session is not None:
+        return session
+    with _COINBASE_HTTP_LOCK:
+        if _COINBASE_HTTP is None:
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=_COINBASE_HTTP_POOL_SIZE,
+                pool_maxsize=_COINBASE_HTTP_POOL_SIZE,
+            )
+            session.mount("https://", adapter)
+            _COINBASE_HTTP = session
+        return _COINBASE_HTTP
 
 
 def _fetch_coinbase_candles(product_id, granularity=60, count=70):
@@ -4851,7 +4878,7 @@ def _fetch_coinbase_candles(product_id, granularity=60, count=70):
         params = {"granularity": granularity}
 
         # Don't use start/end to get latest candles
-        resp = requests.get(url, params=params, timeout=5)
+        resp = _coinbase_http().get(url, params=params, timeout=5)
 
         if resp.status_code == 429:
             logging.warning(f"[Candles] Rate limited for {product_id}")
@@ -5089,7 +5116,13 @@ def _compute_1h_volume_from_candles(product_id):
 
 
 def _update_candle_volume_cache(product_ids):
-    """Background worker: update candle volume cache for display-set symbols.
+    """Update the candle volume cache for display-set symbols.
+
+    Each product is one Coinbase candles request (about 0.1s from a US host,
+    0.7s through a distant VPN exit), so up to 60 of them can take tens of
+    seconds. The requests run without holding _CANDLE_VOLUME_CACHE_LOCK:
+    the snapshot loop and /data copy this cache every few seconds and must
+    never wait on the network.
 
     Args:
         product_ids: List of product_id strings (e.g. ["BTC-USD", "ETH-USD"])
@@ -5098,44 +5131,57 @@ def _update_candle_volume_cache(product_ids):
         return
 
     # Cap to avoid overwhelming the API
-    products = list(set(product_ids))[:MAX_CANDLE_SYMBOLS]
+    products = list(dict.fromkeys(product_ids))[:MAX_CANDLE_SYMBOLS]
     now = time.time()
 
+    # Claim the products that are due, skipping ones refreshed in the last
+    # 30s or already being fetched by another caller.
     with _CANDLE_VOLUME_CACHE_LOCK:
+        due = []
         for product_id in products:
-            # Check if recently updated (within 30s)
+            if product_id in _CANDLE_REFRESH_INFLIGHT:
+                continue
             cached = _CANDLE_VOLUME_CACHE.get(product_id, {})
-            ts_computed = cached.get("ts_computed", 0)
-            if now - ts_computed < 30:
-                continue  # Skip, too recent
+            if now - cached.get("ts_computed", 0) < 30:
+                continue
+            due.append(product_id)
+        _CANDLE_REFRESH_INFLIGHT.update(due)
 
-            (
-                vol1h,
-                vol1h_prev,
-                vol1h_pct,
-                quote_vol1h,
-                quote_vol1h_prev,
-                quote_vol1h_pct,
-                baseline_mode,
-                baseline_minutes,
-            ) = _compute_1h_volume_from_candles(product_id)
+    try:
+        for product_id in due:
+            try:
+                (
+                    vol1h,
+                    vol1h_prev,
+                    vol1h_pct,
+                    quote_vol1h,
+                    quote_vol1h_prev,
+                    quote_vol1h_pct,
+                    baseline_mode,
+                    baseline_minutes,
+                ) = _compute_1h_volume_from_candles(product_id)
+            except Exception as exc:
+                logging.debug(f"candle volume refresh failed for {product_id}: {exc}")
+                vol1h = None
+            done_at = time.time()
 
-            if vol1h is not None:
-                _CANDLE_VOLUME_CACHE[product_id] = {
-                    "vol1h": vol1h,
-                    "vol1h_prev": vol1h_prev,
-                    "vol1h_pct_change": vol1h_pct,
-                    "quote_vol1h": quote_vol1h,
-                    "quote_vol1h_prev": quote_vol1h_prev,
-                    "quote_vol1h_pct_change": quote_vol1h_pct,
-                    "baseline_mode": baseline_mode,
-                    "baseline_minutes": baseline_minutes,
-                    "ts_computed": now,
-                    "last_error": None,
-                }
-            else:
-                # Keep last good value but mark stale
-                if product_id not in _CANDLE_VOLUME_CACHE:
+            with _CANDLE_VOLUME_CACHE_LOCK:
+                _CANDLE_REFRESH_INFLIGHT.discard(product_id)
+                if vol1h is not None:
+                    _CANDLE_VOLUME_CACHE[product_id] = {
+                        "vol1h": vol1h,
+                        "vol1h_prev": vol1h_prev,
+                        "vol1h_pct_change": vol1h_pct,
+                        "quote_vol1h": quote_vol1h,
+                        "quote_vol1h_prev": quote_vol1h_prev,
+                        "quote_vol1h_pct_change": quote_vol1h_pct,
+                        "baseline_mode": baseline_mode,
+                        "baseline_minutes": baseline_minutes,
+                        "ts_computed": done_at,
+                        "last_error": None,
+                    }
+                elif product_id not in _CANDLE_VOLUME_CACHE:
+                    # Keep last good value but mark stale
                     _CANDLE_VOLUME_CACHE[product_id] = {
                         "vol1h": None,
                         "vol1h_prev": None,
@@ -5145,13 +5191,48 @@ def _update_candle_volume_cache(product_ids):
                         "quote_vol1h_pct_change": None,
                         "baseline_mode": None,
                         "baseline_minutes": 0,
-                        "ts_computed": now,
+                        "ts_computed": done_at,
                         "last_error": "fetch_failed",
                     }
                 else:
                     # Update only error + timestamp, keep old volume
                     _CANDLE_VOLUME_CACHE[product_id]["last_error"] = "fetch_failed"
-                    _CANDLE_VOLUME_CACHE[product_id]["ts_computed"] = now
+                    _CANDLE_VOLUME_CACHE[product_id]["ts_computed"] = done_at
+    finally:
+        with _CANDLE_VOLUME_CACHE_LOCK:
+            _CANDLE_REFRESH_INFLIGHT.difference_update(due)
+
+
+def _run_candle_volume_refresh(product_ids):
+    try:
+        _update_candle_volume_cache(product_ids)
+    except Exception as exc:
+        logging.warning(f"candle volume refresh failed: {exc}")
+
+
+def _start_candle_volume_refresh(product_ids):
+    """Refresh candle volumes on a background thread.
+
+    The price loop calls this after each fetch. Running the refresh inline
+    held the loop for up to 60 sequential requests, which left /data more
+    than a minute old whenever Coinbase was slow to reach. Returns False if a
+    refresh is still running; the next price fetch tries again.
+    """
+    global _CANDLE_REFRESH_THREAD
+    if not product_ids:
+        return False
+    running = _CANDLE_REFRESH_THREAD
+    if running is not None and running.is_alive():
+        return False
+    thread = threading.Thread(
+        target=_run_candle_volume_refresh,
+        args=(list(product_ids),),
+        name="candle-volume-refresh",
+        daemon=True,
+    )
+    _CANDLE_REFRESH_THREAD = thread
+    thread.start()
+    return True
 
 
 def _get_candle_volume_for_symbols(symbols):
@@ -7161,7 +7242,7 @@ def get_coinbase_prices():
                     try:
                         # Keep per-request timeout small; overall duration is bounded
                         # by `PRICE_FETCH_DEADLINE_SECONDS` in the caller.
-                        r = requests.get(url, timeout=ticker_timeout)
+                        r = _coinbase_http().get(url, timeout=ticker_timeout)
                         last_code = r.status_code
 
                         if r.status_code == 200:
@@ -8894,6 +8975,9 @@ def data_aggregate():
                 pid for pid in must_include if pid and pid not in present_pids
             ]
             must_added = []
+            # Set before the branch: when every must-include product is already
+            # on a board the loop below never runs, and /data failed outright.
+            missing_must = list(missing_must_before)
             if missing_must_before:
                 price_map = (
                     last_current_prices.get("data")
@@ -13977,7 +14061,7 @@ def _fetch_coinbase_candles_before(product_id, granularity, end_ts, count=300):
     try:
         end = datetime.fromtimestamp(float(end_ts), tz=timezone.utc)
         start = end - timedelta(seconds=granularity * (count - 1))
-        resp = requests.get(
+        resp = _coinbase_http().get(
             f"https://api.exchange.coinbase.com/products/{product_id}/candles",
             params={
                 "granularity": granularity,
@@ -16246,7 +16330,7 @@ def _fetch_prices_and_update_history():
                     logging.debug(
                         f"Updating candle cache for {len(product_ids)} symbols"
                     )
-                    _update_candle_volume_cache(product_ids)
+                    _start_candle_volume_refresh(product_ids)
             except Exception as e:
                 logging.debug(f"Candle cache update skip: {e}")
 
