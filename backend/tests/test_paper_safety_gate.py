@@ -75,7 +75,9 @@ def _literal_text(node, constants):
     if isinstance(node, ast.FormattedValue):
         return _literal_text(node.value, constants)
     if isinstance(node, ast.BinOp):
-        return _literal_text(node.left, constants) + _literal_text(node.right, constants)
+        return _literal_text(node.left, constants) + _literal_text(
+            node.right, constants
+        )
     if isinstance(node, ast.Attribute):
         return node.attr
     return ""
@@ -89,7 +91,11 @@ def _non_get_calls(tree):
         func = node.func
         name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
         method = next(
-            (k.value for k in node.keywords if k.arg == "method" and isinstance(k.value, ast.Constant)),
+            (
+                k.value
+                for k in node.keywords
+                if k.arg == "method" and isinstance(k.value, ast.Constant)
+            ),
             None,
         )
         if name in WRITE_METHODS and node.args:
@@ -125,7 +131,9 @@ def test_no_non_get_request_reaches_a_coinbase_host_except_oauth_sign_in():
 
 
 def _class(tree, name):
-    return next(n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == name)
+    return next(
+        n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == name
+    )
 
 
 def test_the_authenticated_coinbase_client_can_only_send_get_requests():
@@ -157,8 +165,11 @@ def test_the_authenticated_coinbase_client_can_only_send_get_requests():
 def test_the_public_quote_paths_only_read():
     collector = _parse(REPO / "scripts" / "coinbase_paper_depth_collect.py")
     opens = [
-        node for node in ast.walk(collector)
-        if isinstance(node, ast.Call) and getattr(node.func, "id", getattr(node.func, "attr", "")) in ("urlopen", "opener")
+        node
+        for node in ast.walk(collector)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "id", getattr(node.func, "attr", ""))
+        in ("urlopen", "opener")
     ]
     assert opens, "the collector should read the public book"
     for call in opens:

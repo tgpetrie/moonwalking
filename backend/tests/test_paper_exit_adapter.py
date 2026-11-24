@@ -231,7 +231,9 @@ def test_preflight_request_budget_limits_timeout_and_rejects_late_response(monke
             return Response()
 
     monkeypatch.setattr(portfolio.time, "monotonic", lambda: now)
-    client = CoinbaseAdvancedTradeClient(oauth_access_token="test", http_session=Session())
+    client = CoinbaseAdvancedTradeClient(
+        oauth_access_token="test", http_session=Session()
+    )
     client.request_deadline_monotonic = 45
     with pytest.raises(CoinbaseRequestError, match="time budget expired"):
         client.list_fills(asset="BTC", require_complete=True)
@@ -393,9 +395,19 @@ def _run_cli_window(monkeypatch, tmp_path, *, after_window):
         sys,
         "argv",
         [
-            "paper_exit_adapter", "--product", "BTC-USD", "--quantity", "0.005",
-            "--start-utc", start.isoformat(), "--duration-seconds", "3",
-            "--slippage-bps", "10", "--out", str(output),
+            "paper_exit_adapter",
+            "--product",
+            "BTC-USD",
+            "--quantity",
+            "0.005",
+            "--start-utc",
+            start.isoformat(),
+            "--duration-seconds",
+            "3",
+            "--slippage-bps",
+            "10",
+            "--out",
+            str(output),
         ],
     )
     adapter.main()

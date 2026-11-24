@@ -79,8 +79,16 @@ def poll_depth(product_id, levels, *, now_ms=_now_ms, fetch=fetch_public_book):
         return {"observed_at_ms": now_ms(), "quote_status": "UNAVAILABLE"}
 
 
-def collect(product_id, start_ms, end_ms, levels, *, now_ms=_now_ms,
-            sleep=time.sleep, fetch=fetch_public_book):
+def collect(
+    product_id,
+    start_ms,
+    end_ms,
+    levels,
+    *,
+    now_ms=_now_ms,
+    sleep=time.sleep,
+    fetch=fetch_public_book,
+):
     quotes = []
     for slot in range(start_ms, end_ms, POLL_MS):
         now = now_ms()
@@ -98,8 +106,15 @@ def collect(product_id, start_ms, end_ms, levels, *, now_ms=_now_ms,
 
 
 def build_spec(
-    *, product_id, quantity, entry_cost_usd, exit_fee_bps, slippage_bps,
-    duration_seconds, levels, start_ms,
+    *,
+    product_id,
+    quantity,
+    entry_cost_usd,
+    exit_fee_bps,
+    slippage_bps,
+    duration_seconds,
+    levels,
+    start_ms,
 ):
     """The synthetic depth tape header, before any quotes are recorded.
 
@@ -115,7 +130,10 @@ def build_spec(
     if exit_fee_bps is None:
         from backend.agents.trading_costs import configured_cost_model
 
-        exit_fee_bps, fee_source = str(configured_cost_model()["fee_bps"]), "configured_default"
+        exit_fee_bps, fee_source = (
+            str(configured_cost_model()["fee_bps"]),
+            "configured_default",
+        )
     else:
         fee_source = "declared"
     return {

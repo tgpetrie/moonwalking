@@ -326,7 +326,10 @@ def main():
         try:
             spec.update(
                 verify_slice_cost_basis(
-                    client, args.product, args.quantity, max_fill_pages=args.max_fill_pages
+                    client,
+                    args.product,
+                    args.quantity,
+                    max_fill_pages=args.max_fill_pages,
                 )
             )
             spec["exit_fee_bps"] = fetch_fee_tier_bps(client)

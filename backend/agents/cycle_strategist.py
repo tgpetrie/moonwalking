@@ -195,17 +195,26 @@ AUTOPILOT_MIN_ROWS = 10  # fewer readable rows leaves the distribution unread
 AUTOPILOT_BUNKER_ROLLOVER_PCT = 40.0
 AUTOPILOT_FULL_BURN_EXPANSION_PCT = 50.0
 AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT = 25.0
-EXPANSION_BUCKETS = ("low_confirmation_breakout", "growth_expansion_ride", "early_markup")
+EXPANSION_BUCKETS = (
+    "low_confirmation_breakout",
+    "growth_expansion_ride",
+    "early_markup",
+)
 ACCUMULATION_BUCKET = "deep_accumulation_exhaustion"
 ROLLOVER_BUCKET = "rollover_profit_zone"
-RISK_ON_STAGES = frozenset({"stage_3_alt_index_breakout", "stage_4_alt_season_expansion"})
+RISK_ON_STAGES = frozenset(
+    {"stage_3_alt_index_breakout", "stage_4_alt_season_expansion"}
+)
 
 
 def stance_profiles() -> dict[str, dict[str, Any]]:
     """Every stance's limits and labels, for API readouts and the manual."""
     out = {AUTOPILOT: dict(AUTOPILOT_PROFILE)}
     for key, profile in STANCE_PROFILES.items():
-        out[key] = {**profile, "base_ladder_weights": list(profile["base_ladder_weights"])}
+        out[key] = {
+            **profile,
+            "base_ladder_weights": list(profile["base_ladder_weights"]),
+        }
     return out
 
 
@@ -250,12 +259,15 @@ def resolve_autopilot_stance(cycle_scan: Mapping[str, Any] | None) -> dict[str, 
     scan = cycle_scan if isinstance(cycle_scan, Mapping) else {}
     industry = scan.get("industry") if isinstance(scan.get("industry"), Mapping) else {}
     rows = [
-        row for row in scan.get("coins") or []
+        row
+        for row in scan.get("coins") or []
         if isinstance(row, Mapping) and row.get("available") is True
     ]
     counts: dict[str, int] = {}
     for row in rows:
-        bucket = row.get("bucket") if isinstance(row.get("bucket"), str) else "unclassified"
+        bucket = (
+            row.get("bucket") if isinstance(row.get("bucket"), str) else "unclassified"
+        )
         counts[bucket] = counts.get(bucket, 0) + 1
     readable = len(rows) >= AUTOPILOT_MIN_ROWS
 
@@ -264,7 +276,9 @@ def resolve_autopilot_stance(cycle_scan: Mapping[str, Any] | None) -> dict[str, 
             return None
         return round(sum(counts.get(name, 0) for name in buckets) / len(rows) * 100, 1)
 
-    stage = industry.get("liquidity_rotation_stage") if industry.get("available") else None
+    stage = (
+        industry.get("liquidity_rotation_stage") if industry.get("available") else None
+    )
     gate = industry.get("macro_regime_gate") if industry.get("available") else None
     breadth = scan.get("breadth") if isinstance(scan.get("breadth"), Mapping) else {}
     above = breadth.get("pct_above_50w_sma")
@@ -287,17 +301,25 @@ def resolve_autopilot_stance(cycle_scan: Mapping[str, Any] | None) -> dict[str, 
     }
     rollover, expansion = metrics["rollover_share_pct"], metrics["expansion_share_pct"]
     if not stage:
-        effective, reason = "bunker", "The macro cycle regime is unavailable, so Auto-Pilot holds the defensive bunker."
+        effective, reason = (
+            "bunker",
+            "The macro cycle regime is unavailable, so Auto-Pilot holds the defensive bunker.",
+        )
     elif gate == "risk_off_headwind":
-        effective, reason = "bunker", "The macro gate reads a risk-off headwind; Auto-Pilot shelters in the bunker."
+        effective, reason = (
+            "bunker",
+            "The macro gate reads a risk-off headwind; Auto-Pilot shelters in the bunker.",
+        )
     elif rollover is not None and rollover >= AUTOPILOT_BUNKER_ROLLOVER_PCT:
         effective, reason = "bunker", (
             f"{rollover:g}% of Atlas coins sit in the rollover profit zone; Auto-Pilot trims harder and shelters."
         )
     elif stage in RISK_ON_STAGES and gate == "risk_on_aligned":
         if (
-            expansion is not None and expansion >= AUTOPILOT_FULL_BURN_EXPANSION_PCT
-            and rollover is not None and rollover < AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT
+            expansion is not None
+            and expansion >= AUTOPILOT_FULL_BURN_EXPANSION_PCT
+            and rollover is not None
+            and rollover < AUTOPILOT_FULL_BURN_MAX_ROLLOVER_PCT
         ):
             effective, reason = "full_burn", (
                 f"Alt liquidity has rotated with aligned breadth and {expansion:g}% of Atlas coins "
@@ -319,7 +341,9 @@ def resolve_autopilot_stance(cycle_scan: Mapping[str, Any] | None) -> dict[str, 
     }
 
 
-def resolve_stance(configured: Any, cycle_scan: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def resolve_stance(
+    configured: Any, cycle_scan: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     """The stance a pass runs under. An unknown stance falls back to orbit."""
     if configured == AUTOPILOT:
         return resolve_autopilot_stance(cycle_scan)
@@ -390,7 +414,9 @@ def proposal_id(action: str, symbol: str, now_ts: float) -> str:
 def _scan_from_context(context: Mapping[str, Any]) -> dict[str, Any] | None:
     scan = context.get("cycle_scan")
     if scan is not None:
-        return scan if usable_cycle_scan(scan, now=_num(context.get("now_ts"))) else None
+        return (
+            scan if usable_cycle_scan(scan, now=_num(context.get("now_ts"))) else None
+        )
     histories = context.get("cycle_histories")
     if isinstance(histories, dict) and histories:
         try:
@@ -433,7 +459,12 @@ def daily_higher_low_floor(candles: list[list[Any]] | None) -> float | None:
     return _num(floor["points"][-1]["price"])
 
 
-def _floor_for(context: Mapping[str, Any], position: Mapping[str, Any], symbol: str, multi_year: dict):
+def _floor_for(
+    context: Mapping[str, Any],
+    position: Mapping[str, Any],
+    symbol: str,
+    multi_year: dict,
+):
     explicit = _num(position.get("higher_low_floor"))
     if explicit is not None and explicit > 0:
         return explicit
@@ -471,7 +502,9 @@ def _overhead_sma(ladder: Mapping[str, Any], price: float) -> dict[str, Any] | N
     return None
 
 
-def evaluate_trim(row, multi_year, stage, price, trim_scale=1.0) -> TradeProposal | None:
+def evaluate_trim(
+    row, multi_year, stage, price, trim_scale=1.0
+) -> TradeProposal | None:
     """``trim_scale`` is the stance's trim fraction over Orbit's; 1 keeps 25-50%."""
     if stage not in TRIM_STAGES:
         return None
@@ -525,7 +558,11 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
     below price, and the proposal always waits for an operator.
     """
     below = (floor - price) / floor * 100
-    evidence = {"floor": floor, "broken_floor_price": floor, "distance_below_floor_pct": _round(below)}
+    evidence = {
+        "floor": floor,
+        "broken_floor_price": floor,
+        "distance_below_floor_pct": _round(below),
+    }
     if not _stale_break(price, floor):
         return TradeProposal(
             action=PROTECTIVE_STOP,
@@ -536,12 +573,21 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
             stop_price=price,
             breach_state="fresh_floor_break",
             reasons=[f"Just closed {below:.1f}% below {_fmt_price(floor)} floor."],
-            evidence={**evidence, "trigger": "higher_low_floor_breached", "stop_distance_pct": 0.0},
+            evidence={
+                **evidence,
+                "trigger": "higher_low_floor_breached",
+                "stop_distance_pct": 0.0,
+            },
         )
     stop, basis = next(
-        ((level, basis) for level, basis in (
-            (scanner_stop, "accumulation_invalidation_stop"), (position_stop, "position_stop")
-        ) if level is not None and 0 < level < price),
+        (
+            (level, basis)
+            for level, basis in (
+                (scanner_stop, "accumulation_invalidation_stop"),
+                (position_stop, "position_stop"),
+            )
+            if level is not None and 0 < level < price
+        ),
         (None, "floor_already_broken_reassess"),
     )
     reasons = [f"Floor {_fmt_price(floor)} already broken by {below:.0f}%."]
@@ -567,7 +613,9 @@ def _floor_break(row, floor, price, scanner_stop, position_stop) -> TradeProposa
             "trigger": "stale_floor_break",
             "reclaim_resistance": floor,
             "stop_basis": basis,
-            "stop_distance_pct": _round((price - stop) / price * 100) if stop is not None else None,
+            "stop_distance_pct": (
+                _round((price - stop) / price * 100) if stop is not None else None
+            ),
         },
     )
 
@@ -596,8 +644,14 @@ def _stop_break(row, floor, price, broken_stop, position_guard) -> TradeProposal
             trim_pct=100.0,
             stop_price=min(broken_stop, price),
             breach_state="fresh_stop_break",
-            reasons=[f"Price closed {below:.1f}% below the {detail} at {_fmt_price(broken_stop)}."],
-            evidence={**evidence, "trigger": "invalidation_stop_breached", "stop_distance_pct": 0.0},
+            reasons=[
+                f"Price closed {below:.1f}% below the {detail} at {_fmt_price(broken_stop)}."
+            ],
+            evidence={
+                **evidence,
+                "trigger": "invalidation_stop_breached",
+                "stop_distance_pct": 0.0,
+            },
         )
     return TradeProposal(
         action=PROTECTIVE_STOP,
@@ -621,7 +675,9 @@ def _stop_break(row, floor, price, broken_stop, position_guard) -> TradeProposal
     )
 
 
-def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProposal | None:
+def evaluate_protective_stop(
+    row, floor, price, position_stop=None
+) -> TradeProposal | None:
     stop = row.get("accumulation_invalidation_stop") or {}
     scanner_stop = _num(stop.get("stop_price"))
     position_stop = _num(position_stop)
@@ -631,8 +687,11 @@ def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProp
         return None
     # Use the deepest breached guard before checking legacy near-stop precedence.
     broken = [
-        (level, kind) for level, kind in (
-            (floor, "floor"), (position_stop, "position"), (scanner_stop, "scanner")
+        (level, kind)
+        for level, kind in (
+            (floor, "floor"),
+            (position_stop, "position"),
+            (scanner_stop, "scanner"),
         )
         if level is not None and (level > price or (level == price and kind != "floor"))
     ]
@@ -645,9 +704,17 @@ def evaluate_protective_stop(row, floor, price, position_stop=None) -> TradeProp
     position_guard = stop_price is not None and stop_price > 0
     if not position_guard:
         stop_price = scanner_stop
-    if stop_price is not None and 0 < stop_price and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price:
+    if (
+        stop_price is not None
+        and 0 < stop_price
+        and price * (1 - STOP_APPROACH_PCT / 100) <= stop_price
+    ):
         trigger, level = "invalidation_stop_near", stop_price
-        detail = "the position stop" if position_guard else "the accumulation invalidation stop"
+        detail = (
+            "the position stop"
+            if position_guard
+            else "the accumulation invalidation stop"
+        )
         distance = (price - stop_price) / price * 100
         message = f"Price is {distance:.2f}% above {detail}."
     else:
@@ -677,18 +744,25 @@ def evaluate_accumulate(row, price) -> TradeProposal | None:
     if not (
         row.get("bucket") == "deep_accumulation_exhaustion"
         and row.get("multi_year_oversold_exhaustion") is True
-        and streak is not None and streak.is_integer() and streak >= ACCUMULATION_MIN_STREAK
+        and streak is not None
+        and streak.is_integer()
+        and streak >= ACCUMULATION_MIN_STREAK
         and row.get("weekly_stoch_direction") == "oversold_turn_up"
         and (row.get("daily_macd_kiss") or daily_divergence or macro_divergence)
-        and stop_price is not None and price * (1 - ACCUMULATION_MAX_STOP_PCT / 100) <= stop_price < price
+        and stop_price is not None
+        and price * (1 - ACCUMULATION_MAX_STOP_PCT / 100) <= stop_price < price
     ):
         return None
     streak = int(streak)
     distance = (price - stop_price) / price * 100
     momentum = (
-        "daily MACD kiss" if row.get("daily_macd_kiss")
-        else "daily bullish divergence" if daily_divergence
-        else "macro bullish divergence"
+        "daily MACD kiss"
+        if row.get("daily_macd_kiss")
+        else (
+            "daily bullish divergence"
+            if daily_divergence
+            else "macro bullish divergence"
+        )
     )
     return TradeProposal(
         action=ACCUMULATE_SUPPORT,
@@ -716,7 +790,11 @@ def evaluate_breakout(row, price) -> TradeProposal | None:
     if not (row.get("breaking_confirmation_pivot") and rsi is not None):
         return None
     regime = row.get("weekly_rsi_regime")
-    expanding = regime == "growth_expansion" if regime is not None else rsi > BREAKOUT_MIN_WEEKLY_RSI
+    expanding = (
+        regime == "growth_expansion"
+        if regime is not None
+        else rsi > BREAKOUT_MIN_WEEKLY_RSI
+    )
     if not expanding:
         return None
     stop = row.get("accumulation_invalidation_stop") or {}
@@ -730,14 +808,21 @@ def evaluate_breakout(row, price) -> TradeProposal | None:
             "Recent daily close above the low-confirmation pivot.",
             f"Weekly RSI {rsi:.1f} is in growth expansion.",
         ],
-        evidence={"weekly_rsi": rsi, "low_confirmation_pivot": row.get("low_confirmation_pivot")},
+        evidence={
+            "weekly_rsi": rsi,
+            "low_confirmation_pivot": row.get("low_confirmation_pivot"),
+        },
     )
 
 
 def evaluate_early_breakout(row, price) -> TradeProposal | None:
     """Full Burn only: a low-confirmation breakout or early-markup coin with confluence of 55+."""
     confluence = row_confluence(row)
-    if row.get("bucket") not in FULL_BURN_BUCKETS or confluence is None or confluence < FULL_BURN_MIN_CONFLUENCE:
+    if (
+        row.get("bucket") not in FULL_BURN_BUCKETS
+        or confluence is None
+        or confluence < FULL_BURN_MIN_CONFLUENCE
+    ):
         return None
     stop = row.get("accumulation_invalidation_stop") or {}
     return TradeProposal(
@@ -777,7 +862,8 @@ def _reload_candidates(row, multi_year, floor) -> list[tuple[float, str]]:
         clusters = multi_year.get("fib_confluence_clusters")
         mids = (
             [c.get("mid") for c in clusters if isinstance(c, Mapping)]
-            if isinstance(clusters, list) else []
+            if isinstance(clusters, list)
+            else []
         )
     nearest_first = sorted((m for m in map(_num, mids) if m is not None), reverse=True)
     out.extend((mid, "fib_confluence_cluster") for mid in nearest_first)
@@ -794,7 +880,9 @@ def _quant_module(name: str):
         return importlib.import_module(f"backend.{name}")
 
 
-def _ladder_advice(low, high, price, freed_usdc, daily_candles, base_weights=RELOAD_WEIGHTS) -> dict[str, Any]:
+def _ladder_advice(
+    low, high, price, freed_usdc, daily_candles, base_weights=RELOAD_WEIGHTS
+) -> dict[str, Any]:
     """Adaptive three-rung read from ``ladder_optimizer``.
 
     The box runs from the invalidation stop (``low``) up to the plan's highest
@@ -807,7 +895,11 @@ def _ladder_advice(low, high, price, freed_usdc, daily_candles, base_weights=REL
         return {"available": False, "reason": "no_support_box"}
     try:
         advice = _quant_module("ladder_optimizer").optimize_reload_ladder(
-            low, high, price, freed_usdc, daily_candles=daily_candles,
+            low,
+            high,
+            price,
+            freed_usdc,
+            daily_candles=daily_candles,
             base_weights=base_weights,
         )
     except Exception as exc:  # advice must never sink the trim proposal
@@ -818,17 +910,28 @@ def _ladder_advice(low, high, price, freed_usdc, daily_candles, base_weights=REL
         "regime": advice["regime"],
         "rungs": advice["rungs"],
         "weights": advice["weights"],
-        "expected_fill_probability_by_rung": advice["expected_fill_probability_by_rung"],
+        "expected_fill_probability_by_rung": advice[
+            "expected_fill_probability_by_rung"
+        ],
         "net_extra_coins_vs_flat_weights": advice["net_extra_coins_vs_flat_weights"],
-        "expected_extra_coins_vs_flat_weights": advice["expected_extra_coins_vs_flat_weights"],
+        "expected_extra_coins_vs_flat_weights": advice[
+            "expected_extra_coins_vs_flat_weights"
+        ],
         "wick_events": advice["history"]["events"],
         "spread_bps": advice["spread_bps"],
     }
 
 
 def build_reload_plan(
-    row, multi_year, price, trim_quantity, held_quantity, floor=None, daily_candles=None,
-    costs=None, base_weights=None,
+    row,
+    multi_year,
+    price,
+    trim_quantity,
+    held_quantity,
+    floor=None,
+    daily_candles=None,
+    costs=None,
+    base_weights=None,
 ) -> dict[str, Any]:
     """Split a trim's USDC across lower support levels and count the coins bought back.
 
@@ -840,9 +943,14 @@ def build_reload_plan(
     base split (``base_weights``, default 25/35/40) is used.
     """
     base_weights = tuple(base_weights or RELOAD_WEIGHTS)
-    price, trim_quantity, held_quantity = map(_num, (price, trim_quantity, held_quantity))
-    if price is None or trim_quantity is None or held_quantity is None or not (
-        price > 0 and 0 < trim_quantity <= held_quantity
+    price, trim_quantity, held_quantity = map(
+        _num, (price, trim_quantity, held_quantity)
+    )
+    if (
+        price is None
+        or trim_quantity is None
+        or held_quantity is None
+        or not (price > 0 and 0 < trim_quantity <= held_quantity)
     ):
         return {"available": False, "reason": "invalid_trim_size"}
     from .trading_costs import cost_model, paper_buy, paper_sale
@@ -864,7 +972,9 @@ def build_reload_plan(
     for level, source in _reload_candidates(row, multi_year, _num(floor)):
         if invalidation is None or not 0 < invalidation < level <= ceiling:
             continue
-        if any(abs(level / kept - 1) * 100 < RELOAD_LEVEL_MERGE_PCT for kept, _ in chosen):
+        if any(
+            abs(level / kept - 1) * 100 < RELOAD_LEVEL_MERGE_PCT for kept, _ in chosen
+        ):
             continue
         chosen.append((level, source))
         if len(chosen) == min(len(base_weights), freed_cents):
@@ -884,15 +994,27 @@ def build_reload_plan(
     if base_weights != RELOAD_WEIGHTS:
         plan["base_ladder_weights"] = list(base_weights)
     if not chosen or not freed_cents:
-        plan["reason"] = "no_support_level_between_stop_and_price" if freed_cents else "insufficient_trim_proceeds"
+        plan["reason"] = (
+            "no_support_level_between_stop_and_price"
+            if freed_cents
+            else "insufficient_trim_proceeds"
+        )
         return plan
     chosen.sort(reverse=True)
-    advice = _ladder_advice(invalidation, chosen[0][0], price, freed, daily_candles, base_weights)
+    advice = _ladder_advice(
+        invalidation, chosen[0][0], price, freed, daily_candles, base_weights
+    )
     weights = base_weights[: len(chosen)]
     allocation = split_reload_cents(freed_cents, list(weights))
     applied = False
-    if advice.get("available") and advice["regime"] != "default" and len(chosen) == len(base_weights):
-        tilted_weights = tuple(max(1, round(weight * 10_000)) for weight in advice["weights"])
+    if (
+        advice.get("available")
+        and advice["regime"] != "default"
+        and len(chosen) == len(base_weights)
+    ):
+        tilted_weights = tuple(
+            max(1, round(weight * 10_000)) for weight in advice["weights"]
+        )
         tilted_allocation = split_reload_cents(freed_cents, list(tilted_weights))
         if tilted_allocation != allocation and all(tilted_allocation):
             weights, allocation = tilted_weights, tilted_allocation
@@ -900,21 +1022,29 @@ def build_reload_plan(
     advice["applied_to_tranches"] = applied
     total = sum(weights)
     tranches, coins = [], 0.0
-    for index, ((level, source), weight, cents) in enumerate(zip(chosen, weights, allocation), start=1):
+    for index, ((level, source), weight, cents) in enumerate(
+        zip(chosen, weights, allocation), start=1
+    ):
         usdc = cents / 100
         bought = paper_buy(level, usdc, costs)
         coins += bought["quantity"]
-        tranches.append({
-            "index": index,
-            "weight_pct": _round(weight / total * 100),
-            "level": level,
-            "basis": source,
-            "usdc": usdc,
-            "coins": bought["quantity"],
-            "discount_pct": _round((1 - level / price) * 100),
-        })
+        tranches.append(
+            {
+                "index": index,
+                "weight_pct": _round(weight / total * 100),
+                "level": level,
+                "basis": source,
+                "usdc": usdc,
+                "coins": bought["quantity"],
+                "discount_pct": _round((1 - level / price) * 100),
+            }
+        )
     gain = coins - trim_quantity
-    if not math.isfinite(coins) or coins <= 0 or not math.isfinite(gain / held_quantity * 100):
+    if (
+        not math.isfinite(coins)
+        or coins <= 0
+        or not math.isfinite(gain / held_quantity * 100)
+    ):
         return {**plan, "available": False, "reason": "invalid_reload_projection"}
     plan.update(
         tranches=tranches,
@@ -944,22 +1074,33 @@ def evaluate_reload(row, price, plans) -> TradeProposal | None:
         for tranche in plan.get("tranches") or []:
             level = _num(tranche.get("level"))
             cents = usdc_cents(tranche.get("remaining_usdc", tranche.get("usdc")))
-            if tranche.get("filled") or level is None or level <= invalidation or not cents:
+            if (
+                tranche.get("filled")
+                or level is None
+                or level <= invalidation
+                or not cents
+            ):
                 continue
             remaining += cents
             if price <= level:
-                fills.append({
-                    "plan_id": plan.get("plan_id"),
-                    "tranche": tranche.get("index"),
-                    "level": level,
-                    "usdc": cents / 100,
-                })
+                fills.append(
+                    {
+                        "plan_id": plan.get("plan_id"),
+                        "tranche": tranche.get("index"),
+                        "level": level,
+                        "usdc": cents / 100,
+                    }
+                )
                 pool += cents
                 invalidations.append(invalidation)
     if not fills:
         return None
     stop = _num((row.get("accumulation_invalidation_stop") or {}).get("stop_price"))
-    stop = max([*invalidations, stop] if stop is not None and 0 < stop < price else invalidations)
+    stop = max(
+        [*invalidations, stop]
+        if stop is not None and 0 < stop < price
+        else invalidations
+    )
     trigger = "weekly StochRSI turning up under 25" if stoch_turn else "daily MACD kiss"
     return TradeProposal(
         action=RELOAD_ACCUMULATE,
@@ -995,7 +1136,12 @@ def active_target(row) -> dict[str, Any] | None:
             continue
         low, high = _num(box.get("low")), _num(box.get("high"))
         if low is not None and high is not None and 0 < low <= high:
-            return {"tier": tier, "low": low, "high": high, "mid": low + (high - low) / 2}
+            return {
+                "tier": tier,
+                "low": low,
+                "high": high,
+                "mid": low + (high - low) / 2,
+            }
     return None
 
 
@@ -1004,7 +1150,9 @@ def reward_to_risk(price, stop, target) -> float | None:
     price, stop, target = _num(price), _num(stop), _num(target)
     if price is None or stop is None or target is None or not 0 < stop < price < target:
         return None
-    price_decimal, stop_decimal, target_decimal = map(lambda value: Decimal(str(value)), (price, stop, target))
+    price_decimal, stop_decimal, target_decimal = map(
+        lambda value: Decimal(str(value)), (price, stop, target)
+    )
     return _num((target_decimal - price_decimal) / (price_decimal - stop_decimal))
 
 
@@ -1013,7 +1161,9 @@ def _setting(context, key, default) -> float:
     return value if value is not None and 0 < value <= 100 else default
 
 
-def portfolio_heat(context, held, rows, floors, max_heat_pct=MAX_OPEN_RISK_PCT) -> dict[str, Any]:
+def portfolio_heat(
+    context, held, rows, floors, max_heat_pct=MAX_OPEN_RISK_PCT
+) -> dict[str, Any]:
     """Open risk across held coins: the loss if every stop is hit.
 
     A held coin with no stop under its price is counted at
@@ -1072,7 +1222,9 @@ def portfolio_heat(context, held, rows, floors, max_heat_pct=MAX_OPEN_RISK_PCT) 
     }
 
 
-def size_entry(price, stop, stage, heat, base_risk_pct, *, funded_usd=None) -> dict[str, Any]:
+def size_entry(
+    price, stop, stage, heat, base_risk_pct, *, funded_usd=None
+) -> dict[str, Any]:
     """Suggested size from the stage-scaled risk budget, inside the heat cap.
 
     ``heat["_reserved_risk"]`` accumulates the risk of entries already sized in
@@ -1091,7 +1243,9 @@ def size_entry(price, stop, stage, heat, base_risk_pct, *, funded_usd=None) -> d
         "base_risk_pct": base_risk_pct,
         "stage_multiplier": multiplier,
         "risk_budget_pct": _round(budget, 3),
-        "stop_distance_pct": _round(stop_fraction * 100) if stop_fraction is not None else None,
+        "stop_distance_pct": (
+            _round(stop_fraction * 100) if stop_fraction is not None else None
+        ),
         "max_open_risk_pct": heat["max_open_risk_pct"],
         "open_risk_pct": heat["open_risk_pct"],
         "equity_basis": heat["equity_basis"],
@@ -1111,7 +1265,12 @@ def size_entry(price, stop, stage, heat, base_risk_pct, *, funded_usd=None) -> d
     elif equity is None:
         out["note"] = "equity_unknown"
     else:
-        headroom = max(0.0, equity * (heat["max_open_risk_pct"] / 100) - heat["_risk"] - heat["_reserved_risk"])
+        headroom = max(
+            0.0,
+            equity * (heat["max_open_risk_pct"] / 100)
+            - heat["_risk"]
+            - heat["_reserved_risk"],
+        )
         risk_budget = equity * (budget / 100)
         out["heat_capped"] = risk_budget > headroom
         risk_budget = min(risk_budget, headroom)
@@ -1143,7 +1302,8 @@ def is_laggard(row) -> bool:
     rsi = _num(row.get("weekly_rsi"))
     return bool(
         row.get("above_50w_sma") is False
-        and rsi is not None and rsi < LAGGARD_MAX_WEEKLY_RSI
+        and rsi is not None
+        and rsi < LAGGARD_MAX_WEEKLY_RSI
         and not row.get("daily_bullish_divergence")
         and not row.get("macro_bullish_divergence")
         and not row.get("at_multi_year_support")
@@ -1170,25 +1330,33 @@ def rank_leaders(rows, stop_for, excluded=()) -> list[dict[str, Any]]:
             ratio = reward_to_risk(price, stop, target["mid"] if target else None)
             if ratio is None or ratio < ROTATION_MIN_RR:
                 continue
-            leaders.append({
-                "symbol": symbol,
-                "product_id": f"{symbol}-USD",
-                "bucket": bucket,
-                "bucket_rank": rank,
-                "reference_price": price,
-                "stop_price": stop,
-                "target_price": target["mid"],
-                "target_tier": target["tier"],
-                "reward_to_risk_ratio": _round(ratio),
-            })
+            leaders.append(
+                {
+                    "symbol": symbol,
+                    "product_id": f"{symbol}-USD",
+                    "bucket": bucket,
+                    "bucket_rank": rank,
+                    "reference_price": price,
+                    "stop_price": stop,
+                    "target_price": target["mid"],
+                    "target_tier": target["tier"],
+                    "reward_to_risk_ratio": _round(ratio),
+                }
+            )
     leaders.sort(
-        key=lambda lead: (lead["bucket_rank"], -lead["reward_to_risk_ratio"], lead["symbol"])
+        key=lambda lead: (
+            lead["bucket_rank"],
+            -lead["reward_to_risk_ratio"],
+            lead["symbol"],
+        )
     )
     return leaders
 
 
 def evaluate_rotation(row, price, quantity, leader) -> TradeProposal:
-    freed = usdc_cents(quantity * (ROTATION_TRIM_PCT / 100) * price, round_down=True) / 100
+    freed = (
+        usdc_cents(quantity * (ROTATION_TRIM_PCT / 100) * price, round_down=True) / 100
+    )
     return TradeProposal(
         action=ROTATE_TO_LEADER,
         symbol=row["symbol"],
@@ -1287,12 +1455,20 @@ class GuardedDryRunExitExecutor:
         them is refused. A book further ahead than this is still refused."""
         age = _num(max_quote_age_ms)
         skew = _num(max_clock_skew_ms)
-        deviation, spread, slippage = map(_num, (max_quote_deviation_pct, max_spread_pct, slippage_bps))
+        deviation, spread, slippage = map(
+            _num, (max_quote_deviation_pct, max_spread_pct, slippage_bps)
+        )
         if (
-            age is None or age <= 0 or deviation is None or not 0 <= deviation <= 100
-            or spread is None or not 0 <= spread <= 100
-            or slippage is None or not 0 <= slippage < 10_000
-            or skew is None or not 0 <= skew <= min(age, MAX_QUOTE_CLOCK_SKEW_MS)
+            age is None
+            or age <= 0
+            or deviation is None
+            or not 0 <= deviation <= 100
+            or spread is None
+            or not 0 <= spread <= 100
+            or slippage is None
+            or not 0 <= slippage < 10_000
+            or skew is None
+            or not 0 <= skew <= min(age, MAX_QUOTE_CLOCK_SKEW_MS)
         ):
             raise ValueError("invalid dry-run guard parameters")
         self.max_quote_age_ms = age
@@ -1305,7 +1481,10 @@ class GuardedDryRunExitExecutor:
         self.cost_model = cost_model(fee_bps, slippage_bps)
 
     def quote_guard(self, quote, reference_price, quantity, now_ms) -> list[str]:
-        if not isinstance(quote, dict) or quote.get("quote_status") not in (None, "AVAILABLE"):
+        if not isinstance(quote, dict) or quote.get("quote_status") not in (
+            None,
+            "AVAILABLE",
+        ):
             return ["quote_unavailable"]
         bid = _num(quote.get("bid_usd"))
         ask = _num(quote.get("ask_usd"))
@@ -1322,12 +1501,19 @@ class GuardedDryRunExitExecutor:
                 reasons.append("quote_crossed_book")
             elif (ask - bid) / (bid + (ask - bid) / 2) * 100 > self.max_spread_pct:
                 reasons.append("quote_spread_too_wide")
-        if observed is None or observed <= 0 or now is None or not 0 <= now - observed <= self.max_quote_age_ms:
+        if (
+            observed is None
+            or observed <= 0
+            or now is None
+            or not 0 <= now - observed <= self.max_quote_age_ms
+        ):
             reasons.append("quote_stale")
         if exchange is None:
             reasons.append("quote_missing_exchange_timestamp")
         elif (
-            exchange <= 0 or now is None or observed is None
+            exchange <= 0
+            or now is None
+            or observed is None
             or exchange > observed + self.max_clock_skew_ms
             or not -self.max_clock_skew_ms <= now - exchange <= self.max_quote_age_ms
         ):
@@ -1335,7 +1521,11 @@ class GuardedDryRunExitExecutor:
         reference = _num(reference_price)
         if reference is None or reference <= 0:
             reasons.append("invalid_reference_price")
-        elif bid is not None and bid > 0 and abs(bid / reference - 1.0) * 100 > self.max_quote_deviation_pct:
+        elif (
+            bid is not None
+            and bid > 0
+            and abs(bid / reference - 1.0) * 100 > self.max_quote_deviation_pct
+        ):
             reasons.append("quote_deviates_from_reference")
         quantity = _num(quantity)
         size = _num(quote.get("bid_size"))
@@ -1349,7 +1539,11 @@ class GuardedDryRunExitExecutor:
         elif levels is not None:
             # A ladder replaces the top-of-book size rule with the depth walk.
             offered = sum(level_size for _, level_size in levels)
-            if quantity is not None and quantity > 0 and offered < _paper_fills().to_decimal(quantity, "quantity"):
+            if (
+                quantity is not None
+                and quantity > 0
+                and offered < _paper_fills().to_decimal(quantity, "quantity")
+            ):
                 reasons.append("insufficient_book_depth")
         elif size is not None and quantity is not None and size < quantity:
             reasons.append("insufficient_top_of_book_size")
@@ -1370,7 +1564,11 @@ class GuardedDryRunExitExecutor:
         if estimate["status"] != fills.FILLED:
             return None
         net = estimate["estimated_net_proceeds_usd"]
-        cents = net.quantize(Decimal("0.01"), rounding=ROUND_DOWN) if net > 0 else Decimal(0)
+        cents = (
+            net.quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+            if net > 0
+            else Decimal(0)
+        )
         sell = estimate["estimated_sell_price_usd"]
         return {
             "fill_price": float(sell),
@@ -1397,21 +1595,40 @@ class GuardedDryRunExitExecutor:
             decision = _num(now_ms)
             cutoff = _num(snapshot.get("as_of_ts"))
             computed = _num(snapshot.get("computed_at"))
-            max_age = min(_num(snapshot.get("ttl_seconds")) or MAX_SCAN_AGE_SECONDS, MAX_SCAN_AGE_SECONDS)
+            max_age = min(
+                _num(snapshot.get("ttl_seconds")) or MAX_SCAN_AGE_SECONDS,
+                MAX_SCAN_AGE_SECONDS,
+            )
             if (
-                decision is None or cutoff != int(decision // 86400000) * 86400
-                or (computed is not None and not 0 <= decision / 1000 - computed < max_age)
+                decision is None
+                or cutoff != int(decision // 86400000) * 86400
+                or (
+                    computed is not None
+                    and not 0 <= decision / 1000 - computed < max_age
+                )
             ):
                 return blocked("market_snapshot_stale")
-            exchange = _num((quote or {}).get("exchange_time_ms")) if isinstance(quote, dict) else None
+            exchange = (
+                _num((quote or {}).get("exchange_time_ms"))
+                if isinstance(quote, dict)
+                else None
+            )
             if exchange is not None and exchange < cutoff * 1000:
                 return blocked("quote_precedes_market_snapshot")
         held_quantity = _num(position.get("quantity"))
         trim = _num(proposal.trim_pct)
-        if held_quantity is None or held_quantity <= 0 or trim is None or not 0 < trim <= 100:
+        if (
+            held_quantity is None
+            or held_quantity <= 0
+            or trim is None
+            or not 0 < trim <= 100
+        ):
             return blocked("invalid_exit_quantity")
         quantity = held_quantity * (trim / 100)
-        if isinstance(quote, dict) and quote.get("product_id") not in (None, proposal.product_id):
+        if isinstance(quote, dict) and quote.get("product_id") not in (
+            None,
+            proposal.product_id,
+        ):
             return blocked("quote_product_mismatch")
         blocks = self.quote_guard(quote, proposal.reference_price, quantity, now_ms)
         levels, _ = _quote_ladder(quote)
@@ -1530,7 +1747,8 @@ class _ClusterGuard:
             self.reason = "guard_unavailable"
             return
         self.existing = [
-            self._item(symbol, heat["_position_risk"].get(symbol)) for symbol in sorted(held)
+            self._item(symbol, heat["_position_risk"].get(symbol))
+            for symbol in sorted(held)
         ]
 
     def _item(self, symbol: str, risk_usd: float | None) -> dict[str, Any]:
@@ -1541,7 +1759,9 @@ class _ClusterGuard:
                 item[key] = row[key]
                 break
         else:
-            named = self.clusters.get(symbol) or _quant_module("coin_clusters").cluster_for(symbol)
+            named = self.clusters.get(symbol) or _quant_module(
+                "coin_clusters"
+            ).cluster_for(symbol)
             if isinstance(named, str) and named.strip():
                 item["category_id"] = named
         beta = row.get("downside_beta", self.betas.get(symbol))
@@ -1556,27 +1776,42 @@ class _ClusterGuard:
         symbol = leader["symbol"] if leader else entry.symbol
         candidate = self._item(symbol, risk)
         verdict = self.module.evaluate_cluster_and_beta_heat(
-            self.existing + self.accepted, [candidate], equity_usd=self.equity, **self.limits
+            self.existing + self.accepted,
+            [candidate],
+            equity_usd=self.equity,
+            **self.limits,
         )
         if verdict["accepted_proposals"]:
             self.accepted.append(candidate)
-            entry.evidence["cluster_guard"] = verdict["accepted_proposals"][0]["cluster_guard"]
+            entry.evidence["cluster_guard"] = verdict["accepted_proposals"][0][
+                "cluster_guard"
+            ]
             return True
         blocked = verdict["suppressed_proposals"][0]
-        self.suppressed.append({
-            "symbol": symbol,
-            **({"sell_symbol": entry.symbol} if leader else {}),
-            "action": entry.action,
-            "reference_price": leader["reference_price"] if leader else entry.reference_price,
-            "suppression_reason": blocked["suppression_reason"],
-            "cluster_guard": blocked["cluster_guard"],
-            "suggested_notional_usd": (entry.sizing or {}).get("suggested_notional_usd"),
-        })
+        self.suppressed.append(
+            {
+                "symbol": symbol,
+                **({"sell_symbol": entry.symbol} if leader else {}),
+                "action": entry.action,
+                "reference_price": (
+                    leader["reference_price"] if leader else entry.reference_price
+                ),
+                "suppression_reason": blocked["suppression_reason"],
+                "cluster_guard": blocked["cluster_guard"],
+                "suggested_notional_usd": (entry.sizing or {}).get(
+                    "suggested_notional_usd"
+                ),
+            }
+        )
         return False
 
     def summary(self) -> dict[str, Any]:
         if self.module is None:
-            return {"available": False, "reason": self.reason, "suppressed_proposals": []}
+            return {
+                "available": False,
+                "reason": self.reason,
+                "suppressed_proposals": [],
+            }
         totals = self.module.evaluate_cluster_and_beta_heat(
             self.existing + self.accepted, [], equity_usd=self.equity, **self.limits
         )
@@ -1642,7 +1877,11 @@ class CycleStrategistAgent:
             plans = self.store.active_reload_plans() if self.store is not None else []
         by_symbol: dict[str, list[dict]] = {}
         for plan in plans:
-            symbols = normalize_watchlist([plan.get("symbol")]) if isinstance(plan, dict) else []
+            symbols = (
+                normalize_watchlist([plan.get("symbol")])
+                if isinstance(plan, dict)
+                else []
+            )
             if symbols:
                 by_symbol.setdefault(symbols[0], []).append(plan)
         return by_symbol
@@ -1661,7 +1900,11 @@ class CycleStrategistAgent:
         trim_scale = profile["trim_fraction"] / ORBIT_TRIM_FRACTION
         ladder_weights = _ladder_weights(profile)
         industry = scan.get("industry")
-        stage = industry.get("liquidity_rotation_stage") if isinstance(industry, dict) else None
+        stage = (
+            industry.get("liquidity_rotation_stage")
+            if isinstance(industry, dict)
+            else None
+        )
         rows = {}
         for row in scan["coins"]:
             if not isinstance(row, dict) or row.get("available") is not True:
@@ -1678,13 +1921,22 @@ class CycleStrategistAgent:
             if symbol not in floors:
                 row = rows[symbol]
                 floors[symbol] = _floor_for(
-                    context, held.get(symbol, {}), symbol, _multi_year(context, row, symbol)
+                    context,
+                    held.get(symbol, {}),
+                    symbol,
+                    _multi_year(context, row, symbol),
                 )
             return floors[symbol]
 
-        def entry_stop(symbol: str, price: float, preferred: float | None = None) -> float | None:
+        def entry_stop(
+            symbol: str, price: float, preferred: float | None = None
+        ) -> float | None:
             """The proposal's own stop, else the scanner's, else the daily floor."""
-            scanner = _num((rows[symbol].get("accumulation_invalidation_stop") or {}).get("stop_price"))
+            scanner = _num(
+                (rows[symbol].get("accumulation_invalidation_stop") or {}).get(
+                    "stop_price"
+                )
+            )
             for candidate in (preferred, scanner):
                 if candidate is not None and 0 < candidate < price:
                     return candidate
@@ -1702,7 +1954,9 @@ class CycleStrategistAgent:
             position = held[symbol]
             multi_year = _multi_year(context, row, symbol)
             floor = floor_of(symbol)
-            stop = evaluate_protective_stop(row, floor, price, position.get("stop_price"))
+            stop = evaluate_protective_stop(
+                row, floor, price, position.get("stop_price")
+            )
             if stop:
                 # The size defended, so the ledger can value the exit later.
                 held_quantity = _num(position.get("quantity"))
@@ -1719,15 +1973,28 @@ class CycleStrategistAgent:
                 trim.evidence["held_quantity"] = quantity
                 histories = context.get("cycle_histories")
                 trim.reload_plan = build_reload_plan(
-                    row, multi_year, price, quantity * trim.trim_pct / 100, quantity, floor,
-                    daily_candles=histories.get(f"{symbol}-USD") if isinstance(histories, dict) else None,
-                    costs=self.costs, base_weights=ladder_weights,
+                    row,
+                    multi_year,
+                    price,
+                    quantity * trim.trim_pct / 100,
+                    quantity,
+                    floor,
+                    daily_candles=(
+                        histories.get(f"{symbol}-USD")
+                        if isinstance(histories, dict)
+                        else None
+                    ),
+                    costs=self.costs,
+                    base_weights=ladder_weights,
                 )
                 proposals.append(trim)
                 trimming.add(symbol)
 
         heat = portfolio_heat(
-            context, held, rows, {symbol: floor_of(symbol) for symbol in held if symbol in rows},
+            context,
+            held,
+            rows,
+            {symbol: floor_of(symbol) for symbol in held if symbol in rows},
             max_heat_pct=profile["max_total_heat_pct"],
         )
         base_risk = _setting(context, "base_risk_pct", profile["risk_per_trade_pct"])
@@ -1741,35 +2008,55 @@ class CycleStrategistAgent:
                 evaluate_reload(row, price, plans.get(symbol))
                 or evaluate_accumulate(row, price)
                 or evaluate_breakout(row, price)
-                or (evaluate_early_breakout(row, price) if effective == "full_burn" else None)
+                or (
+                    evaluate_early_breakout(row, price)
+                    if effective == "full_burn"
+                    else None
+                )
             )
             if not entry:
                 continue
-            if effective == "bunker" and entry.action != RELOAD_ACCUMULATE and not _bunker_entry_allowed(row):
-                self.last_skipped.append({
-                    "symbol": entry.symbol,
-                    "action": entry.action,
-                    "reason": "stance_entry_gate",
-                    "effective_stance": effective,
-                })
+            if (
+                effective == "bunker"
+                and entry.action != RELOAD_ACCUMULATE
+                and not _bunker_entry_allowed(row)
+            ):
+                self.last_skipped.append(
+                    {
+                        "symbol": entry.symbol,
+                        "action": entry.action,
+                        "reason": "stance_entry_gate",
+                        "effective_stance": effective,
+                    }
+                )
                 continue
             entries.append((entry, row, price))
         # Reloads are already funded, so they take heat headroom first.
-        entries.sort(key=lambda item: (item[0].action != RELOAD_ACCUMULATE, item[0].symbol))
+        entries.sort(
+            key=lambda item: (item[0].action != RELOAD_ACCUMULATE, item[0].symbol)
+        )
         guard = _ClusterGuard(context, rows, held, heat, _cluster_limits(profile))
         for entry, row, price in entries:
             stop = entry_stop(entry.symbol, price, entry.stop_price)
             target = active_target(row)
             ratio = reward_to_risk(price, stop, target["mid"] if target else None)
             if ratio is None or ratio < MIN_ENTRY_RR:
-                self.last_skipped.append({
-                    "symbol": entry.symbol,
-                    "action": entry.action,
-                    "reason": "no_stop_below_price" if stop is None
-                    else "no_target_above_price" if ratio is None
-                    else "reward_to_risk_below_minimum",
-                    "reward_to_risk_ratio": _round(ratio),
-                })
+                self.last_skipped.append(
+                    {
+                        "symbol": entry.symbol,
+                        "action": entry.action,
+                        "reason": (
+                            "no_stop_below_price"
+                            if stop is None
+                            else (
+                                "no_target_above_price"
+                                if ratio is None
+                                else "reward_to_risk_below_minimum"
+                            )
+                        ),
+                        "reward_to_risk_ratio": _round(ratio),
+                    }
+                )
                 continue
             entry.stage = stage
             entry.stop_price = stop
@@ -1781,9 +2068,16 @@ class CycleStrategistAgent:
             )
             reserved_before = heat["_reserved_risk"]
             entry.sizing = size_entry(
-                price, stop, stage, heat, base_risk,
-                funded_usd=entry.evidence.get("reload_pool_usdc")
-                if entry.action == RELOAD_ACCUMULATE else None,
+                price,
+                stop,
+                stage,
+                heat,
+                base_risk,
+                funded_usd=(
+                    entry.evidence.get("reload_pool_usdc")
+                    if entry.action == RELOAD_ACCUMULATE
+                    else None
+                ),
             )
             if not guard.admit(entry, heat["_reserved_risk"] - reserved_before):
                 # Give the suppressed entry's heat back to the entries after it.
@@ -1802,29 +2096,46 @@ class CycleStrategistAgent:
                 entry.evidence["reload_allocation_version"] = 1
                 entry.reasons.append(
                     "The buy uses the allocated reload funds."
-                    if allocations else "Sizing is unavailable at the current portfolio risk."
+                    if allocations
+                    else "Sizing is unavailable at the current portfolio risk."
                 )
             proposals.append(entry)
 
         laggards = [
-            symbol for symbol in sorted(held)
-            if symbol not in defended and symbol not in trimming and symbol in rows and is_laggard(rows[symbol])
+            symbol
+            for symbol in sorted(held)
+            if symbol not in defended
+            and symbol not in trimming
+            and symbol in rows
+            and is_laggard(rows[symbol])
             and (_num(rows[symbol].get("price")) or 0) > 0
         ]
         if laggards:
             leaders = rank_leaders(rows, entry_stop, excluded=defended)
             if effective == "bunker":
-                leaders = [lead for lead in leaders if _bunker_entry_allowed(rows[lead["symbol"]])]
+                leaders = [
+                    lead
+                    for lead in leaders
+                    if _bunker_entry_allowed(rows[lead["symbol"]])
+                ]
             for symbol in laggards:
-                leader = next((lead for lead in leaders if lead["symbol"] != symbol), None)
+                leader = next(
+                    (lead for lead in leaders if lead["symbol"] != symbol), None
+                )
                 if leader is None:
                     continue
                 row = rows[symbol]
-                rotation = evaluate_rotation(row, _num(row["price"]), held[symbol]["quantity"], leader)
+                rotation = evaluate_rotation(
+                    row, _num(row["price"]), held[symbol]["quantity"], leader
+                )
                 rotation.stage = stage
                 reserved_before = heat["_reserved_risk"]
                 rotation.sizing = size_entry(
-                    leader["reference_price"], leader["stop_price"], stage, heat, base_risk,
+                    leader["reference_price"],
+                    leader["stop_price"],
+                    stage,
+                    heat,
+                    base_risk,
                     funded_usd=rotation.pair["freed_usd"],
                 )
                 notional = rotation.sizing["suggested_notional_usd"]
@@ -1840,7 +2151,9 @@ class CycleStrategistAgent:
                         f"Rotate ${notional:,.2f} of {symbol} into {leader['symbol']} within the risk budget."
                     )
                 proposals.append(rotation)
-        self.last_heat = {key: value for key, value in heat.items() if not key.startswith("_")}
+        self.last_heat = {
+            key: value for key, value in heat.items() if not key.startswith("_")
+        }
         self.last_cluster_guard = guard.summary()
         from .cycle_context import cycle_evidence
 
@@ -1852,7 +2165,8 @@ class CycleStrategistAgent:
             position = held.get(proposal.symbol)
             if position:
                 proposal.evidence["position_snapshot"] = {
-                    key: position[key] for key in ("source", "quantity", "observed_at_ts", "opened_ts")
+                    key: position[key]
+                    for key in ("source", "quantity", "observed_at_ts", "opened_ts")
                     if key in position
                 }
         return proposals
@@ -1895,13 +2209,14 @@ class CycleStrategistAgent:
             or settings["execution_mode"] != "dry_run"
             or settings["emergency_pause"]
             or store.count_auto_orders_since(int(now // 86_400) * 86_400)
-                >= settings["daily_order_cap"]
+            >= settings["daily_order_cap"]
         ):
             return {}
         wanted = []
         for proposal in proposals:
             if (
-                proposal.action not in EXIT_ACTIONS or proposal.product_id in quotes
+                proposal.action not in EXIT_ACTIONS
+                or proposal.product_id in quotes
                 or proposal.breach_state == STALE_FLOOR_BREAK
             ):
                 continue
@@ -1917,7 +2232,8 @@ class CycleStrategistAgent:
         if not isinstance(fetched, Mapping):
             return {}
         return {
-            product: quote for product, quote in fetched.items()
+            product: quote
+            for product, quote in fetched.items()
             if product in wanted and isinstance(quote, dict)
         }
 
@@ -1925,7 +2241,11 @@ class CycleStrategistAgent:
         context = deepcopy(context or {})
         supplied_now = _num(context.get("now_ts"))
         started = time.monotonic()
-        clock = self.clock if supplied_now is None else lambda: supplied_now + time.monotonic() - started
+        clock = (
+            self.clock
+            if supplied_now is None
+            else lambda: supplied_now + time.monotonic() - started
+        )
         now = clock()
         store = self.store or AgentStore()
         plans = context.get("reload_plans")
@@ -1941,14 +2261,22 @@ class CycleStrategistAgent:
         held = _positions(context)
         for proposal in proposals:
             proposal.proposal_id = proposal_id(proposal.action, proposal.symbol, now)
-        quotes = dict(context["quotes"]) if isinstance(context.get("quotes"), dict) else {}
+        quotes = (
+            dict(context["quotes"]) if isinstance(context.get("quotes"), dict) else {}
+        )
         quotes.update(self._fetch_exit_quotes(context, store, proposals, quotes, now))
         observations = []
         for proposal in proposals:
             saved, settings = store.route_proposal(
                 proposal.to_record(),
                 lambda settings, count, decision_ms: self._route(
-                    proposal, settings, held, quotes, decision_ms, count, context.get("cycle_scan")
+                    proposal,
+                    settings,
+                    held,
+                    quotes,
+                    decision_ms,
+                    count,
+                    context.get("cycle_scan"),
                 ),
                 clock=clock,
             )
@@ -1977,7 +2305,11 @@ class CycleStrategistAgent:
                         "execution": saved.get("execution"),
                         "autonomy": {
                             k: settings[k]
-                            for k in ("autonomy_mode", "execution_mode", "emergency_pause")
+                            for k in (
+                                "autonomy_mode",
+                                "execution_mode",
+                                "emergency_pause",
+                            )
                         },
                     },
                     source={"surface": "macro_cycle_scan", "dry_run_only": True},

@@ -165,15 +165,19 @@ def _depth_quote(quote, observed, inputs, max_stale, fee, slip, low, low_at):
         if low is None or executable < low:
             low, low_at = executable, observed
     mark = _depth_mark(
-        observed, exchange, fill, low, low_at,
-        inputs["entry_cost_usd"], inputs["quantity"],
+        observed,
+        exchange,
+        fill,
+        low,
+        low_at,
+        inputs["entry_cost_usd"],
+        inputs["quantity"],
     )
     status = PRICED if fill["status"] == FILLED else INSUFFICIENT_DEPTH
     return status, mark
 
 
-def _depth_rule_exit(records, times, rule, threshold, latency, max_gap,
-                     cost, quantity):
+def _depth_rule_exit(records, times, rule, threshold, latency, max_gap, cost, quantity):
     """First executable exit, plus what became of the first trigger.
 
     Carries over the two corrections the pilot already makes: an execution
@@ -283,8 +287,15 @@ def simulate_depth_exit(spec):
 
     hold = records[-1][2] if records and records[-1][1] == PRICED else None
     quality = _window_quality(
-        start, end, poll, max_stale, max_gap,
-        [(observed, QUALITY_STATUS[status], mark) for observed, status, mark in records],
+        start,
+        end,
+        poll,
+        max_stale,
+        max_gap,
+        [
+            (observed, QUALITY_STATUS[status], mark)
+            for observed, status, mark in records
+        ],
         hold,
     )
     quality["insufficient_depth_quotes_count"] = quality.pop("thin_quotes_count")
@@ -293,8 +304,14 @@ def simulate_depth_exit(spec):
     exits, diagnostics, comparisons, statuses = {}, {}, {}, {}
     for rule, threshold in inputs["thresholds"].items():
         exit_mark, diagnostics[rule] = _depth_rule_exit(
-            records, times, rule, threshold, latency, max_gap,
-            inputs["entry_cost_usd"], inputs["quantity"],
+            records,
+            times,
+            rule,
+            threshold,
+            latency,
+            max_gap,
+            inputs["entry_cost_usd"],
+            inputs["quantity"],
         )
         exits[rule] = exit_mark
         comparisons[rule] = None

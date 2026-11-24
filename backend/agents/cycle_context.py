@@ -51,18 +51,27 @@ def _positive(value: Any) -> float | None:
 
 def usable_cycle_scan(scan: Any, *, now: float | None = None) -> bool:
     """Allow pure scanner output or fresh, ready data from the Flask route."""
-    if not isinstance(scan, Mapping) or not isinstance(scan.get("coins"), list) or not scan["coins"]:
+    if (
+        not isinstance(scan, Mapping)
+        or not isinstance(scan.get("coins"), list)
+        or not scan["coins"]
+    ):
         return False
     snapshot = scan.get("market_snapshot")
     if snapshot is not None:
-        if not isinstance(snapshot, Mapping) or not snapshot.get("snapshot_id") or snapshot.get("timeframe") != "1d":
+        if (
+            not isinstance(snapshot, Mapping)
+            or not snapshot.get("snapshot_id")
+            or snapshot.get("timeframe") != "1d"
+        ):
             return False
         cutoff = _positive(snapshot.get("as_of_ts"))
         if cutoff is None or cutoff % 86400:
             return False
         if any(
             row.get("available") and row.get("market_as_of_ts") != cutoff
-            for row in scan["coins"] if isinstance(row, Mapping)
+            for row in scan["coins"]
+            if isinstance(row, Mapping)
         ):
             return False
     if not {"status", "computed_at", "ttl_seconds"}.intersection(scan):
@@ -82,10 +91,21 @@ def cycle_evidence(scan, symbol=None):
     """Preserve the scan revision and the coin's source candle boundary."""
     evidence = dict(scan.get("market_snapshot") or {})
     if evidence:
-        evidence.update({key: scan[key] for key in ("computed_at", "ttl_seconds") if key in scan})
+        evidence.update(
+            {key: scan[key] for key in ("computed_at", "ttl_seconds") if key in scan}
+        )
     if evidence and symbol:
-        row = next((row for row in scan["coins"] if isinstance(row, Mapping) and row.get("symbol") == symbol), {})
-        evidence.update(market_as_of_ts=row.get("market_as_of_ts"), history_id=row.get("history_id"))
+        row = next(
+            (
+                row
+                for row in scan["coins"]
+                if isinstance(row, Mapping) and row.get("symbol") == symbol
+            ),
+            {},
+        )
+        evidence.update(
+            market_as_of_ts=row.get("market_as_of_ts"), history_id=row.get("history_id")
+        )
     return evidence or None
 
 
@@ -100,7 +120,9 @@ def core_and_priority_ready(scan: Any, products: Iterable[Any] = ()) -> bool:
     industry = scan.get("industry")
     if not isinstance(industry, Mapping) or not industry.get("available"):
         return False
-    settled = {row.get("product_id") for row in scan["coins"] if isinstance(row, Mapping)}
+    settled = {
+        row.get("product_id") for row in scan["coins"] if isinstance(row, Mapping)
+    }
     unavailable = scan.get("unavailable")
     if isinstance(unavailable, (list, tuple)):
         settled.update(item for item in unavailable if isinstance(item, str))
@@ -115,7 +137,9 @@ def normalize_positions(rows: Iterable[Mapping[str, Any]] | None) -> list[dict]:
         if not isinstance(row, Mapping):
             continue
         symbol = _symbol(row.get("symbol") or row.get("product_id"))
-        quantity = _positive(row.get("quantity") if "quantity" in row else row.get("size"))
+        quantity = _positive(
+            row.get("quantity") if "quantity" in row else row.get("size")
+        )
         if not symbol or quantity is None:
             continue
         ticket = row.get("ticket_id")
@@ -125,23 +149,41 @@ def normalize_positions(rows: Iterable[Mapping[str, Any]] | None) -> list[dict]:
                 continue
             seen_tickets.add(key)
         if symbol not in merged:
-            merged[symbol] = {"symbol": symbol, "product_id": f"{symbol}-USD", "quantity": 0.0}
+            merged[symbol] = {
+                "symbol": symbol,
+                "product_id": f"{symbol}-USD",
+                "quantity": 0.0,
+            }
         clean = merged[symbol]
         clean["quantity"] += quantity
         for key in ("stop_price", "higher_low_floor"):
             level = _positive(row.get(key))
             if level is not None:
                 clean[key] = max(level, clean.get(key, 0.0))
-        for key in ("cost_basis", "entry_price", "source", "observed_at_ts", "opened_ts"):
+        for key in (
+            "cost_basis",
+            "entry_price",
+            "source",
+            "observed_at_ts",
+            "opened_ts",
+        ):
             if row.get(key) is not None:
                 clean.setdefault(key, row[key])
-    return [merged[symbol] for symbol in sorted(merged) if math.isfinite(merged[symbol]["quantity"])]
+    return [
+        merged[symbol]
+        for symbol in sorted(merged)
+        if math.isfinite(merged[symbol]["quantity"])
+    ]
 
 
 def normalize_watchlist(symbols: Iterable[Any] | None) -> list[str]:
     out: list[str] = []
     for raw in symbols or []:
-        symbol = _symbol((raw.get("symbol") or raw.get("product_id")) if isinstance(raw, Mapping) else raw)
+        symbol = _symbol(
+            (raw.get("symbol") or raw.get("product_id"))
+            if isinstance(raw, Mapping)
+            else raw
+        )
         if symbol and symbol not in out:
             out.append(symbol)
     return out
@@ -188,7 +230,10 @@ def fetch_top_of_book(
             params={"level": 1 if depth_levels == 1 else 2},
             timeout=min(timeout, QUOTE_TIMEOUT_SECONDS),
             allow_redirects=False,
-            headers={"User-Agent": "moonwalking-local-agents", "Accept": "application/json"},
+            headers={
+                "User-Agent": "moonwalking-local-agents",
+                "Accept": "application/json",
+            },
         )
         observed = int(now_ms()) if now_ms else time.time_ns() // 1_000_000
         response.raise_for_status()
@@ -282,7 +327,10 @@ def fetch_live_quotes(
         if remaining <= 0:
             break
         quotes[product_id] = fetch_top_of_book(
-            product_id, http_get=http_get, timeout=min(per_book, remaining), now_ms=now_ms,
+            product_id,
+            http_get=http_get,
+            timeout=min(per_book, remaining),
+            now_ms=now_ms,
             depth_levels=depth_levels,
         )
     return quotes

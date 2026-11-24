@@ -8,10 +8,14 @@ def cost_model(fee_bps=0.0, slippage_bps=0.0, *, source="explicit_paper_assumpti
     rates = []
     for value in (fee_bps, slippage_bps):
         if isinstance(value, bool):
-            raise ValueError("Cost rates must be finite basis points from 0 to under 10000")
+            raise ValueError(
+                "Cost rates must be finite basis points from 0 to under 10000"
+            )
         rate = float(value)
         if not math.isfinite(rate) or not 0 <= rate < 10000:
-            raise ValueError("Cost rates must be finite basis points from 0 to under 10000")
+            raise ValueError(
+                "Cost rates must be finite basis points from 0 to under 10000"
+            )
         rates.append(rate)
     return {"fee_bps": rates[0], "slippage_bps": rates[1], "source": source}
 
@@ -42,10 +46,14 @@ def _shared_sale(price, quantity, model):
     except ValueError:
         return None
     net = sale["estimated_net_proceeds_usd"]
-    cents = net.quantize(Decimal("0.01"), rounding=ROUND_DOWN) if net > 0 else Decimal(0)
+    cents = (
+        net.quantize(Decimal("0.01"), rounding=ROUND_DOWN) if net > 0 else Decimal(0)
+    )
     return {
         "fill_price": float(sale["estimated_sell_price_usd"]),
-        "gross_proceeds_usd": float(sale["estimated_sell_price_usd"] * sale["requested_quantity"]),
+        "gross_proceeds_usd": float(
+            sale["estimated_sell_price_usd"] * sale["requested_quantity"]
+        ),
         "fee_usd": float(sale["fee_usd"]),
         "slippage_usd": float(sale["slippage_cost_usd"]),
         "proceeds_usd": float(cents),

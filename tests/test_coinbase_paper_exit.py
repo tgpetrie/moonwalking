@@ -469,7 +469,9 @@ def test_synthetic_tape_is_never_official_even_over_four_hours(flag, value, synt
         (1, "unverified", False),
     ],
 )
-def test_a_holding_that_changed_during_the_window_is_never_official(value, reported, official):
+def test_a_holding_that_changed_during_the_window_is_never_official(
+    value, reported, official
+):
     spec = pilot_window(
         [(time, 40000, "1") for time in range(0, PILOT_WINDOW_MS + 1, 1000)],
         latency=500,
@@ -486,7 +488,10 @@ def test_existing_tapes_replay_to_the_same_numbers_through_the_shared_sale():
     # TC-02's compounded fee and slippage boundary, now priced by the shared
     # Decimal sell estimate rather than the pilot's own arithmetic.
     spec = pilot_window(
-        [(i * 1000, price, "1") for i, price in enumerate([40000, 45000, 55000, 55096, 55107])],
+        [
+            (i * 1000, price, "1")
+            for i, price in enumerate([40000, 45000, 55000, 55096, 55107])
+        ],
         slip="100",
     )
     result = simulate_exit(spec)

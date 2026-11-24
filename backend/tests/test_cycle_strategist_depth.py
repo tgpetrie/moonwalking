@@ -33,12 +33,18 @@ def _quote(bid=174.8, size=1.0, age_ms=1_000, **changes):
 
 def _context(quote):
     trim = {
-        "symbol": "SOL", "product_id": "SOL-USD", "available": True, "price": 175.0,
+        "symbol": "SOL",
+        "product_id": "SOL-USD",
+        "available": True,
+        "price": 175.0,
         "rollover_target_box": {"low": 150.0, "high": 200.0},
     }
     return {
         "cycle_scan": {
-            "industry": {"available": True, "liquidity_rotation_stage": "stage_1_macro_compression"},
+            "industry": {
+                "available": True,
+                "liquidity_rotation_stage": "stage_1_macro_compression",
+            },
             "coins": [trim],
         },
         "positions": [{"symbol": "SOL", "quantity": 10}],
@@ -70,11 +76,17 @@ def test_a_thin_top_bid_with_depth_behind_it_now_executes_across_the_ladder(stor
     # 1 @ 174.8 + 2 @ 174.7 + 0.75 @ 174.6 = 655.15, slipped 10 bps, no fee.
     gross = Decimal("655.15")
     assert execution["gross_book_proceeds_usd"] == pytest.approx(float(gross))
-    assert execution["estimated_vwap_usd"] == pytest.approx(float(gross / Decimal("3.75")))
-    assert execution["fill_price"] == pytest.approx(float(gross / Decimal("3.75") * Decimal("0.999")))
+    assert execution["estimated_vwap_usd"] == pytest.approx(
+        float(gross / Decimal("3.75"))
+    )
+    assert execution["fill_price"] == pytest.approx(
+        float(gross / Decimal("3.75") * Decimal("0.999"))
+    )
     net = (gross * Decimal("0.999")).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
     assert execution["proceeds_usd"] == float(net) == 654.49
-    assert execution["depth_cost_vs_top_bid_usd"] == pytest.approx(174.8 * 3.75 - 655.15)
+    assert execution["depth_cost_vs_top_bid_usd"] == pytest.approx(
+        174.8 * 3.75 - 655.15
+    )
     assert execution["dry_run"] is True and execution["order_submitted"] is False
 
 
@@ -156,7 +168,9 @@ def test_live_guarded_pause_and_cap_are_unchanged_with_a_ladder(store, settings)
         ({"daily_order_cap": 0}, _quote(bids=LADDER)),
     ],
 )
-def test_every_executor_outcome_says_it_is_a_dry_run_that_submitted_nothing(store, settings, quote):
+def test_every_executor_outcome_says_it_is_a_dry_run_that_submitted_nothing(
+    store, settings, quote
+):
     if settings:
         store.set_autonomy_settings(**settings)
     execution = _trim(store, quote)["execution"]
@@ -182,7 +196,12 @@ class _Book:
 
 def _level_two_book():
     return {
-        "bids": [["174.80", "1.0", 2], ["174.70", "2.0", 1], ["174.60", "5.0", 4], ["174.50", "9", 1]],
+        "bids": [
+            ["174.80", "1.0", 2],
+            ["174.70", "2.0", 1],
+            ["174.60", "5.0", 4],
+            ["174.50", "9", 1],
+        ],
         "asks": [["174.90", "4", 1], ["175.00", "8", 2]],
         "sequence": 1,
         "auction_mode": False,
@@ -210,22 +229,34 @@ def test_the_fetcher_returns_a_trimmed_ladder_when_depth_is_requested():
         calls.append(kwargs["params"])
         return _Book(_level_two_book())
 
-    quote = fetch_top_of_book("SOL-USD", http_get=http_get, now_ms=lambda: NOW_MS, depth_levels=3)
+    quote = fetch_top_of_book(
+        "SOL-USD", http_get=http_get, now_ms=lambda: NOW_MS, depth_levels=3
+    )
     assert calls == [{"level": 2}]
     assert quote["quote_status"] == "AVAILABLE"
     assert quote["source"] == "coinbase_exchange_book_level_2"
     assert quote["bids"] == [[174.8, 1.0], [174.7, 2.0], [174.6, 5.0]]
-    assert (quote["bid_usd"], quote["bid_size"], quote["ask_usd"]) == (174.8, 1.0, 174.9)
+    assert (quote["bid_usd"], quote["bid_size"], quote["ask_usd"]) == (
+        174.8,
+        1.0,
+        174.9,
+    )
     assert quote["book_levels_requested"] == 3
 
 
 @pytest.mark.parametrize("depth", [0, -1, 51, 2.5, True, "3"])
 def test_an_invalid_depth_request_is_unavailable_not_an_error(depth):
     quote = fetch_top_of_book(
-        "SOL-USD", http_get=lambda url, **kw: _Book(_level_two_book()),
-        now_ms=lambda: NOW_MS, depth_levels=depth,
+        "SOL-USD",
+        http_get=lambda url, **kw: _Book(_level_two_book()),
+        now_ms=lambda: NOW_MS,
+        depth_levels=depth,
     )
-    assert quote == {"product_id": "SOL-USD", "quote_status": "UNAVAILABLE", "reason": "invalid_depth_levels"}
+    assert quote == {
+        "product_id": "SOL-USD",
+        "quote_status": "UNAVAILABLE",
+        "reason": "invalid_depth_levels",
+    }
 
 
 def test_fetch_live_quotes_passes_the_depth_request_through():
@@ -235,6 +266,8 @@ def test_fetch_live_quotes_passes_the_depth_request_through():
         params.append(kwargs["params"])
         return _Book(_level_two_book())
 
-    quotes = fetch_live_quotes(["SOL"], http_get=http_get, now_ms=lambda: NOW_MS, depth_levels=2)
+    quotes = fetch_live_quotes(
+        ["SOL"], http_get=http_get, now_ms=lambda: NOW_MS, depth_levels=2
+    )
     assert params == [{"level": 2}]
     assert quotes["SOL-USD"]["bids"] == [[174.8, 1.0], [174.7, 2.0]]

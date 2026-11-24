@@ -59,7 +59,10 @@ def test_a_sale_across_three_bid_levels():
 
 def test_slippage_applies_on_top_of_the_walk_then_the_fee():
     fill = estimate_sell_proceeds(
-        book_levels(LADDER), D("0.03"), fee_rate=rate_from_bps(60), slippage_rate=rate_from_bps(10)
+        book_levels(LADDER),
+        D("0.03"),
+        fee_rate=rate_from_bps(60),
+        slippage_rate=rate_from_bps(10),
     )
     sell = D("44900") * (1 - D("0.001"))
     assert fill["estimated_sell_price_usd"] == sell
@@ -70,7 +73,9 @@ def test_slippage_applies_on_top_of_the_walk_then_the_fee():
 def test_too_little_depth_is_explicit_and_withholds_proceeds():
     fill = estimate_sell_proceeds(
         book_levels([("45000", "0.01"), ("44900", "0.005")]),
-        D("0.03"), fee_rate=D("0.01"), slippage_rate=D(0),
+        D("0.03"),
+        fee_rate=D("0.01"),
+        slippage_rate=D(0),
     )
     assert fill["status"] == INSUFFICIENT_BOOK_DEPTH == "insufficient_book_depth"
     assert fill["levels_consumed"] == 2
@@ -83,7 +88,9 @@ def test_too_little_depth_is_explicit_and_withholds_proceeds():
 
 
 def test_book_levels_accept_coinbase_dicts_and_exchange_lists():
-    from_dicts = book_levels([{"price": "45000", "size": "0.5"}, {"price": "44999.5", "size": "1"}])
+    from_dicts = book_levels(
+        [{"price": "45000", "size": "0.5"}, {"price": "44999.5", "size": "1"}]
+    )
     from_lists = book_levels([["45000", "0.5", 3], ["44999.5", "1", 1]])
     assert from_dicts == from_lists == [(D("45000"), D("0.5")), (D("44999.5"), D("1"))]
     # Floats from JSON keep their printed value rather than binary noise.
@@ -121,7 +128,9 @@ def test_an_uncrossed_ask_is_accepted():
 @pytest.mark.parametrize("quantity", [D(0), D(-1), D("NaN")])
 def test_quantity_must_be_positive(quantity):
     with pytest.raises(ValueError, match="quantity"):
-        estimate_sell_proceeds(book_levels([("1", "1")]), quantity, fee_rate=D(0), slippage_rate=D(0))
+        estimate_sell_proceeds(
+            book_levels([("1", "1")]), quantity, fee_rate=D(0), slippage_rate=D(0)
+        )
 
 
 def test_rates_come_from_basis_points():

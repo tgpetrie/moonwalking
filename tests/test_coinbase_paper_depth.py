@@ -22,8 +22,9 @@ DEEP = [(40000, "1")]
 LADDER = [(45000, "0.01"), (44900, "0.01"), (44800, "0.05")]
 
 
-def depth_window(rows, *, latency=500, quantity="0.03", cost="1500", fee="100",
-                 slip="0"):
+def depth_window(
+    rows, *, latency=500, quantity="0.03", cost="1500", fee="100", slip="0"
+):
     """rows: (observed_ms, ladder) or (observed_ms, "UNAVAILABLE")."""
     quotes = []
     for observed, ladder in rows:
@@ -208,9 +209,7 @@ def test_threshold_at_execution_uses_the_low_seen_at_trigger():
 
 
 def test_four_hour_synthetic_depth_run_is_never_official():
-    spec = depth_window(
-        [(time, DEEP) for time in range(0, PILOT_WINDOW_MS + 1, 1000)]
-    )
+    spec = depth_window([(time, DEEP) for time in range(0, PILOT_WINDOW_MS + 1, 1000)])
     result = simulate_depth_exit(spec)
     assert result["data_quality"]["window_valid"]
     assert result["declared_settings"] == PILOT_SETTINGS
@@ -289,7 +288,9 @@ def test_a_dust_top_bid_jump_is_not_an_executable_rebound():
     # 0.03 BTC sale would actually get is about $40,116.
     spike = [(45000, "0.0001"), (40100, "1")]
     result = simulate_depth_exit(
-        depth_window([(0, DEEP), (1000, DEEP), (2000, spike), (2500, spike), (3000, spike)])
+        depth_window(
+            [(0, DEEP), (1000, DEEP), (2000, spike), (2500, spike), (3000, spike)]
+        )
     )
     assert result["data_quality"]["window_valid"]
     exits = result["first_hypothetical_exits"]
@@ -309,7 +310,9 @@ def test_a_dust_top_bid_jump_is_not_an_executable_rebound():
 def test_a_real_rebound_in_the_executable_price_still_triggers():
     deep_rally = [(43400, "0.02"), (43300, "1")]
     result = simulate_depth_exit(
-        depth_window([(0, DEEP), (1000, deep_rally), (1500, deep_rally), (2000, deep_rally)])
+        depth_window(
+            [(0, DEEP), (1000, deep_rally), (1500, deep_rally), (2000, deep_rally)]
+        )
     )
     exit_row = result["first_hypothetical_exits"]["rebound_pct"]
     # (0.02 @ 43400 + 0.01 @ 43300) / 0.03 = 43366.67, 8.4% over $40,000.
@@ -346,7 +349,9 @@ def test_a_window_that_opens_thin_has_no_low_until_a_fillable_quote():
     )
     assert result["hold_last_quote"]["observed_low_bid_usd"] == 40000
     assert result["hold_last_quote"]["low_observed_at_ms"] == 2000
-    assert all(exit_row is None for exit_row in result["first_hypothetical_exits"].values())
+    assert all(
+        exit_row is None for exit_row in result["first_hypothetical_exits"].values()
+    )
 
 
 # ─── collector: fee source and an end-to-end replay ─────────────────────────
@@ -354,9 +359,14 @@ def test_a_window_that_opens_thin_has_no_low_until_a_fillable_quote():
 
 def _spec(**changes):
     values = {
-        "product_id": "BTC-USD", "quantity": "0.01", "entry_cost_usd": "700",
-        "exit_fee_bps": None, "slippage_bps": "10", "duration_seconds": 5,
-        "levels": 50, "start_ms": 1_794_441_600_000,
+        "product_id": "BTC-USD",
+        "quantity": "0.01",
+        "entry_cost_usd": "700",
+        "exit_fee_bps": None,
+        "slippage_bps": "10",
+        "duration_seconds": 5,
+        "levels": 50,
+        "start_ms": 1_794_441_600_000,
     }
     values.update(changes)
     return collector.build_spec(**values)
@@ -401,7 +411,13 @@ def test_a_public_depth_tape_replays_end_to_end_and_is_never_official():
 
     spec = _spec(exit_fee_bps="60", start_ms=start)
     spec["quotes"] = collector.collect(
-        "BTC-USD", start, spec["window_end_ms"], 50, now_ms=now_ms, sleep=sleep, fetch=fetch
+        "BTC-USD",
+        start,
+        spec["window_end_ms"],
+        50,
+        now_ms=now_ms,
+        sleep=sleep,
+        fetch=fetch,
     )
     result = simulate_depth_exit(json.loads(json.dumps(spec)))
     assert result["data_quality"]["window_valid"]

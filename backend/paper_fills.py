@@ -44,7 +44,9 @@ def rate_from_bps(value):
     try:
         bps = to_decimal(value, "rate")
     except ValueError as error:
-        raise ValueError("rate must be finite basis points from 0 to under 10000") from error
+        raise ValueError(
+            "rate must be finite basis points from 0 to under 10000"
+        ) from error
     if not 0 <= bps < BPS:
         raise ValueError("rate must be finite basis points from 0 to under 10000")
     return bps / BPS
@@ -98,7 +100,11 @@ def estimate_sell_proceeds(levels, quantity, *, fee_rate, slippage_rate):
     result with the shortfall and no proceeds: a partial fill is not what the
     position would realise, so it is never reported as such.
     """
-    quantity = to_decimal(quantity, "quantity") if not isinstance(quantity, Decimal) else quantity
+    quantity = (
+        to_decimal(quantity, "quantity")
+        if not isinstance(quantity, Decimal)
+        else quantity
+    )
     if not quantity.is_finite() or quantity <= 0:
         raise ValueError("quantity must be positive and finite")
     fee, slip = Decimal(fee_rate), Decimal(slippage_rate)
@@ -152,7 +158,14 @@ def estimate_sell_proceeds(levels, quantity, *, fee_rate, slippage_rate):
 
 def sell_at_price(price, quantity, *, fee_rate, slippage_rate):
     """The same estimate for a single level that covers the whole size."""
-    quantity = to_decimal(quantity, "quantity") if not isinstance(quantity, Decimal) else quantity
+    quantity = (
+        to_decimal(quantity, "quantity")
+        if not isinstance(quantity, Decimal)
+        else quantity
+    )
     return estimate_sell_proceeds(
-        book_levels([(price, quantity)]), quantity, fee_rate=fee_rate, slippage_rate=slippage_rate
+        book_levels([(price, quantity)]),
+        quantity,
+        fee_rate=fee_rate,
+        slippage_rate=slippage_rate,
     )
