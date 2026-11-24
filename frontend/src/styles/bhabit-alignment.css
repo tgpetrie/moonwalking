@@ -19,7 +19,8 @@
   pointer-events: none;
   z-index: 0;
   background: var(--bh-rabbit-stencil) center / contain no-repeat;
-  opacity: 0.045;
+  /* Invisible at rest: only a hovered row shows the slice of rabbit behind it. */
+  opacity: 0;
 }
 
 /* The stencil above replaces every earlier rabbit layer. */
@@ -50,20 +51,122 @@
   z-index: 1 !important;
 }
 
+/* Rabbit slice: each row paints the stencil itself with a viewport-fixed
+   background sized and centred exactly like .bh-rabbit-stencil, so the row
+   shows only the part of the rabbit that sits behind it. */
 .board-core .bh-row.bh-row-grid::after,
 .board-core .bh-row.bh-row-grid[data-side="loser"]::after,
 .board-core .bh-row.bh-row-grid[data-side="loss"]::after {
+  content: "" !important;
   inset: 1px 4px !important;
-  border-radius: 4px !important;
-  background: rgba(168, 139, 250, 0.06) !important;
-  -webkit-backdrop-filter: brightness(1.85) contrast(1.25) !important;
-  backdrop-filter: brightness(1.85) contrast(1.25) !important;
-  mix-blend-mode: plus-lighter !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  z-index: 1 !important;
+  border-radius: var(--r-1) !important;
+  background-color: transparent !important;
+  background-image: var(--bh-rabbit-stencil) !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: min(960px, 82vw) min(960px, 82vw) !important;
+  background-attachment: fixed !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.35)) !important;
+  mix-blend-mode: screen !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent) !important;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.35s ease !important;
+}
+
+.board-core .bh-row.bh-row-grid:hover::after,
+.board-core .bh-row.bh-row-grid:focus-visible::after {
+  opacity: 0.18 !important;
+}
+
+/* Hover glass: a crisp diagonal sheet that starts at the row's inner edge
+   (toward the middle of the board) and fades outward. Orange for gainers,
+   violet for losers. Left-hand rows start at their right edge; right-hand
+   rows start at their left edge. */
+.board-core .bh-row.bh-row-grid {
+  --bh-glass-angle: 240deg;
+  --bh-glass-1: rgba(255, 184, 77, 0.26);
+  --bh-glass-2: rgba(255, 158, 36, 0.11);
+  --bh-glass-3: rgba(255, 158, 36, 0.035);
+  --bh-glass-edge: rgba(255, 184, 77, 0.38);
+  background: transparent !important;
+}
+
+.board-core .bh-row.bh-row-grid[data-side="loser"],
+.board-core .bh-row.bh-row-grid[data-side="loss"] {
+  --bh-glass-1: rgba(192, 132, 252, 0.28);
+  --bh-glass-2: rgba(150, 72, 235, 0.12);
+  --bh-glass-3: rgba(150, 72, 235, 0.04);
+  --bh-glass-edge: rgba(192, 132, 252, 0.4);
+}
+
+/* Right-hand lanes: the 3m losers panel and the 1m rail's second column. */
+.board-core [data-hover-origin="left"] .bh-row.bh-row-grid,
+.board-core [data-hover-origin="center"] .bh-col + .bh-col .bh-row.bh-row-grid {
+  --bh-glass-angle: 120deg;
+}
+
+/* [data-side] outranks the older per-side radial rules in index.css. The
+   stretch undoes `.bh-row > * { align-self: center }`, which otherwise shrinks
+   this empty, absolutely placed grid child to zero height. */
+.board-core .bh-row.bh-row-grid[data-side] .bh-row-breathe,
+.board-core .bh-row.bh-row-grid .bh-row-breathe {
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  inset: 1px 4px !important;
+  border-radius: var(--r-1) !important;
+  background: linear-gradient(
+    var(--bh-glass-angle),
+    var(--bh-glass-1) 0%,
+    var(--bh-glass-2) 34%,
+    var(--bh-glass-3) 64%,
+    transparent 92%
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25) !important;
+  -webkit-backdrop-filter: saturate(1.15) !important;
+  backdrop-filter: saturate(1.15) !important;
+  filter: none !important;
+  transform: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+/* A hairline on the inner edge, where the glass starts. */
+.board-core .bh-row.bh-row-grid .bh-row-breathe::before {
+  content: "";
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  right: 0;
+  width: 1px;
+  background: var(--bh-glass-edge);
+}
+
+.board-core [data-hover-origin="left"] .bh-row.bh-row-grid .bh-row-breathe::before,
+.board-core [data-hover-origin="center"] .bh-col + .bh-col .bh-row.bh-row-grid .bh-row-breathe::before {
+  right: auto;
+  left: 0;
+}
+
+.board-core .bh-row.bh-row-grid[data-side]:hover .bh-row-breathe,
+.board-core .bh-row.bh-row-grid[data-side]:focus-visible .bh-row-breathe,
+.board-core .bh-row.bh-row-grid:hover .bh-row-breathe,
+.board-core .bh-row.bh-row-grid:focus-visible .bh-row-breathe {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .board-core .bh-row.bh-row-grid::after { transition: none !important; }
+  .board-core .bh-row.bh-row-grid::after,
+  .board-core .bh-row.bh-row-grid .bh-row-breathe { transition: none !important; }
 }
 
 /* Header brand: the 2026 moon-rabbit mark plus the vector BHABIT wordmark. */
@@ -85,6 +188,34 @@
   display: block;
   width: auto;
   height: 13px;
+}
+
+/* Aug 9 tagline, stacked under the wordmark so the brand stays one block. */
+.bh-brand__lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.bh-brand__tagline {
+  display: block;
+  color: rgba(245, 243, 240, 0.5);
+  font-family: "Raleway", sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The tagline is wider than the wordmark. Between 781 and 1180px the brand
+   shares one row with every nav tab, so the tagline would push the desk
+   links off the end; below 481px it would crowd the status pills. */
+@media (max-width: 480px), (min-width: 781px) and (max-width: 1180px) {
+  .bh-brand__lockup { gap: 0; }
+  .bh-brand__tagline { display: none; }
 }
 
 .bh-brand:focus-visible {
@@ -433,22 +564,4 @@
   }
 
   .bh-topnav__divider { margin-left: 0; }
-}
-
-/* Compact hero lockup: the vector BHABIT + moon at 40px instead of the 2025 neon PNG. */
-.bh-brand-hero.bh-brand-hero--compact {
-  min-height: 0;
-  padding: 10px 1rem 8px;
-}
-
-.bh-brand-hero--compact .bh-brand-hero__logo {
-  width: auto;
-  max-width: 82vw;
-  height: 40px;
-  filter: drop-shadow(0 0 10px rgba(255, 179, 71, 0.16));
-  animation: none;
-}
-
-@media (max-width: 639px) {
-  .bh-brand-hero--compact .bh-brand-hero__logo { height: 34px; }
 }

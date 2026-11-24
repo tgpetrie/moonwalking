@@ -2538,7 +2538,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       <iframe
                         key={`${tvResolved.symbol}-${tvResolved.source}`}
                         src={tvUrl}
-                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: 'var(--r-3)' }}
                         title={`${coinSymbol} chart`}
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                         referrerPolicy="no-referrer"

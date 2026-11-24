@@ -65,7 +65,7 @@ export default function StyleTuner({ enabled }) {
             background: "transparent",
             border: "1px solid rgba(255,255,255,0.14)",
             padding: "4px 8px",
-            borderRadius: 10,
+            borderRadius: 'var(--r-3)',
             cursor: "pointer"
           }}
         >

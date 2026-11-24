@@ -21,7 +21,6 @@ import IndustryPulse from "./IndustryPulse.jsx";
 import AgentsPage from "../mvp/AgentsPage.jsx";
 import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
 import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
-import bhabitHeaderLogo from "../assets/brand/bhabit-header-logo.svg";
 import bhabitWordmark from "../assets/brand/bhabit-wordmark.svg";
 import moonRabbitMark from "../assets/brand/moon-rabbit-mark.svg";
 
@@ -453,7 +452,10 @@ export default function DashboardShell({ onInfo }) {
         <div className="bh-logo">
           <a className="bh-brand" href="/" aria-label="BHABIT home">
             <img className="bh-brand__mark" src={moonRabbitMark} alt="" width="28" height="28" />
-            <img className="bh-brand__wordmark" src={bhabitWordmark} alt="" />
+            <span className="bh-brand__lockup">
+              <img className="bh-brand__wordmark" src={bhabitWordmark} alt="" />
+              <span className="bh-brand__tagline">Profit Buying Impulse</span>
+            </span>
           </a>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
@@ -485,14 +487,6 @@ export default function DashboardShell({ onInfo }) {
           </nav>
         </div>
       </header>
-
-      <section className="bh-brand-hero bh-brand-hero--compact" aria-label="BHABIT">
-        <img
-          src={bhabitHeaderLogo}
-          alt="BHABIT"
-          className="bh-brand-hero__logo"
-        />
-      </section>
 
       <div ref={boardRef} className="board-core mw-board" data-board="1">
         {workspaceView === "agents" ? <div className="mw-app"><AgentsPage /></div> : null}

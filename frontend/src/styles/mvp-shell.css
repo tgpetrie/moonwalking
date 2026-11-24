@@ -868,7 +868,7 @@
   place-items: center;
   width: 46px;
   height: 46px;
-  border-radius: 16px;
+  border-radius: var(--r-3);
   color: white;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -1893,7 +1893,7 @@
 .mw-watchlist-windows button:focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
 .mw-watchlist-display label, .mw-watchlist-help { color: var(--mw-muted); font-size: .8rem; }
 .mw-watchlist-display label { display: flex; align-items: center; gap: 5px; }
-.mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: 10px; box-shadow: 0 18px 38px #0000002b; }
+.mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: var(--r-4); box-shadow: 0 18px 38px #0000002b; }
 .mw-watchlist-windows button { border-color: #ffffff12; border-radius: 4px; background: #ffffff0a; color: #c5bfce; }
 .mw-watchlist-windows button[aria-pressed="true"] { background: #b9a0ff18; border-color: #b9a0ff; color: #f0eaf6; }
 .mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }
