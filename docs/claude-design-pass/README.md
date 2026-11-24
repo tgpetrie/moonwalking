@@ -19,19 +19,9 @@ Exported on 2026-11-18 from the Claude design canvas "Moonwalking Radar Design P
 | `svg/moon-phases/phase-*.svg` | Moon-phase loading idea, new to full (`currentColor`). |
 | `svg/icons/row-star.svg`, `row-trade.svg` | Row actions, outline only (`currentColor`). |
 
-## PNG (renders)
+## PNG renders (not in this repo)
 
-The lit moon, the cratered lettering and the Moonrise scene are rendered images, so they ship as PNG.
-
-| File | Use |
-|---|---|
-| `png/moon-rabbit-1024.png` | Moon Rabbit: white carved rabbit, purple eye, calmer terrain. |
-| `png/moon-rabbit-icon-192.png` | Navigation mark. |
-| `png/moonlit-edge-1024.png`, `png/moonlit-edge-icon-192.png` | Moonlit Edge direction. |
-| `png/moonrise-1800x1000.png` | Moonrise scene for social images and loading screens. |
-| `png/bhabit-amber-crater.png` | Header lettering, amber with craters (1500×414, letters inset 29.5px). |
-| `png/bhabit-moon-rock.png`, `png/bhabit-deep-space.png` | The two alternative letterings. |
-| `png/moon-rabbit-silhouette-1024.png` | Raster original of the hover silhouette. |
+The lit moon, the cratered letterings, Moonlit Edge and the Moonrise scene are rendered images that the app does not use, so they are left out of this copy to keep the repo small. They live on the design canvas and in the original export (`docs/claude-design-pass/png/` on branch `claude/local-review`, commit `929fdf1`).
 
 ## CSS and tokens
 

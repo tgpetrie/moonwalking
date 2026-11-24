@@ -12,7 +12,7 @@ import pytest
 from test_instant_targets import ANCHOR, ROOT, baseline, samples, target
 
 V1_REFERENCE_COMMIT = (
-    "cb7034a48d5a533153dfe1d113921318db82f3ec"  # v1 implementation before any v2 change
+    "cb7034a48d5a533153dfe1d113921318db82f3ec"  # v1 implementation before any v2 change  # pragma: allowlist secret
 )
 V2_KEYS = {
     "evaluator_sha256",

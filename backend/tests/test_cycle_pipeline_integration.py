@@ -69,7 +69,7 @@ def test_real_macro_response_drives_proposals_and_smart_alerts(
     owner = "cycle-owner@example.test"
     assert client.post(
         "/api/auth/signup",
-        json={"name": "Cycle Owner", "email": owner, "password": "test-only-password"},
+        json={"name": "Cycle Owner", "email": owner, "password": "test-only-password"},  # pragma: allowlist secret
     ).status_code == 201
     monkeypatch.setenv("COINBASE_PORTFOLIO_OWNER_EMAIL", owner)
 

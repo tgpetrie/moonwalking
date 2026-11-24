@@ -12,7 +12,7 @@ from pathlib import Path
 from random import Random
 from statistics import mean, median
 
-EXPECTED_DIGEST = "7a3eca1482726d7b5bc431c41bb2fc73929f4abe3635afb2edf5e9315ddea82c"
+EXPECTED_DIGEST = "7a3eca1482726d7b5bc431c41bb2fc73929f4abe3635afb2edf5e9315ddea82c"  # pragma: allowlist secret
 START = int(datetime(2026, 10, 28, tzinfo=timezone.utc).timestamp())
 END = int(datetime(2026, 11, 13, tzinfo=timezone.utc).timestamp())
 

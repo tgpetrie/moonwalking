@@ -49,7 +49,7 @@ ANALYSIS = Path.home() / ".moonwalking/analysis"
 LOCAL_DB = ANALYSIS / "live_movers_fresh_replication_20261113/board_episodes.sqlite"
 BACKFILL = ANALYSIS / "radar_candle_backfill_20261113/radar_candles.sqlite"
 BACKFILL_MANIFEST = BACKFILL.with_name("MANIFEST.json")
-LOCAL_SHA256 = "7a3eca1482726d7b5bc431c41bb2fc73929f4abe3635afb2edf5e9315ddea82c"
+LOCAL_SHA256 = "7a3eca1482726d7b5bc431c41bb2fc73929f4abe3635afb2edf5e9315ddea82c"  # pragma: allowlist secret
 
 SEAL = screen.stamp("2026-11-13")
 SPLIT = screen.stamp("2026-10-18")

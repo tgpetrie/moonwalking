@@ -146,7 +146,7 @@ If the backend sends changed rows while reporting itself stale, those rows would
 
 # Design-pass additions (from the canvas)
 
-These came after slice 1 and are not yet in the app. Where they touch the "Do not change" list above, they are deliberate decisions from the design pass. Assets are in `svg/` and `png/`, and styles in `css/` next to this file.
+These came after slice 1 and are not yet in the app. Where they touch the "Do not change" list above, they are deliberate decisions from the design pass. Assets are in `svg/` and styles in `css/` next to this file. The PNG renders are on branch `claude/local-review` (`929fdf1`).
 
 ## Phone review: fixes for the next build
 
@@ -172,7 +172,7 @@ From the "Why the rows change" board.
 - **Homepage header:** the BHABIT lettering alone, 60px tall, with the small moon (34px) off its top-right corner (`left: calc(100% + 10px); top: -14px`). Use `svg/bhabit-header-logo.svg` (all vector, flat amber lettering) or `svg/bhabit-header-logo-render.svg` (embeds the cratered lettering and moon renders, matches the canvas exactly).
 - **Corner stars:** three per lettering, from `svg/stars/`. The header uses burst at the top-left of the B, tall at the top-right of the T, and needle at the bottom-right of the second B. They rest at 72% scale and 0.4 opacity, and peak at full size every 5.2s, staggered.
 - **Breathing glow:** a blurred copy of the lettering behind it, opacity 0.16 to 0.62 over 5.2s. The moon halo does the same in neutral moonlight (`--color-bone`), never violet.
-- **Navigation:** the moon mark (`png/moon-rabbit-icon-192.png`, or `svg/moon-rabbit-mark.svg`) plus the flat wordmark (`svg/bhabit-wordmark.svg`). Craters do not read at 15px, so the nav never uses the cratered lettering.
+- **Navigation:** the moon mark (`svg/moon-rabbit-mark.svg`) plus the flat wordmark (`svg/bhabit-wordmark.svg`). Craters do not read at 15px, so the nav never uses the cratered lettering.
 - **Moon rabbit:** a white rabbit carved into the moon like a crater, with lines in a mix of moon rock and violet, a purple eye, and calmer terrain behind it. A purple-filled rabbit was tried and rejected.
 
 ## Background silhouette

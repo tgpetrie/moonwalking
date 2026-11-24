@@ -41,7 +41,7 @@ def sent(monkeypatch):
     return outbox
 
 
-def _signup(client, email="a@example.com", password="original-pw"):
+def _signup(client, email="a@example.com", password="original-pw"):  # pragma: allowlist secret
     response = client.post(
         "/api/auth/signup",
         json={"name": "Tester", "email": email, "password": password},
@@ -116,21 +116,21 @@ def test_valid_token_sets_new_password(client, sent):
 
     response = client.post(
         "/api/auth/reset-password",
-        json={"token": _token_from(sent), "password": "brand-new-pw"},
+        json={"token": _token_from(sent), "password": "brand-new-pw"},  # pragma: allowlist secret
     )
     assert response.status_code == 200
 
     assert (
         client.post(
             "/api/auth/login",
-            json={"email": "a@example.com", "password": "brand-new-pw"},
+            json={"email": "a@example.com", "password": "brand-new-pw"},  # pragma: allowlist secret
         ).status_code
         == 200
     )
     assert (
         client.post(
             "/api/auth/login",
-            json={"email": "a@example.com", "password": "original-pw"},
+            json={"email": "a@example.com", "password": "original-pw"},  # pragma: allowlist secret
         ).status_code
         == 401
     )
@@ -159,7 +159,7 @@ def test_invalid_token_is_rejected(client):
     _signup(client)
     response = client.post(
         "/api/auth/reset-password",
-        json={"token": "not-a-real-token", "password": "brand-new-pw"},
+        json={"token": "not-a-real-token", "password": "brand-new-pw"},  # pragma: allowlist secret
     )
     assert response.status_code == 400
 
@@ -180,13 +180,13 @@ def test_expired_token_is_rejected(client, sent):
         conn.close()
 
     response = client.post(
-        "/api/auth/reset-password", json={"token": raw, "password": "brand-new-pw"}
+        "/api/auth/reset-password", json={"token": raw, "password": "brand-new-pw"}  # pragma: allowlist secret
     )
     assert response.status_code == 400
     assert (
         client.post(
             "/api/auth/login",
-            json={"email": "a@example.com", "password": "original-pw"},
+            json={"email": "a@example.com", "password": "original-pw"},  # pragma: allowlist secret
         ).status_code
         == 200
     ), "an expired token must leave the old password working"
@@ -199,18 +199,18 @@ def test_token_cannot_be_reused(client, sent):
     raw = _token_from(sent)
 
     first = client.post(
-        "/api/auth/reset-password", json={"token": raw, "password": "first-new-pw"}
+        "/api/auth/reset-password", json={"token": raw, "password": "first-new-pw"}  # pragma: allowlist secret
     )
     assert first.status_code == 200
 
     second = client.post(
-        "/api/auth/reset-password", json={"token": raw, "password": "second-new-pw"}
+        "/api/auth/reset-password", json={"token": raw, "password": "second-new-pw"}  # pragma: allowlist secret
     )
     assert second.status_code == 400
     assert (
         client.post(
             "/api/auth/login",
-            json={"email": "a@example.com", "password": "second-new-pw"},
+            json={"email": "a@example.com", "password": "second-new-pw"},  # pragma: allowlist secret
         ).status_code
         == 401
     )
@@ -227,7 +227,7 @@ def test_requesting_a_second_token_invalidates_the_first(client, sent):
     assert (
         client.post(
             "/api/auth/reset-password",
-            json={"token": first_token, "password": "brand-new-pw"},
+            json={"token": first_token, "password": "brand-new-pw"},  # pragma: allowlist secret
         ).status_code
         == 400
     )
@@ -237,7 +237,7 @@ def test_short_password_is_rejected(client, sent):
     _signup(client)
     _request_reset(client)
     response = client.post(
-        "/api/auth/reset-password", json={"token": _token_from(sent), "password": "abc"}
+        "/api/auth/reset-password", json={"token": _token_from(sent), "password": "abc"}  # pragma: allowlist secret
     )
     assert response.status_code == 400
 
@@ -253,7 +253,7 @@ def test_validate_endpoint_reports_live_and_dead_tokens(client, sent):
     assert client.get(f"/api/auth/reset-password/validate?token={raw}").get_json() == {
         "valid": True
     }
-    client.post("/api/auth/reset-password", json={"token": raw, "password": "new-pw-123"})
+    client.post("/api/auth/reset-password", json={"token": raw, "password": "new-pw-123"})  # pragma: allowlist secret
     assert client.get(f"/api/auth/reset-password/validate?token={raw}").get_json() == {
         "valid": False
     }
@@ -274,7 +274,7 @@ def test_reset_invalidates_sessions_issued_before_it(client, sent):
     other_cookie_session = client.get("/api/auth/session").get_json()
     assert other_cookie_session["authenticated"] is True
 
-    client.post("/api/auth/reset-password", json={"token": raw, "password": "new-pw-123"})
+    client.post("/api/auth/reset-password", json={"token": raw, "password": "new-pw-123"})  # pragma: allowlist secret
 
     assert client.get("/api/auth/session").get_json()["authenticated"] is False
 
@@ -290,7 +290,7 @@ def test_session_version_increments_once_per_reset(client, sent):
     _request_reset(client)
     client.post(
         "/api/auth/reset-password",
-        json={"token": _token_from(sent), "password": "new-pw-123"},
+        json={"token": _token_from(sent), "password": "new-pw-123"},  # pragma: allowlist secret
     )
 
     conn = watchlist._db_connect()
@@ -306,10 +306,10 @@ def test_login_after_reset_produces_a_working_session(client, sent):
     _request_reset(client)
     client.post(
         "/api/auth/reset-password",
-        json={"token": _token_from(sent), "password": "new-pw-123"},
+        json={"token": _token_from(sent), "password": "new-pw-123"},  # pragma: allowlist secret
     )
     client.post(
-        "/api/auth/login", json={"email": "a@example.com", "password": "new-pw-123"}
+        "/api/auth/login", json={"email": "a@example.com", "password": "new-pw-123"}  # pragma: allowlist secret
     )
     assert client.get("/api/auth/session").get_json()["authenticated"] is True
 
@@ -341,9 +341,9 @@ def test_confirm_attempts_are_throttled(client):
     limit = auth_rate_limit.RESET_CONFIRM_PER_IP[0]
     for _ in range(limit):
         client.post(
-            "/api/auth/reset-password", json={"token": "guess", "password": "x" * 8}
+            "/api/auth/reset-password", json={"token": "guess", "password": "x" * 8}  # pragma: allowlist secret
         )
     response = client.post(
-        "/api/auth/reset-password", json={"token": "guess", "password": "x" * 8}
+        "/api/auth/reset-password", json={"token": "guess", "password": "x" * 8}  # pragma: allowlist secret
     )
     assert response.status_code == 429

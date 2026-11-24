@@ -265,7 +265,7 @@ def test_public_signup_cannot_claim_configured_owner(monkeypatch, tmp_path):
     result = client.post("/api/auth/signup", json={
         "name": "Someone",
         "email": "OWNER@example.test",
-        "password": "a password long enough",
+        "password": "a password long enough",  # pragma: allowlist secret
     })
     assert result.status_code == 409
     assert client.get("/api/auth/session").json["authenticated"] is False
@@ -797,7 +797,7 @@ def test_atlas_priority_is_seeded_from_sqlite_requests_and_movers(client, monkey
     other_client = backend_app.app.test_client()
     for signup_client, email in ((client, OWNER["email"]), (other_client, "other@example.test")):
         signup = signup_client.post(
-            "/api/auth/signup", json={"name": email, "email": email, "password": "fixture-password"},
+            "/api/auth/signup", json={"name": email, "email": email, "password": "fixture-password"},  # pragma: allowlist secret
         )
         assert signup.status_code == 201
     monkeypatch.setenv("COINBASE_PORTFOLIO_OWNER_EMAIL", OWNER["email"])

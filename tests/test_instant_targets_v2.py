@@ -43,7 +43,7 @@ def test_v1_contract_and_default_remain_pinned():
     raw = target.CONTRACT_PATH.read_text(encoding="utf-8").encode("utf-8")
     assert (
         hashlib.sha256(raw).hexdigest()
-        == "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4"
+        == "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4"  # pragma: allowlist secret
     )
     engine = target.TargetEvaluator(samples())
     label = engine.evaluate(ANCHOR, baseline(), "up", 300, ANCHOR + 300000)
