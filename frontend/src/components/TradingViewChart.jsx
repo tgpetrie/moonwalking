@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { getBrowserTimeZone } from '../utils/browserTimeZone.js';
 
 const TradingViewChart = ({ symbol, theme = 'dark', height = 400 }) => {
   const containerRef = useRef(null);
@@ -27,7 +28,7 @@ const TradingViewChart = ({ symbol, theme = 'dark', height = 400 }) => {
       height: height,
       symbol: `COINBASE:${symbol.toUpperCase()}USD`,
       interval: "15",
-      timezone: "Etc/UTC",
+      timezone: getBrowserTimeZone(),
       theme: theme,
       style: "1",
       locale: "en",

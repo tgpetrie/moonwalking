@@ -1,0 +1,42 @@
+{
+  "verified_utc": "2026-11-08T10:55:27.274697+00:00",
+  "implementation_commit": "aa953b59a98c71a0cde2338e0f3d6eba228fbdb9",
+  "base_checkpoint": "8e838eb9ffaf84b7fcb73697e888622e9e30e92d",
+  "targeted_tests_passed": 1313,
+  "new_cases": 7,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "docs/research/INSTANT_BATCHED_JOURNAL_PROTOCOL_20261108.md": "c6b499ea749c17697edf2ca67061b0077ffcdb4ddce85eafb416e1cbcb579613",
+    "scripts/scoring_experiment/instant_queue_burst.py": "c93922fef890ef51b39ae49a0caae3be5feb2fe728daeeb2bd24a0ae41f53f29",
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": "a198dfe3d891173e5381f7809daefb45482a877f9a48a90d665187dfb05dc754",
+    "scripts/scoring_experiment/instant_source_pilot.py": "34938e75e8384f5cdf59ddbceb68c26226bb76e888e83f7dfd9aab09acac1f21",
+    "scripts/scoring_experiment/instant_stream_journal.py": "916abb5c69954f676705e0e0f535229638eb9d069815772b0d3582d1c86a1070",
+    "tests/test_instant_source_pilot.py": "5f1ae2f02a86bef1a226ab4f398e765640487c320624d9f81d4e75b33af182d7",
+    "tests/test_instant_stream_journal.py": "f0129708e54214c4aa0a59c08dbee4fcbfe0dd4960c7912bc79cf40a9d51e15d"
+  },
+  "run_manifest_sha256_UTF8_LF": {
+    "SINGLE.json": "1c8891a1913bb4f9339fd37ccfc0ae591d0f838d8213baafad63d63ac60a01cd",
+    "BATCHED.json": "fb4188a740cb6f7824ef4a36c9159eebe3aac4e70ed0a3067900086b54031f16"
+  },
+  "ordered_journal_prefixes_and_file_digests_verified": 24,
+  "tested_hard_exit_points": [
+    "ingress_uncommitted",
+    "audit_uncommitted",
+    "audit_committed"
+  ],
+  "pilot_default_queue_frames": 128,
+  "pilot_default_batch_frames": 1,
+  "new_real_capture": false,
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "historical_validation_rerun": false,
+  "decision_age_budget_selected": false,
+  "fitting_allowed": false,
+  "live_changes": false
+}

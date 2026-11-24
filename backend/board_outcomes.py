@@ -9,6 +9,7 @@ of turning a short-horizon mover into trading advice.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 from pathlib import Path
@@ -17,6 +18,9 @@ import sqlite3
 import threading
 import time
 from typing import Any
+
+from live_ranking import build_feature_snapshot
+from outcome_gaps import HEARTBEAT_TABLE_SQL, INTERRUPTED, GapDetector, open_across_gap
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
@@ -42,6 +46,30 @@ def _number(value: Any) -> float | None:
         return None
 
 
+def _sampled_quote(quotes, product_id, observed_ts):
+    quote = (quotes or {}).get(product_id)
+    if not quote:
+        return None
+    bid, ask, age = (_number(quote.get(key)) for key in ("bid", "ask", "age_s"))
+    if (
+        bid is None
+        or ask is None
+        or age is None
+        or not (0 < bid < ask and 0 <= age <= 15)
+    ):
+        return None
+    return json.dumps(
+        {
+            "bid": bid,
+            "ask": ask,
+            "age_s": age,
+            "observed_ts": observed_ts,
+            "source": "coinbase_ticker_sample",
+        },
+        separators=(",", ":"),
+    )
+
+
 def _symbol(value: Any) -> str:
     raw = str(value or "").strip().upper()
     for suffix in ("-USD", "-USDT", "-USDC", "-PERP"):
@@ -65,7 +93,20 @@ def _wilson_interval(
 
 
 class BoardOutcomeStore:
-    def __init__(self, db_path: str | Path | None = None):
+    def __init__(
+        self,
+        db_path: str | Path | None = None,
+        *,
+        table_name: str = TABLE_NAME,
+        visible_limit: int | None = None,
+    ):
+        if table_name not in {TABLE_NAME, "board_outcomes_v3"}:
+            raise ValueError("Unrecognized board outcome table")
+        self.table_name = table_name
+        self.model_version = (
+            MODEL_VERSION if table_name == TABLE_NAME else table_name.replace("_", "-")
+        )
+        self.expanded = table_name != TABLE_NAME
         configured = os.getenv("MW_BOARD_OUTCOMES_DB") or os.getenv(
             "MW_SIGNAL_OUTCOMES_DB"
         )
@@ -76,7 +117,9 @@ class BoardOutcomeStore:
         self.horizon_seconds = max(
             3600, int(os.getenv("MW_BOARD_OUTCOME_HORIZON_SECONDS", "3600"))
         )
-        self.visible_limit = max(1, int(os.getenv("MW_BOARD_TRACKED_ROWS", "8")))
+        self.visible_limit = visible_limit or max(
+            1, int(os.getenv("MW_BOARD_TRACKED_ROWS", "8"))
+        )
         self.cooldown_seconds = max(
             60, int(os.getenv("MW_BOARD_REENTRY_COOLDOWN_SECONDS", "3600"))
         )
@@ -87,6 +130,9 @@ class BoardOutcomeStore:
             30, int(os.getenv("MW_BOARD_MIN_INDEPENDENT_SAMPLES", "100"))
         )
         self.minimum_span_days = max(1, int(os.getenv("MW_BOARD_MIN_SPAN_DAYS", "14")))
+        self._gaps = GapDetector(
+            "board_outcomes_expanded" if self.expanded else "board_outcomes"
+        )
         self._init_lock = threading.Lock()
         self._summary_lock = threading.Lock()
         self._summary_cache: tuple[float, dict[str, Any]] | None = None
@@ -106,9 +152,9 @@ class BoardOutcomeStore:
             try:
                 conn.executescript(
                     f"""
-                    CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+                    CREATE TABLE IF NOT EXISTS {self.table_name} (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        model_version TEXT NOT NULL DEFAULT '{MODEL_VERSION}',
+                        model_version TEXT NOT NULL DEFAULT '{self.model_version}',
                         board TEXT NOT NULL,
                         product_id TEXT NOT NULL,
                         symbol TEXT NOT NULL,
@@ -143,15 +189,40 @@ class BoardOutcomeStore:
                         complete INTEGER NOT NULL DEFAULT 0,
                         UNIQUE(board, product_id, entered_ts)
                     );
-                    CREATE INDEX IF NOT EXISTS idx_board_outcomes_v2_history
-                        ON {TABLE_NAME}(board, direction, outcome_15m, entered_ts);
-                    CREATE INDEX IF NOT EXISTS idx_board_outcomes_v2_collecting
-                        ON {TABLE_NAME}(complete, entered_ts);
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_board_outcomes_v2_active
-                        ON {TABLE_NAME}(board, product_id)
+                    CREATE INDEX IF NOT EXISTS idx_{self.table_name}_history
+                        ON {self.table_name}(board, direction, outcome_15m, entered_ts);
+                    CREATE INDEX IF NOT EXISTS idx_{self.table_name}_collecting
+                        ON {self.table_name}(complete, entered_ts);
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_{self.table_name}_active
+                        ON {self.table_name}(board, product_id)
                         WHERE exited_ts IS NULL;
                     """
                 )
+                # Safe additive migration: no-op on a fresh DB; adds columns to
+                # existing DBs without disturbing current rows (they remain NULL).
+                existing = {
+                    row[1]
+                    for row in conn.execute(f"PRAGMA table_info({self.table_name})")
+                }
+                quote_columns = (
+                    (
+                        "quote_entry_json TEXT",
+                        "price_observations_15m INTEGER NOT NULL DEFAULT 0",
+                        *(f"quote_{seconds}s_json TEXT" for seconds, _ in CHECKPOINTS),
+                    )
+                    if self.expanded
+                    else ()
+                )
+                for col_def in (
+                    "feature_schema_version TEXT",
+                    "feature_snapshot_json TEXT",
+                    *quote_columns,
+                ):
+                    if col_def.split()[0] not in existing:
+                        conn.execute(
+                            f"ALTER TABLE {self.table_name} ADD COLUMN {col_def}"
+                        )
+                conn.execute(HEARTBEAT_TABLE_SQL)
                 conn.commit()
             finally:
                 conn.close()
@@ -269,7 +340,7 @@ class BoardOutcomeStore:
         self, conn: sqlite3.Connection, board: str, product_id: str, now_ts: int
     ) -> bool:
         previous = conn.execute(
-            f"SELECT exited_ts FROM {TABLE_NAME} WHERE board = ? AND product_id = ? "
+            f"SELECT exited_ts FROM {self.table_name} WHERE board = ? AND product_id = ? "
             "ORDER BY entered_ts DESC LIMIT 1",
             (board, product_id),
         ).fetchone()
@@ -312,10 +383,25 @@ class BoardOutcomeStore:
         prices: dict[str, Any],
         *,
         now_ts: int | None = None,
+        ranking_snapshot: dict[str, dict[str, Any]] | None = None,
+        ranking_captured_ts: int | None = None,
+        quote_snapshot: dict[str, dict[str, float]] | None = None,
     ) -> None:
-        """Observe current top-eight board membership and advance open outcomes."""
+        """Observe board membership at this store's rank limit and advance outcomes.
+
+        ``ranking_snapshot`` maps bare symbol -> a build_live_rankings() row
+        built with include_internal_features=True.  ``ranking_captured_ts`` is
+        the instant that ranking calculation started; both are required
+        together, because a snapshot dated by this method's own clock would
+        misdate the state it claims to describe.  Snapshots are written only on
+        the INSERT for a new board entry, so an existing entry is never
+        backfilled from a later cycle's evidence.
+        """
         now_ts = int(now_ts or time.time())
         prices = prices if isinstance(prices, dict) else {}
+        rankings = ranking_snapshot if isinstance(ranking_snapshot, dict) else {}
+        if ranking_captured_ts is None:
+            rankings = {}
         normalized: dict[str, dict[str, dict[str, Any]]] = {}
 
         for board in BOARD_NAMES:
@@ -355,25 +441,29 @@ class BoardOutcomeStore:
 
         conn = self._connect()
         try:
+            # Measured before this cycle writes anything (see outcome_gaps).
+            gap_start = self._gaps.gap_start(
+                conn, now_ts, f"SELECT MAX(last_seen_ts) FROM {self.table_name}"
+            )
             with conn:
                 for board, current in normalized.items():
                     active = {
                         row["product_id"]: row
                         for row in conn.execute(
-                            f"SELECT id, product_id FROM {TABLE_NAME} WHERE board = ? AND exited_ts IS NULL",
+                            f"SELECT id, product_id FROM {self.table_name} WHERE board = ? AND exited_ts IS NULL",
                             (board,),
                         ).fetchall()
                     }
                     for product_id, row in active.items():
                         if product_id not in current:
                             conn.execute(
-                                f"UPDATE {TABLE_NAME} SET exited_ts = ? WHERE id = ?",
+                                f"UPDATE {self.table_name} SET exited_ts = ? WHERE id = ?",
                                 (now_ts, row["id"]),
                             )
                     for product_id, item in current.items():
                         if product_id in active:
                             conn.execute(
-                                f"UPDATE {TABLE_NAME} SET last_seen_ts = ? WHERE id = ?",
+                                f"UPDATE {self.table_name} SET last_seen_ts = ? WHERE id = ?",
                                 (now_ts, active[product_id]["id"]),
                             )
                             continue
@@ -385,18 +475,28 @@ class BoardOutcomeStore:
                             prices=prices,
                             excluded_products=excluded_products,
                         )
-                        conn.execute(
+                        ranking_row = rankings.get(
+                            str(item.get("symbol") or "").upper()
+                        )
+                        if ranking_row is not None:
+                            feat_ver, feat_json = build_feature_snapshot(
+                                ranking_row, int(ranking_captured_ts)
+                            )
+                        else:
+                            feat_ver, feat_json = None, None
+                        cursor = conn.execute(
                             f"""
-                            INSERT INTO {TABLE_NAME} (
+                            INSERT INTO {self.table_name} (
                                 model_version,
                                 board, product_id, symbol, direction, entered_ts,
                                 last_seen_ts, start_price, entry_rank, start_change_pct,
                                 control_product_id, control_start_price, control_change_pct,
-                                estimated_cost_pct
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                estimated_cost_pct,
+                                feature_schema_version, feature_snapshot_json
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
-                                MODEL_VERSION,
+                                self.model_version,
                                 board,
                                 product_id,
                                 item["symbol"],
@@ -410,13 +510,34 @@ class BoardOutcomeStore:
                                 control.get("price") if control else None,
                                 control.get("change") if control else None,
                                 self.round_trip_cost_pct,
+                                feat_ver,
+                                feat_json,
                             ),
                         )
 
+                        if self.expanded:
+                            quote = _sampled_quote(quote_snapshot, product_id, now_ts)
+                            if quote is not None:
+                                conn.execute(
+                                    f"UPDATE {self.table_name} SET quote_entry_json = ? WHERE id = ?",
+                                    (quote, cursor.lastrowid),
+                                )
+
                 collecting = conn.execute(
-                    f"SELECT * FROM {TABLE_NAME} WHERE complete = 0"
+                    f"SELECT * FROM {self.table_name} WHERE complete = 0"
                 ).fetchall()
                 for row in collecting:
+                    if open_across_gap(
+                        int(row["entered_ts"]), self.horizon_seconds, gap_start
+                    ):
+                        # Checkpoints already measured on time stand; the rest
+                        # of its hour wasn't watched, so it gets no 15m grade.
+                        conn.execute(
+                            f"UPDATE {self.table_name} SET complete = 1, "
+                            "outcome_15m = COALESCE(outcome_15m, ?) WHERE id = ?",
+                            (INTERRUPTED, row["id"]),
+                        )
+                        continue
                     current = self._current_price(
                         prices, row["product_id"], row["symbol"]
                     )
@@ -447,7 +568,7 @@ class BoardOutcomeStore:
                     adverse = min(float(row["max_adverse_pct"] or 0), gross_directional)
                     favorable_15m = float(row["max_favorable_15m"] or 0)
                     adverse_15m = float(row["max_adverse_15m"] or 0)
-                    if age <= 900 or row["return_15m"] is None:
+                    if age <= 900 or (not self.expanded and row["return_15m"] is None):
                         favorable_15m = max(favorable_15m, gross_directional)
                         adverse_15m = min(adverse_15m, gross_directional)
 
@@ -457,13 +578,23 @@ class BoardOutcomeStore:
                         "max_favorable_15m": favorable_15m,
                         "max_adverse_15m": adverse_15m,
                     }
+                    if self.expanded and 0 < age <= 900:
+                        updates["price_observations_15m"] = (
+                            row["price_observations_15m"] + 1
+                        )
                     for seconds, column in CHECKPOINTS:
                         if age < seconds:
                             continue
+                        if age - seconds > self._gaps.seconds:
+                            continue  # missed; never filled in late
                         gross_column = f"gross_{column}"
                         control_column = f"control_{column}"
                         if row[gross_column] is None:
                             updates[gross_column] = gross_directional
+                            if self.expanded:
+                                updates[f"quote_{seconds}s_json"] = _sampled_quote(
+                                    quote_snapshot, row["product_id"], now_ts
+                                )
                         if row[column] is None:
                             updates[column] = net_directional
                         if (
@@ -481,7 +612,7 @@ class BoardOutcomeStore:
 
                     assignments = ", ".join(f"{key} = ?" for key in updates)
                     conn.execute(
-                        f"UPDATE {TABLE_NAME} SET {assignments} WHERE id = ?",
+                        f"UPDATE {self.table_name} SET {assignments} WHERE id = ?",
                         (*updates.values(), row["id"]),
                     )
 
@@ -489,9 +620,10 @@ class BoardOutcomeStore:
                     30, int(os.getenv("MW_BOARD_OUTCOME_RETENTION_DAYS", "180"))
                 )
                 conn.execute(
-                    f"DELETE FROM {TABLE_NAME} WHERE complete = 1 AND entered_ts < ?",
+                    f"DELETE FROM {self.table_name} WHERE complete = 1 AND entered_ts < ?",
                     (now_ts - retention_days * 86400,),
                 )
+                self._gaps.beat(conn, now_ts)
         finally:
             conn.close()
         # Outcome summaries are deliberately allowed to lag the scanner by at
@@ -505,8 +637,8 @@ class BoardOutcomeStore:
                    gross_return_5m, gross_return_15m, gross_return_30m, gross_return_60m,
                    return_5m, return_15m, return_30m, return_60m,
                    control_return_5m, control_return_15m, control_return_30m, control_return_60m
-            FROM {TABLE_NAME}
-            WHERE board = ? AND outcome_15m IS NOT NULL
+            FROM {self.table_name}
+            WHERE board = ? AND outcome_15m IS NOT NULL AND outcome_15m != 'interrupted'
             ORDER BY entered_ts DESC
             LIMIT 5000
             """,
@@ -663,11 +795,17 @@ class BoardOutcomeStore:
         try:
             collecting = int(
                 conn.execute(
-                    f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE complete = 0"
+                    f"SELECT COUNT(*) FROM {self.table_name} WHERE complete = 0"
                 ).fetchone()[0]
             )
             total = int(
-                conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
+                conn.execute(f"SELECT COUNT(*) FROM {self.table_name}").fetchone()[0]
+            )
+            interrupted = int(
+                conn.execute(
+                    f"SELECT COUNT(*) FROM {self.table_name} WHERE outcome_15m = ?",
+                    (INTERRUPTED,),
+                ).fetchone()[0]
             )
             boards = {board: self._summary_for(conn, board) for board in BOARD_NAMES}
             legacy_table = conn.execute(
@@ -681,10 +819,12 @@ class BoardOutcomeStore:
         finally:
             conn.close()
         result = {
-            "model_version": MODEL_VERSION,
+            "model_version": self.model_version,
             "tracked_rows_per_board": self.visible_limit,
             "total_entries": total,
             "collecting": collecting,
+            # Ungraded because tracking stopped before their 15-minute mark.
+            "interrupted": interrupted,
             "legacy_entries_preserved": legacy_entries,
             "observation_policy": {
                 "reentry_cooldown_minutes": int(self.cooldown_seconds / 60),
@@ -701,6 +841,11 @@ class BoardOutcomeStore:
 
 
 store = BoardOutcomeStore()
+research_store = (
+    BoardOutcomeStore(table_name="board_outcomes_v3", visible_limit=16)
+    if os.getenv("MW_BOARD_OUTCOME_RESEARCH_V3") == "1"
+    else None
+)
 
 
-__all__ = ["BoardOutcomeStore", "BOARD_NAMES", "store"]
+__all__ = ["BoardOutcomeStore", "BOARD_NAMES", "store", "research_store"]

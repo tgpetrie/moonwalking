@@ -96,15 +96,15 @@ export default function AskBhabitPanel() {
         className="bh-ask-btn"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        title="Ask CODEX"
+        title="Ask Bhabit"
       >
-        <span className="bh-ask-btn-label">ASK CODEX</span>
+        <span className="bh-ask-btn-label">ASK BHABIT</span>
       </button>
 
       {open ? (
-        <div className="bh-ask-panel" role="dialog" aria-label="Ask CODEX">
+        <div className="bh-ask-panel" role="dialog" aria-label="Ask Bhabit">
           <div className="bh-ask-head">
-            <div className="bh-ask-title">ASK CODEX</div>
+            <div className="bh-ask-title">ASK BHABIT</div>
             <span className="bh-ask-beta">BETA</span>
             <button
               type="button"

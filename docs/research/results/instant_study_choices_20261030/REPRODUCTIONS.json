@@ -1,0 +1,72 @@
+{
+  "scope": "synthetic_recommendation_checks_only_no_fitting_or_market_results",
+  "evaluator_sha256": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015",
+  "contract_sha256": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3",
+  "earlier_wick": {
+    "verified_onset": true,
+    "existing_whole_window_timing": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": 0.05000000000000092,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "lead_to_pre_window_peak_seconds": -10.0,
+      "timing": "late_after_activity_trigger",
+      "association_kind": "strict_activity_trigger"
+    },
+    "proposed_forward_peak_from_pre_window_reference_fraction": 0.09090909090909279,
+    "existing_rule_matches_contract": true,
+    "changing_search_changes_the_metric": true
+  },
+  "later_move_forgives_failed_pointwise_alert": [
+    {
+      "horizon_seconds": 300,
+      "impulse_starts_after_alert_seconds": 340,
+      "pointwise_verified_forward": false,
+      "earliest_catalog_anchor_after_alert_seconds": 65.0,
+      "gemini_association_accepts_alert": true,
+      "gemini_false_alert_rule": false
+    },
+    {
+      "horizon_seconds": 900,
+      "impulse_starts_after_alert_seconds": 940,
+      "pointwise_verified_forward": false,
+      "earliest_catalog_anchor_after_alert_seconds": 65.0,
+      "gemini_association_accepts_alert": true,
+      "gemini_false_alert_rule": false
+    }
+  ],
+  "completed_move_forgives_failed_pointwise_alert": {
+    "publication_offset_seconds": 300,
+    "pointwise_verified_forward": false,
+    "gemini_association_accepts_alert": true
+  },
+  "cutoff_metadata": {
+    "sigma_end_ts_ms": 3720000,
+    "pace_end_ts_ms": 3750000
+  },
+  "null_reason": {
+    "verified_forward": true,
+    "timing": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": null,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "timing": "within_forward_window_before_peak",
+      "association_kind": "forward_window_not_physical_impulse"
+    }
+  },
+  "fitting_allowed": false,
+  "operational_rates_enabled": false
+}

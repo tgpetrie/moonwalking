@@ -1,0 +1,29 @@
+{
+  "verified_utc": "2026-11-07T18:24:46.700782+00:00",
+  "implementation_commit": "ad67a3a6c595c86318929ac6a231ff5914e37ebf",
+  "base_checkpoint": "0a36b25a3c18e7a85f13246e18f576e7ee5ddf94",
+  "targeted_tests_passed": 1271,
+  "new_synthetic_cases": 10,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "scripts/scoring_experiment/instant_delayed_decision.py": "2fb21cc0d8287a46d4ed36494e5de6bd96ffeda783f61d037585c6819b5d4cf3",
+    "tests/test_instant_delayed_decision.py": "f1b82e7ac390775392dcb51db1f1c46f6b0c86c1cab2270357a681d79abd6922",
+    "docs/research/INSTANT_DELAYED_DECISION_20261107.md": "69ac0074fbf5ecb98e15c53eeb184a75146ec2fe46252f5ed9633b31087a9ff5"
+  },
+  "protected_sources_verified_against": "0a36b25a3c18e7a85f13246e18f576e7ee5ddf94",
+  "scope": "offline_decision_snapshot_and_cutoff_outcome_diagnostics",
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "real_capture_exercised": false,
+  "durable_publication_verified": false,
+  "positive_eligibility_supported": false,
+  "fitting_allowed": false,
+  "study_frozen": false,
+  "historical_validation_rerun": false,
+  "live_changes": false
+}

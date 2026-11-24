@@ -1,0 +1,1150 @@
+# Resume Moonwalking from anywhere
+
+## Lane 3 · 2026 vector brand and one navigation row · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`, built on `81b9264`
+(everything from that commit is kept).
+
+- **Design pass source:** `docs/claude-design-pass/` is copied unchanged from
+  `Moonwalking-Claude` commit `929fdf1` (the Claude design canvas export: SVGs,
+  PNG renders, `css/tokens.css`, `css/moon-theme.css`, `BUILD_BRIEF.md`).
+- **Brand assets:** the 2025 raster `frontend/src/assets/brand/bhabit-logo.png`
+  and `bhabit-rabbit-stencil.png` are deleted. The replacements in the same
+  folder are copies of the design pass SVGs: `bhabit-header-logo.svg` (hero
+  lockup: BHABIT, three corner stars, small moon), `bhabit-wordmark.svg`,
+  `moon-rabbit-mark.svg` (header mark) and `moon-rabbit-silhouette.svg`
+  (the fixed-centre stencil in `App.jsx`). The stencil keeps the existing
+  0.045 opacity and the row-hover `backdrop-filter` reveal unchanged.
+  `AppRoot.jsx` is not imported anywhere, but now points at the SVG too.
+- **One navigation row:** `DashboardShell.jsx` renders a single
+  `header.bh-topbar--unified`. It holds the brand link (mark + wordmark,
+  `aria-label="BHABIT home"`) and status, freshness and pressure on the left.
+  Next comes `nav[aria-label="Workspace views"]` (Live Tape, Cycle Atlas &
+  Pulse, Mission Control), then a 1px `rgba(255,255,255,0.12)` divider, then
+  `nav[aria-label="Desk pages"]` (Watchlists, Portfolio, Scorecard) on the
+  right. Both navs use the underline-tab style. The old second tab row inside
+  `.board-core` is gone, and the tab is now labelled "Mission Control". Below
+  780px the brand and status wrap and the nav stays one row that scrolls
+  sideways.
+- **Hero:** `.bh-brand-hero--compact` shows the vector lockup at 40px (34px
+  below 640px), with no breathe animation, so `1H PRICE` sits right under it.
+- Styles are in section 5 of `frontend/src/styles/bhabit-alignment.css`.
+
+Verification:
+
+- `npm --prefix frontend test -- --run src/components/DashboardShell.test.jsx`:
+  **6 passed**, including the new single-row navigation test.
+- `npm --prefix frontend run build`: passed, with the existing Browserslist,
+  public-image and chunk-size warnings.
+- Visual check on a throwaway `vite preview` at port 4318 (since stopped):
+  - at 1440 both navs sit on one 73px header row, the hero is 40px and no
+    image fails to load;
+  - at 375 there is no horizontal page overflow;
+  - the stencil resolves to `moon-rabbit-silhouette.svg`.
+  Ports 5003, 5004, 5173 and 5174 were not restarted or changed, and no
+  backend tests ran.
+
+## Lane 3 · BHABIT Design-System Alignment · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`.
+Implementation: `f17f2c300f52bbdca204830c6c22d027438a21d3`, built directly
+on `c2b4ce3` (Phase 6 handoff). Later documentation-only commits are
+handoff checkpoints, not additional code changes.
+
+- **Logo recovery:** the broken `<img alt="BHABIT">` was caused by sparse
+  checkouts (`frontend/src`, `backend`, `docs`, `scripts`, `tests`) that
+  omit the tracked `frontend/public/`, so `/bhabit-logo.png` 404'd. The
+  canonical rebuilt wordmark (`public/bhabit-logo.png`) and rabbit art
+  (`public/purple-rabbit-bg.png`, resized to 960px) are now bundled from
+  `frontend/src/assets/brand/` via Vite imports in `DashboardShell.jsx`,
+  `App.jsx` and `AppRoot.jsx`. The `images/bhabit-rabbit*.svg` files are
+  placeholder orbs, not the stencil.
+- **ASK BHABIT:** all user-facing `ASK CODEX` / `Ask CODEX` labels are now
+  `ASK BHABIT` / `Ask Bhabit`. The backend route stays `/api/ask-codex`.
+- **Rabbit stencil:** one `div.bh-rabbit-stencil` in `App.jsx`, fixed and
+  centred (`translate(-50%,-50%)`, `z-index: 0`, `pointer-events: none`,
+  opacity 0.045). It disables `.bh-shell::before` and `.rabbit-bg`. Board
+  containers are transparent with no filter/backdrop-filter. The row hover
+  `::after` uses `backdrop-filter: brightness(1.85) contrast(1.25)`, a
+  `rgba(168,139,250,0.06)` tint and `mix-blend-mode: plus-lighter`.
+  There are no JS listeners.
+- **CTAs and tabs:** `styles/bhabit-alignment.css` loads last from
+  `main.jsx`. It gives ASK BHABIT, NOTIFY, ALERTS, chart toolbar buttons,
+  pivot chips, `.mw-pill` (including Mission Stances) and the Trade CTA a
+  4px radius, 1px `rgba(255,255,255,0.14)` hairline border and uppercase
+  monospace. It also removes the 999px capsules. The workspace switch,
+  chart horizons (`.mini-toggle.bh-utabs`), the Confluence & Desk / Watchlist /
+  Raw Tape filters and the top-right header links are borderless text with
+  a 2px active underline.
+- **Coin Dossier header:** the left side shows `h1` ticker, live price and %
+  change (1H, falling back to 3M or 1M). The right side shows the Composite
+  Conviction Score, via the shared `computeCoinDossierScore`. The setup
+  sentence is a full-width bordered `p.cp-strip__status` below the title,
+  no longer an `h2`. Levels are `repeat(3, minmax(0,1fr))` at every width.
+  Follow-up `03c59c39bb61f3e682d503ed51c431832b12f704` overrides the legacy
+  720px single-column rule. Below 520px each cell stacks its label over
+  its value, so the prices still fit. Live rows use `tabular-nums`.
+
+Verification at the implementation commit:
+
+- Targeted frontend only: `DashboardShell`, `SentimentPopupAdvanced`,
+  `WaveStructureOverlay`, `CoinHeaderStrip`, `AgentsPage` tests:
+  **123 passed**.
+- `npm --prefix frontend run build`: passed with the existing Browserslist,
+  public-image and chunk-size warnings.
+- Visual check on a throwaway `vite preview` at port 4317 (since stopped):
+  - the logo loads, and the stencil is fixed-centre at 0.045;
+  - the active tab has a 2px underline;
+  - ASK BHABIT has a 4px radius and hairline border;
+  - the row hover backdrop-filter and plus-lighter blend are confirmed.
+  Ports 5003, 5004, 5173 and 5174 were not touched, and no backend tests ran.
+
+## Phase 6 · Focused Workspace, Coin Dossier and Multi-Year Anatomy · November 18
+
+Continue on `claude/elliott-abc-v2-reclaim-20261115`.
+Implementation: `07370001302b6ed7e3ab083dfeb5b02f707272cb`, built directly
+on the pushed Phase 5 commit `249846f`. Later documentation-only commits
+are handoff checkpoints, not additional code changes.
+
+- **Workspace:** the root dashboard defaults to Live Tape (1H price,
+  1M ignition, side-by-side 3M confirmation and live 1H volume).
+  Cycle Atlas & Pulse owns Industry Pulse, Live Strength, the intelligence
+  log and watchlist. Mission Control (Agents) mounts the existing Agents
+  page, including Mission Stances and the Compounding Scoreboard.
+- **Coin Dossier:** one always-visible card with a Composite Conviction
+  Score and Tape Momentum, Cycle Position and Volume & Sentiment gauges.
+  The composite requires all three gauges; missing evidence is not turned
+  into a neutral score. Pulse, Risk Levels and Intel are inline expandable
+  sections. Owner paper controls are collapsed; 401/403 responses render
+  nothing, while operational failures remain visible.
+- **Chart anatomy:** `multiyear_cycle_anatomy` is available inside
+  `multi_year_context` and at the top level of swing/cycle chart reads.
+  It uses all loaded daily history, preserving the existing three-year
+  indicator window. Flash-filtered exact daily Peak/A/B/C/D/E dates,
+  prices and signed moves feed the chart, chronological story, base box,
+  prior-B target, arithmetic 0.382/0.618 targets and invalidation floor.
+  Established weekly five-leg channels take precedence; unestablished
+  waves are explicitly missing. The base is a documented structural
+  estimate, not outcome-validated accumulation.
+- **Atlas confluence:** readable rows now emit a deterministic 0-100
+  `confluence_score` and component evidence (35% structure, 25% weekly
+  RSI, 25% volume/SMA alignment, 15% downside-beta resilience).
+  Scores are recomputed after BTC-beta annotation. Bunker's >=75 and
+  Full Burn's >=55 low-confirmation-breakout paths now consume live scan
+  evidence. The legacy `confluence` fraction remains supported; a
+  `confluence_score` of 1 is 1/100, never 100/100.
+
+Verification at the implementation commit:
+
+- Targeted backend files only: `test_chart_structure.py`,
+  `test_macro_industry_scanner.py`, `test_cycle_strategist_agent.py`,
+  `test_cycle_strategist_routes.py`, `test_chart_read_route.py`:
+  **310 passed** using the shared local virtualenv Python.
+- Targeted frontend files only: `DashboardShell.test.jsx`,
+  `SentimentPopupAdvanced.test.jsx`, `WaveStructureOverlay.test.jsx`,
+  `CoinHeaderStrip.test.jsx`, `AgentsPage.test.jsx`: **112 passed**.
+- `npm --prefix frontend run build`: passed. Existing Browserslist,
+  unresolved background-image references and chunk-size warnings remain.
+  Popup tests also report asynchronous React `act` warnings.
+- `git diff --check`: passed. No full pytest suite, running-server
+  changes, new services or access to ports 5003/5004/5173/5174.
+
+Next: owner UX/stance review using the pushed checkpoint. No production
+restart or deployment was performed. The Instant Radar research lane and
+other agents' ownership/status remain unchanged in `ACTIVE_WORK.json`.
+The original Phase 5 handoff below is preserved as historical context;
+its "no confluence emitted" limitation is superseded by Phase 6.
+
+## Phase 5 · Mission Stances, Auto-Pilot and Flight Manual · November 17
+
+Built on `fbe4cec` in `claude/elliott-abc-v2-reclaim-20261115`. VS Code Copilot
+completed this work after Codex paused its handoff branch.
+`codex/mission-stances-20261117` has no implementation commits and can be
+retired.
+
+| Area | Result |
+| --- | --- |
+| Settings | `agent_autonomy_settings.stance` is persisted with a migration and defaults to `orbit`. The five stances are `autopilot`, `bunker`, `orbit`, `gravity_assist` and `full_burn`. `AgentStore.set_autonomy_settings` raises on an unknown stance. |
+| Stance profiles | `STANCE_PROFILES` in `backend/agents/cycle_strategist.py` sets the heat caps, coins per cluster, risk per entry, trim fraction and base ladder weights. Orbit reproduces the pre-stance behaviour exactly. Trims scale the dynamic 25–50% trim by `trim_fraction / 0.35`, capped at 90%. The plan reports `base_ladder_weights` only when they differ from 25/35/40. |
+| Entry rules | Bunker allows new non-reload entries only from `deep_accumulation_exhaustion` or with confluence of at least 75, and it filters rotation leaders. Full Burn adds `low_confirmation_breakout` and `early_markup` entries with confluence of at least 55. Since Phase 6 the Atlas scan emits `confluence_score`, so both confluence gates are live; it still has no `early_markup` bucket, so that Full Burn path stays inert. |
+| Auto-Pilot | The pure function `resolve_autopilot_stance(cycle_scan)` returns `{configured_stance, effective_stance, reason, metrics}`, and its first matching rule wins. A missing regime, `risk_off_headwind`, or a rollover share of at least 40% selects bunker. Stage 3 or 4 with `risk_on_aligned`, an expansion share of at least 50% and a rollover share under 25% selects full burn. Stage 3 or 4 with `risk_on_aligned` alone selects gravity assist. Everything else selects orbit. Bucket shares need at least 10 readable rows. |
+| Evidence and API | Every proposal records `configured_stance` and `effective_stance` in `evidence`. `/api/agents/settings` is an alias of `/api/agents/autonomy`; its GET and POST are owner-only, `no-store`, and return 400 on an invalid stance. GET proposals and both run-cycle-pass outcomes return `configured_stance`, `effective_stance`, `effective_stance_reason`, `effective_stance_metrics` and `stance_profiles`. |
+| Frontend | `CycleStrategistDeck.jsx` adds the owner-gated five-pill Mission Stance selector, which saves through `updateAgentSettings`. The deck also shows the active stance limits, the Auto-Pilot status callout, and a toggleable Flight Manual & Settings Guide drawer. The ladder display uses the plan's `base_ladder_weights`. |
+| Manual | [`docs/AGENT_FLIGHT_MANUAL.md`](../AGENT_FLIGHT_MANUAL.md) explains the workflow, the stance table, the Auto-Pilot rules, beta heat, cluster caps, `weight_source`, the 60 + 10 bps costs and net-of-fees compounding. |
+
+Checks run (targeted only; the full suite and runtime ports 5003, 5004, 5173
+and 5174 were not touched):
+
+- `python -m pytest backend/tests/test_cycle_strategist_agent.py backend/tests/test_cycle_strategist_routes.py -q`: 185 passed.
+- `npm --prefix frontend test -- --run src/mvp/AgentsPage.test.jsx`: 31 passed.
+- `npm --prefix frontend run build`: passed, with the existing chunk-size warning only.
+
+Next actions:
+
+- Have the owner review the stance limits and Auto-Pilot thresholds.
+- Optionally add an `early_markup` bucket to the Atlas scan to open the remaining Full Burn entry path (per-row `confluence_score` shipped in Phase 6).
+- Run the full suite before merging.
+
+For the November 16 cycle lane, continue from
+`claude/elliott-abc-v2-reclaim-20261115`. Phase 2 (below) is built on the
+audited commit `464e7f3`, which is also the tip of
+`codex/cycle-strategist-audit-20261116`. The
+[audit scorecard](CYCLE_STRATEGIST_AUDIT_20261116.md) describes the v1 pipeline
+it verified. The Phase 2 review covers the eight commits through `cedb5c7`.
+
+## Cycle operational hardening · November 17
+
+Continued directly from `7e3a30d` on
+`claude/elliott-abc-v2-reclaim-20261115`. Implementation worktree branch
+`codex/cycle-operational-hardening-20261117`.
+
+| Area | Finding and repair |
+| --- | --- |
+| Market timestamps | Fetch time previously concealed histories ending on an older day. The Atlas scan now requires the latest closed UTC daily candle, excludes open candles and reports each row's `market_as_of_ts` and `history_id`. A shared `market_snapshot` identifies the candle boundary, input revision and industry regime. |
+| Consumer consistency | Contexts copy the published scan. HTTP scans with mixed candle dates, an expired refresh or a previous UTC day's close fail readiness. Strategist proposals, observations, Smart Alert history and simulated executions retain the snapshot ID. Wick-history handoff verifies the scanned history revision. Live portfolio quantities carry their observation time, and cycle equity uses the same daily-close marks plus observed cash balances. |
+| Execution clocks | The decision clock advances while quotes are fetched. The routing guard rechecks the scan after fetching and records decision, local quote-receipt and exchange timestamps. Manual paper tickets record operator price provenance and the fill/close event times. `live_guarded` continues to return `live_order_route_unavailable`. |
+| Fees and slippage | Desk passes and the local runner use explicit paper assumptions of 60 bps fees and 10 bps slippage per side. Set `MW_CYCLE_FEE_BPS` and `MW_CYCLE_SLIPPAGE_BPS` to change them. These are configurable modeling rates. Each new proposal preserves its rates. A simulated sell charges the fee on its slipped fill, and reload budgets include buy fees. Programmatic agent callers can supply `costs=cost_model(...)`. |
+| Inventory valuation | The paper cohort begins with the held quantity on its first attributable exit. Subsequent exits retire remaining coins, and funded reloads restore coins and debit cash. `compounding_summary` reports remaining inventory, cash, their combined value, signed value versus holding, fees and slippage. Missing marks make aggregate valuation unavailable. The scoreboard shows these values and the mark timestamp. |
+| Historical accounting | Existing records use their recorded fills and assumptions. `legacy_costs_unrecorded` and `costs_complete` identify missing cost evidence. Overlapping legacy ladder claims can exceed the cohort's cash. The summary caps available reload cash, reports `reload_funding_shortfall_by_symbol` and withholds that symbol's projection for reconciliation. |
+
+The inventory model covers the cycle trim, protective-stop and funded-reload
+cohort. External fills, transfers, independent entries and rotations need
+reconciliation with the account's fill ledger before using these values for
+account-wide P&L. Daily-close marks and separately timestamped live execution
+quotes retain their source and price basis.
+
+Verification passed with 1,186 backend tests and 33 skips, 624 frontend tests
+across 48 files, the production build, repository guardrails and
+`git diff --check`. Regression checks cover stale/mixed-day scans, retained
+snapshot IDs, advancing decision clocks, a quote preceding the daily-close
+boundary, fee-inclusive partial reloads, inventory valuation, signed
+underperformance, legacy funding shortfalls and manual paper fill provenance.
+Tests used isolated databases and excluded connections to ports 5003, 5004,
+5173 and 5174. Build warnings cover the existing two image references and
+the JavaScript chunk over 500 kB.
+
+## Phase 4 red-team audit · November 17
+
+Reviewed `6d60690..538c67e` and applied the follow-up on
+`claude/elliott-abc-v2-reclaim-20261115`.
+
+| Area | Audit result |
+| --- | --- |
+| Cluster map | The original map contains 118 unique tickers across 11 clusters. The updated map contains 123 across 12. Base symbols and USD/USDC pairs resolve case-insensitively. CELO moves to Layer 2 and XCN to Layer 1. BLUR and TNSR share the NFT marketplace cluster. Vaulta, Sky, Velodrome and Coinbase's ZetaChain ticker are grouped with their corresponding narratives. Legacy tickers still resolve. The map groups narrative exposure and does not measure pairwise correlations. [Celo](https://specs.celo.org/root.html) · [Onyx](https://onyx.org/docs/onyxcoin/about-xcn) · [Blur](https://blur.io/?v=1.0.24) · [Tensor](https://docs.tensor.foundation/governance) · [Coinbase migrations](https://help.coinbase.com/en-bm/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/token-migrations) |
+| Downside beta | The scanner takes 365 calendar days of daily returns ending at the latest BTC close. Both assets must have valid closes on the return date and the previous UTC date. BTC down days are used when there are enough to estimate the slope. The full-sample beta is the fallback and the guard uses a neutral multiplier when beta is unavailable. Supplements use fresh BTC candles. |
+| Cluster guard | Cap checks use unrounded risk and include a rotation's buy leg. Suppressed buys release reserved heat. Live desk passes count USD and USDC balances toward complete marked equity and exclude them from risky positions. Existing position counts use the static map when a scan row lacks a cluster. |
+| Atlas and ladders | The desk pass reads fresh, cached `1D` candles for held coins. Missing or expired history uses the base weights. For a three-rung plan, the optimizer is marked as applied when the wick tilt changes funded cent allocations and every rung still has funding. Fill probabilities and extra coins versus flat weights describe the optimizer's modeled rungs. Actual ladder funding comes from the plan's tranche prices and cent allocations. |
+| Replay | The chart cache keeps up to 256 products with one replay per product. A new UTC day or changed OHLC data recomputes it. Cache population is serialized and transient replay errors can be retried. The replay models deterministic fills without fees or outcome validation. |
+| Strategist deck | Trim proposals and open ladders show their weight source. The deck shows beta-adjusted heat and held-back symbols with the reason for each suppression. Proposal rows also show their beta-adjusted entry risk when supplied. Run-level suppression is available from the owner desk-pass response for the current page session. |
+
+The scope was the paper workflow and recorded candle inputs. Existing
+proposal decisions stay tied to their original ledger records, and a run's
+suppression applies to that run's candidates.
+
+Verification in the isolated worktree passed for the full backend suite
+(1,170 passed and 33 skipped), `npm --prefix frontend test -- --run`
+(624 passed across 48 files), `npm --prefix frontend run build`, the repository
+guardrails and `git diff --check`. The build still reports unresolved references
+to `/background-linear.svg` and `/purple-rabbit-bg.png` and a chunk over 500 kB.
+The tests used temporary databases and excluded connections to ports 5003, 5004,
+5173 and 5174.
+
+## Phase 4: quant modules wired in · November 16
+
+Built on Codex's audited `6d60690`. Three pure modules, each with its own test
+file, are now used by the strategist and the cycle chart read:
+
+| Module | Wired into | What it adds |
+| --- | --- | --- |
+| `backend/portfolio_cluster_guard.py` | `CycleStrategistAgent.evaluate` (`_ClusterGuard`) | Each sized entry, in rank order, is checked against coins per cluster (2), cluster raw heat (2%) and total beta-adjusted heat (5%). Suppressed entries are dropped and their reserved heat is given back. `agent.last_cluster_guard` holds the totals and `suppressed_proposals` with `suppression_reason`; `POST /api/agents/run-cycle-pass` returns it as `cluster_guard`. |
+| `backend/ladder_optimizer.py` | `build_reload_plan` (`_ladder_advice`) | Available trim reload plans carry `ladder_optimizer`: adaptive rung weights, `expected_fill_probability_by_rung`, `net_extra_coins_vs_flat_weights`, `expected_extra_coins_vs_flat_weights`. Box = invalidation stop up to the plan's highest rung; wick history from `context["cycle_histories"]`. Advisory only: the plan's `tranches` still drive the ledger. |
+| `backend/cycle_backtest.py` | `/api/chart-read/<symbol>?horizon=cycle` | `multi_year_context.backtest` summarizes `simulate_cycle_compounding` over the daily history (events left out). `CycleReadSection.jsx` renders the Historical cycle replay strip. |
+
+Follow-up on November 17 closed the three Phase 4 gaps:
+- **Real cluster and beta data.** `backend/coin_clusters.py` is a hand-kept
+  map of about 150 Coinbase coins into 11 clusters (unmapped coins stand
+  alone). `macro_industry_scanner.annotate_cluster_and_beta` adds
+  `category_id`, `downside_beta` (trailing 365 shared days against BTC-USD,
+  matched by timestamp) and `btc_beta` detail to every readable scan row and
+  to supplemental rows, so the guard now sees real clusters and betas.
+- **One ladder weighting.** `optimize_reload_ladder` takes `base_weights`; the
+  strategist passes the plan's own 25/35/40. With three rungs and at least 8
+  measured wick events the tilted weights split the trim USDC
+  (`weight_source: "ladder_optimizer"`, `ladder_optimizer.applied_to_tranches`);
+  otherwise the fixed 25/35/40 split is unchanged.
+- **Replay cache.** `_cycle_backtest_cached` keeps one replay per product,
+  keyed by UTC day, bar count and newest timestamp, capped at 256 entries.
+
+Open items:
+- The cluster map is a judgement call and needs upkeep as listings change.
+- The desk pass fills `context["cycle_histories"]` for held coins from the
+  Atlas cache only (never a fetch), so a held coin the Atlas has not read yet
+  keeps the 25/35/40 split.
+- The guard only runs when equity is known, and skips entries with no sized
+  risk.
+- The replay is a simplified self-contained rule set, not the live strategist.
+- The request named `ChartAnalysisModal.jsx`, which does not exist; the cycle
+  section is `CycleReadSection.jsx`, tested in `CycleReadSection.test.jsx`.
+
+Verification: the six targeted backend files (`test_cycle_backtest.py`,
+`test_portfolio_cluster_guard.py`, `test_ladder_optimizer.py`,
+`test_cycle_strategist_agent.py`, `test_cycle_strategist_routes.py`,
+`test_chart_read_route.py`) passed 259 tests; `CycleReadSection.test.jsx`
+passed 4; `npm --prefix frontend run build` passed. The full suites were not
+run.
+
+## Phase 3 Audit Scorecard
+
+Reviewed `6453bbb..1b300a6` on `claude/elliott-abc-v2-reclaim-20261115`,
+covering `92cd6f6`, `ed0747d`, `d59e445`, and `1b300a6`.
+
+| Area | Audit result |
+| --- | --- |
+| Rolling Universe Cycle Atlas | Bounded base and supplemental batches share 429 backoff from the time the limit is received. SQLite seeds the configured owner's open paper positions, watchlists, and active reload plans. Only known, eligible USD pairs from `?symbols=` enter the priority list. Cached movers enter before the volume fill and never start a price fetch. Tests isolate the board cache, product IDs, and Atlas state. |
+| In-process desk pass | The route requires the owner and an empty JSON object. `Cache-Control: private, no-store` applies to rejected, busy, and failed requests. The process lock returns 409 while held and releases after an exception. A pass can run during an outer refresh once the current regime and required markets are settled. Known unavailable rows contribute no action. Pending owner rows and prior-day snapshots keep the pass waiting. |
+| Coin-stack compounding | Reload accounting uses funded rung balances in cents, including partial fills and older whole-rung approvals. Simulated trims and stops use the recorded fill price and size. Drawdown caps overlapping paper exits against observed holdings and excludes missing or stale marks. |
+| UI and design tokens | The scoreboard and Industry Pulse badge use component classes and shared tokens. The desk displays Atlas coverage and uses `.mw-agents-note` for pass status. Industry Pulse keeps polling while `atlas_refreshing` is set. Drawdown displays as unavailable when there are no usable marks. |
+
+Verification ran in a separate worktree with temporary test data and backend
+network calls blocked. `backend/tests/test_chart_read_route.py` passed 23
+tests. The full `backend/tests` run passed 1,066 tests with 33 skips.
+`npm --prefix frontend test -- --run` passed 618 tests across 47 files.
+`npm --prefix frontend run build` passed. Vite warned about unresolved
+`/background-linear.svg` and `/purple-rabbit-bg.png` runtime references
+and a bundle over 500 kB.
+
+The Atlas refreshes on demand. `ready_count` counts cached histories, and the
+price funnel defaults to 220. Live Coinbase throughput and rate limits are
+outside this isolated verification. No server on ports 5003, 5004, 5173, or
+5174 was contacted or changed.
+
+## Phase 2 delta audit
+
+- The reload ladder budgets and debits USDC in cents. Approving a reload
+  checks current rung balances inside the same SQLite write transaction.
+  Partial buys preserve the residual balance. Simulated trims fund their
+  ladders up to recorded proceeds. Approval records a paper decision.
+- The heat limit is 5%. The CLI can lower it. Sizing uses unrounded heat
+  and withholds a suggested quantity when any holding is unpriced or equity
+  is unavailable. A capped rotation scales both legs to the same amount.
+  Reloads and rotations stay in the approval queue in Mode B.
+- A breach more than 5% below any protection level needs reassessment and a
+  reference snapshot in that state triggers no quote fetch. The quote guard
+  accepts up to two seconds of exchange clock lead while independently
+  checking receipt age, book age, spread and depth.
+- Desk tape compares backend event times, and retains the last good scan for
+  Industry Pulse while the desk withholds scan badges during refresh or
+  failure. The badge `ABOVE 50W` reflects the level comparison in the scan.
+  The desk confirms the current owner's holdings through the portfolio API.
+- The realized volatility tests use an independent price database module.
+  The duplicate symbol regression puts both forms inside its query window.
+- Verification passed with 1,043 backend tests (33 skipped), 614 frontend
+  tests and the production build. One live read of Coinbase's public BTC-USD
+  level 1 book passed the quote guard. The existing Moonwalking servers were
+  left untouched.
+
+## Broken-stop guard and INTELLIGENCE_LOG desk tape · November 17
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commits `2fb58ff` on top
+of `b970d7d`, then `af87408` (per-row stage badge and held symbols).
+
+| Item | State |
+|---|---|
+| Broken position / invalidation stops (`cycle_strategist._stop_break`) | When price is already at or under `position_stop` or `accumulation_invalidation_stop`, the same 5% split applies. Fresh (≤5% below): `breach_state="fresh_stop_break"`, `stop_price=min(stop, price)`, evidence `broken_stop_price`, `broken_stop_basis`, `distance_below_stop_pct`. Stale (>5% below): `breach_state="stale_floor_break_reassess"`, trigger `stale_stop_break`, `stop_price=None`, `reclaim_resistance` = the broken stop; Mode B holds it `pending_approval`. A stop is never set above the reference price |
+| Local DB | The three 2026-11-16T23:14 UTC proposals with stops above market (ATOM `8ee5a7cc9855ac4f`, LTC `3d8a3dadfb967da2`, RENDER `604f37cf5e0aaf72`) were rejected in `backend\data\agent_observations.sqlite` (untracked). The three clean stale rows remain pending |
+| Desk tape (`frontend/src/utils/deskTape.js`, `AnomalyStream.jsx`) | Same-coin up/down signals within 60 s keep only the higher-severity (then newer) one. 1m moves under 1% are dropped unless volume is up ≥50% or the label is STEALTH. Rows joined to the `/api/macro-cycle-scan` coin rows show `DEEP ACCUM · Nm`, `ROLLOVER BOX`, `PIVOT BREAK`, `50W RECLAIM`, `GROWTH`, `HELD` or `WATCHLIST` badges, and confluence calls `EXHAUSTION BREAKOUT` / `ACCUMULATION BID` (up on deep accumulation) and `ROLLOVER DISTRIBUTION` (down inside the box). Every coin row also carries a `STAGE n` badge when the industry stage is available (`af87408`; the header chip was removed) |
+| Filter pills | `Confluence & Desk` (default; confluence flags, STEALTH vol ≥100%, watchlist/held; falls back to the top 12 anomalies with a "Cycle scan warming" note while the scan is not ready), `Watchlist`, `Raw Tape` |
+| Shared scan and holdings | `DashboardShell` calls `useMacroCycleScan` once and passes it to `IndustryPulse` (new `scanState` prop) and `AnomalyStream` (`cycleScan`, `watchSymbols`). Since `af87408` it also passes non-cash Coinbase holdings from `useHoldingSymbols` as `heldSymbols`, so held coins get `HELD` and appear under the `Watchlist` pill; signed out or no portfolio gives an empty set |
+| Checks | After `af87408`: frontend 610 passed in 47 files, `npm --prefix frontend run build` passes. Backend unchanged since `2fb58ff` (1035 passed, 33 skipped then); a later full run had one order-dependent failure in `test_realized_volatility.py::test_duplicate_key_forms_do_not_split_a_symbol` that passes in isolation |
+| Not done | No browser check of the desk tape against 5174 |
+
+## Protective stop: fresh vs stale daily floor breaks · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `61a1e26` on top
+of `037108a`. `evaluate_protective_stop` now splits a close below the daily
+higher-low floor by depth (`FRESH_FLOOR_BREAK_PCT = 5.0`):
+
+| Break | Proposal |
+|---|---|
+| Fresh, 0–5% below | `breach_state="fresh_floor_break"`, trigger `higher_low_floor_breached`, `stop_price` = current price (never above market), evidence `broken_floor_price`. Reason e.g. "Just closed 2.1% below $50.11 floor." Mode B dry-run exits only while the bid is still under the broken floor |
+| Stale, more than 5% below | `breach_state="stale_floor_break_reassess"`, trigger `stale_floor_break`; the old floor is `evidence.reclaim_resistance`; `stop_price` is the scanner's `accumulation_invalidation_stop` (or the position stop) when below price, else `None` with `stop_basis="floor_already_broken_reassess"`. Mode B holds it `pending_approval` with `execution.held_reason="stale_floor_break_reassess"`, fetches no quote for it, and the executor refuses it |
+
+The deck shows a `Reclaim` (or `Broken floor`) level, a `Reassess` chip and
+the hold reason. Checks: backend 1033 passed, 33 skipped (full run from
+`backend`); frontend 599 passed in 45 files; `npm --prefix frontend run build`
+passes. A live pass against 5004 with sample holdings ATOM 50, RENDER 100 and LTC 3
+recorded all three as stale breaks, all `pending_approval`: ATOM 17% under
+$1.61 (stop $1.19), LTC 11% under $50.11 (stop $38.43) and RENDER 22% under
+$1.76 (stop $1.15). The previous UTC day's proposals for the same coins
+(old floor-as-stop records) were rejected on November 17; see above.
+
+## Cycle strategist Phase 2: reload ladder, sizing, rotation, live quotes · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, code commit `e4ac08d`
+on top of `464e7f3`. Everything is still paper or dry-run: no route or agent
+can submit an exchange order, and approving a proposal only records the
+decision.
+
+| Item | State |
+|---|---|
+| Reload ladder (`cycle_strategist.build_reload_plan`) | Every `TRIM_TO_USDC` carries `reload_plan`: freed USDC (`trim quantity × reference price`) split 25/35/40 across up to three support levels under the trim price and above the invalidation stop. Level preference: the 0.618/0.702/0.786 log-Fib support levels, then the daily higher-low floor, then Fib cluster midpoints. With fewer than three levels the weights are renormalised; with none the plan is `available: false`. It reports `projected_reloaded_coins`, `net_coin_gain_qty`, `net_coin_gain_pct` (growth of the whole held stack) and `reloaded_vs_trimmed_pct`. Fees and slippage are not included |
+| `RELOAD_ACCUMULATE` | Fires when price is at or under an unspent rung of an active plan, above that plan's invalidation, with weekly StochRSI `oversold_turn_up` or a daily MACD kiss. A plan is active once its trim is `approved` or `auto_executed_dry_run` (`AgentStore.active_reload_plans`). Approving a reload spends the rungs it names; rejecting leaves them open. A coin with an open ladder is evaluated even when it is no longer held or watched |
+| R:R and sizing | `ACCUMULATE_SUPPORT`, `BREAKOUT_ENTRY` and `RELOAD_ACCUMULATE` need `reward_to_risk_ratio >= 2.0` against the midpoint of the active target tier; entries that fail are dropped and listed in `agent.last_skipped`. The stop is the scanner's invalidation stop, else the daily higher-low floor. `sizing` holds `risk_budget_pct` (base 1.0% × 0.5 in Stage 1, 0.75 in Stage 2, 1.0 in Stages 3–4; 0.5 when the stage is unknown), `suggested_notional_usd` and `suggested_quantity`. One entry is capped at 25% of equity |
+| Portfolio heat | Open risk across held coins is the loss if each stop is hit; a coin with no stop under its price counts at 10%. New entries share the headroom under `max_open_risk_pct` (default 5.0) and are sized down to zero when it is used up. Equity is `portfolio_equity_usd` when supplied, otherwise the marked value of held coins, which leaves out cash and overstates heat |
+| `ROTATE_TO_LEADER` | A held coin under its 50-week average with weekly RSI under 45, no daily or macro bullish divergence, not at multi-year support and not in the deep-accumulation bucket, paired with the best of the top three `deep_accumulation_exhaustion` or `low_confirmation_breakout` coins whose R:R is at least 3.0. It proposes moving 25% of the laggard. It has a buy leg, so it always waits for approval, in Mode B too |
+| Scanner rows (`macro_industry_scanner.cycle_row`) | New public keys the strategist reads: `support_levels`, `fib_cluster_mids`, `cycle_low`, `full_extension_targets` (`low`/`high`) |
+| Live quotes (`cycle_context.fetch_top_of_book`, `fetch_live_quotes`) | Public Coinbase Exchange `GET /products/<BASE>-USD/book?level=1`, no key. `scripts/run_local_agents.py` passes the fetcher in the context and the strategist calls it straight before routing, only for exits Mode B will simulate (`auto_protect_exits` + `dry_run`, not paused). `--no-live-quotes` turns it off. New flags: `--equity-usd`, `--base-risk-pct`, `--max-open-risk-pct` |
+| Guard change | `GuardedDryRunExitExecutor(max_clock_skew_ms=2000)`. A live check on this PC showed Coinbase's book time between 58 ms behind and 678 ms ahead of local receipt; the audited rule (`exchange > observed` is stale) refused every live book. Books more than 2 s ahead are still refused, and `max_clock_skew_ms=0` restores the strict rule |
+| Routes | `GET /api/agents/proposals` also returns `reload_plans` (open ladders, filterable with `symbol`). No new route |
+| Frontend | `CycleStrategistDeck.jsx`: `R:R` badge, Target, `Suggested Size` and Risk, heat-cap and funding notes, `Reload Plan (+X% Extra Coins)` with the rung table on trims, reload and rotation cards (rotation has a Coinbase spot link per leg), and an Open Reload Ladders panel |
+| Checks | Backend, from `backend`: 1030 passed, 33 skipped, 1 failed. The failure is `test_realized_volatility.py::test_unavailable_is_distinguishable_from_low_volatility`, which passes on its own (4/4) and is not touched by Phase 2; it fails only in the full run. Frontend: 598 passed in 45 files; `npm --prefix frontend run build` passes |
+| Not done | No browser check of the new cards against a live backend. `scripts/run_local_agents.py --api-base http://127.0.0.1:5004 --watchlist BTC,SOL,AVAX,RENDER,FET,ATOM` ran once the scan was ready (19 coins): all agents finished with 0 proposals and no smart alerts, because no positions were passed and the watchlist coins in deep accumulation lacked the entry triggers. Not deployed |
+
+Things to know before relying on it:
+
+- The scan price is the last closed daily candle. The dry-run guard refuses a
+  quote whose bid is more than 2% from that reference, so on a day that has
+  moved more than 2% a Mode B exit stays `blocked_by_guard` with
+  `quote_deviates_from_reference`. That is the guard working, not a feed fault.
+- A trim made near the cycle low (the 50W/100W-average trigger) usually has no
+  support level between its stop and price, so its plan is unavailable.
+- Approval records intent only. A ladder opens when a trim is approved whether
+  or not the coins were actually sold on Coinbase.
+- The backend test run used the main checkout's virtualenv
+  (`C:\Users\tgpet\Projects\Moonwalking\.venv`); this worktree's `.venv` has no
+  pytest.
+- The rules are descriptive. Nothing here establishes trading performance.
+
+Next action: as the portfolio owner on the dev backend (port 5004, not 5003),
+run `scripts/run_local_agents.py --api-base http://127.0.0.1:5004
+--positions-file <file> --watchlist <symbols> --equity-usd <equity>` after the
+scan reports `ready`, then open the Agents page and check a trim's reload
+plan, an entry's R:R and size, and one Mode B dry-run exit with live quotes.
+
+## Cycle strategist routes, runner context and control UI · November 16
+
+Branch `claude/elliott-abc-v2-reclaim-20261115`, built on `475a981`, which
+followed the strategist and smart-alert engines in `08e3adf`. Everything stays
+paper or dry-run. Approving a proposal records the decision only and executes
+nothing. In `live_guarded` mode, automatic exits are blocked with
+`live_order_route_unavailable`.
+
+| Item | State |
+|---|---|
+| Routes (`backend/app.py`, owner-gated, `no-store`) | `GET /api/agents/proposals`, `POST /api/agents/proposals/<id>/approve\|reject`, `GET/POST /api/agents/autonomy`, `GET/POST /api/smart-alerts/rules`, `PATCH/DELETE /api/smart-alerts/rules/<id>`, `GET /api/smart-alerts/history`, `POST /api/smart-alerts/test` |
+| Engine additions | `SmartAlertEngine.get_rule`, `update_rule` and `send_test`. A test send records history under symbol `TEST` and does not reset the cooldowns of real alerts. `paper_execution_store.list_open_positions(owner_id)` |
+| Runner context | `backend/agents/cycle_context.py` (`build_cycle_context`, `evaluate_smart_alerts`). `run_once(..., smart_alert_engine=)` returns `result["smart_alerts"]`. `scripts/run_local_agents.py` fetches `/api/macro-cycle-scan` and has four new flags: `--watchlist`, `--positions-file`, `--paper-owner-id` and `--no-smart-alerts`. While the scan is warming, the cycle agents and smart alerts skip the pass |
+| Frontend | `CycleStrategistDeck.jsx` on the Agents page: an autonomy deck (Mode A/B, Dry-Run/Live Guarded, Emergency Pause, Daily Order Cap) and a proposal queue with a Trade link and Approve/Reject. `SmartAlertRulesPanel.jsx` in the full Alerts tab: rules list, create form, enable toggle, delete, test alert and history |
+| Checks | Backend: 296 passed in the agent/alert/paper/strategist test files, including 18 new route tests. Frontend: 582 passed in 45 files. `npm --prefix frontend run build` passes. The offline runner smoke run against an unreachable API exited 0 |
+| Not done | No browser check of the new deck or panel against a live backend. Not deployed |
+
+Next action: open the Agents page and the Alerts tab against the dev backend on
+port 5004 as the portfolio owner. Seed one rule and send a test alert, then
+run `scripts/run_local_agents.py --api-base http://127.0.0.1:5004 --watchlist
+SOL,AVAX` after the cycle scan reports `ready`.
+
+## Cycle read and Industry Pulse UI · November 16
+
+A separate lane from the instant-radar research below. Branch:
+`claude/elliott-abc-v2-reclaim-20261115`.
+
+| Item | State |
+|---|---|
+| Backend | `aa59e330`: `cycle_analysis.py`, `macro_industry_scanner.py`, `GET /api/macro-cycle-scan`, and the `cycle` horizon on `GET /api/chart-read/<symbol>` |
+| Frontend | `d74f5fe3`: Industry Pulse panel on the home board and the Cycle section in Chart Read |
+| Checks | `npm --prefix frontend test -- --run`: 44 files, 545 tests pass. `npm --prefix frontend run build` passes. Backend tests were not rerun for the frontend commit |
+| Browser check | Both surfaces rendered at desktop and phone width against payloads produced by the real `scan_universe_cycles`, `multi_year_context` and `top_down_confluence` functions on the three backend cycle fixtures, served by a throwaway local mock. Warming to ready was exercised |
+| Not done | No run against a live backend that serves these endpoints. Not deployed. The always-on collector on port 5003 runs the `Moonwalking-Runtime` worktree, which may not have `aa59e330` |
+
+What the frontend adds:
+
+- `frontend/src/api.js`: `API_ENDPOINTS.macroCycleScan(symbols)`,
+  `fetchMacroCycleScan(symbols)` and `normalizeScanSymbols`. The watchlist is
+  sent as `?symbols=`, sorted and capped at the server's 30.
+- `frontend/src/hooks/useMacroCycleScan.js`: polls every 12 seconds while the
+  server answers `warming` or `refreshing`, every 10 minutes once `ready`, and
+  keeps the last good scan after a failed request.
+- `frontend/src/components/IndustryPulse.jsx`, mounted in `DashboardShell.jsx`
+  under Live Strength: stage 1–4 with the gate chip, the three breadth shares,
+  and the four buckets as a filter. A ranked coin opens the coin modal.
+- `frontend/src/components/CycleReadSection.jsx`, rendered by
+  `ChartReadPanel.jsx` when `data.horizon === "cycle"`: gate badge, 1D/1W/1M
+  RSI regimes, 1W StochRSI, the monthly bear streak, the 50W/100W/200W SMA
+  ladder, confirmation pivot, invalidation stop, Fibonacci clusters and the
+  two target tiers with the active one marked.
+- Styles: `frontend/src/styles/industry-pulse.css` (dense board preset) and
+  `frontend/src/styles/cycle-read.css` (comfortable preset), both on the
+  tokens in `docs/DESIGN_SYSTEM.md`.
+
+Decisions worth knowing before changing this:
+
+- Every chip is a status colour (`--status-ok`, `--caution`, `--danger`,
+  muted). Amber and violet stay reserved for price direction.
+- The exhaustion badge is labelled "Multi-year exhaustion" and shows the
+  streak against the backend's `streak_threshold` (18 months). It is not
+  labelled "2-year", because the threshold is 18.
+- The pivot line "Break above … signals cycle low is in" appears only when the
+  backend sent it, which it does only at multi-year support.
+- A value the backend did not send renders as a dash, "no read", "warming" or
+  a named reason. A missing 200W average says how many weekly bars it needs.
+- Both surfaces state that the read is context only and not outcome-tested.
+  Neither filters, ranks or delays a board row.
+- The design reference is `docs/DESIGN_SYSTEM.md`. There is no
+  `docs/ai/DESIGN_SYSTEM.md`.
+
+Next action: run the board against a dev backend on this branch (not port
+5003) and confirm the first-load `warming` answer fills in, the watchlist
+symbols join the scan, and a real coin's Cycle view reads sensibly.
+
+## Board continuation research · November 13
+
+The [fresh replication](https://github.com/tgpetrie/moonwalking/blob/7bd275748e1b9ee5758835337843a2dc1fe2a64e/docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md)
+supports an overextension warning on board entries. A separate
+[exploratory runner screen](../research/RADAR_BOARD_RUNNER_SCREEN_20261113.md)
+on the same dates finds enrichment in both tails. Raw percentage move and
+nominal 1m acceleration flag more adverse excursions than favorable ones.
+The follow-up also tested Carbon's sustained runner and its mirror. Every
+tested flag had a higher sustained reversal rate, so none advanced to a
+directional freeze. Percentage move remains the reference. A causal
+flag budget and fresh confirmation design remain open.
+
+[Claude's Step 1](https://github.com/tgpetrie/moonwalking/blob/6ed116c06ae766ac32da7e2a4b85259cea266a9a/docs/research/RADAR_RUNNER_SIGNAL_SCREEN_RESULTS_20261113.md)
+reached the same selection decision on earlier dates. The runner report
+includes an archive coverage check and day-level power sensitivity at
+the observed 2–3% runner base rate.
+
+[Step 2 and early-watch results](../research/RADAR_CANDLE_RESULTS_20261113.md)
+are available. None of the three standalone candle scores advanced. The
+early-watch replay observed about two minutes of median lead among successful
+simulated graduates, with raw 3m move ahead of both candle challengers on
+runner precision. The public candle backfill finished November 13 Pacific.
+Its verified manifest records 4,726,150 one-minute candles across 407
+products from the 497-product roster, from October 12 18:00 UTC through
+the November 13 14:59 UTC candle open. All grid windows are accounted for,
+including 14,419 empty responses. Eight request failures occurred during
+the run. The archive and manifest are local under
+`~/.moonwalking/analysis/radar_candle_backfill_20261113`. The opt-in 16-rank
+quote recorder and existing v3 feature metadata need a collector rollout
+before they can produce fresh rows.
+
+Read the [sentiment and Chart Read audit](../research/RADAR_SENTIMENT_AND_CHART_20261113.md)
+and the [Carbon or Gemini research assignment](CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md)
+for the external attention and catalyst feasibility study.
+
+The [received review and source checks](../research/RADAR_SENTIMENT_REVIEW_20261113.md)
+identify Hyperliquid open interest as the first positioning feasibility
+candidate. A short public probe succeeded. Asset mapping and usable
+freshness still need measurement. The always-on collector is still writing
+v2 only. The v3 rollout and a sustained external intake pilot are open.
+
+Claude pushed its nine research commits through `ade1694` on
+`claude/instant-radar-fresh-replication-20261113`.
+[Step 2](https://github.com/tgpetrie/moonwalking/blob/ade1694ec52cae31a8ef59f8e71d6755c82964e0/docs/research/RADAR_RUNNER_CANDLE_SCREEN_RESULTS_20261113.md)
+found a possible dollar-activity reversal filter. In the 3m-gainer check
+window, reversal precision fell from 8.48% to 3.94% and runner precision
+fell from 3.77% to 3.33%. The historical screen used whole-day quotas.
+The next test is a price-ranked filter applied at entry, compared at
+the same alert burden with reversals avoided and runners missed reported.
+
+[Claude's early-watch screen](https://github.com/tgpetrie/moonwalking/blob/ade1694ec52cae31a8ef59f8e71d6755c82964e0/docs/research/RADAR_EARLY_WATCH_SCREEN_RESULTS_20261113.md)
+also completed. The BTC-relative challenger gained about 0.4 percentage
+points in runner precision and added a similar number of reversals.
+Nothing met the promotion criteria. Its post-run mirror check found
+roughly balanced outcomes among pre-board candidates and more reversals
+among top-eight coin-minutes. The replay used synthetic candle rankings
+and whole-day quotas.
+
+The [revised Gemini review](../research/RADAR_SENTIMENT_REVIEW_20261113.md#revised-gemini-review--november-13)
+finds that the documented LunarCrush batch lacks the proposed 60m input.
+Hyperliquid remains the first candidate for an outcome-blind external
+readiness check.
+
+Claude's [runner-study brief](https://github.com/tgpetrie/moonwalking/blob/b5248e1d6c0e00a124768b31cdf07de985a3c413/docs/research/RADAR_RUNNER_STUDY_BRIEF_20261113.md)
+and [separate Carbon runner packet](https://github.com/tgpetrie/moonwalking/tree/a090711a5be561d2362348fba9a9393f70aed0fc/docs/research/review_packets)
+are available from the fresh-replication branch. The local archive lacks
+minute candles for the screen dates. The episode ledger covers ranks
+1–8 and omits within-hour same-board re-entries. A broader early-watch
+study needs evidence before board entry.
+
+### Fable pipeline review accepted
+
+Fable published `e0ac071`. Codex integrated the as-of millisecond fix,
+torn observer-line handling and reader transport snapshot in `6fbaf02`.
+The snapshot identifies an empty receive as such because the receive API
+can return empty data for multiple frame types. The Asia link transition
+remains a possible explanation. Healthy local samples cannot establish
+which endpoint closed the connection.
+
+The next bounded research capture should use the accepted instrumentation
+and a read-only local clock and adapter/route sidecar. Omit DNS log changes
+and TLS EOF option changes for the first attempt so it retains the
+existing network and socket settings. DNS history and TLS close type
+remain unavailable. Sidecar implementation and capture are open.
+Feed validation, publication-based grading and the delayed eligibility
+bridge remain open. The always-on mover collector is separate.
+
+## November 13 research restart
+
+Active continuation is `codex/instant-radar-research-restart-20261113`.
+Read the [restart handoff](RADAR_RESEARCH_RESTART_20261113.md). Fable's
+review is complete. The separate Carbon study-design dispatch is unverified.
+The full source bodies in both upload packets are pinned to `257be69`.
+
+- Carbon owns the hypothesis and fresh study design.
+  [Prompt](CARBON_RADAR_RESEARCH_ASSIGNMENT_20261113.md) ·
+  [Source packet](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69.txt) ·
+  [SHA-256 manifest](../research/review_packets/radar_20261113/CARBON_RADAR_SOURCE_257be69_MANIFEST.json)
+- Fable owns pipeline correctness and capture readiness on
+  `claude/instant-radar-pipeline-review-20261113`.
+  [Prompt](FABLE_RADAR_PIPELINE_ASSIGNMENT_20261113.md) ·
+  [Source packet](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69.txt) ·
+  [SHA-256 manifest](../research/review_packets/radar_20261113/FABLE_RADAR_SOURCE_257be69_MANIFEST.json)
+
+Codex reverified the original US and Asia journals read-only. Both matched the
+archived verifier results and reached zero timing cohorts. The VPN adapter
+disconnect about 102 ms after the last Asia frame is a lead for the transport
+diagnosis. The next decision is which bounded offline probe or additional
+failure-time observation can distinguish plausible causes before any new
+capture. The study freeze, feed gate and fitting remain closed.
+The older dated checkpoints below remain historical evidence.
+
+Updated November 10, 2026 (Pacific). This page is the current portable
+checkpoint for the **instant radar scoring work**. GitHub holds the code,
+contracts, completed results, work status and downloadable research evidence.
+The [active-work record](ACTIVE_WORK.json) supplies the branch, implementation
+commit, owners, gates and next actions in machine-readable form.
+
+The active continuation branch is now **`codex/instant-radar-disconnect-diagnosis-20261111`**,
+from verified Windows checkpoint **`598fba0`**. Verification **`975234e`** adds
+ten offline disconnect probes; **1,253 Instant Radar tests pass** (60 focused),
+with Black and guardrails passing. No reader-loss or propagation defect was
+reproduced, so the reader runtime remains **`cfa4aff`**. Transport exception
+text alone cannot link the disconnect to the later DNS error. The final marker
+is an owner observation after draining, not an exact reader failure clock.
+Read the [disconnect review and copy-ready Windows evidence collection command](../research/INSTANT_READER_DISCONNECT_REVIEW_20261111.md)
+and [checks](../research/results/instant_reader_disconnect_20261111/CHECKS.json).
+**Next: collect and inspect existing Windows logs before another pilot.**
+No new capture, cap change or runtime fix ran. A documentation-only commit may
+follow the verification checkpoint. Other agents' review status is preserved.
+
+The previous branch `codex/instant-radar-overflow-diagnosis-20261110` continued
+from verified Radar tip `fca475e`. Implementation **`cfa4aff`** adds a bounded
+failure-time reader snapshot and 11 deterministic burst/stalled-writer cases.
+**1,243 Instant Radar tests, guardrails and Black pass on Linux Python 3.12.14.**
+The snapshot records arrival pressure and the writer phase at failure.
+The cause of the original US overflow remains open because the preserved
+capture lacks those fields. Read the
+[offline diagnosis](../research/INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md)
+and [checks](../research/results/instant_reader_overflow_20261110/CHECKS.json).
+The original `codex/instant-radar-20261028` is the historical base branch.
+
+The bounded Windows Asia attempt at checkout `d24dadc` lost its connection
+39m 14.898s after full subscription acknowledgment, before the 62-minute
+warmup. The reader delivered all 167,405 received frames, with a sampled
+high-water mark of 231 of 256 and zero overflows. The verifier checked
+167,407 journal records and SQLite integrity. All 20 timing cohorts
+were unreached. Fifty Windows regression checks passed. The immediate
+post-run clock sample failed DNS resolution, and the retry returned all
+five samples. Review the saved transport and clock evidence before
+predeclaring another capture.
+[Asia attempt evidence](../research/results/instant_reader_overflow_20261110/ASIA_01_VERIFIED.json).
+
+The first [bounded live timing attempt](../research/INSTANT_LIVE_TIMING_PILOT_PROTOCOL_20261109.md)
+at `91165cc` ended at the 256-frame reader queue limit. The last reader
+receipt was 49m 03.474s after the six-product subscription acknowledgment.
+The 62-minute warmup did not finish and none of the 20 planned cohorts ran.
+The [independent verifier report](../research/results/instant_live_timing_20261109/US_01_VERIFIED.json)
+confirmed the pinned plan, SQLite integrity and 302,679 journal records.
+There are no +1.5s or +5s local delivery observations or readiness
+measurements for this attempt. The startup check and earlier replay
+remain separate evidence.
+
+The separate [Coinbase paper-trading handoff](https://github.com/tgpetrie/moonwalking/blob/codex/coinbase-paper-trading/docs/ai/COINBASE_CLOUD_HANDOFF.md)
+starts the account-integration work from existing Portfolio Mode. Its
+offline exit comparison uses explicitly supplied bids and position costs.
+
+The delayed eligibility draft at **`4b19a7a`** replayed all 166,035
+saved packets at four fixed waits. The +1.5s view preserved the same complete decision-input slots as +5s.
+It matched the original +5s feature results for all 80 rows. Local delivery
+at the shorter waits remains unmeasured. **109 focused tests passed.**
+[Replay results](../research/INSTANT_DELAYED_ELIGIBILITY_REPLAY_20261109.md).
+
+The batched source follow-up at **`c9d79be`** reached its 67-minute stop
+with 166,035 journal records and no reported queue overflow. All ten
+cohorts completed and the local consumer observed all 80 rows. BTC and
+SOL had all five features ready on every cohort row. ALCX and AURORA
+still had missing features. **1,316 targeted checks pass**.
+[Follow-up results](../research/INSTANT_BATCHED_SOURCE_PILOT_RESULTS_20261108.md).
+
+Gemini's [15-source eligibility response](../research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109.md)
+is received and [reconciled](../research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md).
+Keep complete-vector readiness separate from delivery and outcome gradability.
+BTC cancels against itself under the current V2 residual, leaving SOL as the
+only fully ready non-benchmark product in the pilot. The adapter and saved
+journal comparison are complete. The +1.5s wait and +2.5s delivery age bound
+remain candidates for a measured source check.
+The earlier methodology assignment is complete.
+
+The bounded journal writer at **`aa953b5`** passed crash and causal visibility
+probes. The comparison verified 24 journals across both writer modes. All 256-frame
+trials completed. Worst reader-to-commit time fell from 1.99s to 0.86s.
+**1,313 targeted checks passed** at that checkpoint.
+[Batching results](../research/INSTANT_BATCHED_JOURNAL_RESULTS_20261108.md).
+
+The pre-acknowledgment book amendment is implemented at **`90ac993`**.
+The preserved startup prefix verifies activation on acknowledgment under
+a simulated clock. The burst harness at **`3e5e168`** overflowed in all six
+128-frame trials. All six 256-frame trials completed, with up to 1.9s of
+queue wait. **1,306 targeted checks passed** at that checkpoint.
+[Startup and burst results](../research/INSTANT_STARTUP_AND_BURST_RESULTS_20261108.md).
+
+The real indexed pilot at **`4aab7be`** ended at the 128-frame reader
+queue limit after 20m 35.553s and 45,828 committed records. Warmup and
+delivery probes were unreached. Coinbase sent ALCX's only snapshot
+before its acknowledgment, leaving that book unavailable. The saved
+prefix and clock checks are verified. **1,300 targeted checks pass**.
+[Real indexed pilot results](../research/INSTANT_REAL_INDEXED_PILOT_RESULTS_20261107.md).
+
+Indexed evidence at **`dddd2e4`** prepared 80 diagnostic decisions while
+the synthetic recorder committed 241,208 packets on one connection.
+Preparation p95 was 89 ms per decision. The full eight-decision cohort
+with local outbox receipts took up to 682 ms. All 16 batch comparisons
+matched and **1,296 targeted checks pass**. Next is the predeclared
+real-data latency and readiness diagnostic.
+[Indexed latency results](../research/INSTANT_INDEXED_LATENCY_RESULTS_20261107.md).
+
+The opt-in warmup profile at **`a39d73e`** passed the 67-minute synthetic
+run on one connection with 241,208 committed rows. All four products had
+ready volatility and activity baselines at minute 62. Feature calculation
+took 4.1–6.2 seconds per product after capture. The preserved live journal
+shows zero fresh full ticker windows for ALCX and AURORA. **1,292 targeted
+checks pass**. Next is incremental feature calculation under recorder load.
+[Capacity and thin-quote results](../research/INSTANT_WARMUP_CAPACITY_RESULTS_20261107.md).
+
+The four-product source pilot is complete at **`92ed71f`**. The corrected
+attempt reached the packet budget in 34m 28s, short of 62 minutes of warmup.
+All 272 sampled trade windows were verified by cutoff +5s. Full fresh
+book windows were available at 68/68 BTC and SOL probes, 14/68 ALCX probes
+and 61/68 AURORA probes. **1,290 targeted checks pass**. Both attempts and
+raw journal digests are preserved. Read the
+[pilot results](../research/INSTANT_SOURCE_PILOT_RESULTS_20261107.md)
+and [predeclared protocol](../research/INSTANT_SOURCE_PILOT_PROTOCOL_20261107.md).
+
+The streaming journal is implemented at **`ce2dd03`**. It allocates a new
+identity per connection, commits original packet and trade processing evidence,
+and records local publication commit observations. After a process exit, the
+committed prefix can be read and a fresh segment can begin. **1,283 targeted
+tests passed** at that checkpoint.
+[Journal draft](../research/INSTANT_STREAM_JOURNAL_20261107.md)
+and [checks](../research/results/instant_stream_journal_20261107/CHECKS.json).
+
+Delayed decision snapshots and later cutoff grading are implemented at
+**`ad67a3a`**. A later grading view can mark evidence unavailable while the
+original snapshot remains reproducible. **1,271 targeted tests passed** at
+that checkpoint.
+[Decision and grading draft](../research/INSTANT_DELAYED_DECISION_20261107.md)
+and [checks](../research/results/instant_delayed_decision_20261107/CHECKS.json).
+
+Timed F1–F5 features are implemented at **`2838eb6`**. F3 uses the full 30s
+sampled book window. F4 uses receipt-time candles from 15 closed minutes
+ending before the expansion window. **1,261 targeted tests passed** at
+that checkpoint. [Feature draft](../research/INSTANT_TIMED_FEATURES_20261107.md)
+and [checks](../research/results/instant_timed_features_20261107/CHECKS.json).
+
+Timed volatility, BTC beta and activity baseline components are implemented at
+**`2ac3b25`**. They use declared windows, measured evidence and computation
+times, and independent volatility and pace readiness. **1,252 targeted tests
+passed** at that checkpoint. [Baseline draft](../research/INSTANT_TIMED_BASELINE_20261106.md)
+and [checks](../research/results/instant_timed_baseline_20261106/CHECKS.json).
+
+Claude's input-evidence review `f1ab7d5` is accepted as **`086eb20`** with
+46 independent probes, no defect and no code patch. Its **1,241 targeted tests passed**
+on Windows Python 3.12.10. Read [the acceptance](../research/INSTANT_INPUT_REVIEW_ACCEPTANCE_20261106.md).
+The separate [Gemini methodology task](GEMINI_METHOD_REVIEW_20261104.md) used the
+[uploadable packet](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7.txt)
+with 29 complete files pinned to `fee55a7`. Its
+[manifest](../research/review_packets/GEMINI_METHOD_SOURCE_PACKET_20261104_fee55a7_MANIFEST.json)
+verifies all source bodies and the identical Downloads copy. Keep the pinned
+packet as provenance; there is no need to upload it for a duplicate review.
+The new 29-file response is now received and
+[reconciled](../research/INSTANT_METHOD_REVIEW_TRIAGE_20261106.md) at **`840ff97`**.
+**1,247 targeted tests pass**, including six new synthetic timing-boundary cases.
+The candidate formulas remain, but late-proof availability cannot be relabelled
+as receipt-only; the 2,500ms budget and entry/model/readiness choices remain
+unfrozen. Both external assignments are complete; no duplicate review is queued.
+
+The reviewed **`8607a36`** implementation (accepted at `086eb20`) added input-evidence stage 1: complete
+declared product/cutoff/direction accounting, measured new packet/trade
+processing completion, coin/BTC component checks and frozen cutoff cohorts.
+Read
+[the scope](../research/INSTANT_INPUT_EVIDENCE_20261104.md) and
+[initial checks](../research/results/instant_input_evidence_20261104/CHECKS.json).
+[Independent review](CLAUDE_INPUT_EVIDENCE_REVIEW_20261104.md) is accepted.
+The baseline commit `2ac3b25` shares the stage 1 quote and trade-window
+helpers and preserves its schema. Positive eligibility still requires
+full-health, publication and decision evidence.
+
+Directional implementation **`9da4987`** adds an opt-in directional exposure
+report with own-direction gradability, explicit eligibility cutoffs, time
+unions and same-direction ranker comparison rows. Claude review `583a73a`
+is accepted as **`4925ac5`** with no defect found or code patch. **1,163 targeted
+tests pass**, including 51 independent review probes. Read
+[the draft](../research/INSTANT_DIRECTIONAL_EXPOSURE_20261104.md) and
+[acceptance/checks](../research/INSTANT_DIRECTIONAL_REVIEW_ACCEPTANCE_20261104.md).
+The focused [Claude review prompt](CLAUDE_DIRECTIONAL_EXPOSURE_REVIEW_20261104.md)
+is complete; do not repeat it. The full eligibility evidence producer is still open;
+the directional reporter's flags and clocks remain caller assertions. Existing joint reporting,
+greedy association, targets, monitor, book/publication and production are unchanged.
+
+Reconciliation checkpoint **`055d590`** accepts local Claude's bounded
+merging, continuity correction `d26c57d` (as `d80418e`) and second probe set
+`1af0a64`. **1,064 targeted tests pass**, including the newer book/publication
+tests. The same-millisecond blocker is resolved; original failures and
+receipt attribution remain preserved. Read the
+[acceptance](../research/INSTANT_RECONCILIATION_ACCEPTANCE_20261104.md) and
+[checks](../research/results/instant_reconciliation_acceptance_20261104/CHECKS.json).
+The unchanged hour's 33 ordering failures reconcile into 16 bounded proofs.
+This does not pass the feed gate or enable fitting. No new capture, outcome
+study, target or live change occurred. The baseline components above use
+the accepted reconciliation for timed trade proofs.
+
+Book code **`5ff6a8f`** accepts cloud review `6abd95e`, fixing
+premature heartbeat knowledge and text-only BBO clock changes. **579 targeted
+tests pass** in pinned Windows Python 3.12.10. Read the
+[acceptance](../research/INSTANT_BOOK_REVIEW_ACCEPTANCE_20261104.md) and
+[checks](../research/results/instant_book_review_acceptance_20261104/CHECKS.json).
+The [cloud review assignment](CLAUDE_CLOUD_BOOK_REVIEW_20261104.md) is complete.
+Do not repeat it. The former
+[same-millisecond continuity blocker](../research/RECONCILIATION_BOUNDARY_REVIEW_20261104.md)
+is resolved by the acceptance above. The publication module and targets are unchanged.
+
+Previous checkpoint **`8631231`** accepts cloud association/exposure `96f5652`
+(as `e3529c2`) with two validation fixes and three additional tests.
+**521 targeted checks pass** in pinned Windows Python 3.12.10. Read the
+[acceptance](../research/INSTANT_ASSOCIATION_ACCEPTANCE_20261104.md) and
+[verification](../research/results/instant_association_acceptance_20261104/CHECKS.json).
+Claude's Linux/3.13 report is retained; no native Mac or full-suite pass is claimed.
+
+The cloud assignment is complete and accepted as a reporting draft. Local
+Claude's bounded reconciliation is accepted through `055d590`, including the
+two follow-up commits. Do not repeat the completed cloud implementation.
+The older `4610bf2` raw-catalog change is not merged: the reporting wrapper
+already supplies left-censor flags and is used by association. S1 retains
+whole-window strict timing plus a separately named forward-peak diagnostic.
+Targets/V1/V2 and all production code remain unchanged; the study is unfrozen.
+
+Previous checkpoint: book/publication draft **`8c51878`** plus accepted coverage-review
+fixes **`652f5af`**. Read the
+[book/timing implementation](../research/INSTANT_BOOK_AND_PUBLICATION_20261103.md),
+[review acceptance](../research/INSTANT_COVERAGE_REVIEW_ACCEPTANCE_20261103.md)
+and [468 passing checks](../research/results/instant_book_publication_20261103/CHECKS.json).
+The user's older 363-check resume prompt is superseded by these checkpoints.
+Do not rebuild completed adapters or repeat general accepted reviews.
+
+Local Claude's `claude/instant-coverage-reconciliation` is pushed at `1af0a64`
+and accepted through `055d590`. Cloud Fable completed the separate
+[association/exposure assignment](CLAUDE_CLOUD_ASSIGNMENT_20261103.md); its
+implementation is accepted in the current checkpoint above.
+Codex owns book/timing and integration. No capture, fit, held `d711832` merge
+or live integration occurred. New sources/tests/results are in Git; existing
+raw-evidence bundles remain valid.
+
+Book replay preserves atomic batches, original quote/change ages and measured
+processing completion. It does not enter legacy target samples or certify
+continuous F3/full-feed readiness. Publication clocks are explicit; a
+publication-anchored target and numerical lag limit remain separate drafts.
+The batched source follow-up reached warmup on the tested profile.
+Predeclare feature and product eligibility from the measured readiness
+and retain the original feed gate and study freeze as separate requirements.
+
+The preserved-capture verifier stays `a5bb397` (recorded run `837db34`),
+recorder/baseline `ab95159`, and target evaluator/V1/V2 `92fb51d`.
+Earlier replay preserved 63,258 packets / 24,424 live matches. The new review
+check independently confirms 33 strict ID failures reconcile across adjacent
+runs without changing receipt counts; no expected ID in the heartbeat ranges
+is absent. All 14,396 raw proofs are unchanged by the fixes apart from actual
+processing time. This is not a gate pass, a new capture or a return/label study.
+The old 363- and 405-check records remain pinned historical checkpoints.
+
+October 30 update: both source-based Gemini responses have been received,
+reproduced and [triaged](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md).
+The opt-in v2 draft at `8b5b266` adds a forward-window catalog and names
+reference-dependent timing metrics; it incorporates Claude's reviewed
+baseline cutoff. V1 stays the default. Claude's independent code review is
+complete at `10b0f96`; Codex accepted its catalog/version guard fix through
+**`92fb51d`**, the current implementation. Read the
+[acceptance and remaining decisions](../research/INSTANT_V2_REVIEW_ACCEPTANCE_20261030.md).
+The study remains unfrozen and fitting stays off.
+
+Gemini's v2 design response is now received and reconciled in the
+[consolidated study-rule candidate](../research/INSTANT_STUDY_FREEZE_CANDIDATE_20261030.md).
+The eight reported source hashes match its pinned packet. Synthetic checks
+show why narrowing the peak window changes the metric, and why catalog
+association must not erase a failed prediction at its own horizon. The draft
+keeps both questions visible, retains causal cutoffs, proposes null reasons
+and concrete five-feature formulas. These are reviewable recommendations,
+not frozen code or fitted weights. Current executable labels stay at `92fb51d`.
+The original [source packet](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a.txt)
+and [manifest](../research/review_packets/GEMINI_SOURCE_PACKET_941f47a_MANIFEST.json)
+remain pinned to `941f47a` as evidence of what Gemini reviewed; they do not
+contain the v2 draft. Gemini did not inspect the original unamended proposal
+as a separate source, so a full original-fidelity claim is still unwarranted.
+The full [pre-source conceptual response](../research/reviews/GEMINI_PRE_SOURCE_CONCEPTUAL_REVIEW_20261030.md)
+is now archived separately. Its extra suggestions are classified in the triage;
+that initial v1 review history is one conceptual response and two source-based
+responses; the later v2 design response is recorded above.
+It supplies no additional implementation verification or reason to change
+the current v2 draft automatically.
+
+Bookmark this page:
+<https://github.com/tgpetrie/moonwalking/blob/codex/instant-radar-20261028/docs/ai/RESUME_HERE.md>
+
+The separate fundamentals driver review is complete at `8708c25` on
+`codex/fundamentals-driver-review-20261030`. Corrected no-fit readiness and 77
+targeted checks pass; discovery and the primary test have not run. The accepted
+cohort does not need another Gemini pass. Its 30 exact input files have a
+verified GitHub backup. Use the
+[fundamentals resume page](https://github.com/tgpetrie/moonwalking/blob/codex/fundamentals-driver-review-20261030/docs/ai/FUNDAMENTALS_RESUME_20261030.md)
+for that lane; its readiness does not enable instant-radar fitting.
+
+## Current checkpoint
+
+| Item | Current state |
+|---|---|
+| Repository | `tgpetrie/moonwalking` |
+| Resume branch | `codex/instant-radar-20261028` |
+| Current implementation | Batched source follow-up `c9d79be`; bounded writer `aa953b5`; startup and burst verification `3e5e168`; real indexed pilot `4aab7be`; indexed decision evidence `dddd2e4`; warmup capacity `a39d73e`; source pilot `92ed71f`; stream journal `ce2dd03`; delayed decisions and later grading `ad67a3a`; timed features `2838eb6`; timed baseline components `2ac3b25`; original input-evidence stage 1 `8607a36`, review accepted `086eb20`; directional draft `9da4987` reviewed `4925ac5`; reconciliation `055d590` (monitor `d80418e`); book fixes `5ff6a8f`; association `8631231`; legacy verifier `a5bb397` (recorded run `837db34`); legacy recorder `ab95159`; target evaluator `92fb51d` unchanged |
+| Instant targets | V1 default preserved; Claude fix accepted; Gemini v2 response reconciled into a study-rule draft; no study freeze |
+| Checks | 1,316 targeted tests pass, including three follow-up profile and timing cases, seven batch writer cases and six startup cases, four real-pilot boundary cases and four index parity cases, two capacity/timing cases and seven socket cases, twelve stream-journal cases, ten decision/grading cases, nine timed feature cases, five timed baseline cases, six methodology timing-boundary cases and 46 independent input-evidence probes; earlier replay preserved 63,258 packets / 24,424 matches; formatting, guardrails and 11 historical hashes pass; no full-suite claim |
+| Historical experiment | Complete, locked, inconclusive; do not rerun discovery/validation or tune against it |
+| Feed audit | One uninterrupted hour completed; sampled coverage REST-reconciled; thin-product side evidence insufficient, overall gate false |
+| Live behavior | No ranking, weights, recorder integration or production deployment change |
+
+The instant radar and developing-move boards were always meant to use their
+own targets/formulas, sharing market data with broader outlook scores. The
+historical three-input comparison did not evaluate Gemini's F1-F5 proposal.
+Current work continues that proposal, with fixed 30s/180s input windows and
+separate 5m/15m outcomes.
+
+Read these next:
+
+1. [Agent rules](../../AGENTS.md), [AI index](AI_INDEX.md),
+   [handoff](../../HANDOFF.md) and [backlog](../../MW_BACKLOG.md).
+2. [Review triage / v2 draft specification](../research/INSTANT_TARGET_REVIEW_TRIAGE_20261030.md)
+   and [v2 JSON](../research/INSTANT_TARGET_CONTRACT_V2_DRAFT.json); the
+   [v1 definition](../research/INSTANT_TARGET_LABELS_20261029.md) and
+   [v1 JSON](../research/INSTANT_TARGET_CONTRACT_V1.json) remain available.
+3. [Corrected prospective contract](../research/LIVE_MOVERS_PROSPECTIVE_CONTRACT_20261027.md),
+   [execution sequence](../research/INSTANT_RADAR_NEXT_STEPS_20261028.md) and
+   [locked historical results](../research/LIVE_MOVERS_RESULTS_20261027.md).
+4. [Review assignments](INSTANT_RADAR_REVIEW_BRIEF_20261029.md) and
+   [completed audit report](../research/results/feed_audit_20261028_completed/REPORT.json).
+
+## Who owns the next actions
+
+Copy-ready [v2 review prompts and attachments](INSTANT_V2_REVIEW_PROMPTS_20261030.md)
+are prepared for Claude, Gemini, local 14B and local 9B. The new Gemini packet
+contains eight complete sources at `cc3b6a6` (implementation `8b5b266`), so it
+includes v2 rather than the old v1-only packet. Claude has now received the
+user's start instruction and full role prompt and completed its code review.
+Codex accepted its patch/probes; see the acceptance report. The full packet is
+still pinned to the initial v2 source, before the catalog guard fix. Include
+the acceptance report/patch as a follow-up addendum. Gemini's v2 response has
+now been supplied by the user and reconciled; local v2 dispatch is unverified.
+
+| Owner | Assignment | Verified status |
+|---|---|---|
+| Codex | Own implementation, reproduce findings, integrate reviewed fixes, maintain this checkpoint | Offline Asia disconnect review complete; collect existing Windows logs before another pilot |
+| Local Claude | Review plus bounded reconciliation implementation | Review branch `1af0a64` accepted; same-millisecond correction verified; no further patch requested |
+| Cloud Claude / Fable | All assigned reviews complete | Input review `f1ab7d5` accepted; no new assignment queued |
+| Gemini | Target methodology and post-pilot eligibility review | Both responses received and reconciled. Timing and cohort thresholds remain proposals |
+| Local 14B | Bounded source/trace review; findings require deterministic verification | One bounded review completed; two suggestions unsupported by code/tests |
+| Local 9B | Summarize supplied logs/test failures | No active assignment verified |
+
+On this Windows PC, Codex works in
+`C:\Users\tgpet\Projects\Moonwalking-InstantRadarOverflow-20261110`. Claude's current review
+worktree is `C:\Users\tgpet\Projects\Moonwalking-InstantRadarReview`, branch
+`claude/instant-coverage-reconciliation`; its earlier `claude/instant-radar-v2-review`
+and `claude/instant-radar-review` branches are preserved. Its original separate checkout is
+`C:\Users\tgpet\Projects\Moonwalking-Claude`. These are location hints for
+this computer, not required paths on another machine. Preserve other agents'
+work and use separate branches/worktrees for fixes.
+
+Next, inspect the existing Asia transport and clock evidence using the new
+disconnect review; do not repeat a timing pilot yet. The original US overflow
+cause is still unresolved. Keep the four-product
+gate and >=62 complete warmup minutes. Feature/stage/model/readiness rules,
+association/exposure rule freeze and overall study freeze remain required before
+14 valid shadow days and fitting. Do not repeat completed outcomes or captures
+merely to seek a favorable verdict.
+
+## Unattended checks on a saved timing attempt
+
+Once a capture has finished, run this from the repository root with the
+repository's Python environment and pytest. Substitute the finished attempt,
+its original plan digest, and a new local output directory.
+
+```text
+python -m scripts.scoring_experiment.run_instant_offline_checks --attempt <saved-attempt> --plan-sha256 <pinned-digest> --out-dir <new-local-folder> --model qwen3.5:9b
+```
+
+It verifies the saved evidence, runs the journal, socket and timing regression
+tests, and optionally asks local Ollama for an advisory note. A verifier or test
+failure stops the remaining checks. The run status, verified results and test
+log are the evidence. The advisory note is separate and never runs commands.
+Omit `--model` on a computer without Ollama. Keep outputs outside the checkout
+and use a new directory for each run. A complete job can verify an incomplete
+capture. On the US capture, the job verified 302,679 journal records, found
+zero timing observations, and passed 39 regression checks.
+
+Codex owns local capture evidence, queue diagnosis, integration and the
+next predeclared pilot. Claude is on the separate design work. An
+independent Fable code review can follow when that slot is available.
+Gemini Argon can review the evidence needed to freeze eligibility, timing
+and study rules using the reconciled sources. The Coinbase paper
+experiment stays on its separate branch.
+
+Use the Codex handoff when a result is ready to review, a reproducible
+failure blocks progress, or a decision changes study scope or a gate.
+Send the branch and commit or result link, what passed or failed, and
+the single decision needed if there is one. A finished design handoff
+should include the preview and build brief. Routine progress can stay
+in the job log. The local checker records status on disk.
+
+## Code and environment on another computer
+
+For a new, absent destination directory:
+
+```bash
+git clone --branch codex/instant-radar-disconnect-diagnosis-20261111 https://github.com/tgpetrie/moonwalking.git Moonwalking-InstantRadar
+cd Moonwalking-InstantRadar
+```
+
+Each cloud task is already isolated: use its existing clean checkout and a named
+branch; do not create a worktree unless explicitly requested. For an existing
+PC checkout, inspect remote, status and worktrees, then fetch
+and use the named branch in a suitable separate worktree. Never overwrite
+uncommitted work. Both checkout and Git common storage must be outside
+OneDrive/synced folders. Follow [the access procedures](WORK_FROM_ANYWHERE.md).
+
+Use Python 3.12 and a fresh local virtual environment. The research dependencies
+are pinned in [this requirements file](requirements-macbook-research-20261027.txt);
+the filename is historical, and the small environment also supports the new
+standard-library target evaluator. Activate the environment for your OS, then:
+
+```bash
+python -m pip install -r docs/ai/requirements-macbook-research-20261027.txt
+python -m pytest -o addopts= -q tests/test_preserved_feed_replay.py tests/test_micro_replay_review.py tests/test_micro_replay.py tests/test_instant_diagnostics.py tests/test_instant_targets.py tests/test_instant_targets_v2.py tests/test_instant_targets_v2_review.py tests/test_feed_audit_campaign.py tests/test_coinbase_feed_audit.py tests/test_live_contract.py tests/test_live_movers_run.py tests/test_live_movers_review.py tests/test_restore_macbook_evidence.py backend/tests/test_coinbase_ws.py
+bash scripts/validate_mw_guardrails.sh
+```
+
+These tests use fixtures; they do not rerun historical discovery/validation.
+Native Mac/cloud execution still requires checking the environment there.
+
+## Research evidence stored in GitHub
+
+The existing **draft** release `research-handoff-20261027` now carries two
+complementary bundles. Use an authenticated GitHub account with release
+access. A source checkout alone does not download release assets.
+
+| Bundle | Contents | Committed manifest |
+|---|---|---|
+| `moonwalking-live-movers-evidence-20261027.tar.gz` (~112 MB) | Frozen public-market research DB/CSV, historical results and persistent validation-attempt marker, first interrupted audit | [Base manifest](MACBOOK_EVIDENCE_MANIFEST_20261027.json) |
+| `moonwalking-instant-evidence-20261029.tar.gz` (~9.55 MB) | Second interrupted audit and completed one-hour campaign, raw WS/REST captures, reports, original hashes and status | [Supplement manifest](INSTANT_EVIDENCE_MANIFEST_20261029.json) |
+| `moonwalking-capture-replay-20261030.tar.gz` (~5.18 MB) | Derived run-01 SQLite, explicitly retrospective health and replay/report hashes | [Replay manifest](CAPTURE_REPLAY_EVIDENCE_MANIFEST_20261030.json) |
+
+Download from any authenticated machine into a new `handoff-downloads` folder:
+
+```bash
+gh release download research-handoff-20261027 --repo tgpetrie/moonwalking --dir handoff-downloads --pattern moonwalking-live-movers-evidence-20261027.tar.gz
+gh release download research-handoff-20261027 --repo tgpetrie/moonwalking --dir handoff-downloads --pattern moonwalking-instant-evidence-20261029.tar.gz
+python scripts/restore_macbook_evidence.py handoff-downloads/moonwalking-live-movers-evidence-20261027.tar.gz
+python scripts/restore_macbook_evidence.py handoff-downloads/moonwalking-instant-evidence-20261029.tar.gz --manifest docs/ai/INSTANT_EVIDENCE_MANIFEST_20261029.json
+```
+
+The restore tool verifies the exact file list, archive/member hashes, safe
+destinations and existing files. It skips identical files and refuses to
+overwrite different files. Add `--verify-only` to inspect without restoring.
+Default destination is `~/.moonwalking/analysis` on the new machine.
+
+The supplement includes
+`feed_audit_campaign_20261028/attempt-01/` and
+`feed_audit_20261028_1h/`; use paths under the new machine's analysis directory.
+Absolute Windows paths inside original status files describe provenance and
+must not be treated as current paths. The base bundle's validation-attempt
+marker must remain in place. Do not rerun the locked experiment after restore.
+
+The [upload/verification receipt](INSTANT_GITHUB_TRANSFER_20261029.json)
+records cloud asset hashes and round-trip verification. The older
+[MacBook handoff](MACBOOK_HANDOFF_20261027.md) describes the base bundle;
+its old resume branch and unfinished-audit instructions are superseded by
+this checkpoint.
+
+Public-market research is backed up. Live account/portfolio stores, production
+credentials, `.env`, virtual environments and AI session folders stay on their
+own machines. The Windows collector is a separate running service on port
+5003; fetching the research branch does not migrate that service.
+
+## Paste into any next session
+
+> Resume Moonwalking's instant-radar work from repository
+> `tgpetrie/moonwalking`, branch `codex/instant-radar-overflow-diagnosis-20261110`.
+> The verified base was `fca475e`; overflow instrumentation is `cfa4aff`.
+> Read INSTANT_READER_OVERFLOW_DIAGNOSIS_20261110.md first. Offline burst and
+> stalled-writer tests pass (1,243 Instant Radar tests). The US capture remains
+> inconclusive before warmup. The Windows Asia attempt lost its connection
+> before warmup, with zero overflows and zero timing observations. Read the
+> verified Asia evidence above before planning another capture.
+> Read `docs/ai/RESUME_HERE.md` and `docs/ai/ACTIVE_WORK.json`, then follow
+> `AGENTS.md`. Verify the current GitHub tip and review status before acting.
+> Batched source follow-up `c9d79be` has 1,316 targeted tests passing.
+> Attempt 01 is complete. Read the November 8 batched source results.
+> Bounded writer verification is `aa953b5`.
+> Read the November 8 batched journal results and startup and burst results.
+> The real indexed pilot is `4aab7be`.
+> Read the November 7 real indexed results. The capture stopped at the
+> reader queue limit before warmup. Indexed decision evidence is `dddd2e4`.
+> Read the November 7 indexed latency results before the real-data protocol.
+> Warmup capacity `a39d73e` passed 67 simulated minutes on one connection,
+> with 1,292 targeted tests passing. Read the November 7 capacity results.
+> The source pilot is `92ed71f`. Read its
+> November 7 results. It stopped at the packet cap in 34m 28s.
+> The stream journal is `ce2dd03`.
+> Delayed decisions and later cutoff grading are `ad67a3a`.
+> Timed features are `2838eb6`. Read the November 7 decision and grading draft.
+> Timed baseline components are `2ac3b25`. Read the November 7 feature draft.
+> Stage 1 input-evidence review is accepted at `086eb20`; methodology
+> reconciliation is `840ff97`. Positive eligibility still requires quote-health,
+> decision and publication evidence. Directional reporting
+> draft is `9da4987`, independent review accepted `4925ac5`.
+> Reconciliation is accepted through `055d590` (monitor `d80418e`), book fixes
+> at `5ff6a8f`, association at `8631231`.
+> Latest preserved-capture verifier is `a5bb397`; replay ran at `837db34`;
+> recorder is `ab95159`, target evaluator unchanged `92fb51d`.
+> Read INSTANT_CAPTURE_REPLAY_RESULTS_20261030.md for the real data findings.
+> Read the October 30 Claude acceptance and consolidated study-rule candidate.
+> Gemini's v2 and current 29-file methodology responses are received/reconciled; the study remains unfrozen.
+> V1 stays default. The real replay is complete but then-known health,
+> thin quotes and baseline warmup remain blockers. Read the November 4
+> reconciliation, book and association acceptance reports. Those draft
+> earlier implementations and directional review are complete; do not repeat them.
+> Predeclare eligibility and missingness rules using the follow-up readiness evidence.
+> Preserve thin-product reporting and both stopped capture prefixes.
+> Fitting remains off; no physical onset is inferred yet.
+> Restore the documented GitHub evidence if needed. Historical validation
+> is locked; the feed gate is still inconclusive. Keep live scoring and
+> production unchanged. Update the portable checkpoint, commit and push
+> completed work before handing off.
+
+For a conversation without repository access, supply this page, the active-work
+JSON, target definition and historical results as files or text.
+
+## Keep this record current
+
+At each coherent handoff, the implementation owner updates this page and
+`ACTIVE_WORK.json` with the code checkpoint, evidence location, completed
+checks, agent-review status, open gates and exact next action, then pushes.
+Keep a new active-branch pointer here when work moves to another branch.
+Documentation-only commits may follow the recorded implementation hash;
+the branch's Git history gives the exact latest documentation checkpoint.
+This page reconstructs the task without relying on a particular chat history.

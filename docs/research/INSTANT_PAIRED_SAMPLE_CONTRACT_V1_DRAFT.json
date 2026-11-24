@@ -1,0 +1,19 @@
+{
+  "version": "instant-paired-sample-v1-draft",
+  "grid_ms": 5000,
+  "source": "legacy_ticker_ReplayStore_midpoint_only",
+  "window": "receipt_time_start_inclusive_cutoff_exclusive",
+  "knowledge": "both_coin_and_benchmark_known_by_the_same_cutoff",
+  "retrospective_override_allowed": false,
+  "unavailable": "immutable_result_with_explicit_reasons_and_sample_null_never_fabricated_zero",
+  "zero": "retained_only_from_verified_empty_windows",
+  "side_availability": "separate_from_target_count_and_price_quality",
+  "trade_at_bucket_start": "preserved_for_forward_anchor_exclusion",
+  "provenance": "producer_and_input_provenance_hash_adapter_and_contract_hashes",
+  "new_book_source_supported": false,
+  "coverage_monitor_drop_in": false,
+  "feed_gate_pass": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "live_integration": false
+}

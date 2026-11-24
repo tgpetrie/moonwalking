@@ -1,0 +1,52 @@
+{
+  "verified_utc": "2026-11-08T10:39:29.362760+00:00",
+  "implementation_commit": "3e5e168dabe8085b420c962be4df3724efa53dd8",
+  "startup_amendment_commit": "90ac99329a2210ce81d55402ffdb2a7cca56a241",
+  "base_checkpoint": "3374e5afd22c7751097c6eb7b08b4816bd6995a7",
+  "targeted_tests_passed": 1306,
+  "new_startup_cases": 6,
+  "prepatch_startup_failures": 2,
+  "prepatch_rejection_controls_passed": 4,
+  "platform": "Windows",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "normalized_source_sha256": {
+    "docs/research/INSTANT_BOOK_CONTRACT_V1_DRAFT.json": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+    "docs/research/INSTANT_STARTUP_AND_BURST_PROTOCOL_20261108.md": "c009d094eca7493bd59db70b0e5ee8b8748f094cf7d9940a937dff987f7cba7e",
+    "scripts/scoring_experiment/instant_book.py": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+    "scripts/scoring_experiment/instant_queue_burst.py": "26d36e0ab1ee5859942feb07e57f00a61ec432b47c01412eef1f7b1bb2b77a7c",
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": "8e443a6ddfc0a719e63ccd058079a315f53583994a0aa5e0bef1ecb550cf804d",
+    "tests/test_instant_pre_ack_book.py": "3d5c3201de5c07d858cc3d22e29249ceb4a60e91846e76cdbac37c9a056129d1"
+  },
+  "saved_startup_replay": {
+    "clock": "simulated_processing_from_preserved_receipt_order",
+    "input_journal_sha256": "146607377abd4eb0264c228749ec83fe7af2dddf07901d550e1eaa4bb60a2bcc",
+    "input_rows": 271,
+    "snapshot_receipt_seq": 2,
+    "activation_receipt_seq": 3,
+    "quote_ready_at_subsequent_probe": true
+  },
+  "burst_run_manifest_sha256_UTF8_LF": "5c6f90f109d91cd6f325149b11237d0e4072308509873df0ddc98a162b74943c",
+  "burst_scenarios_completed": 12,
+  "burst_journal_digests_and_order_verified": 12,
+  "first_harness_attempt": {
+    "status": "verifier_rejected_equivalent_python_tuple_and_json_list",
+    "implementation_commit": "90ac99329a2210ce81d55402ffdb2a7cca56a241",
+    "journal_sha256": "8d964c3c16a2062015dd8e67f4d4f4871ee5db2a4eb54d84b51d5ba168253768",
+    "committed_data_frames": 15,
+    "final_marker": "queue_overflow",
+    "canonical_source_prefix_verified": true
+  },
+  "live_queue_profile": 128,
+  "new_real_capture": false,
+  "full_suite_run": false,
+  "native_mac_verified": false,
+  "historical_validation_rerun": false,
+  "decision_age_budget_selected": false,
+  "fitting_allowed": false,
+  "live_changes": false
+}

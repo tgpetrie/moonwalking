@@ -91,6 +91,26 @@ describe("Evidence tiers (graded 'proof' gate)", () => {
   });
 
   it("caps the displayed count at 100+", () => {
-    expect(describeEvidenceTier(4200).label).toBe("Strong · 100+");
+    expect(describeEvidenceTier(4200).label).toBe("Deep · 100+");
+  });
+
+  it("grades sample depth without borrowing live-strength vocabulary", () => {
+    // These tiers co-render beside live reads (HOLD STRONG on the Portfolio
+    // card) and event states (Building on the Scorecard card). Sharing a word
+    // with either makes the tier read as a claim about the move.
+    const forbidden = ["Strong", "Building", "Dominant", "Confirmed", "Leading"];
+    for (const n of [0, 1, 9, 10, 29, 30, 99, 100, 4200]) {
+      const { label } = describeEvidenceTier(n);
+      for (const word of forbidden) {
+        expect(label).not.toContain(word);
+      }
+    }
+  });
+
+  it("keeps machine keys and rate gating stable while the copy changes", () => {
+    expect(describeEvidenceTier(100).key).toBe("strong");
+    expect(describeEvidenceTier(10).key).toBe("building");
+    expect(describeEvidenceTier(100).quoteRate).toBe(true);
+    expect(describeEvidenceTier(9).quoteRate).toBe(false);
   });
 });

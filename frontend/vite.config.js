@@ -44,14 +44,18 @@ export default defineConfig({
     host: '127.0.0.1',
     port: vitePort,
     strictPort: true,
+    // No hmr.port: the HMR socket then rides on whatever port the server
+    // actually listens on. Pinning it to vitePort broke any second dev server
+    // started with `--port` (e.g. two worktrees on 5173 and 5174): its page
+    // attached to the OTHER server's HMR socket and full-reloaded every few
+    // seconds, so data never finished loading.
     hmr: {
       host: '127.0.0.1',
-      port: vitePort,
       protocol: 'ws'
     },
     proxy: {
       '/data': { target, changeOrigin: true, configure: attachProxyErrorHandler },
-      '/api': { target, changeOrigin: true, ws: true, configure: attachProxyErrorHandler },
+      '/api': { target, changeOrigin: true, xfwd: true, ws: true, configure: attachProxyErrorHandler },
       // Keep legacy sentiment paths working, but route through the main backend proxy target.
       '/api/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },
       '/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },

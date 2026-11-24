@@ -33,7 +33,8 @@ Primary documentation:
 | The Tie | Candidate provider, not implemented yet | Commercial access | Institutional-grade news/social sentiment; likely too expensive unless the product matures. |
 | Perception | Candidate provider, not implemented yet | API access | Narrative/news sentiment option for Bitcoin/digital-asset coverage. |
 | CoinMarketCap Fear & Greed | Not implemented | CoinMarketCap API key | Candidate alternative to Alternative.me, but would add account/key management. |
-| Reddit, X/Twitter, Telegram, Discord | Not implemented | Official APIs, OAuth/app credentials, platform policy review, rate-limit handling | Must remain unavailable until a compliant provider is built. Do not scrape or synthesize. |
+| Public Reddit RSS and Telegram channel previews | Experimental catalyst scout | Public RSS / `t.me/s/` pages; provider policy review still required | Cached, source-labeled public context; incomplete feeds are reported as partial or unavailable. |
+| X/Twitter, Discord | Not implemented | Official APIs, OAuth/app credentials, platform policy review, rate-limit handling | Must remain unavailable until a compliant provider is built. Do not scrape or synthesize. |
 
 ## Position on individual X/Reddit accounts
 
@@ -47,3 +48,10 @@ Moonwalkings should not hard-code or scrape individual “low-key” crypto acco
 - Missing social, history, topic, or divergence data stays null or empty.
 - Cached fallback data may be served as `stale`; it must never be relabeled as live.
 - Configured catalog entries are metadata only; they do not count as active coverage unless the backend contributed them to `sources`.
+- The experimental catalyst scout also reads CoinGecko Trending and selected news RSS feeds. XML DTDs and entities are rejected; failed or expired feeds are excluded from the fresh summary. It is not a representative measure of all coin sentiment.
+- VIP matches are names or handles appearing alongside a coin in sourced text,
+  not proof the named person authored a post, follows anyone, or endorsed a
+  claim. The curated tiers and weights are user-specified, not verified
+  rankings. Cross-tier confluence reflects mentions in the same 24-hour
+  symbol window, and a ZackXBT mention triggers a conservative risk flag even
+  if the text is not an allegation. Vitalik and Hayes RSS feeds are optional.

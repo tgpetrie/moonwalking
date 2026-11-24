@@ -70,6 +70,19 @@ def test_non_ticker_messages_ignored():
     assert feed.store.size() == 0
 
 
+def test_research_quote_keeps_product_identity_and_local_age():
+    feed = CoinbaseTickerFeed()
+    feed.store.update_market(
+        "SOL",
+        {"product_id": "SOL-USD", "best_bid": "100", "best_ask": "101"},
+        ts=100,
+    )
+    assert feed.store.fresh_quotes(now=110) == {
+        "SOL-USD": {"bid": 100, "ask": 101, "age_s": 10}
+    }
+    assert feed.store.fresh_quotes(now=116) == {}
+
+
 class _FakeSocket:
     def __init__(self):
         self.sent = []

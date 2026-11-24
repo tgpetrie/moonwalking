@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 
 const AlertsIndicator = () => {
   const [count, setCount] = useState(0);
@@ -75,7 +76,7 @@ const AlertsIndicator = () => {
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <a
-                    href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol||'').toLowerCase()}-USD`}
+                    href={getCoinbaseAdvancedSpotUrl(a)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-bold hover:text-amber-400"

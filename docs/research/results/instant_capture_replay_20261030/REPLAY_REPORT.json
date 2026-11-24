@@ -1,0 +1,225 @@
+{
+  "version": "preserved-feed-replay-verification-v1",
+  "scope": "single_preserved_capture_receipt_replay_no_return_labels_or_fitting",
+  "source_capture_key": "feed_audit_campaign_20261028/attempt-01",
+  "source_files": {
+    "capture.json": {
+      "bytes": 949,
+      "sha256": "101c2a1f938d04522a85a4f48d2707bff9c515b81c093ec8c75313ee2686ca34"
+    },
+    "MANIFEST.json": {
+      "bytes": 299,
+      "sha256": "bc375dbc2c080868e6fad29c07e75d90e4061e6e32777d789c4b021ec5474b50"
+    },
+    "REPORT.json": {
+      "bytes": 7167,
+      "sha256": "f02228d380cea1625e139d9fc397092c2e78f6c84c631293594ffb1e8e21f157"
+    },
+    "STATUS.json": {
+      "bytes": 216,
+      "sha256": "46c86af5f57ebc955550c61dee0780102ee6fac25fdc68f3188096d76f4d0fc6"
+    },
+    "websocket.jsonl.gz": {
+      "bytes": 3691155,
+      "sha256": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b"
+    },
+    "rest.jsonl.gz": {
+      "bytes": 4356102,
+      "sha256": "a167fc0af1b9a29eb5cc3b449ee0b68ce9b63aa35d9b28a26f9e28ed888823ce"
+    }
+  },
+  "source_capture_code_commit": "dbdec830aa3bbc649fa410fca7a8833611612257",
+  "source_capture_elapsed_seconds": 3600.156,
+  "source_capture_started_utc": "2026-10-28T16:28:30.536595+00:00",
+  "source_capture_ended_utc": "2026-10-28T17:28:31.349922+00:00",
+  "replay_utc": "2026-10-30T23:46:21.878002+00:00",
+  "retrospective_health_available_ts_ms": 1793403958585,
+  "packets_replayed": 63258,
+  "rest_trade_rows_read": 248000,
+  "occupied_buckets": 1385,
+  "database_bytes": 29020160,
+  "producer_identity": {
+    "producer_recorder_sha256": "d0e6cd05c4a1b134d87eeef2461f37c3d4c18a4503903f84e7a0f50d09913f02",
+    "reader_recorder_sha256": "d0e6cd05c4a1b134d87eeef2461f37c3d4c18a4503903f84e7a0f50d09913f02",
+    "producer_matches_reader": true,
+    "replay_contract_sha256": "e2188c88594e10e9bcdb8b1452268efe25b754248ffdea629763601b2d0eef12",
+    "source_manifest": {
+      "feed_gate_pass": false,
+      "replay_adapter_sha256": "2c501c3b158c78273bf1a7ffb662f43481425e36faf4bbf47c2b72e4b85815f5",
+      "replay_adapter_version": "preserved-feed-replay-verification-v1",
+      "retrospective_health_available_ts_ms": 1793403958585,
+      "source_files": {
+        "MANIFEST.json": {
+          "bytes": 299,
+          "sha256": "bc375dbc2c080868e6fad29c07e75d90e4061e6e32777d789c4b021ec5474b50"
+        },
+        "REPORT.json": {
+          "bytes": 7167,
+          "sha256": "f02228d380cea1625e139d9fc397092c2e78f6c84c631293594ffb1e8e21f157"
+        },
+        "STATUS.json": {
+          "bytes": 216,
+          "sha256": "46c86af5f57ebc955550c61dee0780102ee6fac25fdc68f3188096d76f4d0fc6"
+        },
+        "capture.json": {
+          "bytes": 949,
+          "sha256": "101c2a1f938d04522a85a4f48d2707bff9c515b81c093ec8c75313ee2686ca34"
+        },
+        "rest.jsonl.gz": {
+          "bytes": 4356102,
+          "sha256": "a167fc0af1b9a29eb5cc3b449ee0b68ce9b63aa35d9b28a26f9e28ed888823ce"
+        },
+        "websocket.jsonl.gz": {
+          "bytes": 3691155,
+          "sha256": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b"
+        }
+      },
+      "transfer_manifest_sha256": "ab08eedc2d32269ed596ea6bf5484a7fa556d006525533c037a995981a211b60"
+    },
+    "source_manifest_sha256": "d48aa274b8017216d80dae9205bf4e05e89278a5001f3f6af7c819fa6251aca9"
+  },
+  "products": {
+    "BTC-USD": {
+      "unique_live_matches": 21776,
+      "audit_unique_matches": 21776,
+      "exact_raw_quote_usd": "25168751.9207696358",
+      "recorder_quote_usd": 25168751.920769636,
+      "original_asof_unverified_cutoffs": 719,
+      "retrospective_statistics": {
+        "grid_cutoffs": 719,
+        "retrospectively_verified_buckets": 719,
+        "healthy_zero_trade_buckets": 1,
+        "fresh_midpoint_buckets": 719,
+        "size_eligible_buckets": 719,
+        "signed_flow_unavailable_buckets": 0
+      },
+      "last_capture_anchor_baseline_status": "unavailable",
+      "last_capture_anchor_baseline_reason": "baseline_coverage",
+      "required_sigma_history_starts_before_capture": true,
+      "sigma_required_start_ts_ms": 1793204820000,
+      "original_mapping_verdict": "ticker_taker_side_supported"
+    },
+    "SOL-USD": {
+      "unique_live_matches": 2641,
+      "audit_unique_matches": 2641,
+      "exact_raw_quote_usd": "1971626.4117734323",
+      "recorder_quote_usd": 1971626.4117734323,
+      "original_asof_unverified_cutoffs": 719,
+      "retrospective_statistics": {
+        "grid_cutoffs": 719,
+        "retrospectively_verified_buckets": 719,
+        "healthy_zero_trade_buckets": 63,
+        "fresh_midpoint_buckets": 709,
+        "size_eligible_buckets": 709,
+        "signed_flow_unavailable_buckets": 0,
+        "reason_stale_quote": 10
+      },
+      "last_capture_anchor_baseline_status": "unavailable",
+      "last_capture_anchor_baseline_reason": "baseline_coverage",
+      "required_sigma_history_starts_before_capture": true,
+      "sigma_required_start_ts_ms": 1793204820000,
+      "original_mapping_verdict": "ticker_taker_side_supported"
+    },
+    "ALCX-USD": {
+      "unique_live_matches": 4,
+      "audit_unique_matches": 4,
+      "exact_raw_quote_usd": "56.896118",
+      "recorder_quote_usd": 56.89611800000001,
+      "original_asof_unverified_cutoffs": 719,
+      "retrospective_statistics": {
+        "grid_cutoffs": 719,
+        "retrospectively_verified_buckets": 719,
+        "healthy_zero_trade_buckets": 716,
+        "fresh_midpoint_buckets": 6,
+        "size_eligible_buckets": 6,
+        "signed_flow_unavailable_buckets": 0,
+        "reason_quote_crossed_unverified_interval": 1,
+        "reason_stale_quote": 712
+      },
+      "last_capture_anchor_baseline_status": "unavailable",
+      "last_capture_anchor_baseline_reason": "baseline_coverage",
+      "required_sigma_history_starts_before_capture": true,
+      "sigma_required_start_ts_ms": 1793204820000,
+      "original_mapping_verdict": "inconclusive"
+    },
+    "AURORA-USD": {
+      "unique_live_matches": 3,
+      "audit_unique_matches": 3,
+      "exact_raw_quote_usd": "25.62081840",
+      "recorder_quote_usd": 25.620818399999997,
+      "original_asof_unverified_cutoffs": 719,
+      "retrospective_statistics": {
+        "grid_cutoffs": 719,
+        "retrospectively_verified_buckets": 719,
+        "healthy_zero_trade_buckets": 717,
+        "fresh_midpoint_buckets": 4,
+        "size_eligible_buckets": 4,
+        "signed_flow_unavailable_buckets": 0,
+        "reason_quote_crossed_unverified_interval": 1,
+        "reason_stale_quote": 714
+      },
+      "last_capture_anchor_baseline_status": "unavailable",
+      "last_capture_anchor_baseline_reason": "baseline_coverage",
+      "required_sigma_history_starts_before_capture": true,
+      "sigma_required_start_ts_ms": 1793204820000,
+      "original_mapping_verdict": "inconclusive"
+    }
+  },
+  "reconciliation": {
+    "BTC-USD": {
+      "passed": true,
+      "reason": null,
+      "low_exclusive": 1111573741,
+      "high_inclusive": 1111595511,
+      "expected_ids": 21770,
+      "missing_ws_ids": [],
+      "missing_rest_ids": [],
+      "mismatch_ids": []
+    },
+    "SOL-USD": {
+      "passed": true,
+      "reason": null,
+      "low_exclusive": 358902622,
+      "high_inclusive": 358905263,
+      "expected_ids": 2641,
+      "missing_ws_ids": [],
+      "missing_rest_ids": [],
+      "mismatch_ids": []
+    },
+    "ALCX-USD": {
+      "passed": true,
+      "reason": null,
+      "low_exclusive": 4270540,
+      "high_inclusive": 4270544,
+      "expected_ids": 4,
+      "missing_ws_ids": [],
+      "missing_rest_ids": [],
+      "mismatch_ids": []
+    },
+    "AURORA-USD": {
+      "passed": true,
+      "reason": null,
+      "low_exclusive": 3538515,
+      "high_inclusive": 3538518,
+      "expected_ids": 3,
+      "missing_ws_ids": [],
+      "missing_rest_ids": [],
+      "mismatch_ids": []
+    }
+  },
+  "original_hour_gate_pass": false,
+  "feed_gate_pass": false,
+  "original_contemporaneous_coverage_available": false,
+  "study_frozen": false,
+  "fitting_allowed": false,
+  "new_capture": false,
+  "historical_outcome_comparison_rerun": false,
+  "live_changes": false,
+  "limitations": [
+    "Health asserted only at current verification time, never backdated",
+    "Only aligned interior receipt buckets with ordered reconciled IDs and bounded heartbeat continuity are asserted",
+    "Boundary/outside-watermark buckets are excluded; quote age remains independently enforced",
+    "This one-hour audit does not provide the required pre-trigger baseline warmup",
+    "No production throughput or all-product storage extrapolation; no live health monitor is certified"
+  ]
+}

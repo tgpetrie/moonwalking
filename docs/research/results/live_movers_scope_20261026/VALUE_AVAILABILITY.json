@@ -1,0 +1,68 @@
+{
+  "captured_at_utc": "2026-10-27T02:14:51.183683+00:00",
+  "scope": "Newest 1000 rows per table, feature availability only; not whole-history coverage",
+  "tables": {
+    "signal_outcomes": {
+      "rows": 1000,
+      "nonnull_raw_input_counts": {
+        "pct_1m": 999,
+        "pct_3m": 1000,
+        "volume_change_1h_pct": 1000,
+        "realized_volatility_pct_hour": 1000,
+        "spot_pressure": 1000,
+        "market_relation": 1000,
+        "liquidity": 1000,
+        "trend_streak": 381,
+        "quote_volume_usd": 157,
+        "quote_volume_age_seconds": 157,
+        "pct_1h": 376
+      },
+      "categorical_counts": {
+        "spot_pressure": {
+          "neutral": 984,
+          "buying": 8,
+          "selling": 8
+        },
+        "market_relation": {
+          "neutral": 646,
+          "breaking_away": 354
+        },
+        "liquidity": {
+          "normal": 867,
+          "wide": 96,
+          "thin": 37
+        }
+      }
+    },
+    "board_outcomes_v2": {
+      "rows": 1000,
+      "nonnull_raw_input_counts": {
+        "pct_1m": 1000,
+        "pct_3m": 1000,
+        "volume_change_1h_pct": 1000,
+        "trend_streak": 696,
+        "spot_pressure": 1000,
+        "market_relation": 1000,
+        "liquidity": 1000,
+        "pct_1h": 206
+      },
+      "categorical_counts": {
+        "spot_pressure": {
+          "neutral": 977,
+          "buying": 6,
+          "selling": 17
+        },
+        "market_relation": {
+          "neutral": 702,
+          "breaking_away": 297,
+          "market_carried": 1
+        },
+        "liquidity": {
+          "normal": 917,
+          "wide": 54,
+          "thin": 29
+        }
+      }
+    }
+  }
+}

@@ -1,14 +1,30 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { getBrowserTimeZone } from '../utils/browserTimeZone.js';
 import { useMarketHeat } from '../hooks/useMarketHeat';
 import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
-import { getCoinEvents } from '../utils/coinHistoryCache';
+import { getCoinEvents, isCoinEventActive } from '../utils/coinHistoryCache';
 import { getMarketPressure } from '../utils/marketPressure';
+import {
+  PRIORITY_FADING_MS,
+  PRIORITY_FRESH_MS,
+  buildPriorityEvidence,
+  buildPriorityItems,
+  priorityBucketForAlert,
+} from '../utils/priorityEngine.js';
 import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
+import { tokenIconUrl } from '../utils/tokenIcon.js';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
+import CoinHeaderStrip from './CoinHeaderStrip.jsx';
+import PaperExecutionControls from './PaperExecutionControls.jsx';
+import RiskLevelsChart from './RiskLevelsChart.jsx';
 import '../styles/sentiment-popup-advanced.css';
+
+// The Coin Dossier chart opens on the multi-year cycle: PEAK → A → B → C → D → E,
+// the accumulation base and the upside targets are the first thing on screen.
+export const DEFAULT_CHART_HORIZON = 'cycle';
 
 const REFRESH_MS = 15000;
 const COIN_REFRESH_MS = 30000;
@@ -19,6 +35,7 @@ const normalizeTab = (value) => {
   const raw = String(value || '').trim().toLowerCase();
   if (raw === 'alerts' || raw === 'feed' || raw === 'global') return 'coin';
   if (raw === 'pulse' || raw === 'market') return 'pulse';
+  if (raw === 'levels' || raw === 'risk' || raw === 'sell') return 'levels';
   if (raw === 'intel' || raw === 'sources') return 'intel';
   return 'coin';
 };
@@ -51,7 +68,7 @@ const buildTradingViewEmbedUrl = (tvSymbol) => {
     interval: '15',
     theme: 'dark',
     style: '1',
-    timezone: 'Etc/UTC',
+    timezone: getBrowserTimeZone(),
     withdateranges: '1',
     hide_side_toolbar: '0',
     allow_symbol_change: '1',
@@ -299,83 +316,7 @@ const parseIntel = (payload) => {
   };
 };
 
-const PRIORITY_HALF_LIFE_MS = 165 * 1000;
-const PRIORITY_FRESH_MS = 2 * 60 * 1000;
-const PRIORITY_FADING_MS = 3.5 * 60 * 1000;
-const PRIORITY_SOFT_EXPIRY_MS = 9 * 60 * 1000;
-
 const rawTypeKey = (alert) => String(alert?.type_key || alert?.type || '').toLowerCase();
-
-const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
-
-const priorityBucketForAlert = (alert) => {
-  const raw = rawTypeKey(alert);
-  const pct = Number(alert?.evidence?.pct_1m ?? alert?.evidence?.pct_3m ?? alert?.pct ?? null);
-
-  if (
-    raw.includes('divergence') ||
-    raw.includes('fakeout') ||
-    raw.includes('exhaustion') ||
-    raw.includes('liquidity_shock') ||
-    raw.includes('stealth')
-  ) {
-    return 'divergence';
-  }
-
-  if (
-    raw.includes('dump') ||
-    raw.includes('crater') ||
-    raw.includes('fear') ||
-    raw.includes('persistent_loser') ||
-    raw.includes('trend_break_down') ||
-    raw.includes('reversal_down') ||
-    raw.includes('breadth_failure')
-  ) {
-    return 'bearish';
-  }
-
-  if (
-    raw.includes('moonshot') ||
-    raw.includes('breakout') ||
-    raw.includes('fomo') ||
-    raw.includes('persistent_gainer') ||
-    raw.includes('trend_break_up') ||
-    raw.includes('breadth_thrust') ||
-    raw.includes('reversal_up') ||
-    raw.includes('squeeze_break')
-  ) {
-    return 'bullish';
-  }
-
-  if (Number.isFinite(pct)) {
-    if (pct > 0) return 'bullish';
-    if (pct < 0) return 'bearish';
-  }
-  return null;
-};
-
-const priorityFamilyBonus = (alert, bucket) => {
-  const raw = rawTypeKey(alert);
-  if (bucket === 'divergence') {
-    if (raw.includes('divergence')) return 8;
-    if (raw.includes('fakeout') || raw.includes('exhaustion')) return 7;
-    if (raw.includes('liquidity_shock') || raw.includes('stealth')) return 6;
-    return 4;
-  }
-  if (bucket === 'bullish') {
-    if (raw.includes('moonshot') || raw.includes('breakout')) return 8;
-    if (raw.includes('trend_break_up') || raw.includes('breadth_thrust')) return 7;
-    if (raw.includes('persistent_gainer') || raw.includes('fomo')) return 6;
-    return 4;
-  }
-  if (bucket === 'bearish') {
-    if (raw.includes('crater') || raw.includes('dump')) return 8;
-    if (raw.includes('trend_break_down') || raw.includes('breadth_failure')) return 7;
-    if (raw.includes('persistent_loser') || raw.includes('fear')) return 6;
-    return 4;
-  }
-  return 0;
-};
 
 const alertTradeSemantics = (alert) => {
   const raw = rawTypeKey(alert);
@@ -486,262 +427,14 @@ const alertTradeSemantics = (alert) => {
   };
 };
 
-const toEpochMs = (value) => {
-  if (value == null || value === '') return null;
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    if (Math.abs(value) < 1e11) return Math.round(value * 1000);
-    if (Math.abs(value) < 1e14) return Math.round(value);
-    return Math.round(value / 1000);
-  }
-  const raw = String(value).trim();
-  if (!raw) return null;
-  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return toEpochMs(Number(raw));
-  const parsed = Date.parse(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const pickTsMs = (alert) => {
-  const fields = [
-    alert?.event_ts_ms,
-    alert?.ts_ms,
-    alert?.timestamp_ms,
-    alert?.event_ts,
-    alert?.ts,
-    alert?.timestamp,
-    alert?.created_at,
-    alert?.createdAt,
-    alert?.time,
-    alert?.when,
-  ];
-  for (const value of fields) {
-    const ts = toEpochMs(value);
-    if (Number.isFinite(ts)) return ts;
-  }
-  return null;
-};
-
-const pickPct = (alert) => {
-  const ev = alert?.evidence || {};
-  const value = ev.pct_1m ?? ev.pct_3m ?? ev.pct_1h ?? alert?.pct ?? alert?.magnitude ?? null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-};
-
-const pickVolPct = (alert) => {
-  const ev = alert?.evidence || {};
-  const value = ev.volume_change_1h_pct ?? ev.vol_change_1h_pct ?? ev.vol_pct ?? null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-};
-
-const alertSymbolShort = (alert) =>
-  String(alert?.symbol || alert?.product_id || '')
-    .toUpperCase()
-    .replace(/-USD$|-USDT$|-PERP$/i, '');
-
-const buildRankMaps = (rows = []) => {
-  const map = new Map();
-  rows.forEach((row, idx) => {
-    const symbol = String(row?.symbol || row?.product_id || '').toUpperCase().replace(/-USD$|-USDT$|-PERP$/i, '');
-    if (!symbol || map.has(symbol)) return;
-    const rank = Number(row?.rank ?? idx + 1);
-    map.set(symbol, Number.isFinite(rank) ? rank : idx + 1);
-  });
-  return map;
-};
-
-const computeRankPersistenceScore = (entry) => {
-  let score = 0;
-  if (Number.isFinite(entry.rank1m)) score += clampNumber(12 - entry.rank1m, 0, 10);
-  if (Number.isFinite(entry.rank3m)) score += clampNumber(12 - entry.rank3m, 0, 10);
-  if (Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
-    score += clampNumber(6 - (Math.abs(entry.rank1m - entry.rank3m) * 2), 0, 6);
-  }
-  return clampNumber(score, 0, 18);
-};
-
-const computeRankTrend = (entry) => {
-  if (entry.bucket === 'bullish' && Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
-    if (entry.rank1m + 1 < entry.rank3m) return 'rising';
-    if (Math.abs(entry.rank1m - entry.rank3m) <= 1) return 'flat-strong';
-    return 'slipping';
-  }
-  if (entry.bucket === 'bearish') {
-    if (entry.noConfirmMs >= PRIORITY_FADING_MS) return 'slipping';
-    if (Number.isFinite(entry.rank3m) && entry.rank3m <= 3) return 'flat-strong';
-    return 'rising';
-  }
-  return entry.noConfirmMs >= PRIORITY_FADING_MS ? 'slipping' : 'mixed';
-};
-
-const buildRankSummary = (entry) => {
-  if (Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
-    const lo = Math.min(entry.rank1m, entry.rank3m);
-    const hi = Math.max(entry.rank1m, entry.rank3m);
-    return `rank held ${lo}-${hi}`;
-  }
-  if (Number.isFinite(entry.rank1m)) return `1m rank ${entry.rank1m}`;
-  if (Number.isFinite(entry.rank3m)) return `${entry.bucket === 'bearish' ? '3m loss' : '3m'} rank ${entry.rank3m}`;
-  return '';
-};
-
-const priorityContributionScore = (alert, nowMs) => {
-  const tsMs = pickTsMs(alert);
-  if (!Number.isFinite(tsMs)) return null;
-  const ageMs = Math.max(0, nowMs - tsMs);
-  if (ageMs > PRIORITY_SOFT_EXPIRY_MS) return null;
-
-  const severity = String(alert?.severity || 'info').toLowerCase();
-  const severityWeight = ({ critical: 24, high: 18, medium: 12, low: 6, info: 3 }[severity] || 3);
-  const pct = Math.abs(pickPct(alert) ?? 0);
-  const volPct = Math.abs(pickVolPct(alert) ?? 0);
-  const streak = Math.max(0, Number(alert?.evidence?.streak ?? alert?.extra?.streak ?? 0) || 0);
-  const familyBonus = priorityFamilyBonus(alert, priorityBucketForAlert(alert));
-
-  const baseScore =
-    severityWeight +
-    clampNumber(pct * 5, 0, 18) +
-    clampNumber(volPct / 5, 0, 14) +
-    clampNumber(streak, 0, 4) * 4 +
-    familyBonus;
-
-  const decay = Math.exp(-ageMs / PRIORITY_HALF_LIFE_MS);
-  return {
-    ageMs,
-    tsMs,
-    weighted: baseScore * decay,
-    isFresh: ageMs <= PRIORITY_FRESH_MS,
-    streak,
-  };
-};
-
-const priorityStateForEntry = (entry) => {
-  if (entry.reversalRiskScore >= 14 || entry.bucket === 'divergence') return 'Reversal Risk';
-  if (entry.noConfirmMs >= PRIORITY_FADING_MS || entry.score < 40) return 'Fading';
-  if (entry.score >= 85 && entry.freshConfirms >= 1 && entry.volumeAligned && !entry.divergenceFlag) return 'Dominant';
-  if (entry.score >= 70 && entry.rankPersistenceScore >= 10) return 'Persistent';
-  if (entry.score >= 55) return 'Building';
-  return 'Fragile';
-};
-
 const ageLabel = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return 'n/a';
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  return `${h}h`;
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h`;
 };
-
-export const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = [], losers3m = [], marketPressure = null, nowMs }) => {
-  const boardRanks = {
-    oneMin: buildRankMaps(gainers1m),
-    gain3m: buildRankMaps(gainers3m),
-    loss3m: buildRankMaps(losers3m),
-  };
-
-  const grouped = new Map();
-  for (const alert of alerts) {
-    const symbol = alertSymbolShort(alert);
-    const bucket = priorityBucketForAlert(alert);
-    if (!symbol || !bucket) continue;
-
-    const contribution = priorityContributionScore(alert, nowMs);
-    if (!contribution) continue;
-
-    const key = `${bucket}:${symbol}`;
-    const existing = grouped.get(key) || {
-      bucket,
-      symbol,
-      scoreRaw: 0,
-      confirms: 0,
-      freshConfirms: 0,
-      lastTsMs: 0,
-      maxStreak: 0,
-      topVolPct: 0,
-      topVolSign: 1,
-      rank1m: null,
-      rank3m: null,
-      breadthSupport: 0,
-      divergenceFlag: bucket === 'divergence',
-    };
-
-    existing.scoreRaw += contribution.weighted;
-    existing.confirms += 1;
-    if (contribution.isFresh) existing.freshConfirms += 1;
-    if (contribution.tsMs > existing.lastTsMs) existing.lastTsMs = contribution.tsMs;
-    if (contribution.streak > existing.maxStreak) existing.maxStreak = contribution.streak;
-
-    const volSigned = pickVolPct(alert);
-    if (Number.isFinite(volSigned) && Math.abs(volSigned) >= existing.topVolPct) {
-      existing.topVolPct = Math.abs(volSigned);
-      existing.topVolSign = volSigned >= 0 ? 1 : -1;
-    }
-
-    const oneMinBoard = boardRanks.oneMin.get(symbol);
-    const gain3Board = boardRanks.gain3m.get(symbol);
-    const loss3Board = boardRanks.loss3m.get(symbol);
-    if (Number.isFinite(oneMinBoard)) existing.rank1m = oneMinBoard;
-    if (bucket === 'bearish') {
-      if (Number.isFinite(loss3Board)) existing.rank3m = loss3Board;
-    } else if (Number.isFinite(gain3Board)) {
-      existing.rank3m = gain3Board;
-    }
-
-    const ev = alert?.evidence || {};
-    const breadthUp = Number(ev.breadth_up ?? marketPressure?.breadth_up ?? marketPressure?.components?.breadth ?? 0) || 0;
-    const breadthDown = Number(ev.breadth_down ?? marketPressure?.breadth_down ?? 0) || 0;
-    const breadthSupport =
-      bucket === 'bullish' ? breadthUp :
-      bucket === 'bearish' ? breadthDown :
-      Math.max(Math.abs(breadthUp - breadthDown), marketPressure?.components?.breadth ?? 0);
-    existing.breadthSupport = Math.max(existing.breadthSupport, clampNumber(breadthSupport, 0, 1));
-
-    grouped.set(key, existing);
-  }
-
-  const ranked = Array.from(grouped.values()).map((entry) => {
-    const confirmationBonus = Math.min(18, Math.max(0, entry.confirms - 1) * 6);
-    const freshBonus = entry.freshConfirms > 0 ? Math.min(10, entry.freshConfirms * 4) : 0;
-    entry.noConfirmMs = Math.max(0, nowMs - entry.lastTsMs);
-    entry.rankPersistenceScore = computeRankPersistenceScore(entry);
-    entry.rankTrend = computeRankTrend(entry);
-    entry.rankSummary = buildRankSummary(entry);
-    entry.volumeAligned = entry.topVolSign > 0 && entry.topVolPct >= 10;
-    entry.reversalRiskScore =
-      (entry.bucket === 'divergence' ? 10 : 0) +
-      (entry.rankTrend === 'slipping' ? 4 : 0) +
-      (entry.noConfirmMs >= PRIORITY_FADING_MS ? 4 : 0);
-    const stalePenalty = entry.noConfirmMs > PRIORITY_FADING_MS ? 12 : 0;
-    const volumeBonus = entry.volumeAligned ? 10 : 0;
-    const breadthBonus = Math.round(entry.breadthSupport * 10);
-    const score = clampNumber(
-      Math.round(entry.scoreRaw + confirmationBonus + freshBonus + entry.rankPersistenceScore + volumeBonus + breadthBonus - stalePenalty),
-      1,
-      99
-    );
-    const stateLabel = priorityStateForEntry({ ...entry, score });
-    return { ...entry, score, stateLabel };
-  });
-
-  const ordered = ['Dominant', 'Persistent', 'Building', 'Reversal Risk', 'Fading']
-    .flatMap((label) =>
-      ranked
-        .filter((item) => item.stateLabel === label)
-        .sort((a, b) => b.score - a.score || b.lastTsMs - a.lastTsMs)
-    );
-
-  const deduped = [];
-  const seenSymbols = new Set();
-  for (const item of ordered) {
-    if (seenSymbols.has(item.symbol)) continue;
-    seenSymbols.add(item.symbol);
-    deduped.push(item);
-  }
-  return deduped;
-};
-
 const horizonTone = (value) => {
   const n = toNumber(value);
   if (n === null) return 'neutral';
@@ -800,36 +493,36 @@ const alertIdentity = (alert) => {
   return `${symbol}:${type}:${alertTsMs(alert)}`;
 };
 
-// Matches ALERT_IMPULSE_TTL_MINUTES default on the backend.
-const RISK_ALERT_MAX_AGE_MS = 5 * 60 * 1000;
-
 // Returns true if the alert is still within its active window.
-// Prefers the backend-set `expires_at` field; falls back to age from event timestamp.
-export const isAlertStillActive = (alert, nowMs) => {
-  const expiresAt = alert?.expires_at;
-  if (expiresAt) {
-    const exp = Date.parse(String(expiresAt));
-    if (Number.isFinite(exp)) return exp > nowMs;
-  }
-  const tsMs = alertTsMs(alert);
-  return tsMs > 0 && (nowMs - tsMs) <= RISK_ALERT_MAX_AGE_MS;
-};
+// Prefers backend `expires_at`/`ttl_seconds`; legacy rows use the existing
+// backend-aligned five-minute fallback shared with the browser cache.
+export const isAlertStillActive = (alert, nowMs) => isCoinEventActive(alert, nowMs);
 
-// Pure, exported for testing. Risk types (reversal/fakeout/exhaustion) are only
-// flagged when the alert is still active. Momentum is unaged — positive context
-// does not expire the same way a risk veto does.
+// Pure, exported for testing. All present-tense signal flags require active
+// evidence, including momentum and squeeze families.
 export const computeSignalFlags = (coinAlerts, nowMs) => {
   const recent = Array.isArray(coinAlerts) ? coinAlerts.slice(0, 12) : [];
-  const activeRisk = recent.filter((a) => isAlertStillActive(a, nowMs));
-  const riskTypes = activeRisk.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
-  const allTypes = recent.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
+  const activeTypes = recent
+    .filter((alert) => isAlertStillActive(alert, nowMs))
+    .map((alert) => String(alert?.type_key || alert?.type || '').toLowerCase());
   return {
-    hasReversal:   riskTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
-    hasFakeout:    riskTypes.some((t) => t.includes('fakeout')),
-    hasSqueeze:    allTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
-    hasExhaustion: riskTypes.some((t) => t.includes('exhaustion')),
-    hasMomentum:   allTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
+    hasReversal:   activeTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
+    hasFakeout:    activeTypes.some((t) => t.includes('fakeout')),
+    hasSqueeze:    activeTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
+    hasExhaustion: activeTypes.some((t) => t.includes('exhaustion')),
+    hasMomentum:   activeTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
   };
+};
+
+export const computeBreakoutState = (coinAlerts, nowMs) => {
+  const top = Array.isArray(coinAlerts)
+    ? coinAlerts.find((alert) => isAlertStillActive(alert, nowMs))
+    : null;
+  if (!top) return 'No breakout';
+  const type = String(top.type_key || top.type || '').toLowerCase();
+  if (type.includes('moonshot') || type.includes('breakout')) return 'Breakout Up';
+  if (type.includes('crater') || type.includes('dump')) return 'Breakout Down';
+  return 'No breakout';
 };
 
 // Returns the most specific blocker message for an active risk flag,
@@ -853,19 +546,43 @@ export const isReversalRiskCurrent = (coinPriorityEntry) => {
   return (coinPriorityEntry?.noConfirmMs ?? Infinity) < PRIORITY_FADING_MS;
 };
 
+// The board badge and this popup read the same live rankings, but the per-coin
+// insights that gate `metricsReady` load separately. Without consulting the
+// live ranking while warming, an empty supports list renders "Nothing
+// meaningful is confirming the setup yet." on a row the board is
+// simultaneously badging "Tape confirmed" from the very same data.
+export const buildWarmingSupports = (coinLiveRanking) => {
+  const score = Number(coinLiveRanking?.live_score);
+  if (!Number.isFinite(score) || score < 65) return [];
+  return [`Live tape strength is ${score}/100.`];
+};
+
+// Headline for the WAIT posture. At score >= 65 the board badges the same coin
+// "Tape confirmed", so "no clean setup is active" would read as a flat
+// contradiction; name the narrower thing that is actually true instead.
+export const resolveWaitHeadline = ({ breakoutUp, score }) => {
+  if (breakoutUp) return 'Breakout detected, but confirmation is incomplete.';
+  if (Number(score) >= 65)
+    return 'Tape strength is notable, but the multi-factor setup is not aligned yet.';
+  return 'No clean setup is active right now.';
+};
+
 // Pure posture decision table. Returns the label and tone for the current coin
 // setup. Callers must handle the `metricsReady` guard separately.
 export const computePostureLabel = ({
   score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
-  historyWeak, hardRisk, breakoutUp, change1m, change3m,
+  historyWeak, hardRisk, breakoutUp, change1m, change3m, canonicalState,
 }) => {
   const alignedUp   = alignmentLabel === 'Aligned Up';
   const alignedDown = alignmentLabel === 'Aligned Down';
+  const canonicalWeak = canonicalState === 'Fading' || canonicalState === 'Fragile';
   // Both short-term timeframes must be positive for the early gate.
   const shortTermUp = change1m != null && change1m > 0 && change3m != null && change3m > 0;
 
   if (hardRisk || alignedDown || score < 42)
     return 'STAY CLEAR';
+  if (canonicalWeak)
+    return 'WAIT';
   if (score >= 70 && alignedUp && volumeConfirms && persistenceGood && breadthUp >= 0.45 && !historyWeak)
     return 'STRONG SETUP';
   if (score >= 60 && volumeConfirms && alignedUp)
@@ -873,6 +590,209 @@ export const computePostureLabel = ({
   if (score >= 55 && shortTermUp && volumeConfirms && breakoutUp)
     return 'EARLY SETUP';
   return 'WAIT';
+};
+
+export const computeBreadthRead = (marketPressure) => {
+  const raw = marketPressure?.breadth_up;
+  const value = raw === null || raw === undefined || raw === '' ? null : Number(raw);
+  if (!Number.isFinite(value)) {
+    return {
+      available: false,
+      value: null,
+      status: 'Unavailable',
+      tone: 'neutral',
+      inline: 'breadth unavailable',
+      hero: null,
+      badge: null,
+      blocker: 'Market breadth is unavailable.',
+      risk: 'broad tape support is unavailable',
+    };
+  }
+  if (value >= 0.56) {
+    return {
+      available: true,
+      value,
+      status: 'Supportive',
+      tone: 'positive',
+      inline: 'breadth supports upside',
+      hero: 'breadth supportive',
+      badge: null,
+      blocker: null,
+      risk: null,
+    };
+  }
+  if (value <= 0.44) {
+    return {
+      available: true,
+      value,
+      status: 'Hostile',
+      tone: 'negative',
+      inline: 'breadth is hostile',
+      hero: 'breadth weak',
+      badge: 'BREADTH WEAK',
+      blocker: 'Most of the market is not helping it.',
+      risk: 'broad tape support is weak',
+    };
+  }
+  return {
+    available: true,
+    value,
+    status: 'Mixed',
+    tone: 'neutral',
+    inline: 'breadth is mixed',
+    hero: null,
+    badge: null,
+    blocker: null,
+    risk: null,
+  };
+};
+
+// Reports whether the external intel feed answered — nothing more. The previous
+// wording ("Trust level: High/Medium/Low") named a data-availability signal as
+// if it graded how much the read could be trusted, which is the same defect
+// `e684ab52` removed from Market Mood's freshness readout.
+export const computeFeedStatus = (coinIntel, coinIntelError) => {
+  if (coinIntelError) return { value: 'Degraded', tone: 'negative' };
+  if (coinIntel?.status === 'live') return { value: 'Live', tone: 'positive' };
+  return { value: 'Cached', tone: 'neutral' };
+};
+
+// This rail was labeled "Persistence" while its value was the canonical
+// priority state, so it rendered "Persistence: Reversal Risk" — a category
+// error, since a risk state is not a measure of how persistent a move is.
+// Name the rail for what it actually carries. The genuine rank-hold read was
+// already in the sub-line (`rankSummary`) and stays there, joined with the
+// hold streak, so no new badge is needed to carry it.
+export const buildPriorityRailItem = (coinPriorityEntry, persistenceStreak, fallbackSub) => {
+  const stateLabel = coinPriorityEntry?.stateLabel || null;
+  const tone =
+    stateLabel === 'Dominant' || stateLabel === 'Persistent'
+      ? 'positive'
+      : stateLabel === 'Reversal Risk'
+        ? 'negative'
+        : 'neutral';
+  const holdNote = persistenceStreak ? `${persistenceStreak}x hold` : null;
+  return {
+    label: 'Priority',
+    // With no priority entry there is no priority state to report. A hold count
+    // ("3x hold") or a bare "Low" is not one, so say the coin is unranked.
+    value: stateLabel || 'Not ranked',
+    tone,
+    sub: coinPriorityEntry?.rankSummary || [holdNote, fallbackSub].filter(Boolean).join(' · '),
+  };
+};
+
+// Canonical priority state -> popup hero state. Exhaustive over every state
+// `priorityStateForEntry` can return, so the popup can never silently drop one:
+// 'Persistent' and 'Fragile' previously had no branch at all, which sent a
+// Persistent coin to the 'Range-hold' fallback ("rotating inside range").
+export const PRIORITY_STATE_TO_HERO = Object.freeze({
+  Dominant: 'Dominant',
+  Persistent: 'Persistent',
+  Building: 'Building',
+  'Reversal Risk': 'Fragile',
+  Fading: 'Fading',
+  Fragile: 'Fragile',
+});
+
+export const mapPriorityStateToHero = (stateLabel) =>
+  PRIORITY_STATE_TO_HERO[stateLabel] || null;
+
+// Presentation for a hero state. Split out so the state decision and its copy
+// stay separable, and so both can be asserted without rendering the popup.
+export const describeHeroState = (state, { freshAgeMs = null, volumeConfirms = false } = {}) => {
+  switch (state) {
+    case 'Dominant':
+      return {
+        state: 'Dominant',
+        tone: 'positive',
+        sub:
+          freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS
+            ? `Fresh 3m confirmation ${ageLabel(freshAgeMs)} ago. Alignment and participation are supporting the move.`
+            : 'Strength is still holding, but the next reconfirm matters.',
+      };
+    case 'Persistent':
+      return {
+        state: 'Persistent',
+        tone: 'positive',
+        sub: 'The move keeps holding its rank across refreshes, even without a fresh push.',
+      };
+    case 'Building':
+      return {
+        state: 'Building',
+        tone: 'positive',
+        sub: volumeConfirms
+          ? 'Early upside pressure is present and volume is confirming it, but the setup is not fully settled yet.'
+          : 'Early upside pressure is present, but confirmation and participation are still uneven.',
+      };
+    case 'Fragile':
+      return {
+        state: 'Fragile',
+        tone: 'negative',
+        sub: 'Structure is unstable. Recent strength looks vulnerable until the coin reclaims and reconfirms.',
+      };
+    case 'Fading':
+      return {
+        state: 'Fading',
+        tone: 'negative',
+        sub:
+          freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS
+            ? `No reconfirm in ${(freshAgeMs / 60000).toFixed(1)}m. Support is thinning and follow-through is fading.`
+            : 'Pressure is slipping and follow-through is weakening.',
+      };
+    case 'Range-hold':
+      return {
+        state: 'Range-hold',
+        tone: 'neutral',
+        sub: 'The coin is rotating inside range. Direction is mixed and there is no clean breakout edge yet.',
+      };
+    default:
+      return {
+        state: 'Mixed',
+        tone: 'neutral',
+        sub: 'Tape is active, but direction and conviction are still mixed. No clean edge yet.',
+      };
+  }
+};
+
+// Hero state for a coin the priority engine has not ranked. These fallbacks are
+// the only place local evidence decides the state, and they run only when there
+// is no canonical state to contradict. Risk flags are tested before the bullish
+// cases so an active fakeout/exhaustion cannot be reported as 'Building'.
+export const resolveUnrankedHeroState = ({
+  breakoutState, alignmentScore, volumeConfirms, signalFlags, change3m,
+}) => {
+  const flags = signalFlags || {};
+  if (flags.hasFakeout || flags.hasReversal || flags.hasExhaustion) return 'Fragile';
+  if (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms) return 'Dominant';
+  if (flags.hasMomentum || (change3m !== null && change3m > 0)) return 'Building';
+  if (breakoutState === 'Breakout Down' || (change3m !== null && change3m < 0 && alignmentScore <= -2)) {
+    return 'Fading';
+  }
+  if (!flags.hasMomentum) return 'Range-hold';
+  return 'Mixed';
+};
+
+export const resolveCoinHeroState = ({
+  coinPriorityEntry,
+  metricsReady,
+  breakoutState,
+  alignmentScore,
+  volumeConfirms,
+  signalFlags,
+  change3m,
+}) => {
+  if (coinPriorityEntry) {
+    return mapPriorityStateToHero(coinPriorityEntry.stateLabel) || 'Mixed';
+  }
+  if (!metricsReady) return 'Warming';
+  return resolveUnrankedHeroState({
+    breakoutState,
+    alignmentScore,
+    volumeConfirms,
+    signalFlags,
+    change3m,
+  });
 };
 
 const parseEventNumber = (value) => {
@@ -945,10 +865,16 @@ const buildAlertBanner = (launchContext) => {
 // Track Record — per-coin outcome history
 // ---------------------------------------------------------------------------
 
-const MEASURED_THRESHOLD = 20;
+// Readiness is decided by the server, which is the only place that knows
+// whether a rate came from controlled measurement. A threshold here could
+// promote a category the server had deliberately withheld.
+const isTrackMeasured = (status) => status === 'measured';
 
 function CoinOutcomeHistoryCard({ card }) {
-  const isMeasured = card.sample_size >= MEASURED_THRESHOLD;
+  const peerMeasured = isTrackMeasured(card.peer_status);
+  const placeboMeasured = isTrackMeasured(card.placebo_status);
+  const showRate = peerMeasured && card.win_rate != null;
+  const required = card.required_market_periods;
   const dirLabel = card.direction === 'up' ? 'Bullish' : card.direction === 'down' ? 'Bearish' : 'Neutral';
 
   return (
@@ -959,24 +885,38 @@ function CoinOutcomeHistoryCard({ card }) {
       </div>
       <div className="coh-card__stats">
         <div className="coh-stat">
-          <span className="coh-stat__label">Comparable outcomes</span>
-          <span className="coh-stat__value">{card.sample_size.toLocaleString()}</span>
-        </div>
-        <div className="coh-stat">
           <span className="coh-stat__label">Follow-through</span>
-          {isMeasured ? (
+          {showRate ? (
             <span className="coh-stat__value">{Math.round(card.win_rate * 100)}%</span>
           ) : (
-            <span className="coh-stat__muted">Not enough history for a measured follow-through rate</span>
+            <span className="coh-stat__muted">No clear edge detected yet — still collecting</span>
           )}
         </div>
-        {card.median_favorable_pct != null && (
+        {/* The two controls fill at different rates, so a single progress
+            number would misstate both. */}
+        {required != null && (
+          <>
+            <div className="coh-stat">
+              <span className="coh-stat__label">Coin-selection</span>
+              <span className="coh-stat__value coh-stat--progress">
+                {peerMeasured ? 'Measured' : `${card.peer_market_periods ?? 0} of ${required} market periods`}
+              </span>
+            </div>
+            <div className="coh-stat">
+              <span className="coh-stat__label">Timing</span>
+              <span className="coh-stat__value coh-stat--progress">
+                {placeboMeasured ? 'Measured' : `${card.placebo_market_periods ?? 0} of ${required} market periods`}
+              </span>
+            </div>
+          </>
+        )}
+        {peerMeasured && card.median_favorable_pct != null && (
           <div className="coh-stat">
             <span className="coh-stat__label">Typical best move</span>
             <span className="coh-stat__value coh-stat--pos">+{card.median_favorable_pct.toFixed(2)}%</span>
           </div>
         )}
-        {card.median_adverse_pct != null && (
+        {peerMeasured && card.median_adverse_pct != null && (
           <div className="coh-stat">
             <span className="coh-stat__label">Typical worst dip</span>
             <span className="coh-stat__value coh-stat--neg">{card.median_adverse_pct.toFixed(2)}%</span>
@@ -996,18 +936,24 @@ export function CoinOutcomeHistory({ data, loading, error, symbol }) {
   }
   if (!data) return null;
 
-  const { signal_types = [], total_outcomes = 0, target_pct, adverse_pct } = data;
+  const { signal_types = [], total_outcomes = 0, target_pct, adverse_pct, measurement_status } = data;
+  // Note: `status` on this payload is transport health (live/degraded).
+  // Measurement readiness is a separate field precisely so the two can never
+  // be confused for one another.
+  const measured = measurement_status === 'measured';
 
   return (
     <section className="coh-section">
       <div className="coh-header">
         <span className="coh-header__title">Track Record</span>
         <span className="coh-header__sub">
-          {total_outcomes.toLocaleString()} comparable outcomes · graded +{target_pct}% vs −{adverse_pct}%
+          {measured
+            ? `${total_outcomes.toLocaleString()} comparable outcomes · graded +${target_pct}% vs −${adverse_pct}%`
+            : `Measuring against matched control coins · graded +${target_pct}% vs −${adverse_pct}%`}
         </span>
       </div>
       {signal_types.length === 0 ? (
-        <div className="coh-empty">No measured history for {symbol} yet.</div>
+        <div className="coh-empty">No signal history for {symbol} yet.</div>
       ) : (
         <div className="coh-cards">
           {signal_types.map((card) => (
@@ -1022,7 +968,220 @@ export function CoinOutcomeHistory({ data, loading, error, symbol }) {
   );
 }
 
+const formatPlanPrice = (value) => {
+  const n = toNumber(value);
+  if (n === null) return '—';
+  const digits = n >= 1000 ? 2 : n >= 1 ? 4 : n >= 0.01 ? 6 : 8;
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: digits })}`;
+};
+
+const planOutcomeLabel = (value) => ({
+  target_first: 'Target first',
+  stop_first: 'Stop first',
+  expired: 'No boundary in 24h',
+}[value] || 'Still open');
+
+export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen, waveAnalysis = null }) {
+  if (loading && !data) {
+    return <div className="risk-levels-loading">Building risk levels from completed candles…</div>;
+  }
+  if (error) {
+    return <div className="risk-levels-empty">Risk levels are temporarily unavailable.</div>;
+  }
+  const plan = data?.plan;
+  const history = data?.history;
+  if (!plan?.available) {
+    return (
+      <div className="risk-levels-empty">
+        {plan?.reason || 'The candle structure is still warming. No stop level will be invented.'}
+      </div>
+    );
+  }
+
+  const stop = plan.stop || {};
+  const profit = plan.profit || {};
+  const structure = plan.market_structure || {};
+  const supportZone = plan.support_zone || {};
+  const topSignal = plan.top_signal || {};
+  const outcomes = history?.outcomes || {};
+
+  if (compact) {
+    // One tight row: the four order-placing prices and the way into the full
+    // plan. A real top/exit warning keeps its label and advice; "no top
+    // signal" takes no space.
+    const warning = topSignal.tone && topSignal.tone !== 'neutral' && topSignal.label;
+    return (
+      <section className={`risk-levels-compact risk-levels-compact--row risk-levels-compact--${topSignal.tone || 'neutral'}`} aria-label="Sell-side intelligence" data-testid="risk-levels-compact">
+        <div className="risk-levels-compact__row">
+          <div className="risk-levels-compact__grid">
+            <div><span>Stop trigger</span><strong>{formatPlanPrice(stop.trigger_price)}</strong></div>
+            <div><span>Sell limit (uncalibrated)</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
+            <div><span>Support fails</span><strong>{formatPlanPrice(stop.invalidation_price)}</strong></div>
+            <div><span>First trim</span><strong>{formatPlanPrice(profit.first_trim_price)}</strong></div>
+          </div>
+          <button type="button" className="risk-levels-compact__open" onClick={onOpen}>Open risk levels</button>
+        </div>
+        {warning ? (
+          <p className="risk-levels-compact__warning"><strong>{topSignal.label}.</strong> {topSignal.action}</p>
+        ) : null}
+      </section>
+    );
+  }
+
+  return (
+    <div className="risk-levels">
+      <section className={`risk-levels-hero risk-levels-hero--${topSignal.tone || 'neutral'}`}>
+        <div>
+          <span className="risk-levels-eyebrow">Top / exit signal</span>
+          <h2>{topSignal.label || 'No top signal'}</h2>
+          <p>{topSignal.action}</p>
+        </div>
+        <div className="risk-levels-score">
+          <span>Risk flags</span>
+          <strong>{topSignal.score ?? 0}/10</strong>
+        </div>
+      </section>
+
+      <RiskLevelsChart key={plan.product_id} plan={plan} waveAnalysis={waveAnalysis} />
+
+      <section className="risk-levels-grid" aria-label="Suggested risk levels">
+        <article className="risk-level-card risk-level-card--stop">
+          <span>Stop trigger</span>
+          <strong>{formatPlanPrice(stop.trigger_price)}</strong>
+          <small>{formatPercent(stop.distance_pct)} from now · {stop.risk_band || 'structural'} risk</small>
+        </article>
+        <article className="risk-level-card risk-level-card--limit">
+          <span>Sell limit (uncalibrated)</span>
+          <strong>{formatPlanPrice(stop.limit_price)}</strong>
+          <small>Legacy ATR placeholder after the trigger; not a liquidity or slippage estimate</small>
+        </article>
+        <article className="risk-level-card">
+          <span>Structure invalidates</span>
+          <strong>{formatPlanPrice(stop.invalidation_price)}</strong>
+          <small>Recent support; an hourly close below weakens the setup</small>
+        </article>
+        <article className="risk-level-card risk-level-card--target">
+          <span>First trim area</span>
+          <strong>{formatPlanPrice(profit.first_trim_price)}</strong>
+          <small>
+            {profit.reward_risk_ratio != null
+              ? `${profit.reward_risk_ratio.toFixed(2)}R · ${formatPercent(profit.reward_pct)}`
+              : 'No overhead resistance inside the measured range'}
+          </small>
+        </article>
+      </section>
+
+      <section className="risk-levels-explain">
+        <article>
+          <h3>Why the stop goes there</h3>
+          <ul>{(stop.why || []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
+          <div className="risk-levels-warning">{stop.execution_warning}</div>
+        </article>
+        <article>
+          <h3>Support / re-entry watch</h3>
+          <div className="risk-levels-zone">
+            {formatPlanPrice(supportZone.low)} – {formatPlanPrice(supportZone.high)}
+          </div>
+          <p>{supportZone.why}</p>
+          <dl>
+            <div><dt>Resistance</dt><dd>{formatPlanPrice(structure.resistance)}</dd></div>
+            <div><dt>ATR</dt><dd>{formatPlanPrice(structure.atr)}</dd></div>
+            <div><dt>Range position</dt><dd>{structure.range_position_pct ?? '—'}%</dd></div>
+            <div><dt>Window</dt><dd>{structure.window_hours ?? '—'}h</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section className="risk-levels-reasons">
+        <h3>Why the top signal says “{topSignal.label}”</h3>
+        <ul>{(topSignal.reasons || []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
+      </section>
+
+      <section className="risk-history">
+        <div className="risk-history__head">
+          <div>
+            <span>Level history</span>
+            <strong>{history?.total_plans || 0} recorded plans</strong>
+          </div>
+          <p>{history?.disclosure}</p>
+        </div>
+        <div className="risk-history__counts">
+          <div><span>Target first</span><strong>{outcomes.target_first || 0}</strong></div>
+          <div><span>Stop first</span><strong>{outcomes.stop_first || 0}</strong></div>
+          <div><span>No boundary</span><strong>{outcomes.expired || 0}</strong></div>
+          <div><span>Still open</span><strong>{history?.open_plans || 0}</strong></div>
+        </div>
+        {(history?.history || []).length ? (
+          <div className="risk-history__rows">
+            {history.history.slice(0, 8).map((row) => (
+              <div className="risk-history__row" key={row.plan_id}>
+                <span>{new Date(row.created_ts * 1000).toLocaleString()}</span>
+                <strong data-outcome={row.outcome || 'open'}>{planOutcomeLabel(row.outcome)}</strong>
+                <span>{formatPlanPrice(row.start_price)} → {formatPlanPrice(row.last_price)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="risk-levels-empty">This is the first recorded plan for this coin. Live prices will grade it forward.</div>
+        )}
+      </section>
+
+      <p className="risk-levels-disclosure">{plan.methodology?.disclosure}</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
+
+export function computeCoinDossierScore({ change1m, change3m, ranking, cycle, volumeChange, persistence, exhausted }) {
+  const mean = (values) => {
+    const known = values.filter(Number.isFinite);
+    return known.length ? known.reduce((sum, value) => sum + value, 0) / known.length : null;
+  };
+  const scoreMean = (values) => {
+    const value = mean(values);
+    return value === null ? null : Math.round(value);
+  };
+  const velocity = mean([change1m, change3m]);
+  const rankScore = Number.isFinite(ranking?.live_rank) && ranking?.universe_size > 1
+    ? clamp(100 * (1 - (ranking.live_rank - 1) / (ranking.universe_size - 1)), 0, 100) : null;
+  const tape = scoreMean([velocity === null ? null : clamp(50 + velocity * 12, 0, 100), rankScore]);
+  const base = cycle?.multiyear_cycle_anatomy?.accumulation_base;
+  const position = cycle?.cycle_range_position_pct;
+  const cycleScore = Number.isFinite(position) ? Math.round(clamp(100 - position, 0, 100)) : null;
+  const rsi = cycle?.rsi_regimes?.['1w']?.value;
+  const confirmation = scoreMean([
+    Number.isFinite(volumeChange) ? clamp(50 + volumeChange / 2, 0, 100) : null,
+    Number.isFinite(persistence) ? clamp(persistence * 25, 0, 100) : null,
+    Number.isFinite(rsi) ? clamp(100 - Math.abs(rsi - 50) * 2, 0, 100) : null,
+  ]);
+  const gauges = [
+    { label: 'Tape Momentum', score: tape, detail: `${Number.isFinite(change1m) ? `${change1m.toFixed(2)}% 1M` : '1M unavailable'} / ${Number.isFinite(change3m) ? `${change3m.toFixed(2)}% 3M` : '3M unavailable'}${rankScore !== null ? ` · RS #${ranking.live_rank}/${ranking.universe_size}` : ''}` },
+    { label: 'Cycle Position', score: cycleScore, detail: base?.stage_label || (Number.isFinite(position) ? `${Math.round(position)}% of multi-year range` : 'Multi-year history unavailable') },
+    { label: 'Volume & Sentiment Confirmation', score: exhausted && confirmation !== null ? Math.min(confirmation, 35) : confirmation, detail: `${persistence ? `${persistence}-update persistence` : 'Persistence unconfirmed'} · ${exhausted ? 'Exhaustion / reversal warning' : Number.isFinite(rsi) ? `Weekly RSI ${Math.round(rsi)}` : 'RSI unavailable'}` },
+  ];
+  const complete = gauges.every((gauge) => gauge.score !== null);
+  return { gauges, complete, composite: complete ? scoreMean(gauges.map((gauge) => gauge.score)) : null };
+}
+
+export function CoinDossierScore({ trigger, sentiment, ...inputs }) {
+  const { gauges, complete, composite } = computeCoinDossierScore(inputs);
+  return (
+    <section className="cp-dossier-score" aria-label="Composite Conviction Score">
+      <h3>Coin Dossier · Composite Conviction Score <strong>{complete ? `${composite}/100` : 'Pending evidence'}</strong></h3>
+      <p>Equal-weight evidence summary, not a probability or an entry instruction. Missing inputs are excluded; all three gauges are required for a composite.</p>
+      <div className="cp-dossier-gauges">
+        {gauges.map(({ label, score, detail }) => <article key={label}>
+          <strong>{label} · {score === null ? 'Unavailable' : `${score}/100`}</strong>
+          {score !== null ? <meter aria-label={label} min="0" max="100" value={score} /> : null}
+          <p>{detail}</p>
+        </article>)}
+      </div>
+      <p>{trigger}</p>
+      <p>{sentiment}</p>
+    </section>
+  );
+}
 
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', launchContext = null }) => {
   const {
@@ -1036,7 +1195,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     connectionStatus = 'STALE',
     staleSeconds = null,
     lastFetchTs = null,
-    market_pressure = null,
+    marketPressure: market_pressure = null,
     gainers_1m = [],
     gainers_3m = [],
     losers_3m = [],
@@ -1058,14 +1217,33 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const [coinPositioning, setCoinPositioning] = useState(null);
   const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
 
-  const [chartRead, setChartRead] = useState(null);
-  const [chartReadLoading, setChartReadLoading] = useState(false);
-  const [chartReadError, setChartReadError] = useState(null);
-  const [chartDrawerOpen, setChartDrawerOpen] = useState(false);
+  // One chart read per time horizon, kept so switching back is instant. The
+  // dossier opens on the multi-year cycle, the most informative structural
+  // view; the swing read loads alongside it for the header strip and levels.
+  const [chartHorizon, setChartHorizon] = useState(DEFAULT_CHART_HORIZON);
+  const [chartReads, setChartReads] = useState({});
+  const [chartErrors, setChartErrors] = useState({});
+  const chartCacheRef = useRef({});
+  const chartInflightRef = useRef(new Set());
+  const chartGenerationRef = useRef(0);
+  const chartReadLoading = Boolean(isOpen && normalizeSymbol(symbol))
+    && !(chartHorizon in chartReads) && !chartErrors[chartHorizon];
+  const chartReadError = chartErrors[chartHorizon] || null;
+  const chartRead = chartReads[chartHorizon] || null;
+  // While another view loads, the panel keeps showing the last read (dimmed).
+  const lastChartReadRef = useRef(null);
+  if (chartRead) lastChartReadRef.current = chartRead;
+  const chartReadShown = chartRead || (chartReadLoading ? lastChartReadRef.current : null);
+  // Risk Levels draws on 1h candles, so it always uses the swing (1h) read.
+  const swingChartRead = chartReads.swing || null;
 
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinHistoryLoading, setCoinHistoryLoading] = useState(false);
   const [coinHistoryError, setCoinHistoryError] = useState(null);
+
+  const [riskLevels, setRiskLevels] = useState(null);
+  const [riskLevelsLoading, setRiskLevelsLoading] = useState(false);
+  const [riskLevelsError, setRiskLevelsError] = useState(null);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
@@ -1090,14 +1268,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   useEffect(() => {
     if (isOpen) setActiveTab(normalizeTab(defaultTab));
   }, [isOpen, defaultTab]);
-
-  useEffect(() => {
-    if (chartEventContext) setChartDrawerOpen(true);
-  }, [chartEventContext]);
-
-  useEffect(() => {
-    if (!isOpen) setChartDrawerOpen(false);
-  }, [isOpen]);
 
   useEffect(() => {
     const onEsc = (evt) => {
@@ -1129,23 +1299,55 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol, coinLiveRanking]);
 
-  useEffect(() => {
-    if (!isOpen || !coinSymbol) {
-      setChartRead(null);
-      setChartReadError(null);
-      return undefined;
-    }
-    let cancelled = false;
-    setChartReadLoading(true);
+  // Fetch one horizon's read unless it is cached or already on its way. A
+  // response for a coin the modal has since left is dropped by generation, not
+  // by the horizon switch, so switching views never strands a request.
+  const loadChartHorizon = useCallback((horizon) => {
+    if (!isOpen || !coinSymbol) return;
+    if (horizon in chartCacheRef.current || chartInflightRef.current.has(horizon)) return;
+    const generation = chartGenerationRef.current;
+    const inflight = chartInflightRef.current;
+    inflight.add(horizon);
+    setChartErrors((errors) => {
+      if (!errors[horizon]) return errors;
+      const next = { ...errors };
+      delete next[horizon];
+      return next;
+    });
     const endpoint = API_ENDPOINTS.chartRead
-      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext)
-      : `/api/chart-read/${encodeURIComponent(coinSymbol)}`;
+      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext, horizon)
+      : `/api/chart-read/${encodeURIComponent(coinSymbol)}${horizon === 'swing' ? '' : `?horizon=${horizon}`}`;
     fetchData(endpoint)
-      .then((d) => { if (!cancelled) { setChartRead(d); setChartReadError(null); } })
-      .catch(() => { if (!cancelled) setChartReadError('unavailable'); })
-      .finally(() => { if (!cancelled) setChartReadLoading(false); });
-    return () => { cancelled = true; };
+      .then((read) => {
+        if (generation !== chartGenerationRef.current) return;
+        chartCacheRef.current = { ...chartCacheRef.current, [horizon]: read };
+        setChartReads(chartCacheRef.current);
+      })
+      .catch(() => {
+        if (generation !== chartGenerationRef.current) return;
+        setChartErrors((errors) => ({ ...errors, [horizon]: 'unavailable' }));
+      })
+      .finally(() => { inflight.delete(horizon); });
   }, [isOpen, coinSymbol, chartEventContext]);
+
+  useEffect(() => {
+    // A different coin starts again from the default view with nothing cached.
+    chartGenerationRef.current += 1;
+    chartCacheRef.current = {};
+    chartInflightRef.current = new Set();
+    lastChartReadRef.current = null;
+    setChartReads({});
+    setChartErrors({});
+    setChartHorizon(DEFAULT_CHART_HORIZON);
+  }, [isOpen, coinSymbol, chartEventContext]);
+
+  useEffect(() => {
+    // The view on screen first, then the swing read (header strip, risk levels,
+    // paper ticket) and the cycle read (multi-year levels on every view).
+    loadChartHorizon(chartHorizon);
+    loadChartHorizon('swing');
+    loadChartHorizon('cycle');
+  }, [chartHorizon, loadChartHorizon]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -1192,6 +1394,30 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       return null;
     } finally {
       if (!silent) setCoinIntelLoading(false);
+    }
+  }, [coinSymbol, isOpen]);
+
+  const loadRiskLevels = useCallback(async ({ silent = false } = {}) => {
+    if (!coinSymbol || !isOpen) {
+      setRiskLevels(null);
+      setRiskLevelsError(null);
+      return null;
+    }
+    if (!silent) setRiskLevelsLoading(true);
+    try {
+      const endpoint = API_ENDPOINTS.riskLevels
+        ? API_ENDPOINTS.riskLevels(coinSymbol)
+        : `/api/risk-levels/${encodeURIComponent(coinSymbol)}`;
+      const payload = await fetchData(endpoint);
+      if (payload?.status === 'degraded') throw new Error(payload.error || 'Risk levels degraded');
+      setRiskLevels(payload || null);
+      setRiskLevelsError(null);
+      return payload;
+    } catch (err) {
+      setRiskLevelsError(String(err?.message || err || 'Failed to load risk levels'));
+      return null;
+    } finally {
+      if (!silent) setRiskLevelsLoading(false);
     }
   }, [coinSymbol, isOpen]);
 
@@ -1269,6 +1495,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol]);
 
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setRiskLevels(null);
+      setRiskLevelsError(null);
+      setRiskLevelsLoading(false);
+      return;
+    }
+    loadRiskLevels({ silent: false });
+  }, [isOpen, coinSymbol, loadRiskLevels]);
+
   const fallbackAllAlerts = useMemo(() => {
     const merged = [
       ...(Array.isArray(activeAlerts) ? activeAlerts : []),
@@ -1304,14 +1540,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return cachedCoinHistory;
   }, [coinSymbol, fallbackCoinAlerts, cachedCoinHistory]);
 
-  const breakoutState = useMemo(() => {
-    const top = coinAlerts[0];
-    if (!top) return 'No breakout';
-    const type = String(top.type_key || top.type || '').toLowerCase();
-    if (type.includes('moonshot') || type.includes('breakout')) return 'Breakout Up';
-    if (type.includes('crater') || type.includes('dump')) return 'Breakout Down';
-    return 'No breakout';
-  }, [coinAlerts]);
+  const nowMs = Date.now();
+
+  const activeCoinAlerts = useMemo(
+    () => coinAlerts.filter((alert) => isAlertStillActive(alert, nowMs)),
+    [coinAlerts, nowMs]
+  );
+
+  const breakoutState = useMemo(
+    () => computeBreakoutState(coinAlerts, nowMs),
+    [coinAlerts, nowMs]
+  );
 
   const change1m = toNumber(coinInsights?.change1m);
   const change3m = toNumber(coinInsights?.change3m);
@@ -1343,7 +1582,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (!hasCoinTape) return null;
     const alignment = Math.min(1, Math.abs(alignmentScore) / 6);
     let streakRaw = 0;
-    for (const alert of coinAlerts) {
+    for (const alert of activeCoinAlerts) {
       const streak = toNumber(alert?.evidence?.streak ?? alert?.extra?.streak);
       if (streak !== null && streak > 0) {
         streakRaw = Math.max(streakRaw, streak);
@@ -1352,9 +1591,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const streak = Math.min(1, Math.max(0, streakRaw) / 4);
     const volumeConfirm = volumeConfirms ? 1 : 0;
     return Math.round(((0.45 * alignment) + (0.35 * volumeConfirm) + (0.2 * streak)) * 100);
-  }, [hasCoinTape, alignmentScore, coinAlerts, volumeConfirms]);
-
-  const nowMs = Date.now();
+  }, [hasCoinTape, alignmentScore, activeCoinAlerts, volumeConfirms]);
 
   const signalFlags = useMemo(
     () => computeSignalFlags(coinAlerts, nowMs),
@@ -1362,14 +1599,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   );
 
   const persistenceStreak = useMemo(() => {
-    for (const alert of coinAlerts) {
+    for (const alert of activeCoinAlerts) {
       const streak = toNumber(alert?.evidence?.streak ?? alert?.extra?.streak);
       if (streak !== null && streak > 0) return Math.round(streak);
       const type = String(alert?.type_key || alert?.type || '').toLowerCase();
       if (type.includes('persistent')) return 1;
     }
     return null;
-  }, [coinAlerts]);
+  }, [activeCoinAlerts]);
 
   const coinScore = useMemo(() => {
     if (!hasCoinTape) return null;
@@ -1397,7 +1634,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   ]);
 
   const primaryAction = useMemo(() => {
-    const topType = String(coinAlerts[0]?.type_key || coinAlerts[0]?.type || '').toLowerCase();
+    const topType = String(activeCoinAlerts[0]?.type_key || activeCoinAlerts[0]?.type || '').toLowerCase();
     if (topType.includes('fakeout')) return 'Fakeout risk: avoid chasing and wait for reclaim confirmation.';
     if (topType.includes('reversal') || topType.includes('trend_break')) return 'Reversal signal active: wait for retest confirmation before entry.';
     if (topType.includes('squeeze') || topType.includes('volatility_expansion')) return 'Compression just broke: watch continuation on the next close.';
@@ -1408,7 +1645,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (alignmentScore >= 3 && volumeConfirms) return 'Trend and volume align: favor pullback entries over chasing.';
     if (alignmentScore <= -3 && volumeConfirms) return 'Downtrend and volume align: protect longs and wait for base formation.';
     return 'No high-conviction setup yet: wait for alignment plus volume confirmation.';
-  }, [coinAlerts, breakoutState, alignmentScore, volumeConfirms]);
+  }, [activeCoinAlerts, breakoutState, alignmentScore, volumeConfirms]);
 
   const socialMetrics = coinIntel?.social?.metrics || null;
   const socialHeat = toNumber(socialMetrics?.socialHeat);
@@ -1550,6 +1787,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     () => getMarketPressure({ market_pressure }),
     [market_pressure]
   );
+  const breadthRead = useMemo(
+    () => computeBreadthRead(marketPressureSummary),
+    [marketPressureSummary]
+  );
 
   const sourceHealth = useMemo(() => {
     const baseline = coinInsights?.baselineStatus || {};
@@ -1559,9 +1800,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       coinIntel?.news?.items?.length || 0,
       coinIntel?.events?.items?.length || 0
     );
-    const breadthUp = Number(marketPressureSummary?.breadth_up);
-    const breadthDown = Number(marketPressureSummary?.breadth_down);
-    const breadthLive = Number.isFinite(breadthUp) && Number.isFinite(breadthDown);
     const breadthUniverse = Number(market_pressure?.symbol_count);
     const macroLive = Number.isFinite(Number(coinInsights?.marketSentiment?.value));
     return [
@@ -1579,9 +1817,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       },
       {
         label: 'Market breadth',
-        value: breadthLive ? 'Live' : 'Unavailable',
-        tone: breadthLive ? 'positive' : 'negative',
-        sub: breadthLive
+        value: breadthRead.available ? 'Live' : 'Unavailable',
+        tone: breadthRead.available ? 'positive' : 'neutral',
+        sub: breadthRead.available
           ? (Number.isFinite(breadthUniverse) && breadthUniverse > 0 ? `${breadthUniverse} Coinbase markets tracked.` : 'Cross-market participation is current.')
           : 'Broad-market participation is missing.',
       },
@@ -1610,28 +1848,35 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     coinIntel,
     market_pressure,
     marketPressureSummary,
+    breadthRead,
     metricsReady,
     hasMeaningfulSocialMetrics,
     socialSourceLabel,
   ]);
 
+  const priorityEvidence = useMemo(
+    () => buildPriorityEvidence({ activeAlerts, recentAlerts: alertsRecent, nowMs }),
+    [activeAlerts, alertsRecent, nowMs]
+  );
+
   const priorityEntries = useMemo(
     () =>
       buildPriorityItems({
-        alerts: fallbackAllAlerts,
+        alerts: priorityEvidence,
         gainers1m: gainers_1m,
         gainers3m: gainers_3m,
         losers3m: losers_3m,
         marketPressure: marketPressureSummary,
         nowMs,
       }),
-    [fallbackAllAlerts, gainers_1m, gainers_3m, losers_3m, marketPressureSummary, nowMs]
+    [priorityEvidence, gainers_1m, gainers_3m, losers_3m, marketPressureSummary, nowMs]
   );
 
   const coinPriorityEntry = useMemo(
     () => priorityEntries.find((entry) => entry.symbol === coinSymbol) || null,
     [priorityEntries, coinSymbol]
   );
+  const hasCanonicalNegativeState = ['Reversal Risk', 'Fragile', 'Fading'].includes(coinPriorityEntry?.stateLabel);
   const coinEvidenceEmptyCopy = useMemo(() => {
     if (!coinSymbol) return 'No live coin signal right now.';
     if (!fallbackCoinAlerts.length && cachedCoinHistory.length) {
@@ -1668,16 +1913,37 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
 
   const setupQuality = useMemo(() => {
     if (confidencePct === null) return { label: 'Forming', detail: 'Need more tape to score setup quality.', tone: 'neutral' };
+    if (hasCanonicalNegativeState) {
+      return {
+        label: 'Fragile',
+        detail: 'Positive confirmation cannot override the canonical risk state.',
+        tone: 'negative',
+      };
+    }
     if (confidencePct >= 75) return { label: 'Strong', detail: 'Driven by confirmation, persistence, and volume support.', tone: 'positive' };
     if (confidencePct >= 55) return { label: 'Mixed', detail: 'Some confirmation is present, but conviction is not clean yet.', tone: 'neutral' };
     return { label: 'Fragile', detail: 'Mixed alignment or weak confirmation reduces trust.', tone: 'negative' };
-  }, [confidencePct]);
+  }, [confidencePct, hasCanonicalNegativeState]);
 
   const freshAgeMs = useMemo(() => {
     const ts = coinPriorityEntry?.lastTsMs ?? normalizeTsMs(lastCoinUpdateTs);
     return Number.isFinite(ts) ? Math.max(0, nowMs - ts) : null;
   }, [coinPriorityEntry, lastCoinUpdateTs, nowMs]);
 
+  // Canonical priority is the sole authority on this coin's state.
+  //
+  // This block used to reach 'Dominant'/'Building' from its own fallback
+  // evidence (breakoutState, signalFlags, a bare `change3m > 0`) *even when the
+  // priority engine said otherwise*, and because the Building test ran before
+  // the Reversal Risk test, a coin the engine classed 'Reversal Risk' with a
+  // positive 3m surfaced here as 'Building'. The Coin tab reads posture
+  // straight from the priority entry, so one popup could show STAY CLEAR on
+  // Coin and BUY WATCH on Pulse at the same instant — the same contradiction
+  // 2ea35e71 removed between the board and this popup, and a second semantic
+  // authority after 927a5d6c centralized priority.
+  //
+  // The local fallbacks still run, but only for a coin the engine has not
+  // ranked, where there is no canonical state for them to contradict.
   const coinHero = useMemo(() => {
     if (!coinSymbol) {
       return {
@@ -1687,104 +1953,31 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         tone: 'neutral',
       };
     }
-    if (!metricsReady) {
+    const eyebrow = `${coinSymbol} Right Now`;
+    const state = resolveCoinHeroState({
+      coinPriorityEntry,
+      metricsReady,
+      breakoutState,
+      alignmentScore,
+      volumeConfirms,
+      signalFlags,
+      change3m,
+    });
+    if (state === 'Warming') {
       return {
-        eyebrow: `${coinSymbol} Right Now`,
+        eyebrow,
         state: 'Warming',
         sub: 'Advanced insights warming up. Waiting for enough tape to trust the local read.',
         tone: 'neutral',
       };
     }
-    if (coinPriorityEntry?.stateLabel === 'Dominant' || (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Dominant',
-        sub: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS
-          ? `Fresh 3m confirmation ${ageLabel(freshAgeMs)} ago. Alignment and participation are supporting the move.`
-          : 'Strength is still holding, but the next reconfirm matters.',
-        tone: 'positive',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Building' || signalFlags.hasMomentum || (change3m !== null && change3m > 0)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Building',
-        sub: volumeConfirms
-          ? 'Early upside pressure is present and volume is confirming it, but the setup is not fully settled yet.'
-          : 'Early upside pressure is present, but confirmation and participation are still uneven.',
-        tone: 'positive',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Reversal Risk' || signalFlags.hasFakeout || signalFlags.hasReversal || signalFlags.hasExhaustion) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Fragile',
-        sub: 'Structure is unstable. Recent strength looks vulnerable until the coin reclaims and reconfirms.',
-        tone: 'negative',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Fading' || breakoutState === 'Breakout Down' || (change3m !== null && change3m < 0 && alignmentScore <= -2)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Fading',
-        sub: freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS
-          ? `No reconfirm in ${(freshAgeMs / 60000).toFixed(1)}m. Support is thinning and follow-through is fading.`
-          : 'Pressure is slipping and follow-through is weakening.',
-        tone: 'negative',
-      };
-    }
-    if (!signalFlags.hasFakeout && !signalFlags.hasMomentum && !signalFlags.hasReversal && metricsReady) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Range-hold',
-        sub: 'The coin is rotating inside range. Direction is mixed and there is no clean breakout edge yet.',
-        tone: 'neutral',
-      };
-    }
-    return {
-      eyebrow: `${coinSymbol} Right Now`,
-      state: 'Mixed',
-      sub: 'Tape is active, but direction and conviction are still mixed. No clean edge yet.',
-      tone: 'neutral',
-    };
+
+    return { eyebrow, ...describeHeroState(state, { freshAgeMs, volumeConfirms }) };
   }, [coinSymbol, metricsReady, coinPriorityEntry, breakoutState, alignmentScore, volumeConfirms, freshAgeMs, signalFlags, change3m]);
-
-  const coinHeroProminence = useMemo(() => {
-    const exceptionalVolume = Math.abs(volumeChange1h ?? 0) >= 140;
-    if (coinHero.state === 'Dominant') return 'elevated';
-    if (coinHero.state === 'Fragile' || signalFlags.hasFakeout || signalFlags.hasExhaustion) return 'elevated';
-    if (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms) return 'elevated';
-    if (exceptionalVolume) return 'elevated';
-    return 'compact';
-  }, [coinHero.state, signalFlags, breakoutState, alignmentScore, volumeConfirms, volumeChange1h]);
-
-  const coinHeroLine = useMemo(() => {
-    const parts = [coinHero.state];
-    if (freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS && (coinPriorityEntry?.freshConfirms || signalFlags.hasMomentum)) {
-      parts.push(`fresh confirm ${ageLabel(freshAgeMs)} ago`);
-    } else if (volumeConfirms) {
-      parts.push('volume confirmed');
-    }
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) {
-      parts.push('breadth weak');
-    } else if ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) {
-      parts.push('breadth supportive');
-    }
-    if (coinIntelError) {
-      parts.push('external soft');
-    } else if (coinIntel?.events?.items?.length) {
-      parts.push('external catalyst');
-    } else if (coinIntel?.social?.items?.length) {
-      parts.push('attention only');
-    } else {
-      parts.push('tape-only');
-    }
-    return parts.filter(Boolean).slice(0, 3).join(' · ');
-  }, [coinHero.state, freshAgeMs, coinPriorityEntry, signalFlags, volumeConfirms, marketPressureSummary, coinIntelError, coinIntel]);
 
   const actionBias = useMemo(() => {
     if (!metricsReady) return { label: 'Wait', detail: 'Need more tape before trusting a local read.', tone: 'neutral' };
-    if (coinHero.state === 'Dominant') return { label: 'Press strength', detail: 'Momentum is confirmed. Favor pullbacks over chasing extension.', tone: 'positive' };
+    if (coinHero.state === 'Dominant' || coinHero.state === 'Persistent') return { label: 'Press strength', detail: 'Momentum is confirmed. Favor pullbacks over chasing extension.', tone: 'positive' };
     if (coinHero.state === 'Building') return { label: 'Only act on reconfirm', detail: 'Setup is constructive, but you want another fresh push inside the 7m window.', tone: 'neutral' };
     if (coinHero.state === 'Fragile') return { label: 'Stand aside', detail: 'This setup can break either way. Wait for reclaim or cleaner failure.', tone: 'negative' };
     if (coinHero.state === 'Fading') return { label: 'Watch for reclaim', detail: 'Do not press weakness blindly. Require a reclaim before re-engaging.', tone: 'negative' };
@@ -1804,18 +1997,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       };
     }
 
-    const topAlert = coinAlerts[0] || null;
+    const topAlert = activeCoinAlerts[0] || null;
     const semantic = alertTradeSemantics(topAlert);
     const hasFreshConfirm = freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS;
-    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const breadthUp = breadthRead.value;
     const breadthDown = Number(marketPressureSummary?.breadth_down ?? 0) || 0;
-    const breadthText = breadthUp >= 0.56
-      ? 'breadth supports upside'
-      : breadthUp <= 0.44
-        ? 'breadth is hostile'
-        : breadthDown >= 0.56
-          ? 'breadth supports downside'
-          : 'breadth is mixed';
+    const breadthText = breadthRead.available || breadthDown < 0.56
+      ? breadthRead.inline
+      : 'breadth supports downside';
     const attentionParts = [];
     if (socialTrendingRank !== null && socialTrendingRank > 0) {
       attentionParts.push(`trending #${socialTrendingRank}${socialTrendingSource ? ` via ${socialTrendingSource}` : ''}`);
@@ -1834,40 +2023,49 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     let label = semantic.label;
     let tone = semantic.tone;
     let intent = semantic.intent;
+    let reason = semantic.reason;
     let confirmation = `${volumeConfirms ? 'volume confirms' : 'volume missing'} · ${breadthText}`;
 
     if (semantic.tone === 'positive') {
-      if (!volumeConfirms || !hasFreshConfirm || breadthUp < 0.45 || signalFlags.hasFakeout || signalFlags.hasExhaustion) {
+      if (!volumeConfirms || !hasFreshConfirm || breadthUp === null || breadthUp < 0.45 || signalFlags.hasFakeout || signalFlags.hasExhaustion) {
         label = 'RECONFIRM';
         tone = 'neutral';
         intent = 'Upside exists, but it is not clean enough for a blind quick buy.';
         confirmation = `${hasFreshConfirm ? 'fresh' : 'needs fresh push'} · ${confirmation}`;
-      } else if (coinHero.state === 'Dominant' || coinHero.state === 'Building') {
+      } else if (coinHero.state === 'Dominant' || coinHero.state === 'Persistent' || coinHero.state === 'Building') {
         label = 'BUY WATCH';
         tone = 'positive';
         intent = 'Fast tape, participation, and context are aligned enough to watch for an entry.';
       }
     }
 
-    if (semantic.tone === 'negative' || coinHero.state === 'Fragile' || coinHero.state === 'Fading') {
+    if (semantic.tone === 'negative') {
       label = semantic.label === 'NO SIGNAL' ? 'WAIT' : semantic.label;
       tone = 'negative';
       intent = semantic.intent;
+    } else if (coinHero.state === 'Fragile' || coinHero.state === 'Fading') {
+      label = 'WAIT';
+      tone = 'negative';
+      intent = actionBias.detail;
+      reason = coinPriorityEntry?.stateLabel === 'Reversal Risk'
+        ? 'Wait for the active risk warning to clear before treating this as a clean setup.'
+        : 'Nothing here deserves urgency yet.';
     }
 
     return {
       label,
       tone,
       intent,
-      reason: semantic.reason,
+      reason,
       sentiment: attentionParts.filter(Boolean).slice(0, 2).join(' · '),
       confirmation,
     };
   }, [
     metricsReady,
-    coinAlerts,
+    activeCoinAlerts,
     freshAgeMs,
     marketPressureSummary,
+    breadthRead,
     socialTrendingRank,
     socialTrendingSource,
     socialVolume24h,
@@ -1877,6 +2075,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     volumeConfirms,
     signalFlags,
     coinHero,
+    actionBias,
+    coinPriorityEntry,
   ]);
 
   const pulseTrigger = useMemo(() => {
@@ -1893,10 +2093,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (signalFlags.hasFakeout) badges.push({ label: 'FAILED BREAKOUT', tone: 'negative' });
     if (!signalFlags.hasFakeout && !signalFlags.hasMomentum && !signalFlags.hasReversal && metricsReady) badges.push({ label: 'RANGE-HOLD', tone: 'neutral' });
     if (volumeConfirms) badges.push({ label: 'VOLUME CONFIRMED', tone: 'positive' });
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) badges.push({ label: 'BREADTH WEAK', tone: 'negative' });
+    if (breadthRead.badge) badges.push({ label: breadthRead.badge, tone: breadthRead.tone });
     if (coinPriorityEntry?.stateLabel === 'Reversal Risk' || signalFlags.hasReversal || signalFlags.hasExhaustion) badges.push({ label: 'REVERSAL RISK', tone: 'negative' });
     return badges;
-  }, [breakoutState, signalFlags, metricsReady, volumeConfirms, marketPressureSummary, coinPriorityEntry]);
+  }, [breakoutState, signalFlags, metricsReady, volumeConfirms, breadthRead, coinPriorityEntry]);
 
   const earlyRead = useMemo(() => {
     // Fast, deliberately-unconfirmed directional lean from 1m+3m momentum plus
@@ -1911,6 +2111,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const THRESH = 0.15; // percent — below this is baseline alt wiggle
     const bias = coinPositioning?.available ? coinPositioning.funding_bias : null;
     if (mom >= THRESH) {
+      if (hasCanonicalNegativeState) {
+        return {
+          label: 'TAPE UP',
+          tone: 'caution',
+          note: 'Short-term tape is pushing up, but the risk warning overrides entry quality.',
+        };
+      }
       if (bias === 'crowded_long') return { label: 'TAPE UP', tone: 'caution', note: 'Up, but longs are crowded — squeeze risk.' };
       if (bias === 'short' || bias === 'crowded_short') return { label: 'TAPE UP', tone: 'positive', note: 'Up with shorts paying — clean push.' };
       return { label: 'TAPE UP', tone: 'positive', note: 'Short-term tape is pushing up.' };
@@ -1921,7 +2128,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       return { label: 'TAPE DOWN', tone: 'negative', note: 'Short-term tape is pushing down.' };
     }
     return { label: 'NEUTRAL', tone: 'neutral', note: 'No clear fast lean right now.' };
-  }, [change1m, change3m, coinPositioning]);
+  }, [change1m, change3m, coinPositioning, hasCanonicalNegativeState]);
 
   const simpleCoinRead = useMemo(() => {
     if (!metricsReady) {
@@ -1929,7 +2136,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         label: 'WAIT',
         tone: 'neutral',
         headline: 'Not enough live tape yet.',
-        supports: [],
+        supports: buildWarmingSupports(coinLiveRanking),
         blockers: ['The short-term windows are still filling.'],
         upgrade: 'Check again after the next few live updates.',
         invalidation: 'No setup is valid until the data is ready.',
@@ -1941,7 +2148,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const evidence = Number(coinLiveRanking?.data_quality ?? 0);
     const observedInputs = Number(coinLiveRanking?.observed_inputs ?? Math.round(evidence * 6 / 100));
     const expectedInputs = Number(coinLiveRanking?.expected_inputs || 6);
-    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const breadthUp = breadthRead.value;
     const alignedUp = alignmentLabel === 'Aligned Up';
     const alignedDown = alignmentLabel === 'Aligned Down';
     const persistenceGood = ['Dominant', 'Persistent'].includes(coinPriorityEntry?.stateLabel) || persistenceStreak >= 3;
@@ -1968,7 +2175,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (alignedDown) blockers.push('Short-term direction is still down.');
     if (persistenceWeak) blockers.push('The move has not held its rank yet.');
     if (!volumeConfirms) blockers.push('Volume has not confirmed the move.');
-    if (breadthUp < 0.45) blockers.push('Most of the market is not helping it.');
+    if (breadthRead.blocker) blockers.push(breadthRead.blocker);
     if (historyWeak) blockers.push(`Comparable signals only worked ${historyPct}% of the time.`);
     if (evidence > 0 && evidence < 50) blockers.push(`Only ${observedInputs}/${expectedInputs} live inputs are available.`);
     const riskBlocker = computeRiskBlocker(signalFlags, reversalRiskCurrent);
@@ -1978,6 +2185,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const label = computePostureLabel({
       score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
       historyWeak, hardRisk, breakoutUp, change1m, change3m,
+      canonicalState: coinPriorityEntry?.stateLabel,
     });
     const tone = label === 'STAY CLEAR' ? 'negative'
                : label === 'WAIT'       ? 'neutral'
@@ -2002,9 +2210,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         ? 'Short-term momentum and breakout evidence are active but still need more confirmation.'
         : 'Short-term momentum, volume, and breakout evidence are aligning before the 1h view has caught up.';
     } else {
-      headline = breakoutUp
-        ? 'Breakout detected, but confirmation is incomplete.'
-        : 'No clean setup is active right now.';
+      headline = resolveWaitHeadline({ breakoutUp, score });
     }
 
     let upgrade = 'Wait for the 1m and 3m directions to agree and for the coin to hold its rank on the next updates.';
@@ -2012,6 +2218,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     else if (!volumeConfirms) upgrade = 'Wait for volume to turn positive and confirm the price move.';
     else if (alignmentLabel === 'Mixed') upgrade = 'Wait for 1m and 3m to point the same way, then hold for at least two updates.';
     else if (!persistenceGood) upgrade = 'Wait for the coin to hold or improve its live rank on the next two updates.';
+    else if (breadthUp === null) upgrade = 'Wait for market breadth to become available before treating broad participation as confirmation.';
     else if (breadthUp < 0.45) upgrade = 'Wait for broader market support or unusually strong independent spot buying.';
     else if (label === 'EARLY SETUP') upgrade = 'Watch for the 1h view to turn positive and hold for at least two updates to confirm.';
     else if (label === 'STRONG SETUP') upgrade = 'Favor a controlled pullback or fresh hold; do not chase a sudden extension.';
@@ -2032,6 +2239,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     metricsReady,
     coinLiveRanking,
     marketPressureSummary,
+    breadthRead,
     alignmentLabel,
     coinPriorityEntry,
     persistenceStreak,
@@ -2056,12 +2264,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: setupQuality.tone,
       sub: setupQuality.detail,
     },
-    {
-      label: 'Persistence',
-      value: coinPriorityEntry?.stateLabel || (persistenceStreak ? `${persistenceStreak}x hold` : 'Low'),
-      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
-      sub: coinPriorityEntry?.rankSummary || 'Rank hold not established yet.',
-    },
+    buildPriorityRailItem(coinPriorityEntry, persistenceStreak, 'Rank hold not established yet.'),
     {
       label: 'Updated',
       value: humanTime(lastCoinUpdateTs),
@@ -2088,11 +2291,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS) risks.push(`fading after ${(freshAgeMs / 60000).toFixed(1)}m without reconfirm`);
     if (!volumeConfirms && metricsReady) risks.push('volume support is missing');
     if (alignmentLabel === 'Mixed') risks.push('timeframes are mixed');
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) risks.push('broad tape support is weak');
+    if (breadthRead.risk) risks.push(breadthRead.risk);
     if (signalFlags.hasFakeout) risks.push('recent fakeout risk is still active');
     if (!risks.length) risks.push('invalidates if the next push fails to hold top cohort rank');
     return risks.slice(0, 4);
-  }, [freshAgeMs, volumeConfirms, metricsReady, alignmentLabel, marketPressureSummary, signalFlags]);
+  }, [freshAgeMs, volumeConfirms, metricsReady, alignmentLabel, breadthRead, signalFlags]);
 
   const pulseSupportRail = useMemo(() => ([
     {
@@ -2101,25 +2304,24 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: setupQuality.tone,
       sub: setupQuality.detail,
     },
-    {
-      label: 'Persistence',
-      value: coinPriorityEntry?.stateLabel || 'No streak yet',
-      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
-      sub: coinPriorityEntry?.rankSummary || 'This coin has not repeated enough to confirm persistence.',
-    },
+    buildPriorityRailItem(
+      coinPriorityEntry,
+      persistenceStreak,
+      'This coin has not repeated enough to confirm a rank hold.',
+    ),
     {
       label: 'Breadth',
-      value: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'Supportive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'Hostile' : 'Mixed',
-      tone: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'positive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'negative' : 'neutral',
-      sub: marketPressureSummary?.label || 'No broad tape label yet.',
+      value: breadthRead.status,
+      tone: breadthRead.tone,
+      sub: breadthRead.available ? (marketPressureSummary?.label || 'No broad tape label yet.') : 'Broad-market participation is missing.',
     },
     {
       label: 'Trigger',
       value: pulseTrigger,
-      tone: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
+      tone: !hasCanonicalNegativeState && freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
       sub: 'Fresh inside 2m. Fade threshold 3.5m.',
     },
-  ]), [setupQuality, coinPriorityEntry, marketPressureSummary, pulseTrigger, freshAgeMs]);
+  ]), [setupQuality, coinPriorityEntry, persistenceStreak, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs, hasCanonicalNegativeState]);
 
   const intelHero = useMemo(() => {
     const hasEvents = Boolean(coinIntel?.events?.items?.length);
@@ -2150,7 +2352,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     },
     { label: 'Attention', value: socialHeatTrend ? (socialHeatTrend === 'rising' ? 'Rising' : socialHeatTrend === 'collapsing' ? 'Fading' : 'Flat') : 'Quiet', tone: socialHeatTrend === 'rising' ? 'positive' : socialHeatTrend === 'collapsing' ? 'negative' : 'neutral' },
     { label: 'Source mix', value: socialSourceLabel || (coinIntel?.events?.items?.length ? 'Events only' : 'Tape only'), tone: 'neutral' },
-    { label: 'Trust level', value: coinIntelError ? 'Low' : coinIntel?.status === 'live' ? 'High' : 'Medium', tone: coinIntelError ? 'negative' : coinIntel?.status === 'live' ? 'positive' : 'neutral' },
+    { label: 'Feed status', ...computeFeedStatus(coinIntel, coinIntelError) },
   ]), [coinLiveRanking, socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError]);
 
   const handleOverlayClick = (event) => {
@@ -2163,11 +2365,26 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       refresh({ freshLatest: true }),
       loadCoinInsights({ silent: false }),
       loadCoinIntel({ silent: false }),
+      loadRiskLevels({ silent: false }),
     ]);
     setTimeout(() => setIsRefreshing(false), 700);
   };
 
   if (!isOpen) return null;
+
+  const dossierInputs = {
+    change1m, change3m, ranking: coinLiveRanking,
+    cycle: chartReads.cycle?.multi_year_context || swingChartRead?.multi_year_context,
+    volumeChange: volumeChange1h, persistence: persistenceStreak,
+    exhausted: signalFlags.hasExhaustion || signalFlags.hasReversal,
+  };
+  const headerScore = coinSymbol ? computeCoinDossierScore(dossierInputs) : null;
+  const headerPrice = toNumber(
+    riskLevels?.plan?.current_price ?? riskLevels?.entry?.current_price
+      ?? coinLiveRanking?.current_price ?? coinLiveRanking?.price ?? launchContext?.price ?? null
+  );
+  const headerChange = [[change1h, '1H'], [change3m, '3M'], [change1m, '1M']].find(([value]) => value !== null) || null;
+  const headerChangeTone = headerChange ? (headerChange[0] >= 0 ? 'up' : 'down') : 'flat';
 
   return (
     <div
@@ -2180,20 +2397,39 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       <div className="sentiment-popup" data-sentiment-symbol={coinSymbol || ''}>
         <header className="popup-header">
           <div className="header-left">
-            <div className="header-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-            </div>
-            <div className="header-text">
-              <h1 id="sentimentTitle">Coin Pressure {coinSymbol ? `· ${coinSymbol}` : ''}</h1>
-              <p className="subtitle">Coin-scoped state, tape, and context.</p>
+            <img
+              className="header-icon header-icon--token"
+              src={tokenIconUrl(coinSymbol)}
+              alt=""
+              aria-hidden="true"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+            <div className="header-text cp-identity" data-testid="coin-identity">
+              <h1 id="sentimentTitle" className="cp-identity__ticker">{coinSymbol || 'Coin Dossier'}</h1>
+              <div className="cp-identity__quote">
+                <span className="cp-identity__price" data-testid="coin-identity-price">
+                  {headerPrice !== null ? formatPlanPrice(headerPrice) : '—'}
+                </span>
+                {headerChange ? (
+                  <span className={`cp-identity__change cp-identity__change--${headerChangeTone}`} data-testid="coin-identity-change">
+                    {formatPercent(headerChange[0])} <small>{headerChange[1]}</small>
+                  </span>
+                ) : null}
+              </div>
+              <p className="subtitle">Coin Dossier · coin-scoped state, tape, and context.</p>
             </div>
           </div>
 
           <div className="header-right">
+            {headerScore ? (
+              <div className="cp-identity__score" data-testid="coin-header-conviction" title="Composite Conviction Score: equal-weight evidence summary, not a probability or an entry instruction.">
+                <span className="cp-identity__score-label">Conviction</span>
+                <strong className="cp-identity__score-value">
+                  {headerScore.complete ? headerScore.composite : '—'}
+                  <small>/100</small>
+                </strong>
+              </div>
+            ) : null}
             {coinbaseTradeUrl ? (
               <a
                 className="coinbase-trade-cta"
@@ -2220,73 +2456,37 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
           </div>
         </header>
 
-        <nav className="tab-nav" role="tablist">
-          <button
-            className={`tab-btn ${activeTab === 'coin' ? 'active' : ''}`}
-            onClick={() => setActiveTab('coin')}
-            role="tab"
-            aria-selected={activeTab === 'coin'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 19h16M7 15l3-3 3 2 4-5" />
-            </svg>
-            Coin
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'pulse' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pulse')}
-            role="tab"
-            aria-selected={activeTab === 'pulse'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M4 12h16M12 3v18"/>
-            </svg>
-            Pulse
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'intel' ? 'active' : ''}`}
-            onClick={() => setActiveTab('intel')}
-            role="tab"
-            aria-selected={activeTab === 'intel'}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L10 6"/>
-              <path d="M14 11a5 5 0 01-7.07 0L4.81 8.88a5 5 0 017.07-7.07L14 4"/>
-            </svg>
-            Intel
-          </button>
-        </nav>
-
         <main className="tab-content">
           {error ? (
             <div className="coin-history-note error mw-fetch-note">Pulse feed temporarily unavailable. Showing last known tape snapshot.</div>
           ) : null}
 
-          {activeTab === 'coin' && (
-            <section className="tab-panel active" role="tabpanel">
+            <section className="tab-panel active" aria-label="Coin Dossier Card">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '0.6rem 0.9rem',
-                      marginBottom: 12,
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 10,
-                      background: 'rgba(255,255,255,0.02)',
-                    }}
-                  >
-                    <span style={{ fontSize: 11, letterSpacing: '0.05em', color: '#8a8a8a', textTransform: 'uppercase' }}>Early read</span>
-                    <span style={{ fontSize: 16, fontWeight: 600, color: { positive: '#45ffb3', negative: '#ff6b6b', caution: '#f1b43a', neutral: '#a3a3a3' }[earlyRead.tone] || '#a3a3a3' }}>{earlyRead.label}</span>
-                    <span style={{ fontSize: 12.5, color: '#b8b8b8' }}>{earlyRead.note}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6f6f6f', fontStyle: 'italic' }}>fast · unconfirmed</span>
-                  </div>
-
+                  <CoinDossierScore
+                    {...dossierInputs}
+                    trigger={simpleCoinRead.upgrade} sentiment={intelHero.detail}
+                  />
+                  {/* One compact strip: the chart read leads, the levels sit in one
+                      row and the live tape is a pill. */}
+                  <CoinHeaderStrip
+                    hideScoreDetails
+                    wave={swingChartRead?.wave_analysis}
+                    plan={riskLevels?.plan}
+                    posture={simpleCoinRead}
+                    multiYearContext={chartReads.cycle?.multi_year_context}
+                    catalystPosture={swingChartRead?.catalyst_sentiment?.posture ? {
+                      ...swingChartRead.catalyst_sentiment.posture,
+                      trending_rank: swingChartRead.catalyst_sentiment.summary?.trending_rank,
+                    } : null}
+                    earlyRead={earlyRead}
+                    liveRanking={coinLiveRanking}
+                    chartLoading={Boolean(isOpen && coinSymbol) && !('swing' in chartReads) && !chartErrors.swing}
+                    formatPlanPrice={formatPlanPrice}
+                  />
                   {alertBanner ? (
                     <div className="mw-alert-banner" data-tone={alertBanner.tone}>
                       <span className="mw-alert-banner__headline">{alertBanner.headline}</span>
@@ -2294,53 +2494,101 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     </div>
                   ) : null}
 
-                  <section className={`cp-simple-read cp-simple-read--${simpleCoinRead.tone}`}>
-                    <div className="cp-simple-read__topline">
-                      <span>{coinSymbol} · RIGHT NOW</span>
-                      <span>
-                        {coinLiveRanking
-                          ? `Tape rank #${coinLiveRanking.live_rank}/${coinLiveRanking.universe_size} · Tape strength ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live`
-                          : `updated ${humanTime(lastCoinUpdateTs)}`}
-                      </span>
-                    </div>
-                    <div className="cp-simple-read__answer">{simpleCoinRead.label}</div>
-                    <h2>{simpleCoinRead.headline}</h2>
+                  {/* Chart & Read is the hero: always open, first thing on screen. */}
+                  <section className="cp-chart-hero" aria-label="Chart and read" data-testid="coin-chart-hero">
+                    <ChartReadPanel
+                      data={chartReadShown}
+                      loading={chartReadLoading}
+                      error={chartReadError}
+                      horizon={chartHorizon}
+                      onHorizonChange={setChartHorizon}
+                      cycleAnatomy={chartReads.cycle?.multiyear_cycle_anatomy || chartReads.cycle?.multi_year_context?.multiyear_cycle_anatomy || null}
+                      afterSetup={(
+                        // The four order-placing prices sit right under the chart.
+                        <RiskLevelsPanel
+                          data={riskLevels}
+                          loading={riskLevelsLoading}
+                          error={riskLevelsError}
+                          compact
+                          onOpen={() => setActiveTab('levels')}
+                        />
+                      )}
+                    />
+                  </section>
 
-                    <div className="cp-simple-read__columns">
-                      <div>
-                        <h3>What helps</h3>
-                        {simpleCoinRead.supports.length ? (
-                          <ul>{simpleCoinRead.supports.map((item) => <li key={item}>{item}</li>)}</ul>
-                        ) : (
-                          <p>Nothing meaningful is confirming the setup yet.</p>
-                        )}
+                  <section className="cp-full-chart mw-coin-chart-block" aria-label="Full candlestick chart">
+                    <div className="section-header">
+                      <h3>Full candlestick chart</h3>
+                      <div className="mini-toggle" role="group" aria-label="Chart source">
+                        {['auto', 'coinbase', 'binance'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
+                            onClick={() => setChartExchange(opt)}
+                            aria-pressed={chartExchange === opt}
+                          >
+                            {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
+                          </button>
+                        ))}
+                        <span className="mini-toggle-label">Using {tvResolved.source}</span>
                       </div>
-                      <div>
-                        <h3>What blocks it</h3>
-                        {simpleCoinRead.blockers.length ? (
-                          <ul>{simpleCoinRead.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
-                        ) : (
-                          <p>No major blocker is active.</p>
-                        )}
-                      </div>
                     </div>
-
-                    <div className="cp-simple-read__next">
-                      <span>WHAT WOULD IMPROVE IT</span>
-                      <strong>{simpleCoinRead.upgrade}</strong>
+                    <div className="tradingview-widget-container" style={{ height: '360px' }}>
+                      <iframe
+                        key={`${tvResolved.symbol}-${tvResolved.source}`}
+                        src={tvUrl}
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+                        title={`${coinSymbol} chart`}
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
                     </div>
-                    <div className="cp-simple-read__fails">
-                      <span>WHEN TO STOP TRUSTING IT</span>
-                      <strong>{simpleCoinRead.invalidation}</strong>
-                    </div>
-                    {simpleCoinRead.history ? (
-                      <div className="cp-simple-read__history">History: {simpleCoinRead.history}</div>
-                    ) : null}
                   </section>
 
                   <details className="cp-evidence-drawer">
                     <summary>See the evidence</summary>
                     <div className="cp-evidence-drawer__body">
+                      {/* The tape posture and its reasons, in full, for anyone who wants them. */}
+                      <section className={`cp-tape-posture cp-tape-posture--${simpleCoinRead.tone}`} data-testid="coin-tape-posture">
+                        <div className="section-header">
+                          <h3>Live tape posture · {simpleCoinRead.label}</h3>
+                          <p className="section-desc">
+                            {simpleCoinRead.headline}
+                            {coinLiveRanking
+                              ? ` Tape rank #${coinLiveRanking.live_rank}/${coinLiveRanking.universe_size} · strength ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live.`
+                              : ` Updated ${humanTime(lastCoinUpdateTs)}.`}
+                          </p>
+                        </div>
+                        <p className="cp-tape-posture__early">
+                          Fast lean (unconfirmed): <strong>{earlyRead.label}</strong>. {earlyRead.note}
+                        </p>
+                        <div className="cp-tape-posture__columns">
+                          <div>
+                            <h4>What helps</h4>
+                            {simpleCoinRead.supports.length ? (
+                              <ul>{simpleCoinRead.supports.map((item) => <li key={item}>{item}</li>)}</ul>
+                            ) : (
+                              <p>Nothing meaningful is confirming the setup yet.</p>
+                            )}
+                          </div>
+                          <div>
+                            <h4>What blocks it</h4>
+                            {simpleCoinRead.blockers.length ? (
+                              <ul>{simpleCoinRead.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
+                            ) : (
+                              <p>No major blocker is active.</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="cp-tape-posture__line"><span>What would improve it</span> {simpleCoinRead.upgrade}</p>
+                        <p className="cp-tape-posture__line"><span>When to stop trusting it</span> {simpleCoinRead.invalidation}</p>
+                        {simpleCoinRead.history ? (
+                          <p className="cp-tape-posture__line"><span>History</span> {simpleCoinRead.history}</p>
+                        ) : null}
+                      </section>
+
                       <SupportRail items={coinSupportRail} />
 
                       <div className="section-header">
@@ -2374,58 +2622,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     </div>
                   </details>
 
-                  <details
-                    className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block"
-                    open={chartDrawerOpen}
-                    onToggle={(e) => setChartDrawerOpen(e.currentTarget.open)}
-                  >
-                    <summary>Chart &amp; Read</summary>
-                    <div className="cp-evidence-drawer__body">
-                      {chartEventContext ? (
-                        <ChartReadPanel
-                          data={chartRead}
-                          loading={chartReadLoading}
-                          error={chartReadError}
-                        />
-                      ) : null}
-                      <div className="section-header">
-                        <p className="section-desc">{chartEventContext ? 'Chart below for reference.' : 'Chart first, plain-English read below.'}</p>
-                      <div className="mini-toggle" role="group" aria-label="Chart source">
-                        {['auto', 'coinbase', 'binance'].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
-                            onClick={() => setChartExchange(opt)}
-                            aria-pressed={chartExchange === opt}
-                          >
-                            {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
-                          </button>
-                        ))}
-                        <span className="mini-toggle-label">Using {tvResolved.source}</span>
-                      </div>
-                      </div>
-                      <div className="tradingview-widget-container" style={{ height: '360px' }}>
-                        <iframe
-                          key={`${tvResolved.symbol}-${tvResolved.source}`}
-                          src={tvUrl}
-                          style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
-                          title={`${coinSymbol} chart`}
-                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                        />
-                      </div>
-                      {!chartEventContext ? (
-                        <ChartReadPanel
-                          data={chartRead}
-                          loading={chartReadLoading}
-                          error={chartReadError}
-                        />
-                      ) : null}
-                    </div>
-                  </details>
-
                   <CoinOutcomeHistory
                     data={coinHistory}
                     loading={coinHistoryLoading}
@@ -2442,10 +2638,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
-
-          {activeTab === 'pulse' && (
-            <section className="tab-panel active" role="tabpanel">
+            <details className="cp-dossier-section" open={activeTab === 'pulse'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'pulse' ? 'coin' : 'pulse'); }}>Pulse evidence</summary>
+            <section className="tab-panel active">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its tactical read.</div>
               ) : (
@@ -2504,10 +2699,27 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
+            </details>
 
-          {activeTab === 'intel' && (
-            <section className="tab-panel active cp-intel-panel" role="tabpanel">
+            <details className="cp-dossier-section" open={activeTab === 'levels'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'levels' ? 'coin' : 'levels'); }}>Risk Levels</summary>
+            <section className="tab-panel active cp-risk-levels-panel">
+              {!coinSymbol ? (
+                <div className="tab-empty tab-empty--compact">Select a coin to build its risk levels.</div>
+              ) : (
+                <RiskLevelsPanel
+                  data={riskLevels}
+                  loading={riskLevelsLoading}
+                  error={riskLevelsError}
+                  waveAnalysis={swingChartRead?.wave_analysis}
+                />
+              )}
+            </section>
+            </details>
+
+            <details className="cp-dossier-section" open={activeTab === 'intel'}>
+              <summary onClick={(event) => { event.preventDefault(); setActiveTab(activeTab === 'intel' ? 'coin' : 'intel'); }}>Intel &amp; sentiment sources</summary>
+            <section className="tab-panel active cp-intel-panel">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Select a coin to load external context.</div>
               ) : (
@@ -2698,7 +2910,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                 </>
               )}
             </section>
-          )}
+            </details>
+          {coinSymbol ? <PaperExecutionControls collapsible
+            productId={`${coinSymbol}-USD`}
+            preview={swingChartRead?.paper_order_ticket ? {
+              ...swingChartRead.paper_order_ticket,
+              multi_year_context: chartReads.cycle?.multi_year_context,
+            } : null}
+          /> : null}
         </main>
 
         <footer className="popup-footer">

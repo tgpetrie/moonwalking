@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { getBrowserTimeZone } from '../../utils/browserTimeZone.js';
 
 const TradingViewChart = ({ symbol, theme = 'dark', autosize = true }) => {
   const containerRef = useRef(null);
@@ -15,7 +16,7 @@ const TradingViewChart = ({ symbol, theme = 'dark', autosize = true }) => {
       autosize,
       symbol: `BINANCE:${symbol}USDT`, // Defaulting to Binance USDT pairs
       interval: '60',
-      timezone: 'Etc/UTC',
+      timezone: getBrowserTimeZone(),
       theme,
       style: '1',
       locale: 'en',

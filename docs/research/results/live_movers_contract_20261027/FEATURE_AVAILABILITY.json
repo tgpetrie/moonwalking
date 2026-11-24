@@ -1,0 +1,37 @@
+{
+  "pct_1m": {
+    "first_nonnull_date": "2026-08-18",
+    "last_nonnull_date": "2026-10-17",
+    "nonnull_rows": 333673
+  },
+  "pct_3m": {
+    "first_nonnull_date": "2026-08-18",
+    "last_nonnull_date": "2026-10-17",
+    "nonnull_rows": 333984
+  },
+  "volume_change_1h_pct": {
+    "first_nonnull_date": "2026-08-18",
+    "last_nonnull_date": "2026-10-17",
+    "nonnull_rows": 333777
+  },
+  "pct_1h": {
+    "first_nonnull_date": "2026-08-18",
+    "last_nonnull_date": "2026-10-17",
+    "nonnull_rows": 68671
+  },
+  "trend_streak": {
+    "first_nonnull_date": "2026-08-18",
+    "last_nonnull_date": "2026-10-17",
+    "nonnull_rows": 230618
+  },
+  "quote_volume_usd": {
+    "first_nonnull_date": null,
+    "last_nonnull_date": null,
+    "nonnull_rows": 0
+  },
+  "realized_volatility_pct_hour": {
+    "first_nonnull_date": null,
+    "last_nonnull_date": null,
+    "nonnull_rows": 0
+  }
+}

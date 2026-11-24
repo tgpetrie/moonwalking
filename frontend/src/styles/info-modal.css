@@ -12,7 +12,7 @@
   color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -40,7 +40,7 @@
 .bh-info-panel {
   background: linear-gradient(145deg, #0a0512, #120820);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 24px;
   max-width: 600px;
   width: 90%;

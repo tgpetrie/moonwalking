@@ -13,6 +13,7 @@ Candle shape (Coinbase Exchange): ``[time, low, high, open, close, volume]``.
 from __future__ import annotations
 
 from statistics import median
+import math
 from typing import Any
 
 _ATR_PERIOD = 14
@@ -36,7 +37,9 @@ def _to_rows(
             )
         except (TypeError, ValueError):
             continue
-        if high <= 0 or low <= 0 or close <= 0:
+        if (not all(math.isfinite(v) for v in (ts, low, high, open_, close, volume))
+                or low <= 0 or volume < 0 or ts < 0
+                or not low <= min(open_, close) <= max(open_, close) <= high):
             continue
         rows.append((ts, low, high, open_, close, volume))
     # Ascending by timestamp so true-range sequencing is correct.
@@ -78,6 +81,7 @@ def compute_levels(
     current_price: float | None,
     *,
     granularity_seconds: int = 3600,
+    include_candles: bool = False,
 ) -> dict[str, Any] | None:
     """Derive descriptive levels + behavior from OHLC candles.
 
@@ -136,7 +140,7 @@ def compute_levels(
     def _r(value: float | None) -> float | None:
         return round(value, 8) if value is not None else None
 
-    return {
+    result = {
         "support": _r(support),
         "resistance": _r(resistance),
         "atr": _r(atr),
@@ -154,6 +158,14 @@ def compute_levels(
         "outcome_validated": False,
         "source": "coinbase_candles",
     }
+    if include_candles:
+        result["chart"] = {
+            "candles": [list(row) for row in rows],
+            "granularity_seconds": granularity_seconds,
+            "last_close_at": rows[-1][0] + granularity_seconds,
+            "source": "coinbase_candles",
+        }
+    return result
 
 
 __all__ = ["compute_levels"]

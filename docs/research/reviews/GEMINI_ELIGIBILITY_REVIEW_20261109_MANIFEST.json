@@ -1,0 +1,24 @@
+{
+  "received_date_pacific": "2026-11-09",
+  "review_archive": "docs/research/reviews/GEMINI_ELIGIBILITY_REVIEW_20261109.md",
+  "raw_attachment_sha256": "834a58a5d20a343b74fd362e816c933be77f50ef39c1c45935d5f326800a590b",
+  "archive_sha256_UTF8_LF": "26263e0b1304065b77c3bf4c07ccd5104bd000736e4b31150fa9f656ca0dbf83",
+  "archive_normalization": "UTF-8, LF, one final newline and no trailing line whitespace; clipped table text retained as received",
+  "source_packet_commit": "17b87ac261cae7011b168ca58228905f055748ff",
+  "source_packet_sha256": "ca6e28d5f0f006b04bf0cf1512eef1775ed4b94fdb9dd8ceccf36995617ac714",
+  "listed_source_paths_lengths_and_shortened_digests_matched": 15,
+  "gemini_reported_source_sections_read": 15,
+  "gemini_hashes_computed": false,
+  "gemini_tests_run": false,
+  "gemini_empirical_performance_verified": false,
+  "codex_existing_focused_tests_passed": 88,
+  "codex_boundary_checks": [
+    "synthetic_btc_self_benchmark_F5_and_forward_grade",
+    "decimal_120_bin_median_boundary",
+    "archived_pilot_counts_clocks_and_feature_readiness"
+  ],
+  "disposition": "received_reconciled_design_direction_only_no_numeric_policy_or_runtime_change",
+  "triage": "docs/research/INSTANT_ELIGIBILITY_REVIEW_TRIAGE_20261109.md",
+  "codex_guardrails_passed": true,
+  "codex_preserved_local_journal_digest_matched": true
+}

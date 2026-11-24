@@ -9,9 +9,129 @@ returned descending by time from the API. Pass raw; this module sorts ascending.
 
 from __future__ import annotations
 
+import logging
+import json
+import math
+import os
+from pathlib import Path
+import re
+import sqlite3
+import time
+from contextlib import closing
+from datetime import datetime, timezone
 from typing import Any
 
-__all__ = ["analyze_candles"]
+import requests
+
+__all__ = [
+    "analyze_candles",
+    "chart_candle_series",
+    "build_wave_analysis",
+    "fetch_multi_year_daily_candles",
+    "aggregate_weekly_candles",
+    "cached_cycle_products",
+    "CYCLE_HISTORY_YEARS",
+]
+
+# Daily history loaded for a cycle read. The cycle range and Fibonacci grids
+# use the trailing three years (``cycle_analysis.CYCLE_WINDOW_DAYS``); the
+# fourth year is warm-up, so the 200-week average and the monthly MACD have
+# enough bars behind them.
+CYCLE_HISTORY_YEARS = 4
+
+_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400, "1w": 604800}
+# Higher timeframe used for the wave read's trend check, built from the same candles.
+_HIGHER_TIMEFRAME = {"1m": "15m", "5m": "1h", "15m": "4h", "1h": "4h", "4h": "1d", "1d": "1w"}
+# Candles sent with the wave read: the whole window the swings were read from,
+# so earlier higher lows and lower highs can be drawn, not just the last count.
+_WAVE_CHART_BARS = 300
+
+
+def fetch_multi_year_daily_candles(product_id: str, years: int = 3) -> list[list[float]]:
+    """Fetch complete daily Coinbase bars, caching a completed UTC day's history."""
+    product = str(product_id or "").upper()
+    if not re.fullmatch(r"[A-Z0-9]{1,15}-USD", product):
+        raise ValueError("Invalid Coinbase product ID")
+    if isinstance(years, bool) or not isinstance(years, int) or not 1 <= years <= 4:
+        raise ValueError("years must be an integer between 1 and 4")
+    end = int(time.time() // 86400) * 86400
+    start = end - math.ceil(years * 365.25) * 86400
+    path = Path(os.environ.get("MW_CYCLE_HISTORY_DB") or Path(__file__).resolve().parent / "data" / "cycle_history.sqlite")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path, timeout=10)) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS cycle_history (product TEXT, years INTEGER, day_end INTEGER, candles TEXT NOT NULL, PRIMARY KEY(product, years))")
+        hit = conn.execute("SELECT candles FROM cycle_history WHERE product=? AND years=? AND day_end=?", (product, years, end)).fetchone()
+        if hit:
+            return json.loads(hit[0])
+
+    collected = {}
+    cursor = end
+    while cursor > start:
+        begin = max(start, cursor - 300 * 86400)
+        params = {
+            "granularity": 86400,
+            "start": datetime.fromtimestamp(begin, timezone.utc).isoformat(),
+            "end": datetime.fromtimestamp(cursor - 1, timezone.utc).isoformat(),
+        }
+        response = requests.get(
+            f"https://api.exchange.coinbase.com/products/{product}/candles",
+            params=params, timeout=15,
+        )
+        response.raise_for_status()
+        page = response.json()
+        if not isinstance(page, list):
+            raise ValueError("Coinbase returned an invalid candle page")
+        for row in page:
+            if not isinstance(row, list) or len(row) < 6:
+                raise ValueError("Coinbase returned a malformed daily candle")
+            try:
+                bar = [float(value) for value in row[:6]]
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Coinbase returned a malformed daily candle") from exc
+            ts, low, high, opening, close, volume = bar
+            if not all(math.isfinite(value) for value in bar) or ts % 86400 or low <= 0 or volume < 0 or not low <= min(opening, close) <= max(opening, close) <= high:
+                raise ValueError("Coinbase returned an invalid daily candle")
+            if begin <= ts < cursor:
+                collected[int(ts)] = bar
+        cursor = begin
+    candles = [collected[ts] for ts in sorted(collected, reverse=True)]
+    with closing(sqlite3.connect(path, timeout=10)) as conn, conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO cycle_history VALUES (?, ?, ?, ?)",
+            (product, years, end, json.dumps(candles, allow_nan=False)),
+        )
+    return candles
+
+
+def cached_cycle_products(years: int = CYCLE_HISTORY_YEARS) -> list[str]:
+    """Products with daily history already in the cycle cache, newest first."""
+    path = Path(os.environ.get("MW_CYCLE_HISTORY_DB") or Path(__file__).resolve().parent / "data" / "cycle_history.sqlite")
+    if not path.exists():
+        return []
+    try:
+        with closing(sqlite3.connect(path, timeout=10)) as conn:
+            rows = conn.execute(
+                "SELECT product FROM cycle_history WHERE years=? ORDER BY day_end DESC, product",
+                (years,),
+            ).fetchall()
+    except sqlite3.Error:
+        return []
+    return [str(row[0]) for row in rows]
+
+
+def aggregate_weekly_candles(daily: list[list[Any]] | None) -> list[list[float]]:
+    """Aggregate complete Monday–Sunday UTC weeks; omit weeks with missing days."""
+    rows = _normalize_candles(daily or [])
+    groups: dict[int, list[tuple]] = {}
+    for row in rows:
+        start = int((row[0] + 3 * 86400) // 604800) * 604800 - 3 * 86400
+        groups.setdefault(start, []).append(row)
+    result = []
+    for start, week in sorted(groups.items()):
+        if [row[0] for row in week] != [start + day * 86400 for day in range(7)]:
+            continue
+        result.append([float(start), min(r[1] for r in week), max(r[2] for r in week), week[0][3], week[-1][4], sum(r[5] for r in week)])
+    return result
 
 
 # ─── normalise ────────────────────────────────────────────────────────────────
@@ -41,6 +161,31 @@ def _normalize_candles(
         rows.append((ts, low, high, open_, close, vol))
     rows.sort(key=lambda r: r[0])
     return rows
+
+
+def chart_candle_series(
+    raw: list[list[Any]], timeframe: str, *, as_of_ts: float
+) -> list[dict[str, float]]:
+    """Chronological OHLCV for the selected timeframe, even without a wave read."""
+    step = _SECONDS[timeframe]
+    bars = {}
+    for ts, low, high, opening, close, volume in _normalize_candles(raw):
+        if not all(math.isfinite(value) for value in (ts, low, high, opening, close, volume)):
+            continue
+        if (
+            ts < 0 or ts + step > as_of_ts or volume < 0
+            or not low <= min(opening, close) <= max(opening, close) <= high
+        ):
+            continue
+        bars[ts] = {
+            "timestamp": ts,
+            "open": opening,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+    return [bars[ts] for ts in sorted(bars)]
 
 
 def _price_fmt(value: float) -> float:
@@ -418,6 +563,112 @@ def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
     return None
 
 
+# ─── wave structure ───────────────────────────────────────────────────────────
+
+
+def _structure_layer():
+    try:
+        from chart_structure import plain_story, short_headline, swing_history
+    except ImportError:
+        from backend.chart_structure import (
+            plain_story,
+            short_headline,
+            swing_history,
+        )
+    return plain_story, swing_history, short_headline
+
+
+def _wave_fallback(reason: str) -> dict[str, Any]:
+    """Same shape as an engine result, saying no wave read is available."""
+    plain_story, swing_history, _ = _structure_layer()
+    return {
+        "available": False,
+        "reason": reason,
+        "active_pattern": "none",
+        "status": "none",
+        "bias": "neutral",
+        "pivots": [],
+        "wave_points": [],
+        "projected_c_zone": None,
+        "invalidation_price": None,
+        "target_price": None,
+        "fib_ratios": {},
+        "confluence_factors": [],
+        "confluence_score": 0.0,
+        "confluence_confirmed": False,
+        "confidence": 0.0,
+        "confidence_label": "low",
+        "summary": "Wave structure is not available for this chart.",
+        "swing_history": swing_history([]),
+        "story": plain_story(None),
+        "short_headline": None,
+        "outcome_validated": False,
+    }
+
+
+def build_wave_analysis(
+    raw_candles: list[list[Any]] | None,
+    timeframe: str = "1h",
+    higher_tf_candles: list[list[Any]] | None = None,
+    *,
+    as_of_ts: float | None = None,
+) -> dict[str, Any]:
+    """Elliott wave read for the chart payload. Never raises.
+
+    ``as_of_ts`` drops candles that have not closed by that time, so a forming
+    bar cannot confirm or move a swing. Without ``higher_tf_candles`` the
+    trend check is resampled from the same candles when there are enough.
+    Returns the fallback shape when history is short or the engine fails.
+
+    Plain-English layers ride along with every read: ``swing_history`` (each
+    confirmed swing labeled as a higher or lower high or low), ``story`` (the
+    read restated as numbered steps) and ``short_headline`` (one line for a
+    header, or ``None``).
+    """
+    try:
+        try:
+            from elliott_wave_engine import analyze_wave_structure, resample_candles
+        except ImportError:
+            from backend.elliott_wave_engine import (
+                analyze_wave_structure,
+                resample_candles,
+            )
+
+        step = _SECONDS.get(timeframe)
+        rows = _normalize_candles(raw_candles or [])
+        if as_of_ts is not None and step:
+            rows = [r for r in rows if r[0] + step <= as_of_ts]
+        candles = [list(r) for r in rows]
+        higher_name = _HIGHER_TIMEFRAME.get(timeframe)
+        if higher_tf_candles is None:
+            if higher_name:
+                higher_tf_candles = aggregate_weekly_candles(candles) if timeframe == "1d" else resample_candles(candles, _SECONDS[higher_name])
+        elif not higher_tf_candles:
+            higher_name = None  # the caller supplied no higher-timeframe bars
+        result = dict(
+            analyze_wave_structure(candles, higher_tf_candles=higher_tf_candles)
+        )
+        result["timeframe"] = timeframe
+        result["higher_timeframe"] = higher_name
+        plain_story, swing_history, short_headline = _structure_layer()
+        result["swing_history"] = swing_history(
+            result.get("pivots"), candles[-1][4] if candles else None
+        )
+        result["story"] = plain_story(result)
+        result["short_headline"] = short_headline(result)
+        if result.get("available"):
+            result["chart"] = {
+                "candles": candles if timeframe == "1d" else candles[-_WAVE_CHART_BARS:],
+                "granularity_seconds": step,
+            }
+        return result
+    except Exception as exc:  # the chart read must survive a wave failure
+        logging.warning("[ChartRead] wave analysis failed: %s", exc)
+        fallback = _wave_fallback("engine_error")
+        fallback["timeframe"] = timeframe
+        return fallback
+
+
 # ─── public API ───────────────────────────────────────────────────────────────
 
 
@@ -426,11 +677,18 @@ def analyze_candles(
     symbol: str,
     timeframe: str = "1h",
     event_context: dict[str, Any] | None = None,
+    *,
+    wave_candles: list[list[Any]] | None = None,
+    higher_tf_candles: list[list[Any]] | None = None,
 ) -> dict | None:
     """Analyze raw OHLCV candles and return a basic-user-friendly read.
 
     Returns ``None`` when there are not enough candles to produce an honest read.
     Caller is responsible for fetching candles; this module does no network I/O.
+
+    ``wave_analysis`` is always present. It reads ``wave_candles`` (a longer
+    history of completed bars) when given, else the same candles, and falls
+    back to an unavailable result when the history is too short.
     """
     rows = _normalize_candles(raw_candles)
     if len(rows) < 5:
@@ -487,4 +745,9 @@ def analyze_candles(
         "not_financial_advice": True,
         "candle_count": len(rows),
         "window_hours": round(len(rows) * _hours_per_candle(timeframe), 1),
+        "wave_analysis": build_wave_analysis(
+            wave_candles if wave_candles is not None else raw_candles,
+            timeframe,
+            higher_tf_candles,
+        ),
     }

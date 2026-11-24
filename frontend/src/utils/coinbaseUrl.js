@@ -1,25 +1,33 @@
 const COINBASE_ORIGIN = "https://www.coinbase.com";
 
-export function coinbaseSpotUrl(row) {
-  // Prefer an explicit trade URL if backend provides it.
-  const trade = row?.trade_url || row?.tradeUrl || row?.trade;
-  if (trade && typeof trade === 'string' && trade.startsWith('http')) {
-    return trade;
-  }
-
-  // Get product_id or construct from symbol
-  let pid = row?.product_id || row?.productId || row?.product;
-
-  // If no product_id, construct it from symbol (e.g., "ETH" -> "ETH-USD")
-  if (!pid && row?.symbol) {
-    const symbol = String(row.symbol).toUpperCase().trim();
-    if (symbol) {
-      pid = symbol.includes('-') ? symbol : `${symbol}-USD`;
+// Trade destinations always use the USD spot pair, never a backend URL override.
+export function getCoinbaseAdvancedSpotUrl(coin) {
+  const candidates = typeof coin === "string"
+    ? [coin]
+    : [coin?.product_id, coin?.productId, coin?.product, coin?.pair,
+        coin?.symbol, coin?.base_currency, coin?.ticker, coin?.base];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const base = candidate.trim().toUpperCase().split(/[-/]/)[0].trim();
+    if (/^[A-Z0-9]+$/.test(base)) {
+      return `${COINBASE_ORIGIN}/advanced-trade/spot/${base}-USD`;
     }
   }
-
-  if (!pid) return null;
-  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(String(pid).toUpperCase())}`;
+  return null;
 }
 
+// News/source navigation is separate from the generated Coinbase Trade link.
+export function getExternalAlertSourceUrl(value) {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
+    if (["www.coinbase.com", "coinbase.com"].includes(url.hostname.replace(/\.$/, ""))) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export const coinbaseSpotUrl = getCoinbaseAdvancedSpotUrl;
 export default coinbaseSpotUrl;

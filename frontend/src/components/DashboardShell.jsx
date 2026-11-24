@@ -17,14 +17,32 @@ import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
-import MarketSignalCard from "./MarketSignalCard.jsx";
+import IndustryPulse from "./IndustryPulse.jsx";
+import AgentsPage from "../mvp/AgentsPage.jsx";
+import { useMacroCycleScan } from "../hooks/useMacroCycleScan.js";
+import useHoldingSymbols from "./alerts/useHoldingSymbols.js";
+import bhabitHeaderLogo from "../assets/brand/bhabit-header-logo.svg";
+import bhabitWordmark from "../assets/brand/bhabit-wordmark.svg";
+import moonRabbitMark from "../assets/brand/moon-rabbit-mark.svg";
+
+// One navigation row: live radar views on the left, desk pages after the divider.
+const WORKSPACE_VIEWS = [
+  ["live", "Live Tape"],
+  ["atlas", "Cycle Atlas & Pulse"],
+  ["agents", "Mission Control"],
+];
+const DESK_PAGES = [
+  ["/app/watchlists", "Watchlists"],
+  ["/app/portfolio", "Portfolio"],
+  ["/app/scorecard", "Scorecard"],
+];
 
 const BOARD_MOVEMENT_LEGEND = [
   {
     symbol: "CONFIRMED",
     tone: "neutral",
     label: "Move quality",
-    detail: "Confirmed means multiple timeframes and evidence agree. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
+    detail: "Tape confirmed means current upside tape strength scores high; Tape confirmed down means current downside tape strength scores high. Recent momentum, volume, and activity are all reading well in that direction. It does not guarantee every timeframe agrees; open the coin for the full multi-factor read. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
   },
   {
     symbol: "+2 / -2",
@@ -263,11 +281,12 @@ function BoardEvidenceLine({ summary }) {
 }
 
 export default function DashboardShell({ onInfo }) {
+  const [workspaceView, setWorkspaceView] = useState("live");
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
   const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
   const boardStats = boardOutcomes?.boards || {};
-  const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
+  const { items: watchlistItems, toggle: toggleWatchlist, isAuthenticated } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentLaunchContext, setSentimentLaunchContext] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
@@ -354,7 +373,12 @@ export default function DashboardShell({ onInfo }) {
     toggleWatchlist({ symbol, price });
   };
 
-  const watchlistSymbols = watchlistItems.map((item) => item.symbol);
+  const watchlistSymbols = useMemo(() => watchlistItems.map((item) => item.symbol), [watchlistItems]);
+  // One scan poll shared by Industry Pulse and the INTELLIGENCE_LOG desk tape.
+  const cycleScanState = useMacroCycleScan(watchlistSymbols);
+  // Coinbase holdings resolve to an empty set when signed out or unavailable.
+  const holdingSymbolSet = useHoldingSymbols({ enabled: isAuthenticated === true, cached: false });
+  const heldSymbols = useMemo(() => Array.from(holdingSymbolSet), [holdingSymbolSet]);
   const onInfoProp = onInfo || handleInfo;
   const uiLoading = loading || warming;
 
@@ -425,10 +449,12 @@ export default function DashboardShell({ onInfo }) {
 
   return (
     <div className="bh-app">
-      <header className="bh-topbar">
+      <header className="bh-topbar bh-topbar--unified">
         <div className="bh-logo">
-          <img src="/purple-rabbit-bg.png" alt="" className="bh-logo-rabbit" />
-          <span className="bh-logo-text">BHABIT CB INSIGHT</span>
+          <a className="bh-brand" href="/" aria-label="BHABIT home">
+            <img className="bh-brand__mark" src={moonRabbitMark} alt="" width="28" height="28" />
+            <img className="bh-brand__wordmark" src={bhabitWordmark} alt="" />
+          </a>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
             <span className="live-updated">
@@ -439,39 +465,43 @@ export default function DashboardShell({ onInfo }) {
                 {pressurePill.label} {pressurePill.value.toFixed(0)}
               </span>
             ) : null}
-            <MarketSignalCard />
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
           </div>
         </div>
-        <nav className="bh-topbar-right">
-          <a href="/app/portfolio" className="bh-topbar-link bh-topbar-link--ghost">
-            Portfolio
-          </a>
-          <a href="/app/scorecard" className="bh-topbar-link bh-topbar-link--ghost">
-            Scorecard
-          </a>
-          <a href="/app/watchlists" className="bh-topbar-link bh-topbar-link--ghost">
-            Watchlists
-          </a>
-        </nav>
+        <div className="bh-topnav">
+          <nav className="bh-workspace-tabs bh-utabs bh-topnav__views" aria-label="Workspace views">
+            {WORKSPACE_VIEWS.map(([key, label]) => (
+              <button type="button" key={key} aria-pressed={workspaceView === key}
+                onClick={() => setWorkspaceView(key)}>{label}</button>
+            ))}
+          </nav>
+          <span className="bh-topnav__divider" aria-hidden="true" />
+          <nav className="bh-utabs bh-topnav__desk" aria-label="Desk pages">
+            {DESK_PAGES.map(([href, label]) => (
+              <a key={href} href={href} className="bh-topbar-link">{label}</a>
+            ))}
+          </nav>
+        </div>
       </header>
 
-      <section className="bh-brand-hero" aria-label="BHABIT">
+      <section className="bh-brand-hero bh-brand-hero--compact" aria-label="BHABIT">
         <img
-          src="/bhabit-logo.png"
+          src={bhabitHeaderLogo}
           alt="BHABIT"
           className="bh-brand-hero__logo"
         />
       </section>
 
       <div ref={boardRef} className="board-core mw-board" data-board="1">
+        {workspaceView === "agents" ? <div className="mw-app"><AgentsPage /></div> : null}
+        {workspaceView !== "agents" ? <>
         {/* 1 Hour Price Change Banner - Full Width */}
-        <div className="bh-banner-block">
+        {workspaceView === "live" ? <div className="bh-banner-block">
           <div className="bh-banner-label">1H PRICE</div>
           <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
-        </div>
+        </div> : null}
 
         <main className="bh-main">
           <BoardWrapper>
@@ -479,11 +509,13 @@ export default function DashboardShell({ onInfo }) {
               <div className="bh-board">
                 <div className="bh-rail">
                   <div className="bh-rail-stack">
+                    {workspaceView === "atlas" ? <>
+                      <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
+                      <IndustryPulse symbols={watchlistSymbols} onInfo={onInfoProp} scanState={cycleScanState} />
+                    </> : <>
                     <div className="bh-board-legend-bar">
                       <BoardRowLegend />
                     </div>
-
-                    <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
 
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
@@ -540,11 +572,17 @@ export default function DashboardShell({ onInfo }) {
                       </section>
                     </div>
 
+                    </>}
+                    {workspaceView === "atlas" ? <>
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail">
                         <AnomalyStream
                           data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
                           volumeData={bannerVolume1h || []}
+                          cycleScan={cycleScanState.status === "ready" ? cycleScanState.scan : null}
+                          scanError={cycleScanState.error}
+                          watchSymbols={watchlistSymbols}
+                          heldSymbols={heldSymbols}
                         />
                       </div>
                     </section>
@@ -561,6 +599,7 @@ export default function DashboardShell({ onInfo }) {
                         </div>
                       </div>
                     </section>
+                    </> : null}
                   </div>
                 </div>
               </div>
@@ -569,10 +608,11 @@ export default function DashboardShell({ onInfo }) {
         </main>
 
         {/* 1 Hour Volume Banner - Full Width */}
-        <div className="bh-banner-block">
+        {workspaceView === "live" ? <div className="bh-banner-block">
           <div className="bh-banner-label">1H VOLUME</div>
           <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
-        </div>
+        </div> : null}
+        </> : null}
       </div>
 
       {/* Insights floating card aligned to board rails */}

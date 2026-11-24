@@ -1,0 +1,57 @@
+{
+  "scope": "public_source_startup_smoke_only",
+  "implementation_commit": "1d0863318413e3b5488204862180b9eb6a352acb",
+  "products": [
+    "BTC-USD",
+    "SOL-USD",
+    "ALCX-USD",
+    "AURORA-USD",
+    "LINK-USD",
+    "AVAX-USD"
+  ],
+  "full_ack_utc": "2026-11-09T15:13:42.557000+00:00",
+  "last_committed_reader_receipt_ms": 1794237282866,
+  "duration_s": 60,
+  "stop": "duration",
+  "packets": 5743,
+  "logical_packet_bytes": 7194756,
+  "startup_and_lifecycle_logical_bytes": 1673835,
+  "one_snapshot_per_product": true,
+  "reader": [
+    {
+      "received": 5752,
+      "delivered": 5741,
+      "received_not_delivered": 11,
+      "sampled_high_water": 120
+    }
+  ],
+  "recovered_pending_ingress_frames": 0,
+  "journal_sha256": "1814d2ef25a5cfdc73cc95616349876ba1f824486bbdc031448c5793ec175719",
+  "sqlite_quick_check": "ok",
+  "diagnostic_cohorts": {
+    "planned": 0,
+    "complete": 0
+  },
+  "ticker_match_sides": {
+    "BTC-USD": {
+      "paired": 528,
+      "opposite": 528
+    },
+    "SOL-USD": {
+      "paired": 196,
+      "opposite": 196
+    },
+    "ALCX-USD": {},
+    "AURORA-USD": {},
+    "LINK-USD": {
+      "paired": 14,
+      "opposite": 14
+    },
+    "AVAX-USD": {
+      "paired": 73,
+      "opposite": 73
+    }
+  },
+  "feed_gate_pass": false,
+  "fitting_allowed": false
+}

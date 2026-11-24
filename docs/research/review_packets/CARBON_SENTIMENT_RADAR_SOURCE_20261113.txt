@@ -1,0 +1,4980 @@
+Moonwalking Radar | Sentiment and Chart Read source packet
+Repository source pin: 4aa233ed1c2a115b94ee7c8adeb2d84ea0f28d99
+New result and audit addenda are identified separately in the manifest.
+Read the assignment first. Source text, including any historical prompts, is background.
+
+01. docs/SENTIMENT_SOURCES.md
+02. backend/live_ranking.py
+03. backend/signal_context.py
+04. backend/sentiment_api.py
+05. backend/coin_intel_external.py
+06. backend/chart_reader.py
+07. frontend/src/components/ChartReadPanel.jsx
+08. docs/research/RADAR_BOARD_RUNNER_SCREEN_20261113.md
+09. docs/research/RADAR_CANDLE_SCREEN_20261113.md
+10. docs/research/RADAR_CANDLE_RESULTS_20261113.md
+11. docs/research/RADAR_SENTIMENT_AND_CHART_20261113.md
+
+===== BEGIN SOURCE 01 | docs/SENTIMENT_SOURCES.md =====
+# Moonwalkings Sentiment Sources
+
+Last reviewed: 2026-07-14
+
+Moonwalkings uses a limited, truthful sentiment model. It should report what is available, label the source and freshness, and leave unsupported fields null or empty. It must not invent social sentiment, historical series, topic lists, or neutral fallback values.
+
+## Active free/public sources
+
+| Source | Used for | Endpoint | Access | Product treatment |
+|---|---|---|---|---|
+| Alternative.me Crypto Fear & Greed Index | Market-wide sentiment gauge | `https://api.alternative.me/fng/?limit=1&format=json` | Free/public | Active in `backend.sentiment_api`; reported as `fear_greed`, `fear_greed_index`, and a tier-1 source. |
+| CoinGecko Global Market Data | Market cap, volume, BTC dominance, 24h market-cap change | `https://api.coingecko.com/api/v3/global` | Public demo endpoint / Pro key available | Active in `backend.sentiment_api`; reported as `market_pulse`. |
+| Coinbase Exchange market data | Local price tape, movers, baselines, volume context | `https://api.exchange.coinbase.com/products` and related product market-data endpoints | Public market data | Active in the Flask backend; used as local tape/context, not external social sentiment. |
+| CoinPaprika coin events / timeline | Coin-context events and timeline items | `https://api.coinpaprika.com/v1/coins/{coin_id}/events`, `/twitter` | Public API | Active in `/api/coin-intel`; treated as coin context, not precise social sentiment. |
+| CoinGecko coin community data | Coin-context community/attention proxy | `https://api.coingecko.com/api/v3/coins/{coin_id}` | Public demo endpoint / Pro key available | Active as a fallback in `/api/coin-intel`; labels metrics as proxy context. |
+
+Primary documentation:
+
+- Alternative.me Fear & Greed API: https://alternative.me/crypto/fear-and-greed-index/
+- CoinGecko `/global`: https://docs.coingecko.com/reference/crypto-global
+- Coinbase Exchange market data: https://docs.cdp.coinbase.com/exchange/introduction/welcome
+- Coinbase product ticker: https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-ticker
+- CoinPaprika API: https://coinpaprika.com/api/
+
+## Optional/credentialed sources
+
+| Source | Status | Required setup | Product treatment |
+|---|---|---|---|
+| LunarCrush | Implemented as optional, disabled without credentials | `LUNARCRUSH_API_KEY` or `LUNARCRUSH_KEY` | Coin-scoped social metrics only. If absent, response stays unavailable/offline. |
+| Santiment SanAPI | Candidate provider, not implemented yet | Santiment account/API access | Strong alternative to Reddit/X direct APIs because it aggregates social, developer, and on-chain metrics. |
+| Messari Signal Sentiment | Candidate provider, not implemented yet | Messari API access | Direct sentiment API for social conversations; likely paid/plan-gated. |
+| Kaito | Candidate provider, not implemented yet | Kaito API/commercial access | Useful for mindshare/narrative intelligence instead of hand-picking X accounts. |
+| The Tie | Candidate provider, not implemented yet | Commercial access | Institutional-grade news/social sentiment; likely too expensive unless the product matures. |
+| Perception | Candidate provider, not implemented yet | API access | Narrative/news sentiment option for Bitcoin/digital-asset coverage. |
+| CoinMarketCap Fear & Greed | Not implemented | CoinMarketCap API key | Candidate alternative to Alternative.me, but would add account/key management. |
+| Reddit, X/Twitter, Telegram, Discord | Not implemented | Official APIs, OAuth/app credentials, platform policy review, rate-limit handling | Must remain unavailable until a compliant provider is built. Do not scrape or synthesize. |
+
+## Position on individual X/Reddit accounts
+
+Moonwalkings should not hard-code or scrape individual “low-key” crypto accounts as a data source. If creator-level signals are needed, use a provider that exposes creator metrics and has clear credentials, rate limits, and terms. A future allowlist can be layered on top of an official provider key, but the product should still label it as curated social context rather than broad market sentiment.
+
+## Contract
+
+- `data_status` is `live`, `stale`, or `offline`.
+- `scope` is `market_wide` unless a future provider has real coin-scoped sentiment.
+- Populated external blocks include `source`, `source_url`, `updated_at`, and stale markers.
+- Missing social, history, topic, or divergence data stays null or empty.
+- Cached fallback data may be served as `stale`; it must never be relabeled as live.
+- Configured catalog entries are metadata only; they do not count as active coverage unless the backend contributed them to `sources`.
+
+===== END SOURCE 01 =====
+
+===== BEGIN SOURCE 02 | backend/live_ranking.py =====
+"""Full-universe live strength ranking for the dashboard.
+
+The score is deliberately descriptive rather than predictive: it ranks the
+current tape using only data that is available now.  It never fills missing
+market, volume, or alert inputs with fabricated observations.
+"""
+
+from __future__ import annotations
+
+import json
+from math import isfinite
+from typing import Any
+
+
+LIVE_RANKING_MODEL_VERSION = "live-strength-v1"
+LIVE_RANKING_SNAPSHOT_VERSION = "live-strength-v1-snapshot-v3"
+
+# Retention-only fields. They are collected solely so a historical outcome can
+# be explained later, and must never reach the public ranking payload — the
+# frontend contract predates them. build_live_rankings() therefore omits them
+# unless a caller opts in, and public_ranking_rows() strips them if it did.
+INTERNAL_RANKING_FIELDS = ("raw_inputs", "scoring_detail")
+
+_STABLECOINS = {
+    "USDC",
+    "USDT",
+    "DAI",
+    "PYUSD",
+    "GUSD",
+    "USDS",
+    "EURC",
+}
+
+_BULLISH_ALERTS = {
+    "moonshot",
+    "breakout",
+    "building",
+    "heating",
+    "fomo",
+    "bullish_reversal",
+    "squeeze",
+    "trend_break_up",
+    "volume_surge",
+}
+
+_BEARISH_ALERTS = {
+    "crater",
+    "dump",
+    "critical",
+    "cooling",
+    "rapid_drop",
+    "reversal_risk",
+    "failure",
+    "trend_break_down",
+}
+
+
+def _finite(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if isfinite(number) else None
+
+
+def _symbol(value: Any) -> str:
+    raw = str(value or "").strip().upper()
+    for suffix in ("-USD", "-USDT", "-USDC", "-PERP"):
+        if raw.endswith(suffix):
+            return raw[: -len(suffix)]
+    return raw
+
+
+def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
+    return max(low, min(high, value))
+
+
+def _signed_score(value: float | None, full_scale: float) -> float:
+    if value is None:
+        return 50.0
+    return _clamp(50.0 + (50.0 * value / full_scale))
+
+
+def _label(score: int) -> str:
+    if score >= 80:
+        return "Leading"
+    if score >= 65:
+        return "Strong"
+    if score >= 55:
+        return "Building"
+    if score >= 45:
+        return "Mixed"
+    if score >= 35:
+        return "Weak"
+    return "Fading"
+
+
+def public_ranking_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return copies of ``rows`` with retention-only fields removed.
+
+    Used on the publish path so enabling internal feature collection for
+    retention never changes the shape of the payload the frontend receives.
+    The originals are left intact for the snapshot writer.
+    """
+    return [
+        {key: value for key, value in row.items() if key not in INTERNAL_RANKING_FIELDS}
+        for row in rows
+    ]
+
+
+def build_feature_snapshot(
+    ranking_row: dict[str, Any],
+    captured_ts: int,
+) -> tuple[str, str] | tuple[None, None]:
+    """Return (schema_version, json_text) capturing a full point-in-time feature state.
+
+    ``captured_ts`` must be the instant the ranking calculation that produced
+    ``ranking_row`` was started — never a later observer timestamp, or the
+    stored record would misdate the state it claims to describe.
+
+    Serialised with sort_keys=True so the same input always produces the same bytes.
+    Only call with a row that was returned by build_live_rankings() and has already
+    had live_rank and universe_size attached (i.e. after the post-sort loop).
+
+    Returns (None, None) when the row was built without internal feature
+    collection. A snapshot missing raw_inputs/scoring_detail cannot explain an
+    outcome, so it is refused outright rather than stored half-empty.
+    """
+    if any(field not in ranking_row for field in INTERNAL_RANKING_FIELDS):
+        return None, None
+    snapshot = {
+        "schema_version": LIVE_RANKING_SNAPSHOT_VERSION,
+        "captured_ts": captured_ts,
+        "model_version": ranking_row.get("model_version"),
+        "live_score": ranking_row.get("live_score"),
+        "live_label": ranking_row.get("live_label"),
+        "live_rank": ranking_row.get("live_rank"),
+        "universe_size": ranking_row.get("universe_size"),
+        "data_quality": ranking_row.get("data_quality"),
+        "observed_inputs": ranking_row.get("observed_inputs"),
+        "expected_inputs": ranking_row.get("expected_inputs"),
+        "live_risks": ranking_row.get("live_risks"),
+        "components": ranking_row.get("live_components"),
+        "raw_inputs": ranking_row.get("raw_inputs"),
+        "scoring_detail": ranking_row.get("scoring_detail"),
+    }
+    return LIVE_RANKING_SNAPSHOT_VERSION, json.dumps(snapshot, sort_keys=True)
+
+
+def _alert_direction(alert: dict[str, Any]) -> int:
+    kind = (
+        str(
+            alert.get("type_key")
+            or alert.get("type")
+            or alert.get("class_key")
+            or alert.get("category")
+            or ""
+        )
+        .strip()
+        .lower()
+        .replace(" ", "_")
+    )
+    if kind in _BULLISH_ALERTS:
+        return 1
+    if kind in _BEARISH_ALERTS:
+        return -1
+
+    evidence = alert.get("evidence") if isinstance(alert.get("evidence"), dict) else {}
+    for key in ("pct_1m", "pct_3m", "pct_1h", "pct"):
+        value = _finite(evidence.get(key))
+        if value is not None and value != 0:
+            return 1 if value > 0 else -1
+    return 0
+
+
+def build_live_rankings(
+    *,
+    price_snapshot: dict[str, dict[str, Any]] | None,
+    volume_snapshot: dict[str, dict[str, Any]] | None = None,
+    context_snapshot: dict[str, dict[str, Any]] | None = None,
+    alerts: list[dict[str, Any]] | None = None,
+    include_internal_features: bool = False,
+    volatility_snapshot: dict[str, dict[str, Any]] | None = None,
+    liquidity_snapshot: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Return strongest-to-weakest live setup rows for the tracked universe.
+
+    ``include_internal_features`` adds the retention-only ``raw_inputs`` and
+    ``scoring_detail`` keys.  It changes nothing that is scored: both are built
+    from values the scorer has already computed.  It defaults to False so the
+    published payload keeps its original shape.
+    """
+
+    prices = price_snapshot if isinstance(price_snapshot, dict) else {}
+    volumes = volume_snapshot if isinstance(volume_snapshot, dict) else {}
+    contexts = context_snapshot if isinstance(context_snapshot, dict) else {}
+    alert_rows = alerts if isinstance(alerts, list) else []
+    volatilities = volatility_snapshot if isinstance(volatility_snapshot, dict) else {}
+    liquidities = liquidity_snapshot if isinstance(liquidity_snapshot, dict) else {}
+
+    alert_counts: dict[str, dict[str, int]] = {}
+    for alert in alert_rows:
+        if not isinstance(alert, dict):
+            continue
+        sym = _symbol(alert.get("symbol") or alert.get("product_id"))
+        if not sym:
+            continue
+        direction = _alert_direction(alert)
+        counts = alert_counts.setdefault(sym, {"bullish": 0, "bearish": 0})
+        if direction > 0:
+            counts["bullish"] += 1
+        elif direction < 0:
+            counts["bearish"] += 1
+
+    rankings: list[dict[str, Any]] = []
+    for raw_symbol, raw_row in prices.items():
+        sym = _symbol(raw_symbol)
+        if not sym or sym in _STABLECOINS or not isinstance(raw_row, dict):
+            continue
+
+        volume_row = volumes.get(sym) if isinstance(volumes.get(sym), dict) else {}
+        context_row = contexts.get(sym) if isinstance(contexts.get(sym), dict) else {}
+        one_min = _finite(raw_row.get("pct_1m"))
+        three_min = _finite(raw_row.get("pct_3m"))
+        one_hour = _finite(raw_row.get("pct_1h"))
+        volume_pct = _finite(
+            volume_row.get("volume_change_1h_pct")
+            if volume_row
+            else raw_row.get("volume_change_1h_pct")
+        )
+        streak = _finite(raw_row.get("trend_streak") or raw_row.get("streak"))
+
+        one_min_score = _signed_score(one_min, 1.25)
+        three_min_score = _signed_score(three_min, 3.0)
+        one_hour_score = _signed_score(one_hour, 6.0)
+        volume_score = _signed_score(volume_pct, 200.0)
+
+        directions = [
+            value for value in (one_min, three_min) if value is not None and value != 0
+        ]
+        if len(directions) >= 2 and all(value > 0 for value in directions):
+            confirmation_score = 80.0
+        elif len(directions) >= 2 and all(value < 0 for value in directions):
+            confirmation_score = 20.0
+        elif len(directions) >= 2:
+            confirmation_score = 35.0
+        elif directions:
+            confirmation_score = 60.0 if directions[0] > 0 else 40.0
+        else:
+            confirmation_score = 50.0
+
+        counts = alert_counts.get(sym, {"bullish": 0, "bearish": 0})
+        confirmation_score = _clamp(
+            confirmation_score
+            + min(18, counts["bullish"] * 6)
+            - min(18, counts["bearish"] * 6)
+        )
+        spot_pressure = str(context_row.get("spot_pressure") or "neutral").lower()
+        market_relation = str(context_row.get("market_relation") or "neutral").lower()
+        if spot_pressure == "buying":
+            confirmation_score += 10.0
+        elif spot_pressure == "selling":
+            confirmation_score -= 10.0
+        if market_relation == "breaking_away":
+            confirmation_score += 7.0 if (three_min or one_min or 0) > 0 else -7.0
+        confirmation_score = _clamp(confirmation_score)
+
+        dominant_move = three_min if three_min not in (None, 0) else one_min
+        dominant_sign = (
+            1 if (dominant_move or 0) > 0 else -1 if (dominant_move or 0) < 0 else 0
+        )
+        persistence_score = 50.0
+        if streak is not None and dominant_sign:
+            persistence_score = _clamp(
+                50.0 + dominant_sign * min(5.0, abs(streak)) * 9.0
+            )
+
+        weighted = (
+            one_min_score * 0.20
+            + three_min_score * 0.25
+            + one_hour_score * 0.15
+            + volume_score * 0.15
+            + confirmation_score * 0.15
+            + persistence_score * 0.10
+        )
+
+        chase_penalty = 0.0
+        if one_min is not None and one_min > 1.6:
+            chase_penalty += min(7.0, (one_min - 1.6) * 2.5)
+        if three_min is not None and three_min > 4.0:
+            chase_penalty += min(7.0, (three_min - 4.0) * 1.5)
+        liquidity = str(context_row.get("liquidity") or "normal").lower()
+        if liquidity == "thin":
+            chase_penalty += 5.0
+        elif liquidity == "wide":
+            chase_penalty += 2.0
+
+        raw_score = _clamp(weighted - chase_penalty, 1.0, 99.0)
+        observed = sum(
+            value is not None
+            for value in (one_min, three_min, one_hour, volume_pct, streak)
+        )
+        if counts["bullish"] or counts["bearish"]:
+            observed += 1
+        if (
+            spot_pressure != "neutral"
+            or market_relation != "neutral"
+            or liquidity != "normal"
+        ):
+            observed += 1
+        expected_inputs = 6
+        observed_inputs = min(expected_inputs, observed)
+        data_quality = min(100, int(round((observed_inputs / expected_inputs) * 100.0)))
+        # Sparse evidence must not beat a genuinely aligned setup simply because
+        # one available metric is extreme. Pull incomplete rows toward neutral;
+        # keep a small floor so a real early move can still surface as Building.
+        reliability = max(0.35, data_quality / 100.0)
+        score = int(round(_clamp(50.0 + ((raw_score - 50.0) * reliability), 1.0, 99.0)))
+
+        reasons: list[str] = []
+        if three_min is not None:
+            reasons.append(f"3m {three_min:+.2f}%")
+        if one_min is not None:
+            reasons.append(f"1m {one_min:+.2f}%")
+        if volume_pct is not None:
+            reasons.append(f"1h volume {volume_pct:+.0f}%")
+        if spot_pressure == "buying":
+            reasons.append("spot buying")
+        elif spot_pressure == "selling":
+            reasons.append("spot selling")
+        if market_relation == "breaking_away":
+            reasons.append("breaking away from market")
+        if counts["bullish"]:
+            reasons.append(
+                f"{counts['bullish']} bullish alert{'s' if counts['bullish'] != 1 else ''}"
+            )
+        if counts["bearish"]:
+            reasons.append(
+                f"{counts['bearish']} bearish alert{'s' if counts['bearish'] != 1 else ''}"
+            )
+        if streak is not None and streak > 1:
+            reasons.append(f"{int(streak)}x tape hold")
+
+        risks: list[str] = []
+        if chase_penalty > 0:
+            risks.append("extended move")
+        if one_min is not None and three_min is not None and one_min * three_min < 0:
+            risks.append("timeframes disagree")
+        if (
+            volume_pct is not None
+            and volume_pct < 0
+            and (three_min or one_min or 0) > 0
+        ):
+            risks.append("volume fading")
+        if liquidity == "thin":
+            risks.append("thin liquidity")
+        elif liquidity == "wide":
+            risks.append("wide spread")
+
+        row = {
+            "symbol": sym,
+            "product_id": f"{sym}-USD",
+            "live_score": score,
+            "live_label": _label(score),
+            "data_quality": data_quality,
+            "observed_inputs": observed_inputs,
+            "expected_inputs": expected_inputs,
+            "live_reasons": reasons[:4],
+            "live_risks": risks[:3],
+            "live_components": {
+                "momentum_1m": round(one_min_score, 1),
+                "momentum_3m": round(three_min_score, 1),
+                "trend_1h": round(one_hour_score, 1),
+                "volume": round(volume_score, 1),
+                "confirmation": round(confirmation_score, 1),
+                "persistence": round(persistence_score, 1),
+            },
+            "model_version": LIVE_RANKING_MODEL_VERSION,
+            "price": _finite(raw_row.get("price")),
+        }
+        if include_internal_features:
+            # Matching inputs for the control benchmark. Every liquidity
+            # candidate is recorded rather than one being chosen here: which is
+            # usable depends on measured universe coverage and post-match
+            # balance, and that selection is made by the dry-run, never inline
+            # and never with outcomes in view.
+            vol_row = volatilities.get(sym) or volatilities.get(f"{sym}-USD") or {}
+            liq_row = liquidities.get(f"{sym}-USD") or liquidities.get(sym) or {}
+            row["raw_inputs"] = {
+                "pct_1m": one_min,
+                "pct_3m": three_min,
+                "pct_1h": one_hour,
+                "volume_change_1h_pct": volume_pct,
+                "trend_streak": streak,
+                "bullish_alerts": counts["bullish"],
+                "bearish_alerts": counts["bearish"],
+                "spot_pressure": spot_pressure,
+                "market_relation": market_relation,
+                # Categorical liquidity bucket: universe-wide but coarse.
+                "liquidity": liquidity,
+                # Quantitative liquidity: precise but far narrower coverage.
+                "quote_volume_usd": liq_row.get("quote_volume_usd"),
+                "quote_volume_age_seconds": liq_row.get("age_seconds"),
+                "quote_volume_minute_coverage": liq_row.get("minute_coverage"),
+                "realized_volatility_pct_hour": vol_row.get("volatility_pct_hour"),
+                "realized_volatility_observations": vol_row.get("observations"),
+                "realized_volatility_staleness_seconds": vol_row.get(
+                    "staleness_seconds"
+                ),
+                # None when volatility is available; a reason string otherwise,
+                # so unavailable is never confused with low.
+                "realized_volatility_unavailable_reason": vol_row.get("reason"),
+                # Provenance of the categorical inputs is separate from their
+                # legacy scoring defaults. Never infer measurement from a
+                # default "normal"/"neutral" string in a retained snapshot.
+                "context_input_supplied": {
+                    key: context_row.get(key) is not None
+                    for key in ("liquidity", "spot_pressure", "market_relation")
+                },
+                "quote_volume_hour_ts": liq_row.get("hour_ts"),
+            }
+            row["scoring_detail"] = {
+                "weighted_before_penalty": round(weighted, 4),
+                "chase_penalty": round(chase_penalty, 4),
+                "raw_score": round(float(raw_score), 4),
+                "reliability": round(reliability, 6),
+            }
+        rankings.append(row)
+
+    rankings.sort(
+        key=lambda row: (
+            -row["live_score"],
+            -row["data_quality"],
+            row["symbol"],
+        )
+    )
+    universe_size = len(rankings)
+    for index, row in enumerate(rankings, start=1):
+        row["live_rank"] = index
+        row["universe_size"] = universe_size
+    return rankings
+
+===== END SOURCE 02 =====
+
+===== BEGIN SOURCE 03 | backend/signal_context.py =====
+"""Build compact, layman-friendly context from data Moonwalkings already owns."""
+
+from __future__ import annotations
+
+from statistics import median
+from typing import Any
+import math
+
+
+def _number(value: Any) -> float | None:
+    try:
+        if value is None or isinstance(value, bool):
+            return None
+        parsed = float(value)
+        return parsed if math.isfinite(parsed) else None
+    except Exception:
+        return None
+
+
+def _robust_scale(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    center = median(values)
+    deviations = [abs(value - center) for value in values]
+    return 1.4826 * median(deviations) if deviations else 0.0
+
+
+def _window_context(
+    price_snapshot: dict[str, dict], key: str
+) -> tuple[dict[str, float], float, float]:
+    returns: dict[str, float] = {}
+    for symbol, row in (price_snapshot or {}).items():
+        value = _number((row or {}).get(key))
+        if value is not None:
+            returns[str(symbol).upper()] = value
+    values = list(returns.values())
+    return returns, (median(values) if values else 0.0), _robust_scale(values)
+
+
+def build_signal_context(
+    price_snapshot: dict[str, dict],
+    tape_snapshot: dict[str, dict] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Describe market-relative movement and honest Coinbase tape observations.
+
+    This function creates context only. It does not publish raw alerts, so it
+    cannot increase notification volume by itself.
+    """
+    tape_snapshot = tape_snapshot or {}
+    returns_1m, median_1m, scale_1m = _window_context(price_snapshot, "pct_1m")
+    returns_3m, median_3m, scale_3m = _window_context(price_snapshot, "pct_3m")
+    btc_1m = returns_1m.get("BTC")
+    btc_3m = returns_3m.get("BTC")
+    symbols = set(price_snapshot or {}) | set(tape_snapshot or {})
+    out: dict[str, dict[str, Any]] = {}
+
+    for raw_symbol in symbols:
+        symbol = str(raw_symbol).upper().replace("-USD", "")
+        row = (
+            (price_snapshot or {}).get(raw_symbol)
+            or (price_snapshot or {}).get(symbol)
+            or {}
+        )
+        tape = (
+            (tape_snapshot or {}).get(raw_symbol)
+            or (tape_snapshot or {}).get(symbol)
+            or {}
+        )
+        pct_3m = _number(row.get("pct_3m"))
+        pct_1m = _number(row.get("pct_1m"))
+        if pct_3m is not None:
+            move = pct_3m
+            market_move = median_3m
+            btc_move = btc_3m
+            scale = scale_3m
+            window = "3m"
+        else:
+            move = pct_1m
+            market_move = median_1m
+            btc_move = btc_1m
+            scale = scale_1m
+            window = "1m"
+
+        relative = (move - market_move) if move is not None else None
+        btc_relative = (
+            (move - btc_move) if move is not None and btc_move is not None else None
+        )
+        unusual_floor = max(0.35, scale * 1.5)
+        relation = "neutral"
+        relation_label = None
+        relation_summary = None
+        if move is not None and relative is not None:
+            same_as_market = move * market_move > 0
+            if abs(move) >= 0.45 and abs(relative) >= unusual_floor:
+                relation = "breaking_away"
+                relation_label = "BREAKING AWAY"
+                relation_summary = (
+                    "Moving independently above the wider market."
+                    if move > 0
+                    else "Falling independently below the wider market."
+                )
+            elif (
+                same_as_market
+                and abs(market_move) >= 0.25
+                and abs(relative) <= max(0.18, scale * 0.65)
+            ):
+                relation = "market_carried"
+                relation_label = "MARKET CARRIED"
+                relation_summary = (
+                    "Most of this move is also happening across the wider market."
+                )
+
+        trade_imbalance = _number(tape.get("trade_imbalance"))
+        observed_quote = _number(tape.get("observed_quote_usd")) or 0.0
+        trade_count = int(_number(tape.get("trade_count")) or 0)
+        spot_pressure = "neutral"
+        spot_label = None
+        if (
+            trade_count >= 5
+            and observed_quote >= 10_000
+            and trade_imbalance is not None
+        ):
+            if trade_imbalance >= 0.35:
+                spot_pressure = "buying"
+                spot_label = "SPOT BUYING"
+            elif trade_imbalance <= -0.35:
+                spot_pressure = "selling"
+                spot_label = "SPOT SELLING"
+
+        spread_bps = _number(tape.get("spread_bps"))
+        liquidity = "normal"
+        liquidity_label = None
+        if spread_bps is not None and spread_bps >= 80:
+            liquidity = "thin"
+            liquidity_label = "THIN AIR"
+        elif spread_bps is not None and spread_bps >= 30:
+            liquidity = "wide"
+            liquidity_label = "WIDE SPREAD"
+
+        badges: list[dict[str, str]] = []
+        # Keep the row glanceable. Independent movement is the strongest
+        # relation tag; ordinary market-following context comes after flow and
+        # execution risk so it cannot hide something more actionable.
+        if relation_label and relation == "breaking_away":
+            badges.append({"label": relation_label, "tone": "context"})
+        if spot_label:
+            badges.append({"label": spot_label, "tone": "flow"})
+        if liquidity_label:
+            badges.append({"label": liquidity_label, "tone": "risk"})
+        if relation_label and relation == "market_carried":
+            badges.append({"label": relation_label, "tone": "context"})
+
+        out[symbol] = {
+            "window": window,
+            "move_pct": move,
+            "market_median_pct": round(market_move, 6),
+            "relative_pct": round(relative, 6) if relative is not None else None,
+            "btc_relative_pct": (
+                round(btc_relative, 6) if btc_relative is not None else None
+            ),
+            "market_relation": relation,
+            "market_relation_label": relation_label,
+            "market_relation_summary": relation_summary,
+            "spot_pressure": spot_pressure,
+            "spot_pressure_label": spot_label,
+            "trade_imbalance": trade_imbalance,
+            "observed_quote_usd": observed_quote,
+            "trade_count": trade_count,
+            "spread_bps": spread_bps,
+            "liquidity": liquidity,
+            "liquidity_label": liquidity_label,
+            "badges": badges[:2],
+            "source": "coinbase_and_full_universe",
+        }
+    return out
+
+===== END SOURCE 03 =====
+
+===== BEGIN SOURCE 04 | backend/sentiment_api.py =====
+#!/usr/bin/env python3
+"""FastAPI service that powers the Moonwalking sentiment surfaces."""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import contextlib
+import logging
+import math
+import os
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
+import requests
+from pydantic import BaseModel, Field
+
+from backend.sentiment.providers import get_provider
+from backend.sentiment.source_loader import load_sources, SentimentSourceLoaderError
+
+logger = logging.getLogger("sentiment_api")
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(application: FastAPI):
+    task = None
+    if SENTIMENT_CACHE_TTL > 0:
+        task = asyncio.create_task(_cache_refresher_loop())
+        application.state.sentiment_cache_task = task
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
+app = FastAPI(title="Moonwalking Sentiment API", lifespan=_lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+SENTIMENT_CACHE_TTL = int(os.getenv("SENTIMENT_CACHE_TTL", "30"))
+DEV_RELOAD_SOURCES = os.getenv("DEV_RELOAD_SOURCES") == "1"
+USE_REAL_SENTIMENT = os.getenv("USE_REAL_SENTIMENT") == "1"
+SENTIMENT_PROVIDER_NAME = os.getenv("SENTIMENT_PROVIDER", "").strip() or None
+FNG_URL = "https://api.alternative.me/fng/?limit=1&format=json"
+CG_GLOBAL_URL = "https://api.coingecko.com/api/v3/global"
+BINANCE_FAPI_BASE_URL = "https://fapi.binance.com"
+BINANCE_DERIVATIVES_SYMBOLS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
+OKX_BASE_URL = "https://www.okx.com"
+OKX_DERIVATIVES_SYMBOLS = {"BTC": "BTC-USDT-SWAP", "ETH": "ETH-USDT-SWAP"}
+BYBIT_BASE_URL = "https://api.bybit.com"
+BYBIT_DERIVATIVES_SYMBOLS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
+# Hyperliquid — on-chain perp DEX, keyless public API. Funding settles hourly.
+HYPERLIQUID_BASE_URL = "https://api.hyperliquid.xyz"
+HYPERLIQUID_DERIVATIVES_ASSETS = {"BTC": "BTC", "ETH": "ETH"}
+HYPERLIQUID_FUNDING_INTERVAL_HOURS = 1.0
+# Coinalyze — free CEX-aggregated derivatives API (funding/OI/liquidations).
+# Requires a free API key; the leg stays inert (unconfigured) when unset.
+COINALYZE_BASE_URL = "https://api.coinalyze.net/v1"
+COINALYZE_API_KEY = os.getenv("COINALYZE_API_KEY", "").strip()
+# Coinalyze market symbols use a per-exchange suffix (".A" = Binance). Averaging
+# a couple of representative Binance perps gives a CEX-aggregated funding/OI read.
+COINALYZE_DERIVATIVES_SYMBOLS = {"BTC": "BTCUSDT_PERP.A", "ETH": "ETHUSDT_PERP.A"}
+# Default funding interval (hours) for the CEX venues that settle every 8h.
+DEFAULT_FUNDING_INTERVAL_HOURS = 8.0
+
+DATA_SOURCES: List["DataSource"] = []
+SOURCE_COUNTS = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+_SENTIMENT_CACHE: Optional["SentimentResponse"] = None
+_SENTIMENT_CACHE_TS: Optional[datetime] = None
+# Fear & Greed cache (alt.me)
+_FNG_CACHE: Optional[Dict[str, Any]] = None
+_FNG_CACHE_TS: Optional[datetime] = None
+FNG_CACHE_TTL_SEC = 300  # 5 minutes
+FNG_STALE_SEC = 6 * 60 * 60  # 6 hours
+# CoinGecko global cache
+_CG_CACHE: Optional[Dict[str, Any]] = None
+_CG_CACHE_TS: Optional[datetime] = None
+CG_CACHE_TTL_SEC = 120  # 2 minutes
+CG_STALE_SEC = 10 * 60  # 10 minutes
+# Binance USD-M futures public market-positioning cache
+_BINANCE_DERIVATIVES_CACHE: Optional[Dict[str, Any]] = None
+_BINANCE_DERIVATIVES_CACHE_TS: Optional[datetime] = None
+BINANCE_DERIVATIVES_CACHE_TTL_SEC = 120  # 2 minutes
+BINANCE_DERIVATIVES_STALE_SEC = 10 * 60  # 10 minutes
+
+
+class SentimentTier(str, Enum):
+    TIER_1 = "tier1"
+    TIER_2 = "tier2"
+    TIER_3 = "tier3"
+    FRINGE = "fringe"
+
+
+class SocialPlatform(str, Enum):
+    REDDIT = "reddit"
+    TWITTER = "twitter"
+    TELEGRAM = "telegram"
+    CHAN = "4chan"
+
+
+class SentimentMetric(BaseModel):
+    overall_sentiment: Optional[float] = None
+    fear_greed_index: Optional[int] = None
+    social_volume_change: Optional[float] = None
+    trend: Optional[str] = None
+
+
+class SocialBreakdown(BaseModel):
+    reddit: Optional[float] = None
+    twitter: Optional[float] = None
+    telegram: Optional[float] = None
+    chan: Optional[float] = None
+
+
+class SourceBreakdown(BaseModel):
+    tier1: int
+    tier2: int
+    tier3: int
+    fringe: int
+
+
+class HistoricalPoint(BaseModel):
+    timestamp: datetime
+    sentiment: float
+    price_normalized: float
+
+
+class SocialHistoryPoint(BaseModel):
+    timestamp: datetime
+    reddit: float
+    twitter: float
+    telegram: float
+    chan: float
+
+
+class DataSource(BaseModel):
+    name: str
+    description: str
+    tier: SentimentTier
+    trust_weight: float
+    last_updated: datetime
+
+
+class SentimentResponse(BaseModel):
+    overall_sentiment: Optional[float] = None
+    fear_greed_index: Optional[int] = None
+    social_metrics: Dict[str, Any] = Field(default_factory=dict)
+    social_breakdown: SocialBreakdown = Field(default_factory=SocialBreakdown)
+    source_breakdown: SourceBreakdown = Field(
+        default_factory=lambda: SourceBreakdown(tier1=0, tier2=0, tier3=0, fringe=0)
+    )
+    sentiment_history: List[HistoricalPoint] = Field(default_factory=list)
+    social_history: List[SocialHistoryPoint] = Field(default_factory=list)
+    trending_topics: List[Dict[str, str]] = Field(default_factory=list)
+    divergence_alerts: List[Dict[str, str]] = Field(default_factory=list)
+    fear_greed: Optional[Dict[str, Any]] = None
+    market_pulse: Optional[Dict[str, Any]] = None
+    timestamp: Optional[datetime] = None
+    confidence: Optional[float] = None
+    regime: Optional[str] = None
+    reasons: Optional[List[str]] = None
+    scope: str = "market_wide"
+    data_status: str = "offline"
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+_STATIC_DATA_SOURCES = [
+    DataSource(
+        name="Bloomberg Crypto",
+        description="Institutional news & analysis",
+        tier=SentimentTier.TIER_1,
+        trust_weight=0.9,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="CoinDesk",
+        description="Leading crypto journalism",
+        tier=SentimentTier.TIER_1,
+        trust_weight=0.85,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="Fear & Greed Index",
+        description="Market sentiment gauge",
+        tier=SentimentTier.TIER_1,
+        trust_weight=0.9,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="r/CryptoCurrency",
+        description="Main crypto community (5M+ members)",
+        tier=SentimentTier.TIER_2,
+        trust_weight=0.7,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="LunarCrush",
+        description="Social intelligence platform",
+        tier=SentimentTier.TIER_2,
+        trust_weight=0.75,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="CryptoSlate",
+        description="Community-driven news",
+        tier=SentimentTier.TIER_2,
+        trust_weight=0.65,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="r/SatoshiStreetBets",
+        description="Retail trading community",
+        tier=SentimentTier.TIER_3,
+        trust_weight=0.5,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="Telegram Channels",
+        description="Early retail signals",
+        tier=SentimentTier.TIER_3,
+        trust_weight=0.45,
+        last_updated=datetime.now(timezone.utc),
+    ),
+    DataSource(
+        name="4chan /biz/",
+        description="Fringe discussion board",
+        tier=SentimentTier.FRINGE,
+        trust_weight=0.3,
+        last_updated=datetime.now(timezone.utc),
+    ),
+]
+
+
+def _hydrate_data_sources(entries: List[Dict[str, Any]]) -> List[DataSource]:
+    hydrated: List[DataSource] = []
+    for entry in entries:
+        name = (entry.get("name") or "").strip()
+        if not name:
+            continue
+
+        tier_value = entry.get("tier", "tier2")
+        try:
+            tier = SentimentTier(tier_value)
+        except ValueError:
+            tier = SentimentTier.TIER_2
+
+        last_updated = entry.get("last_updated")
+        if isinstance(last_updated, str):
+            try:
+                last_dt = datetime.fromisoformat(last_updated)
+            except ValueError:
+                last_dt = datetime.now(timezone.utc)
+        else:
+            last_dt = datetime.now(timezone.utc)
+
+        hydrated.append(
+            DataSource(
+                name=name,
+                description=entry.get("description", ""),
+                tier=tier,
+                trust_weight=float(entry.get("weight", entry.get("trust_weight", 0.7))),
+                last_updated=last_dt,
+            )
+        )
+
+    return hydrated or list(_STATIC_DATA_SOURCES)
+
+
+def _refresh_data_sources(force: bool = False) -> List[DataSource]:
+    global DATA_SOURCES, SOURCE_COUNTS
+
+    if DATA_SOURCES and not force and not DEV_RELOAD_SOURCES:
+        return DATA_SOURCES
+
+    try:
+        catalog = load_sources(force_reload=force or DEV_RELOAD_SOURCES)
+        hydrated = _hydrate_data_sources(catalog.serialized())
+        DATA_SOURCES = hydrated or list(_STATIC_DATA_SOURCES)
+    except SentimentSourceLoaderError as exc:
+        logger.warning("Falling back to baked-in sentiment sources: %s", exc)
+        if not DATA_SOURCES:
+            DATA_SOURCES = list(_STATIC_DATA_SOURCES)
+
+    counts = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+    for src in DATA_SOURCES:
+        counts[src.tier.value] = counts.get(src.tier.value, 0) + 1
+    SOURCE_COUNTS = counts
+    return DATA_SOURCES
+
+
+async def _hydrate_sentiment_cache(force: bool = False) -> SentimentResponse:
+    global _SENTIMENT_CACHE, _SENTIMENT_CACHE_TS
+
+    if SENTIMENT_CACHE_TTL <= 0 and not force:
+        return await _build_sentiment_payload()
+
+    now = datetime.now(timezone.utc)
+    if (
+        not force
+        and _SENTIMENT_CACHE
+        and _SENTIMENT_CACHE_TS
+        and (now - _SENTIMENT_CACHE_TS).total_seconds() < SENTIMENT_CACHE_TTL
+    ):
+        return _SENTIMENT_CACHE
+
+    payload = await _build_sentiment_payload()
+    _SENTIMENT_CACHE = payload
+    _SENTIMENT_CACHE_TS = now
+    return payload
+
+
+async def _build_sentiment_payload() -> SentimentResponse:
+    """Build a real-only market-wide sentiment snapshot.
+
+    Missing providers stay missing. The service never manufactures social
+    scores, histories, topics, or divergence alerts to fill UI space.
+    """
+    provider_payload: Dict[str, Any] = {}
+
+    if USE_REAL_SENTIMENT:
+        provider = get_provider(SENTIMENT_PROVIDER_NAME)
+        if provider:
+            try:
+                data = await provider.fetch_latest()
+                provider_payload = dict(data or {})
+            except Exception:
+                logger.exception(
+                    "Sentiment provider '%s' failed; continuing with public sources",
+                    provider.name,
+                )
+        else:
+            logger.warning("USE_REAL_SENTIMENT=1 but no provider is registered")
+
+    fear_greed_payload, market_pulse_payload, derivatives_payload = (
+        await asyncio.gather(
+            _get_fear_greed_payload(),
+            _get_market_pulse_payload(),
+            _get_derivatives_positioning_payload(),
+        )
+    )
+
+    sources: List[Dict[str, Any]] = []
+    for name, source_payload in (
+        ("alternative_me", fear_greed_payload),
+        ("coingecko_global", market_pulse_payload),
+        ("derivatives_positioning", derivatives_payload),
+    ):
+        if not source_payload:
+            continue
+        sources.append(
+            {
+                "name": name,
+                "status": "stale" if source_payload.get("stale") else "live",
+                "tier": "tier1",
+                "scope": source_payload.get("scope", "market_wide"),
+                "updated_at": source_payload.get("updated_at"),
+                "source_url": source_payload.get("source_url"),
+            }
+        )
+
+    provider_sources = provider_payload.get("sources")
+    if isinstance(provider_sources, list):
+        sources.extend(item for item in provider_sources if isinstance(item, dict))
+
+    if not sources:
+        data_status = "offline"
+    elif any(source.get("status") == "live" for source in sources):
+        data_status = "live"
+    else:
+        data_status = "stale"
+
+    fear_greed_index = (
+        fear_greed_payload.get("value") if fear_greed_payload is not None else None
+    )
+    overall_sentiment = _safe_float(provider_payload.get("overall_sentiment"))
+    if overall_sentiment is None and fear_greed_index is not None:
+        overall_sentiment = max(0.0, min(1.0, fear_greed_index / 100.0))
+
+    active_source_count = len(sources)
+    live_source_count = sum(source.get("status") == "live" for source in sources)
+    confidence = 0.0
+    if active_source_count:
+        confidence = min(1.0, (active_source_count / 2.0) * 0.8)
+        confidence *= 0.7 + (0.3 * live_source_count / active_source_count)
+        confidence = round(confidence, 3)
+
+    if data_status == "offline":
+        regime = "offline"
+    elif fear_greed_index is not None and fear_greed_index <= 25:
+        regime = "stressed"
+    elif fear_greed_index is not None and fear_greed_index >= 75:
+        regime = "heated"
+    else:
+        regime = "steady" if data_status == "live" else "unknown"
+
+    reasons: List[str] = []
+    if fear_greed_payload:
+        reasons.append(
+            f"Fear & Greed is {fear_greed_payload.get('label', 'Unknown')} "
+            f"({fear_greed_index})"
+            f"{' and stale' if fear_greed_payload.get('stale') else ''}."
+        )
+    if market_pulse_payload:
+        reasons.append(
+            "CoinGecko global market data is "
+            f"{'stale' if market_pulse_payload.get('stale') else 'live'}."
+        )
+    if derivatives_payload:
+        reasons.append(
+            "Binance futures positioning is "
+            f"{'stale' if derivatives_payload.get('stale') else 'live'} "
+            f"across {len(derivatives_payload.get('exchanges') or [])} exchange(s)."
+        )
+    if not reasons:
+        reasons.append("No external sentiment source is currently available.")
+    if not provider_payload.get("social_metrics"):
+        reasons.append(
+            "Social sentiment is unavailable; no social provider is configured."
+        )
+
+    return SentimentResponse(
+        overall_sentiment=overall_sentiment,
+        fear_greed_index=fear_greed_index,
+        social_breakdown=provider_payload.get("social_breakdown") or {},
+        source_breakdown={
+            "tier1": active_source_count,
+            "tier2": 0,
+            "tier3": 0,
+            "fringe": 0,
+        },
+        sentiment_history=provider_payload.get("sentiment_history") or [],
+        social_history=provider_payload.get("social_history") or [],
+        trending_topics=provider_payload.get("trending_topics") or [],
+        divergence_alerts=provider_payload.get("divergence_alerts") or [],
+        fear_greed=fear_greed_payload,
+        market_pulse=market_pulse_payload,
+        social_metrics={
+            **(provider_payload.get("social_metrics") or {}),
+            **(
+                {"derivatives_positioning": derivatives_payload}
+                if derivatives_payload
+                else {}
+            ),
+        },
+        timestamp=datetime.now(timezone.utc),
+        confidence=confidence,
+        regime=regime,
+        reasons=reasons,
+        scope="market_wide",
+        data_status=data_status,
+        sources=sources,
+    )
+
+
+async def _cache_refresher_loop() -> None:
+    interval = max(SENTIMENT_CACHE_TTL, 15)
+    while True:
+        try:
+            await _hydrate_sentiment_cache(force=True)
+        except Exception:
+            logger.exception("Failed to refresh cached sentiment payload")
+        await asyncio.sleep(interval)
+
+
+def _current_source_breakdown() -> SourceBreakdown:
+    if not any(SOURCE_COUNTS.values()):
+        _refresh_data_sources()
+    return SourceBreakdown(**SOURCE_COUNTS)
+
+
+def _iso_utc(dt: Optional[datetime] = None) -> str:
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    elif dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def _safe_float(val) -> Optional[float]:
+    try:
+        f = float(val)
+        if math.isfinite(f):
+            return f
+    except Exception:
+        return None
+    return None
+
+
+def _age_seconds(ts: Optional[datetime]) -> Optional[float]:
+    if ts is None:
+        return None
+    now = datetime.now(timezone.utc)
+    normalized_ts = ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+    return (now - normalized_ts).total_seconds()
+
+
+def _fear_greed_label(value: int) -> str:
+    if value <= 24:
+        return "Extreme Fear"
+    if value <= 44:
+        return "Fear"
+    if value <= 55:
+        return "Neutral"
+    if value <= 75:
+        return "Greed"
+    return "Extreme Greed"
+
+
+async def _fetch_json(url: str, timeout: float) -> Any:
+    def _req():
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    return await asyncio.to_thread(_req)
+
+
+def _stamp_payload(
+    payload: Dict[str, Any], cache_ts: datetime, ttl: int
+) -> Dict[str, Any]:
+    age = _age_seconds(cache_ts) or 0
+    out = dict(payload)
+    out["stale"] = age > ttl
+    out["stale_age_seconds"] = int(age)
+    return out
+
+
+async def _get_fear_greed_payload() -> Optional[Dict[str, Any]]:
+    global _FNG_CACHE, _FNG_CACHE_TS
+    now = datetime.now(timezone.utc)
+
+    if _FNG_CACHE and _FNG_CACHE_TS:
+        age = _age_seconds(_FNG_CACHE_TS) or 0
+        if age <= FNG_CACHE_TTL_SEC:
+            return _stamp_payload(_FNG_CACHE, _FNG_CACHE_TS, FNG_CACHE_TTL_SEC)
+
+    try:
+        raw = await _fetch_json(FNG_URL, timeout=1.0)
+        data_list = (raw or {}).get("data") or []
+        item = data_list[0] if data_list else {}
+        value = item.get("value")
+        value_int = int(value) if value is not None else None
+        if value_int is None:
+            raise ValueError("missing value")
+        ts_raw = item.get("timestamp")
+        try:
+            ts_dt = datetime.fromtimestamp(int(ts_raw), tz=timezone.utc)
+        except Exception:
+            ts_dt = now.replace(tzinfo=timezone.utc)
+        payload = {
+            "value": value_int,
+            "label": _fear_greed_label(value_int),
+            "source": "alternative_me",
+            "source_url": FNG_URL,
+            "updated_at": _iso_utc(ts_dt),
+        }
+        _FNG_CACHE = payload
+        _FNG_CACHE_TS = now
+        return _stamp_payload(payload, now, FNG_CACHE_TTL_SEC)
+    except Exception as exc:
+        logger.warning("Fear & Greed fetch failed: %s", exc)
+
+    if _FNG_CACHE and _FNG_CACHE_TS:
+        age = _age_seconds(_FNG_CACHE_TS) or 0
+        if age <= FNG_STALE_SEC:
+            return _stamp_payload(_FNG_CACHE, _FNG_CACHE_TS, FNG_CACHE_TTL_SEC)
+    return None
+
+
+async def _get_market_pulse_payload() -> Optional[Dict[str, Any]]:
+    global _CG_CACHE, _CG_CACHE_TS
+    now = datetime.now(timezone.utc)
+
+    if _CG_CACHE and _CG_CACHE_TS:
+        age = _age_seconds(_CG_CACHE_TS) or 0
+        if age <= CG_CACHE_TTL_SEC:
+            return _stamp_payload(_CG_CACHE, _CG_CACHE_TS, CG_CACHE_TTL_SEC)
+
+    try:
+        raw = await _fetch_json(CG_GLOBAL_URL, timeout=1.0)
+        data = (raw or {}).get("data") or {}
+        payload = {
+            "total_market_cap_usd": _safe_float(
+                (data.get("total_market_cap") or {}).get("usd")
+            ),
+            "total_volume_usd": _safe_float(
+                (data.get("total_volume") or {}).get("usd")
+            ),
+            "btc_dominance": _safe_float(
+                (data.get("market_cap_percentage") or {}).get("btc")
+            ),
+            "mcap_change_24h_pct": _safe_float(
+                data.get("market_cap_change_percentage_24h_usd")
+            ),
+            "source": "coingecko_global",
+            "source_url": CG_GLOBAL_URL,
+            "updated_at": _iso_utc(now),
+        }
+        _CG_CACHE = payload
+        _CG_CACHE_TS = now
+        return _stamp_payload(payload, now, CG_CACHE_TTL_SEC)
+    except Exception as exc:
+        logger.warning("CoinGecko global fetch failed: %s", exc)
+
+    if _CG_CACHE and _CG_CACHE_TS:
+        age = _age_seconds(_CG_CACHE_TS) or 0
+        if age <= CG_STALE_SEC:
+            return _stamp_payload(_CG_CACHE, _CG_CACHE_TS, CG_CACHE_TTL_SEC)
+    return None
+
+
+async def _get_binance_json(path: str, params: Dict[str, str]) -> Any:
+    def _req():
+        resp = requests.get(
+            f"{BINANCE_FAPI_BASE_URL}{path}", params=params, timeout=1.2
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    return await asyncio.to_thread(_req)
+
+
+async def _get_binance_symbol_positioning(
+    symbol: str,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    try:
+        premium, open_interest = await asyncio.gather(
+            _get_binance_json("/fapi/v1/premiumIndex", {"symbol": symbol}),
+            _get_binance_json("/fapi/v1/openInterest", {"symbol": symbol}),
+        )
+        return {
+            "exchange": "binance",
+            "symbol": symbol,
+            "base_asset": symbol.removesuffix("USDT"),
+            "mark_price": _safe_float(premium.get("markPrice")),
+            "index_price": _safe_float(premium.get("indexPrice")),
+            "funding_rate": _safe_float(premium.get("lastFundingRate")),
+            "next_funding_time": premium.get("nextFundingTime"),
+            "open_interest": _safe_float(open_interest.get("openInterest")),
+            "open_interest_time": open_interest.get("time"),
+        }, None
+    except Exception as exc:
+        logger.warning("Binance derivatives fetch failed for %s: %s", symbol, exc)
+        return None, _source_error("binance", symbol, exc)
+
+
+async def _get_okx_json(path: str, params: Dict[str, str]) -> Any:
+    def _req():
+        resp = requests.get(f"{OKX_BASE_URL}{path}", params=params, timeout=1.2)
+        resp.raise_for_status()
+        return resp.json()
+
+    return await asyncio.to_thread(_req)
+
+
+async def _get_okx_symbol_positioning(
+    base_asset: str, instrument_id: str
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    try:
+        funding, open_interest = await asyncio.gather(
+            _get_okx_json("/api/v5/public/funding-rate", {"instId": instrument_id}),
+            _get_okx_json("/api/v5/public/open-interest", {"instId": instrument_id}),
+        )
+        funding_item = ((funding or {}).get("data") or [{}])[0]
+        oi_item = ((open_interest or {}).get("data") or [{}])[0]
+        return {
+            "exchange": "okx",
+            "symbol": instrument_id,
+            "base_asset": base_asset,
+            "mark_price": None,
+            "index_price": None,
+            "funding_rate": _safe_float(funding_item.get("fundingRate")),
+            "next_funding_time": funding_item.get("nextFundingTime"),
+            "open_interest": _safe_float(oi_item.get("oi")),
+            "open_interest_currency": _safe_float(oi_item.get("oiCcy")),
+            "open_interest_time": oi_item.get("ts"),
+        }, None
+    except Exception as exc:
+        logger.warning("OKX derivatives fetch failed for %s: %s", instrument_id, exc)
+        return None, _source_error("okx", instrument_id, exc)
+
+
+async def _get_bybit_json(path: str, params: Dict[str, str]) -> Any:
+    def _req():
+        resp = requests.get(f"{BYBIT_BASE_URL}{path}", params=params, timeout=1.2)
+        resp.raise_for_status()
+        return resp.json()
+
+    return await asyncio.to_thread(_req)
+
+
+async def _get_bybit_symbol_positioning(
+    base_asset: str, symbol: str
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    try:
+        ticker, open_interest = await asyncio.gather(
+            _get_bybit_json(
+                "/v5/market/tickers", {"category": "linear", "symbol": symbol}
+            ),
+            _get_bybit_json(
+                "/v5/market/open-interest",
+                {
+                    "category": "linear",
+                    "symbol": symbol,
+                    "intervalTime": "5min",
+                    "limit": "1",
+                },
+            ),
+        )
+        ticker_item = (((ticker or {}).get("result") or {}).get("list") or [{}])[0]
+        oi_item = (((open_interest or {}).get("result") or {}).get("list") or [{}])[0]
+        return {
+            "exchange": "bybit",
+            "symbol": symbol,
+            "base_asset": base_asset,
+            "mark_price": _safe_float(ticker_item.get("markPrice")),
+            "index_price": _safe_float(ticker_item.get("indexPrice")),
+            "funding_rate": _safe_float(ticker_item.get("fundingRate")),
+            "next_funding_time": ticker_item.get("nextFundingTime"),
+            "open_interest": _safe_float(oi_item.get("openInterest")),
+            "open_interest_time": oi_item.get("timestamp"),
+        }, None
+    except Exception as exc:
+        logger.warning("Bybit derivatives fetch failed for %s: %s", symbol, exc)
+        return None, _source_error("bybit", symbol, exc)
+
+
+async def _get_hyperliquid_positioning() -> (
+    List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]
+):
+    """Fetch on-chain perp positioning from Hyperliquid (keyless public API).
+
+    A single POST returns every asset's context in parallel arrays
+    (`universe[i]` <-> `assetCtxs[i]`), so one request covers BTC and ETH.
+    Funding on Hyperliquid settles hourly — tagged so the summary can normalize
+    it against the 8h CEX venues.
+    """
+
+    def _req():
+        resp = requests.post(
+            f"{HYPERLIQUID_BASE_URL}/info",
+            json={"type": "metaAndAssetCtxs"},
+            timeout=1.5,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    try:
+        data = await asyncio.to_thread(_req)
+        meta, asset_ctxs = data[0], data[1]
+        universe = meta.get("universe") or []
+        index_by_name = {asset.get("name"): i for i, asset in enumerate(universe)}
+        results: List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
+        for base_asset, hl_name in HYPERLIQUID_DERIVATIVES_ASSETS.items():
+            idx = index_by_name.get(hl_name)
+            if idx is None or idx >= len(asset_ctxs):
+                results.append(
+                    (None, _source_error("hyperliquid", hl_name, KeyError(hl_name)))
+                )
+                continue
+            ctx = asset_ctxs[idx] or {}
+            mark_price = _safe_float(ctx.get("markPx"))
+            open_interest = _safe_float(ctx.get("openInterest"))
+            results.append(
+                (
+                    {
+                        "exchange": "hyperliquid",
+                        "symbol": hl_name,
+                        "base_asset": base_asset,
+                        "mark_price": mark_price,
+                        "index_price": _safe_float(ctx.get("oraclePx")),
+                        "funding_rate": _safe_float(ctx.get("funding")),
+                        "funding_interval_hours": HYPERLIQUID_FUNDING_INTERVAL_HOURS,
+                        "open_interest": open_interest,
+                        "open_interest_usd": (
+                            open_interest * mark_price
+                            if open_interest is not None and mark_price is not None
+                            else None
+                        ),
+                    },
+                    None,
+                )
+            )
+        return results
+    except Exception as exc:
+        logger.warning("Hyperliquid derivatives fetch failed: %s", exc)
+        return [(None, _source_error("hyperliquid", "metaAndAssetCtxs", exc))]
+
+
+async def _get_coinalyze_json(path: str, params: Dict[str, str]) -> Any:
+    def _req():
+        resp = requests.get(
+            f"{COINALYZE_BASE_URL}{path}",
+            params={**params, "api_key": COINALYZE_API_KEY},
+            timeout=1.5,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    return await asyncio.to_thread(_req)
+
+
+async def _get_coinalyze_positioning() -> (
+    List[Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]
+):
+    """Fetch CEX-aggregated funding/OI from Coinalyze.
+
+    Requires a free API key (`COINALYZE_API_KEY`). Without it the leg stays inert
+    and Coinalyze is simply not counted among configured exchanges — it never
+    surfaces as a blocked/failed source.
+    """
+    if not COINALYZE_API_KEY:
+        return []
+    symbols = ",".join(COINALYZE_DERIVATIVES_SYMBOLS.values())
+    try:
+        funding, open_interest = await asyncio.gather(
+            _get_coinalyze_json("/funding-rate", {"symbols": symbols}),
+            _get_coinalyze_json("/open-interest", {"symbols": symbols}),
+        )
+        funding_by_symbol = {
+            row.get("symbol"): _safe_float(row.get("value")) for row in (funding or [])
+        }
+        oi_by_symbol = {
+            row.get("symbol"): _safe_float(row.get("value"))
+            for row in (open_interest or [])
+        }
+        return [
+            (
+                {
+                    "exchange": "coinalyze",
+                    "symbol": market_symbol,
+                    "base_asset": base_asset,
+                    "mark_price": None,
+                    "index_price": None,
+                    "funding_rate": funding_by_symbol.get(market_symbol),
+                    "funding_interval_hours": DEFAULT_FUNDING_INTERVAL_HOURS,
+                    "open_interest": oi_by_symbol.get(market_symbol),
+                },
+                None,
+            )
+            for base_asset, market_symbol in COINALYZE_DERIVATIVES_SYMBOLS.items()
+        ]
+    except Exception as exc:
+        logger.warning("Coinalyze derivatives fetch failed: %s", exc)
+        return [(None, _source_error("coinalyze", symbols, exc))]
+
+
+def _source_error(exchange: str, symbol: str, exc: Exception) -> Dict[str, Any]:
+    status_code = getattr(getattr(exc, "response", None), "status_code", None)
+    if status_code in (401, 403, 451):
+        status = "blocked"
+    else:
+        status = "failed"
+    return {
+        "exchange": exchange,
+        "symbol": symbol,
+        "status": status,
+        "status_code": status_code,
+        "message": str(exc),
+    }
+
+
+def _summarize_derivatives_positioning(
+    symbols: List[Dict[str, Any]], configured_exchange_count: int
+) -> Dict[str, Any]:
+    # Funding settles on different cadences per venue (CEX = 8h, Hyperliquid =
+    # 1h). Normalize each rate to an 8h-equivalent before averaging so mixing
+    # venues doesn't skew the bias. Symbols without an interval default to 8h,
+    # so existing CEX-only callers are unaffected.
+    funding_rates = []
+    for item in symbols:
+        rate = item.get("funding_rate")
+        if rate is None or not math.isfinite(float(rate)):
+            continue
+        interval = float(
+            item.get("funding_interval_hours") or DEFAULT_FUNDING_INTERVAL_HOURS
+        )
+        if interval <= 0:
+            interval = DEFAULT_FUNDING_INTERVAL_HOURS
+        funding_rates.append(float(rate) * (DEFAULT_FUNDING_INTERVAL_HOURS / interval))
+    avg_funding = sum(funding_rates) / len(funding_rates) if funding_rates else None
+    if avg_funding is None:
+        funding_bias = "unknown"
+    elif avg_funding > 0.00005:
+        funding_bias = "longs_pay"
+    elif avg_funding < -0.00005:
+        funding_bias = "shorts_pay"
+    else:
+        funding_bias = "neutral"
+
+    live_exchange_count = len({item["exchange"] for item in symbols})
+    coverage_ratio = (
+        live_exchange_count / configured_exchange_count
+        if configured_exchange_count
+        else 0.0
+    )
+    return {
+        "average_funding_rate": avg_funding,
+        "funding_bias": funding_bias,
+        "live_exchange_count": live_exchange_count,
+        "configured_exchange_count": configured_exchange_count,
+        "coverage_ratio": round(coverage_ratio, 3),
+        "confidence_penalty": round(1.0 - coverage_ratio, 3),
+    }
+
+
+async def _get_derivatives_positioning_payload() -> Optional[Dict[str, Any]]:
+    global _BINANCE_DERIVATIVES_CACHE, _BINANCE_DERIVATIVES_CACHE_TS
+    now = datetime.now(timezone.utc)
+
+    if _BINANCE_DERIVATIVES_CACHE and _BINANCE_DERIVATIVES_CACHE_TS:
+        age = _age_seconds(_BINANCE_DERIVATIVES_CACHE_TS) or 0
+        if age <= BINANCE_DERIVATIVES_CACHE_TTL_SEC:
+            return _stamp_payload(
+                _BINANCE_DERIVATIVES_CACHE,
+                _BINANCE_DERIVATIVES_CACHE_TS,
+                BINANCE_DERIVATIVES_CACHE_TTL_SEC,
+            )
+
+    binance_symbols = await asyncio.gather(
+        *(
+            _get_binance_symbol_positioning(symbol)
+            for symbol in BINANCE_DERIVATIVES_SYMBOLS.values()
+        )
+    )
+    okx_symbols = await asyncio.gather(
+        *(
+            _get_okx_symbol_positioning(base_asset, instrument_id)
+            for base_asset, instrument_id in OKX_DERIVATIVES_SYMBOLS.items()
+        )
+    )
+    bybit_symbols = await asyncio.gather(
+        *(
+            _get_bybit_symbol_positioning(base_asset, symbol)
+            for base_asset, symbol in BYBIT_DERIVATIVES_SYMBOLS.items()
+        )
+    )
+    # Hyperliquid (on-chain, keyless) and Coinalyze (CEX-aggregated, key-gated)
+    # each return a ready list of (item, error) tuples.
+    hyperliquid_symbols = await _get_hyperliquid_positioning()
+    coinalyze_symbols = await _get_coinalyze_positioning()
+    results = [
+        *binance_symbols,
+        *okx_symbols,
+        *bybit_symbols,
+        *hyperliquid_symbols,
+        *coinalyze_symbols,
+    ]
+    source_errors = [error for _, error in results if error]
+    valid_symbols = [item for item, _ in results if item]
+    if valid_symbols:
+        # Coinalyze is only "configured" when a key is present, so coverage math
+        # stays honest (e.g. 4/4 without a key, 5/5 with one).
+        configured_exchanges = ["binance", "bybit", "hyperliquid", "okx"]
+        if COINALYZE_API_KEY:
+            configured_exchanges.append("coinalyze")
+        configured_exchanges = sorted(configured_exchanges)
+        live_exchanges = sorted({item["exchange"] for item in valid_symbols})
+        blocked_exchanges = sorted(
+            {
+                error["exchange"]
+                for error in source_errors
+                if error["status"] == "blocked"
+            }
+        )
+        failed_exchanges = sorted(
+            {
+                error["exchange"]
+                for error in source_errors
+                if error["status"] == "failed"
+            }
+        )
+        payload = {
+            "source": "derivatives_positioning",
+            "source_url": f"{BINANCE_FAPI_BASE_URL}/fapi/v1/premiumIndex",
+            "documentation": [
+                "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api",
+                "https://www.okx.com/docs-v5/en/",
+                "https://bybit-exchange.github.io/docs/v5/market/tickers",
+                "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint",
+                "https://api.coinalyze.net/v1/doc/",
+            ],
+            "scope": "market_positioning",
+            "updated_at": _iso_utc(now),
+            "configured_exchanges": configured_exchanges,
+            "exchanges": live_exchanges,
+            "live_exchanges": live_exchanges,
+            "blocked_exchanges": blocked_exchanges,
+            "failed_exchanges": failed_exchanges,
+            "errors": source_errors,
+            "summary": _summarize_derivatives_positioning(
+                valid_symbols, len(configured_exchanges)
+            ),
+            "symbols": valid_symbols,
+        }
+        _BINANCE_DERIVATIVES_CACHE = payload
+        _BINANCE_DERIVATIVES_CACHE_TS = now
+        return _stamp_payload(payload, now, BINANCE_DERIVATIVES_CACHE_TTL_SEC)
+
+    if _BINANCE_DERIVATIVES_CACHE and _BINANCE_DERIVATIVES_CACHE_TS:
+        age = _age_seconds(_BINANCE_DERIVATIVES_CACHE_TS) or 0
+        if age <= BINANCE_DERIVATIVES_STALE_SEC:
+            return _stamp_payload(
+                _BINANCE_DERIVATIVES_CACHE,
+                _BINANCE_DERIVATIVES_CACHE_TS,
+                BINANCE_DERIVATIVES_CACHE_TTL_SEC,
+            )
+    return None
+
+
+def _clamp01(val: Optional[float]) -> float:
+    try:
+        f = float(val)
+    except Exception:
+        return 0.0
+    if not math.isfinite(f):
+        return 0.0
+    if f < 0.0:
+        return 0.0
+    if f > 1.0:
+        return 1.0
+    return f
+
+
+def _stddev(values: List[float]) -> Optional[float]:
+    if not values:
+        return None
+    try:
+        n = len(values)
+        if n == 1:
+            return 0.0
+        mean = sum(values) / n
+        var = sum((v - mean) ** 2 for v in values) / (n - 1)
+        sd = math.sqrt(var)
+        return sd if math.isfinite(sd) else None
+    except Exception:
+        return None
+
+
+def _compute_confidence(payload: Dict[str, Any]) -> float:
+    fg = payload.get("fear_greed")
+    mp = payload.get("market_pulse")
+    sb_raw = payload.get("source_breakdown") or {}
+    if hasattr(sb_raw, "dict"):
+        sb = sb_raw.dict()
+    else:
+        sb = sb_raw if isinstance(sb_raw, dict) else {}
+    history = payload.get("sentiment_history") or []
+    divergence = payload.get("divergence_alerts") or []
+
+    # Freshness gate
+    freshness_gate = 1.0
+    if fg is None and mp is None:
+        freshness_gate *= 0.60
+    else:
+        if isinstance(fg, dict) and fg.get("stale"):
+            freshness_gate *= 0.75
+        if isinstance(mp, dict) and mp.get("stale"):
+            freshness_gate *= 0.85
+
+    # Breadth gate
+    total_sources = 0
+    for k in ("tier1", "tier2", "tier3", "fringe"):
+        try:
+            v = sb[k] if isinstance(sb, dict) else getattr(sb, k, 0)
+            total_sources += int(v or 0)
+        except Exception:
+            continue
+    if total_sources >= 10:
+        breadth_gate = 1.0
+    elif total_sources >= 6:
+        breadth_gate = 0.85
+    elif total_sources >= 3:
+        breadth_gate = 0.70
+    elif total_sources >= 1:
+        breadth_gate = 0.55
+    else:
+        breadth_gate = 0.40
+
+    # Stability gate
+    sentiments = []
+    for p in history:
+        try:
+            if isinstance(p, dict):
+                v = p.get("sentiment")
+            else:
+                v = getattr(p, "sentiment", None)
+            if v is None:
+                continue
+            f = float(v)
+            if math.isfinite(f):
+                sentiments.append(f)
+        except Exception:
+            continue
+    if len(sentiments) < 5:
+        stability_gate = 0.75
+    else:
+        sd = _stddev(sentiments) or 0.0
+        if sd <= 0.05:
+            stability_gate = 1.0
+        elif sd <= 0.10:
+            stability_gate = 0.85
+        elif sd <= 0.18:
+            stability_gate = 0.70
+        else:
+            stability_gate = 0.55
+
+    # Divergence gate
+    div_count = len(divergence) if isinstance(divergence, list) else 0
+    if div_count == 0:
+        divergence_gate = 1.0
+    elif div_count <= 2:
+        divergence_gate = 0.80
+    else:
+        divergence_gate = 0.65
+
+    conf = freshness_gate * breadth_gate * stability_gate * divergence_gate
+    return _clamp01(conf)
+
+
+def _compute_regime(
+    payload: Dict[str, Any], confidence: float, stability_gate: float
+) -> str:
+    allowed = {"steady", "mixed", "heated", "stressed", "offline", "unknown"}
+    overall = payload.get("overall_sentiment")
+    fg = payload.get("fear_greed")
+    fg_value = None
+    try:
+        fg_value = (
+            int(fg.get("value"))
+            if isinstance(fg, dict) and fg.get("value") is not None
+            else None
+        )
+    except Exception:
+        fg_value = None
+    divs = payload.get("divergence_alerts")
+    div_count = len(divs) if isinstance(divs, list) else 0
+
+    overall_f = None
+    try:
+        overall_f = float(overall)
+        if not math.isfinite(overall_f):
+            overall_f = None
+    except Exception:
+        overall_f = None
+
+    volatility_high = False
+    if stability_gate is not None:
+        volatility_high = stability_gate <= 0.70
+    else:
+        sentiments = []
+        for p in payload.get("sentiment_history") or []:
+            try:
+                v = (
+                    p.get("sentiment")
+                    if isinstance(p, dict)
+                    else getattr(p, "sentiment", None)
+                )
+                if v is None:
+                    continue
+                f = float(v)
+                if math.isfinite(f):
+                    sentiments.append(f)
+            except Exception:
+                continue
+        if len(sentiments) >= 5:
+            sd = _stddev(sentiments) or 0.0
+            volatility_high = sd > 0.10
+
+    # a) offline
+    if (
+        not isinstance(confidence, (int, float))
+        or not math.isfinite(confidence)
+        or confidence <= 0.40
+        or (
+            overall_f is None
+            and fg_value is None
+            and payload.get("market_pulse") is None
+        )
+    ):
+        regime = "offline"
+    # b) stressed
+    elif (
+        (fg_value is not None and fg_value <= 25)
+        or div_count >= 3
+        or (div_count >= 1 and confidence < 0.60 and volatility_high)
+    ):
+        regime = "stressed"
+    # c) heated
+    elif (fg_value is not None and fg_value >= 75) or (
+        confidence >= 0.55 and volatility_high and div_count <= 1
+    ):
+        regime = "heated"
+    # d) steady
+    elif confidence >= 0.75 and not volatility_high and div_count == 0:
+        regime = "steady"
+    # e) mixed
+    elif confidence >= 0.50 and (div_count >= 1 or volatility_high):
+        regime = "mixed"
+    else:
+        regime = "unknown"
+
+    return regime if regime in allowed else "unknown"
+
+
+def _build_reasons(
+    payload: Dict[str, Any],
+    confidence: float,
+    stability_gate: float,
+    breadth_gate: float,
+) -> List[str]:
+    reasons: List[str] = []
+    fg = payload.get("fear_greed")
+    mp = payload.get("market_pulse")
+    divs = payload.get("divergence_alerts") or []
+    sb_raw = payload.get("source_breakdown") or {}
+    if hasattr(sb_raw, "dict"):
+        sb = sb_raw.dict()
+    else:
+        sb = sb_raw if isinstance(sb_raw, dict) else {}
+    total_sources = 0
+    for k in ("tier1", "tier2", "tier3", "fringe"):
+        try:
+            total_sources += int(
+                (sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0
+            )
+        except Exception:
+            continue
+
+    if isinstance(fg, dict):
+        stale = fg.get("stale")
+        reasons.append(
+            f"Fear & Greed is {fg.get('label', 'Unknown')} ({fg.get('value')}){' (stale)' if stale else ''}."
+        )
+
+    if isinstance(mp, dict):
+        stale = mp.get("stale")
+        dom = mp.get("btc_dominance")
+        if dom is not None:
+            try:
+                dom_str = f"{float(dom):.1f}%"
+            except Exception:
+                dom_str = "N/A"
+            reasons.append(
+                f"Market pulse is {'stale' if stale else 'live'}; BTC dominance {dom_str}."
+            )
+        else:
+            reasons.append(f"Market pulse is {'stale' if stale else 'live'}.")
+
+    if total_sources >= 10:
+        reasons.append(f"Source breadth is strong ({total_sources} active sources).")
+    elif total_sources <= 2:
+        reasons.append("Source breadth is thin; confidence reduced.")
+
+    if divs:
+        reasons.append(f"Divergence alerts detected ({len(divs)}); confidence reduced.")
+
+    if len(reasons) < 4:
+        if stability_gate >= 0.85:
+            reasons.append("Sentiment history is stable.")
+        elif stability_gate <= 0.70:
+            reasons.append("Sentiment history is volatile; stability reduced.")
+
+    if len(reasons) < 2:
+        reasons.append("Confidence based on available sentiment signals.")
+
+    return reasons[:4]
+
+
+@app.get("/")
+async def root() -> Dict[str, Any]:
+    return {
+        "status": "online",
+        "service": "Moonwalking Sentiment API",
+        "version": "1.0.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/health")
+async def health_check() -> Dict[str, Any]:
+    active_sources = len(_SENTIMENT_CACHE.sources) if _SENTIMENT_CACHE else 0
+    data_status = _SENTIMENT_CACHE.data_status if _SENTIMENT_CACHE else "warming"
+    configured_sources = 2
+    if USE_REAL_SENTIMENT and get_provider(SENTIMENT_PROVIDER_NAME):
+        configured_sources += 1
+    return {
+        "status": "healthy",
+        "uptime": "running",
+        "active_sources": active_sources,
+        "configured_sources": configured_sources,
+        "data_status": data_status,
+        "last_update": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/api/sentiment-basic", response_model=SentimentResponse)
+@app.get("/sentiment/latest", response_model=SentimentResponse)
+async def get_latest_sentiment() -> SentimentResponse:
+    return await _hydrate_sentiment_cache()
+
+
+@app.get("/sentiment/sources")
+async def get_data_sources() -> List[Dict[str, Any]]:
+    """Return only providers that contributed to the current real snapshot."""
+    payload = await _hydrate_sentiment_cache()
+    return payload.sources
+
+
+@app.get("/sentiment/sources/{tier}")
+async def get_sources_by_tier(tier: SentimentTier) -> List[Dict[str, Any]]:
+    sources = await get_data_sources()
+    return [source for source in sources if source.get("tier") == tier.value]
+
+
+@app.get("/sentiment/history/{days}")
+async def get_sentiment_history(days: int = 30) -> Dict[str, Any]:
+    if days > 365:
+        raise HTTPException(status_code=400, detail="Maximum 365 days of history")
+    return {
+        "days": days,
+        "available": False,
+        "reason": "No historical sentiment provider is configured.",
+        "sentiment_history": [],
+        "social_history": [],
+    }
+
+
+@app.get("/sentiment/social/{platform}")
+async def get_platform_sentiment(platform: SocialPlatform) -> Dict[str, Any]:
+    return {
+        "platform": platform,
+        "available": False,
+        "reason": "No social sentiment provider is configured.",
+        "sentiment_score": None,
+        "volume_change": None,
+        "trending_topics": [],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/sentiment/divergence")
+async def get_divergence_endpoint() -> Dict[str, Any]:
+    return {
+        "available": False,
+        "reason": "Divergence requires multiple real sentiment providers.",
+        "alerts": [],
+        "tier_comparison": None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/sentiment/stats")
+async def get_statistics() -> Dict[str, Any]:
+    sources = await get_data_sources()
+    total_sources = len(sources)
+    sources_by_tier = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+    for source in sources:
+        tier = source.get("tier")
+        if tier in sources_by_tier:
+            sources_by_tier[tier] += 1
+    return {
+        "total_sources": total_sources,
+        "sources_by_tier": sources_by_tier,
+        "average_trust_weight": None,
+        "last_update": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+active_connections: Set[WebSocket] = set()
+
+
+@app.websocket("/ws/sentiment")
+async def websocket_sentiment(websocket: WebSocket) -> None:
+    await websocket.accept()
+    active_connections.add(websocket)
+    try:
+        while True:
+            await asyncio.sleep(30)
+            payload = await _hydrate_sentiment_cache()
+            await websocket.send_json(
+                {
+                    "type": "sentiment_update",
+                    "data": jsonable_encoder(payload),
+                }
+            )
+    finally:
+        active_connections.discard(websocket)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Run the Moonwalking Sentiment API service"
+    )
+    parser.add_argument("--host", default=os.getenv("SENTIMENT_HOST", "0.0.0.0"))
+    parser.add_argument(
+        "--port", type=int, default=int(os.getenv("SENTIMENT_PORT", "8003"))
+    )
+    parser.add_argument("--log-level", default=os.getenv("SENTIMENT_LOG_LEVEL", "info"))
+    parser.add_argument(
+        "--reload", action="store_true", help="Enable uvicorn autoreload (dev only)"
+    )
+    args = parser.parse_args()
+
+    import uvicorn  # Imported lazily so cli tools don't require it
+
+    uvicorn.run(
+        "backend.sentiment_api:app",
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level,
+        reload=args.reload,
+    )
+
+
+if __name__ == "__main__":
+    main()
+
+===== END SOURCE 04 =====
+
+===== BEGIN SOURCE 05 | backend/coin_intel_external.py =====
+from __future__ import annotations
+
+import json
+import logging
+import math
+import os
+import re
+import threading
+import time
+from datetime import datetime, timezone
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
+
+logger = logging.getLogger(__name__)
+
+_COIN_LIST_TTL_S = 24 * 60 * 60
+_ENDPOINT_TTL_S = 300
+_SOCIAL_TTL_S = 120
+_HTTP_TIMEOUT_S = 6
+
+_COIN_LIST_URL = "https://api.coinpaprika.com/v1/coins"
+_EVENTS_URL = "https://api.coinpaprika.com/v1/coins/{coin_id}/events"
+_TWITTER_URL = "https://api.coinpaprika.com/v1/coins/{coin_id}/twitter"
+_LUNARCRUSH_URL = "https://api.lunarcrush.com/v2"
+_COINGECKO_SEARCH_URL = "https://api.coingecko.com/api/v3/search?query={query}"
+_COINGECKO_TRENDING_URL = "https://api.coingecko.com/api/v3/search/trending"
+_COINGECKO_COIN_URL = (
+    "https://api.coingecko.com/api/v3/coins/{coin_id}"
+    "?localization=false&tickers=false&market_data=false"
+    "&community_data=true&developer_data=false&sparkline=false"
+)
+_EVENT_RECENCY_WINDOW_S = 365 * 24 * 60 * 60
+_SOCIAL_RECENCY_WINDOW_S = 90 * 24 * 60 * 60
+
+_CACHE_LOCK = threading.Lock()
+_COIN_LIST_CACHE: dict[str, Any] = {
+    "ts": 0.0,
+    "items": [],
+    "by_symbol": {},
+}
+_ENDPOINT_CACHE: dict[str, dict[str, Any]] = {}
+
+_POSITIVE_WORDS = {
+    "bull",
+    "bullish",
+    "breakout",
+    "moon",
+    "moonshot",
+    "pump",
+    "long",
+    "uptrend",
+    "squeeze",
+    "rally",
+    "accumulate",
+    "rebound",
+}
+
+_NEGATIVE_WORDS = {
+    "bear",
+    "bearish",
+    "dump",
+    "crash",
+    "short",
+    "downtrend",
+    "selloff",
+    "rug",
+    "fakeout",
+    "reversal",
+    "exhaustion",
+    "capitulation",
+}
+
+
+def _now_s() -> float:
+    return time.time()
+
+
+def _now_ts() -> int:
+    return int(_now_s())
+
+
+def _normalize_symbol(symbol: str | None) -> str:
+    raw = str(symbol or "").strip().upper()
+    if not raw:
+        return ""
+    if "-" in raw:
+        raw = raw.split("-", 1)[0]
+    if raw.endswith("USD") and len(raw) > 3:
+        raw = raw[:-3]
+    return "".join(ch for ch in raw if ch.isalnum())
+
+
+def _to_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        n = float(value)
+    except Exception:
+        return None
+    if math.isfinite(n):
+        return n
+    return None
+
+
+def _to_int(value: Any) -> int | None:
+    n = _to_float(value)
+    if n is None:
+        return None
+    return int(round(n))
+
+
+def _clamp(value: float, lo: float, hi: float) -> float:
+    if value < lo:
+        return lo
+    if value > hi:
+        return hi
+    return value
+
+
+def _normalize_ts_s(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+
+    n = _to_float(value)
+    if n is not None:
+        if n <= 0:
+            return None
+        if n > 1e12:
+            n = n / 1000.0
+        return n
+
+    raw = str(value).strip()
+    if not raw:
+        return None
+
+    iso_raw = raw
+    if iso_raw.endswith("Z"):
+        iso_raw = f"{iso_raw[:-1]}+00:00"
+    try:
+        dt = datetime.fromisoformat(iso_raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except Exception:
+        pass
+
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            dt = datetime.strptime(raw, fmt).replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except Exception:
+            continue
+
+    return None
+
+
+def _sentiment_label_from_score(score: float | None) -> str | None:
+    if score is None:
+        return None
+    if score >= 0.2:
+        return "Bullish"
+    if score <= -0.2:
+        return "Bearish"
+    return "Mixed"
+
+
+def _coerce_sentiment_payload(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, dict):
+        label_raw = str(value.get("label") or value.get("sentiment") or "").strip()
+        net = _to_float(value.get("net_score"))
+        if net is None:
+            net = _to_float(value.get("netScore"))
+        if net is None:
+            net = _to_float(value.get("score"))
+        if net is None:
+            net = _to_float(value.get("value"))
+        bullish = _to_float(value.get("bullish_pct"))
+        if bullish is None:
+            bullish = _to_float(value.get("bullishPct"))
+        bearish = _to_float(value.get("bearish_pct"))
+        if bearish is None:
+            bearish = _to_float(value.get("bearishPct"))
+
+        if bullish is None and bearish is not None:
+            bullish = 100.0 - bearish
+        if bearish is None and bullish is not None:
+            bearish = 100.0 - bullish
+
+        if net is None and bullish is not None and bearish is not None:
+            total = bullish + bearish
+            if total > 0:
+                net = (bullish - bearish) / total
+
+        if net is not None:
+            net = _clamp(net, -1.0, 1.0)
+        label = label_raw or _sentiment_label_from_score(net)
+        if not label and net is None and bullish is None and bearish is None:
+            return None
+
+        if bullish is None and net is not None:
+            bullish = _clamp((net + 1.0) * 50.0, 0.0, 100.0)
+        if bearish is None and bullish is not None:
+            bearish = _clamp(100.0 - bullish, 0.0, 100.0)
+
+        return {
+            "label": label or "Mixed",
+            "net_score": round(net, 3) if net is not None else None,
+            "bullish_pct": round(bullish, 1) if bullish is not None else None,
+            "bearish_pct": round(bearish, 1) if bearish is not None else None,
+        }
+
+    n = _to_float(value)
+    if n is not None:
+        if abs(n) > 1.0:
+            if 0.0 <= n <= 100.0:
+                n = (n - 50.0) / 50.0
+            elif -100.0 <= n <= 100.0:
+                n = n / 100.0
+            else:
+                n = _clamp(n / 100.0, -1.0, 1.0)
+        else:
+            n = _clamp(n, -1.0, 1.0)
+        label = _sentiment_label_from_score(n) or "Mixed"
+        bullish = _clamp((n + 1.0) * 50.0, 0.0, 100.0)
+        return {
+            "label": label,
+            "net_score": round(n, 3),
+            "bullish_pct": round(bullish, 1),
+            "bearish_pct": round(100.0 - bullish, 1),
+        }
+
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return None
+    if raw in {"very_bullish", "bullish", "positive"}:
+        return {
+            "label": "Bullish",
+            "net_score": 0.6,
+            "bullish_pct": 80.0,
+            "bearish_pct": 20.0,
+        }
+    if raw in {"very_bearish", "bearish", "negative"}:
+        return {
+            "label": "Bearish",
+            "net_score": -0.6,
+            "bullish_pct": 20.0,
+            "bearish_pct": 80.0,
+        }
+    if raw in {"neutral", "mixed"}:
+        return {
+            "label": "Mixed",
+            "net_score": 0.0,
+            "bullish_pct": 50.0,
+            "bearish_pct": 50.0,
+        }
+    return {
+        "label": raw.title(),
+        "net_score": None,
+        "bullish_pct": None,
+        "bearish_pct": None,
+    }
+
+
+def _sentiment_from_text(items: list[dict[str, Any]]) -> dict[str, Any] | None:
+    positive_hits = 0
+    negative_hits = 0
+    saw_text = False
+    for item in items:
+        text = str(item.get("text") or "").lower()
+        if not text:
+            continue
+        saw_text = True
+        tokens = [tok for tok in re.split(r"[^a-z]+", text) if tok]
+        if not tokens:
+            continue
+        pos = sum(1 for tok in tokens if tok in _POSITIVE_WORDS)
+        neg = sum(1 for tok in tokens if tok in _NEGATIVE_WORDS)
+        positive_hits += pos
+        negative_hits += neg
+
+    total = positive_hits + negative_hits
+    if not saw_text:
+        return None
+    if total <= 0:
+        return {
+            "label": "Mixed",
+            "net_score": 0.0,
+            "bullish_pct": 50.0,
+            "bearish_pct": 50.0,
+        }
+
+    bullish_pct = (positive_hits / total) * 100.0
+    bearish_pct = (negative_hits / total) * 100.0
+    net = (positive_hits - negative_hits) / total
+    label = _sentiment_label_from_score(net) or "Mixed"
+    return {
+        "label": label,
+        "net_score": round(net, 3),
+        "bullish_pct": round(bullish_pct, 1),
+        "bearish_pct": round(bearish_pct, 1),
+    }
+
+
+def _empty_social_metrics(source: str = "none") -> dict[str, Any]:
+    return {
+        "social_volume_24h": None,
+        "social_engagement_24h": None,
+        "social_dominance_24h": None,
+        "sentiment_24h": None,
+        "social_rank": None,
+        "social_heat": None,
+        "social_heat_trend": None,
+        "posts_60m": None,
+        "posts_24h": None,
+        "unique_authors_24h": None,
+        "trending_rank": None,
+        "trending_source": None,
+        "source": source,
+        "updated_at": None,
+    }
+
+
+def _is_meaningful_metric(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return abs(float(value)) > 0.0
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(_is_meaningful_metric(v) for v in value.values())
+    return True
+
+
+def _coin_rank(coin: dict[str, Any]) -> tuple[int, int, str]:
+    is_active = bool(coin.get("is_active", True))
+    raw_rank = coin.get("rank")
+    try:
+        rank = int(raw_rank)
+    except Exception:
+        rank = 999_999
+    if rank <= 0:
+        rank = 999_999
+    coin_id = str(coin.get("id") or "")
+    return (0 if is_active else 1, rank, coin_id)
+
+
+def _build_symbol_index(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    by_symbol: dict[str, list[dict[str, Any]]] = {}
+    for coin in items:
+        if not isinstance(coin, dict):
+            continue
+        sym = _normalize_symbol(coin.get("symbol"))
+        if not sym:
+            continue
+        by_symbol.setdefault(sym, []).append(coin)
+
+    for sym in list(by_symbol.keys()):
+        by_symbol[sym].sort(key=_coin_rank)
+
+    return by_symbol
+
+
+def _http_get_json(url: str) -> tuple[int | None, Any, str | None]:
+    req = Request(url, headers={"User-Agent": "moonwalkings/coin-intel"})
+    try:
+        with urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
+            status = getattr(resp, "status", 200)
+            body = resp.read().decode("utf-8", errors="replace")
+            return int(status), json.loads(body or "null"), None
+    except HTTPError as exc:
+        status = getattr(exc, "code", None)
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+            parsed = json.loads(body or "null")
+        except Exception:
+            parsed = None
+        return status, parsed, f"http_error:{status}"
+    except URLError as exc:
+        return None, None, f"url_error:{exc}"
+    except Exception as exc:
+        return None, None, f"error:{exc}"
+
+
+def _get_coin_list() -> tuple[list[dict[str, Any]], bool]:
+    with _CACHE_LOCK:
+        age = _now_s() - float(_COIN_LIST_CACHE.get("ts") or 0.0)
+        cached_items = list(_COIN_LIST_CACHE.get("items") or [])
+        if cached_items and age < _COIN_LIST_TTL_S:
+            return cached_items, False
+
+    status, data, err = _http_get_json(_COIN_LIST_URL)
+    if status == 200 and isinstance(data, list):
+        items = [item for item in data if isinstance(item, dict)]
+        by_symbol = _build_symbol_index(items)
+        with _CACHE_LOCK:
+            _COIN_LIST_CACHE["ts"] = _now_s()
+            _COIN_LIST_CACHE["items"] = items
+            _COIN_LIST_CACHE["by_symbol"] = by_symbol
+        return items, False
+
+    with _CACHE_LOCK:
+        cached_items = list(_COIN_LIST_CACHE.get("items") or [])
+        if cached_items:
+            return cached_items, True
+
+    if err:
+        logger.debug("coin intel: coin list unavailable (%s)", err)
+    return [], True
+
+
+def coinpaprika_coin_id(symbol: str | None) -> str | None:
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return None
+
+    items, _stale = _get_coin_list()
+    if not items:
+        return None
+
+    with _CACHE_LOCK:
+        by_symbol = _COIN_LIST_CACHE.get("by_symbol")
+        if not isinstance(by_symbol, dict) or not by_symbol:
+            by_symbol = _build_symbol_index(items)
+            _COIN_LIST_CACHE["by_symbol"] = by_symbol
+
+    candidates = list(by_symbol.get(sym) or [])
+    if not candidates:
+        return None
+
+    best = candidates[0]
+    cid = str(best.get("id") or "").strip()
+    return cid or None
+
+
+def _coingecko_coin_rank(coin: dict[str, Any]) -> tuple[int, str]:
+    rank = _to_int(coin.get("market_cap_rank"))
+    if rank is None or rank <= 0:
+        rank = 999_999
+    name = str(coin.get("name") or "")
+    return (rank, name)
+
+
+def coingecko_coin_id(symbol: str | None) -> str | None:
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return None
+
+    cache_key = f"coingecko:id:{sym}"
+    cached = _cache_get(cache_key)
+    if cached and isinstance(cached.get("payload"), dict):
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = dict(cached.get("payload") or {})
+        cached_id = str(payload.get("coin_id") or "").strip()
+        if cached_id and age < _COIN_LIST_TTL_S:
+            return cached_id
+
+    url = _COINGECKO_SEARCH_URL.format(query=quote(sym, safe=""))
+    status, data, _err = _http_get_json(url)
+    if status == 200 and isinstance(data, dict):
+        raw_coins = data.get("coins")
+        coins = [row for row in (raw_coins or []) if isinstance(row, dict)]
+        exact = [row for row in coins if _normalize_symbol(row.get("symbol")) == sym]
+        candidates = exact if exact else coins
+        candidates.sort(key=_coingecko_coin_rank)
+        if candidates:
+            coin_id = str(candidates[0].get("id") or "").strip()
+            if coin_id:
+                _cache_set(
+                    cache_key, {"coin_id": coin_id, "symbol": sym, "ts": _now_ts()}
+                )
+                return coin_id
+
+    if cached and isinstance(cached.get("payload"), dict):
+        cached_id = str((cached.get("payload") or {}).get("coin_id") or "").strip()
+        if cached_id:
+            return cached_id
+    return None
+
+
+# Icons rarely change, so cache resolved (and unresolved) results for a long
+# time; this keeps a full watchlist from re-hitting CoinGecko's unauthenticated
+# rate limit on every page load or poll.
+_ICON_TTL_S = 7 * 24 * 60 * 60
+_ICON_NEGATIVE_TTL_S = 6 * 60 * 60
+
+
+def peek_coin_icon_url(symbol: str | None) -> tuple[bool, str | None]:
+    """Read the icon cache without making a network call.
+
+    Returns (cached, url) — cached is False when nothing usable is cached yet
+    and the caller should decide whether to resolve it now.
+    """
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return True, None
+    cached = _cache_get(f"coingecko:icon:{sym}")
+    if not cached or not isinstance(cached.get("payload"), dict):
+        return False, None
+    age = _now_s() - float(cached.get("ts") or 0.0)
+    payload = cached["payload"]
+    ttl = _ICON_TTL_S if payload.get("icon_url") else _ICON_NEGATIVE_TTL_S
+    if age >= ttl:
+        return False, None
+    return True, payload.get("icon_url") or None
+
+
+def fetch_coin_icon_url(symbol: str | None) -> str | None:
+    """Resolve a real coin logo URL via CoinGecko, caching the result.
+
+    Reuses the same coin-id search already used for social metrics, then reads
+    the `image` block CoinGecko's coin-detail endpoint always includes. This
+    makes an external call only on a cache miss.
+    """
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return None
+
+    cached, url = peek_coin_icon_url(sym)
+    if cached:
+        return url
+
+    coin_id = coingecko_coin_id(sym)
+    icon_url = None
+    if coin_id:
+        request_url = _COINGECKO_COIN_URL.format(coin_id=quote(coin_id, safe=""))
+        status, data, _err = _http_get_json(request_url)
+        if status == 200 and isinstance(data, dict):
+            image = data.get("image")
+            if isinstance(image, dict):
+                icon_url = (
+                    str(
+                        image.get("large") or image.get("small") or image.get("thumb") or ""
+                    ).strip()
+                    or None
+                )
+    _cache_set(f"coingecko:icon:{sym}", {"icon_url": icon_url})
+    return icon_url
+
+
+def _cache_get(key: str) -> dict[str, Any] | None:
+    with _CACHE_LOCK:
+        entry = _ENDPOINT_CACHE.get(key)
+        if not isinstance(entry, dict):
+            return None
+        return dict(entry)
+
+
+def _cache_set(key: str, payload: dict[str, Any]) -> None:
+    with _CACHE_LOCK:
+        _ENDPOINT_CACHE[key] = {
+            "ts": _now_s(),
+            "payload": payload,
+        }
+
+
+def _normalize_events(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, list):
+        return []
+    now_s = _now_s()
+    out: list[dict[str, Any]] = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("name") or row.get("title") or "").strip()
+        if not title:
+            continue
+        when = row.get("date") or row.get("date_event") or row.get("created_at") or None
+        ts_s = _normalize_ts_s(when)
+        # CoinPaprika's events endpoint often returns ancient historical rows.
+        # Keep upcoming catalysts and recent events only; old history is real,
+        # but not useful as a current Coin Pressure driver.
+        if ts_s is not None and ts_s < now_s - _EVENT_RECENCY_WINDOW_S:
+            continue
+        item = {
+            "id": str(row.get("id") or row.get("date_event") or title),
+            "title": title,
+            "when": when,
+            "description": str(row.get("description") or "").strip()[:300] or None,
+            "source_url": row.get("link") or row.get("proof_image_link") or None,
+            "source": "coinpaprika",
+            "status": "upcoming" if ts_s is not None and ts_s > now_s else "recent",
+        }
+        out.append(item)
+    out.sort(
+        key=lambda item: (
+            0 if (_normalize_ts_s(item.get("when")) or 0) >= now_s else 1,
+            abs((_normalize_ts_s(item.get("when")) or now_s) - now_s),
+        )
+    )
+    return out[:10]
+
+
+def _normalize_social(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, list):
+        return []
+    now_s = _now_s()
+    out: list[dict[str, Any]] = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("status") or row.get("text") or "").strip()
+        if not text:
+            continue
+        when = row.get("date") or row.get("created_at") or None
+        ts_s = _normalize_ts_s(when)
+        # The CoinPaprika twitter endpoint is deprecated and can return old
+        # official-project timeline items. Keep only recent items so the UI
+        # does not confuse historical announcements with active attention.
+        if ts_s is not None and ts_s < now_s - _SOCIAL_RECENCY_WINDOW_S:
+            continue
+        engagement = 0
+        for key in (
+            "engagement",
+            "engagements",
+            "interactions",
+            "interaction_count",
+            "retweets",
+            "retweet_count",
+            "likes",
+            "likes_count",
+            "favorite_count",
+            "favorites",
+            "reply_count",
+            "replies_count",
+            "quote_count",
+        ):
+            val = _to_int(row.get(key))
+            if val and val > 0:
+                engagement += val
+        sentiment = _coerce_sentiment_payload(
+            row.get("sentiment")
+            or row.get("sentiment_score")
+            or row.get("sentiment_label")
+        )
+        item = {
+            "id": str(
+                row.get("id") or row.get("status_id") or row.get("date") or text[:24]
+            ),
+            "text": text[:280],
+            "author": row.get("user_name") or row.get("user") or None,
+            "when": when,
+            "source_url": row.get("status_link") or row.get("url") or None,
+            "engagement": engagement if engagement > 0 else None,
+            "sentiment": sentiment,
+            "source": "coinpaprika_official_timeline",
+        }
+        out.append(item)
+        if len(out) >= 20:
+            break
+    return out
+
+
+def _aggregate_status(*statuses: str | None) -> str:
+    normalized = [
+        str(s or "").strip().lower() for s in statuses if str(s or "").strip()
+    ]
+    if not normalized:
+        return "offline"
+    if any(s == "degraded" for s in normalized):
+        return "degraded"
+    if all(s == "live" for s in normalized):
+        return "live"
+    if any(s in {"live", "stale"} for s in normalized):
+        return "stale"
+    return "offline"
+
+
+def _fetch_with_cache(
+    *,
+    key: str,
+    url: str,
+    normalize,
+    ttl_s: int | None = None,
+) -> dict[str, Any]:
+    cached = _cache_get(key)
+    effective_ttl = int(ttl_s or _ENDPOINT_TTL_S)
+    if cached:
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = cached.get("payload") or {}
+        if age < effective_ttl and isinstance(payload, dict):
+            return {**payload, "status": "live"}
+
+    status, data, err = _http_get_json(url)
+    if status == 200:
+        payload = {
+            "status": "live",
+            "items": normalize(data),
+            "ts": _now_ts(),
+        }
+        _cache_set(key, payload)
+        return payload
+
+    if cached and isinstance(cached.get("payload"), dict):
+        payload = dict(cached.get("payload") or {})
+        payload["status"] = "stale"
+        payload["ts"] = _now_ts()
+        if err:
+            payload["error"] = err
+        return payload
+
+    payload = {
+        "status": "offline",
+        "items": [],
+        "ts": _now_ts(),
+    }
+    if err:
+        payload["error"] = err
+    if status == 429:
+        payload["error"] = "rate_limited"
+    return payload
+
+
+def fetch_coinpaprika_events(coin_id: str | None) -> dict[str, Any]:
+    cid = str(coin_id or "").strip()
+    if not cid:
+        return {
+            "status": "offline",
+            "items": [],
+            "ts": _now_ts(),
+            "error": "coin_id_missing",
+        }
+    key = f"events:{cid}"
+    url = _EVENTS_URL.format(coin_id=quote(cid, safe=""))
+    return _fetch_with_cache(key=key, url=url, normalize=_normalize_events)
+
+
+def fetch_coinpaprika_twitter(coin_id: str | None) -> dict[str, Any]:
+    cid = str(coin_id or "").strip()
+    if not cid:
+        return {
+            "status": "offline",
+            "items": [],
+            "ts": _now_ts(),
+            "error": "coin_id_missing",
+        }
+    key = f"twitter:{cid}"
+    url = _TWITTER_URL.format(coin_id=quote(cid, safe=""))
+    return _fetch_with_cache(
+        key=key, url=url, normalize=_normalize_social, ttl_s=_SOCIAL_TTL_S
+    )
+
+
+def _derive_coinpaprika_metrics(
+    symbol: str, social_feed: dict[str, Any]
+) -> dict[str, Any]:
+    items = list(social_feed.get("items") or [])
+    now_s = _now_s()
+
+    posts_24h = 0
+    posts_60m = 0
+    unique_authors: set[str] = set()
+    engagement_24h = 0
+    sentiment_items: list[dict[str, Any]] = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        ts_s = _normalize_ts_s(item.get("when"))
+        in_24h = True if ts_s is None else (now_s - ts_s) <= 24 * 60 * 60
+        in_60m = False if ts_s is None else (now_s - ts_s) <= 60 * 60
+
+        if in_24h:
+            posts_24h += 1
+            sentiment_items.append(item)
+            author = str(item.get("author") or "").strip().lower()
+            if author:
+                unique_authors.add(author)
+            engagement_val = _to_int(item.get("engagement"))
+            if engagement_val and engagement_val > 0:
+                engagement_24h += engagement_val
+        if in_60m:
+            posts_60m += 1
+
+    sentiment_payload = _sentiment_from_text(sentiment_items)
+    sentiment_payload = _coerce_sentiment_payload(sentiment_payload)
+
+    social_dominance = None
+    if posts_24h > 0:
+        social_dominance = round(_clamp((posts_24h / 500.0) * 100.0, 0.0, 100.0), 2)
+
+    social_heat = None
+    heat_trend = None
+    if posts_24h > 0 or engagement_24h > 0:
+        volume_score = _clamp((posts_24h / 120.0) * 100.0, 0.0, 100.0)
+        engagement_score = 0.0
+        if engagement_24h > 0:
+            engagement_score = _clamp(
+                (math.log1p(float(engagement_24h)) / math.log1p(2500.0)) * 100.0,
+                0.0,
+                100.0,
+            )
+        velocity_score = 0.0
+        if posts_24h > 0:
+            expected_hourly = max(1.0, posts_24h / 24.0)
+            ratio = posts_60m / expected_hourly
+            velocity_score = _clamp((ratio / 2.0) * 100.0, 0.0, 100.0)
+            if ratio >= 1.5:
+                heat_trend = "rising"
+            elif ratio <= 0.6:
+                heat_trend = "collapsing"
+            else:
+                heat_trend = "flat"
+
+        sentiment_boost = 0.0
+        net_score = _to_float(
+            sentiment_payload.get("net_score")
+            if isinstance(sentiment_payload, dict)
+            else None
+        )
+        if net_score is not None:
+            sentiment_boost = net_score * 15.0
+        social_heat = int(
+            round(
+                _clamp(
+                    (0.45 * volume_score)
+                    + (0.35 * engagement_score)
+                    + (0.2 * velocity_score)
+                    + sentiment_boost,
+                    0.0,
+                    100.0,
+                )
+            )
+        )
+
+    feed_status = str(social_feed.get("status") or "offline").strip().lower()
+    if feed_status == "stale":
+        status = "stale"
+    elif feed_status in {"live", "degraded"}:
+        status = "live"
+    else:
+        status = "offline"
+
+    metrics = _empty_social_metrics(source="coinpaprika")
+    metrics.update(
+        {
+            "social_volume_24h": posts_24h if posts_24h > 0 else None,
+            "social_engagement_24h": engagement_24h if engagement_24h > 0 else None,
+            "social_dominance_24h": social_dominance,
+            "sentiment_24h": sentiment_payload,
+            "social_rank": None,
+            "social_heat": social_heat,
+            "social_heat_trend": heat_trend,
+            "posts_60m": posts_60m if posts_60m > 0 else None,
+            "posts_24h": posts_24h if posts_24h > 0 else None,
+            "unique_authors_24h": len(unique_authors) if unique_authors else None,
+            "source": "coinpaprika",
+            "updated_at": _now_ts(),
+        }
+    )
+
+    return {
+        "status": status,
+        "metrics": metrics,
+        "ts": _now_ts(),
+    }
+
+
+def _normalize_coingecko_metrics(
+    asset: dict[str, Any], symbol: str, coin_id: str
+) -> dict[str, Any] | None:
+    community = (
+        asset.get("community_data")
+        if isinstance(asset.get("community_data"), dict)
+        else {}
+    )
+
+    twitter_followers = _to_int(community.get("twitter_followers"))
+    reddit_subscribers = _to_int(community.get("reddit_subscribers"))
+    reddit_active_48h = _to_float(community.get("reddit_accounts_active_48h"))
+    reddit_posts_48h = _to_float(community.get("reddit_average_posts_48h"))
+    reddit_comments_48h = _to_float(community.get("reddit_average_comments_48h"))
+    telegram_users = _to_int(community.get("telegram_channel_user_count"))
+    watchlist_users = _to_int(asset.get("watchlist_portfolio_users"))
+
+    posts_24h = None
+    if reddit_posts_48h is not None and reddit_posts_48h > 0:
+        posts_24h = reddit_posts_48h / 2.0
+    elif reddit_active_48h is not None and reddit_active_48h > 0:
+        posts_24h = reddit_active_48h / 8.0
+
+    posts_60m = None
+    if posts_24h is not None and posts_24h > 0:
+        posts_60m = posts_24h / 24.0
+
+    unique_authors_24h = None
+    if reddit_active_48h is not None and reddit_active_48h > 0:
+        unique_authors_24h = int(round(reddit_active_48h / 2.0))
+
+    # CoinGecko fallback is an attention proxy:
+    # - volume proxy: audience size
+    # - engagement proxy: reddit posts/comments tempo
+    social_volume_24h = None
+    reach_raw = 0.0
+    for value in (
+        twitter_followers,
+        reddit_subscribers,
+        telegram_users,
+        watchlist_users,
+    ):
+        if value is not None and value > 0:
+            reach_raw += float(value)
+    if reach_raw > 0:
+        social_volume_24h = int(round(reach_raw))
+
+    social_engagement_24h = None
+    if reddit_posts_48h is not None or reddit_comments_48h is not None:
+        posts_48h = reddit_posts_48h or 0.0
+        comments_48h = reddit_comments_48h or 0.0
+        engagement_24h = (posts_48h + comments_48h) / 2.0
+        if engagement_24h > 0:
+            social_engagement_24h = int(round(engagement_24h))
+
+    updated_s = _normalize_ts_s(asset.get("last_updated") or asset.get("updated_at"))
+    updated_at = int(updated_s) if updated_s is not None else _now_ts()
+
+    metrics = _empty_social_metrics(source="coingecko")
+    metrics.update(
+        {
+            "social_volume_24h": social_volume_24h,
+            "social_engagement_24h": social_engagement_24h,
+            "social_dominance_24h": None,
+            "sentiment_24h": None,
+            "social_rank": None,
+            "social_heat": None,
+            "social_heat_trend": None,
+            "posts_60m": (
+                int(round(posts_60m))
+                if posts_60m is not None and posts_60m > 0
+                else None
+            ),
+            "posts_24h": (
+                int(round(posts_24h))
+                if posts_24h is not None and posts_24h > 0
+                else None
+            ),
+            "unique_authors_24h": unique_authors_24h,
+            "source": "coingecko",
+            "updated_at": updated_at,
+        }
+    )
+
+    if not any(
+        _is_meaningful_metric(metrics.get(key))
+        for key in (
+            "social_volume_24h",
+            "social_engagement_24h",
+            "posts_24h",
+            "unique_authors_24h",
+        )
+    ):
+        return None
+    return metrics
+
+
+def fetch_coingecko_social_metrics(symbol: str | None) -> dict[str, Any]:
+    sym = _normalize_symbol(symbol)
+    now_ts = _now_ts()
+    if not sym:
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "symbol_missing",
+        }
+
+    cache_key = f"coingecko:social:{sym}"
+    cached = _cache_get(cache_key)
+    if cached and isinstance(cached.get("payload"), dict):
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = dict(cached.get("payload") or {})
+        if age < _SOCIAL_TTL_S:
+            return payload
+
+    coin_id = coingecko_coin_id(sym)
+    if not coin_id:
+        if cached and isinstance(cached.get("payload"), dict):
+            payload = dict(cached.get("payload") or {})
+            payload["status"] = "degraded"
+            payload["ts"] = now_ts
+            payload["error"] = "coin_not_found"
+            return payload
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "coin_not_found",
+        }
+
+    url = _COINGECKO_COIN_URL.format(coin_id=quote(coin_id, safe=""))
+    status, data, err = _http_get_json(url)
+    if status == 200 and isinstance(data, dict):
+        metrics = _normalize_coingecko_metrics(data, sym, coin_id)
+        if metrics is not None:
+            payload = {
+                "status": "live",
+                "metrics": metrics,
+                "coin_id": coin_id,
+                "ts": now_ts,
+            }
+            _cache_set(cache_key, payload)
+            return payload
+        err = "invalid_payload"
+
+    if cached and isinstance(cached.get("payload"), dict):
+        payload = dict(cached.get("payload") or {})
+        payload["status"] = "degraded"
+        payload["ts"] = now_ts
+        payload["error"] = "rate_limited" if status == 429 else (err or "unavailable")
+        return payload
+
+    return {
+        "status": "offline",
+        "metrics": None,
+        "coin_id": coin_id,
+        "ts": now_ts,
+        "error": "rate_limited" if status == 429 else (err or "unavailable"),
+    }
+
+
+def fetch_coingecko_trending_metrics(symbol: str | None) -> dict[str, Any]:
+    sym = _normalize_symbol(symbol)
+    now_ts = _now_ts()
+    if not sym:
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "symbol_missing",
+        }
+
+    cache_key = "coingecko:trending"
+    cached = _cache_get(cache_key)
+    if cached and isinstance(cached.get("payload"), dict):
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = dict(cached.get("payload") or {})
+        if age < _ENDPOINT_TTL_S:
+            return _extract_trending_metric(sym, payload, stale=False)
+
+    status, data, err = _http_get_json(_COINGECKO_TRENDING_URL)
+    if status == 200 and isinstance(data, dict):
+        payload = {"status": "live", "data": data, "ts": now_ts}
+        _cache_set(cache_key, payload)
+        return _extract_trending_metric(sym, payload, stale=False)
+
+    if cached and isinstance(cached.get("payload"), dict):
+        return _extract_trending_metric(
+            sym, dict(cached.get("payload") or {}), stale=True
+        )
+
+    return {
+        "status": "offline",
+        "metrics": None,
+        "ts": now_ts,
+        "error": "rate_limited" if status == 429 else (err or "unavailable"),
+    }
+
+
+def _extract_trending_metric(
+    symbol: str, payload: dict[str, Any], *, stale: bool
+) -> dict[str, Any]:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    coins = data.get("coins") if isinstance(data, dict) else []
+    for idx, row in enumerate(coins or [], start=1):
+        item = row.get("item") if isinstance(row, dict) else None
+        if not isinstance(item, dict):
+            continue
+        item_sym = _normalize_symbol(item.get("symbol"))
+        if item_sym != symbol:
+            continue
+        metrics = _empty_social_metrics(source="coingecko")
+        metrics.update(
+            {
+                "trending_rank": idx,
+                "trending_source": "coingecko_search_trending",
+                "social_rank": _to_int(item.get("market_cap_rank")),
+                "updated_at": _now_ts(),
+            }
+        )
+        return {
+            "status": "stale" if stale else "live",
+            "metrics": metrics,
+            "ts": _now_ts(),
+        }
+    return {
+        "status": "stale" if stale else "live",
+        "metrics": None,
+        "ts": _now_ts(),
+        "error": "not_trending",
+    }
+
+
+def _extract_lunar_asset(payload: Any, symbol: str) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    data = payload.get("data")
+    candidates: list[dict[str, Any]] = []
+
+    if isinstance(data, list):
+        candidates = [row for row in data if isinstance(row, dict)]
+    elif isinstance(data, dict):
+        candidates = [data]
+    elif isinstance(payload, list):
+        candidates = [row for row in payload if isinstance(row, dict)]
+    else:
+        candidates = [payload] if isinstance(payload, dict) else []
+
+    if not candidates:
+        return None
+
+    for row in candidates:
+        row_symbol = _normalize_symbol(row.get("symbol"))
+        if row_symbol and row_symbol == symbol:
+            return row
+
+    return candidates[0]
+
+
+def _normalize_lunar_heat(value: Any) -> float | None:
+    n = _to_float(value)
+    if n is None:
+        return None
+    if n <= 1.0:
+        n *= 100.0
+    elif n <= 10.0:
+        n *= 10.0
+    return round(_clamp(n, 0.0, 100.0), 1)
+
+
+def _normalize_lunar_metrics(payload: Any, symbol: str) -> dict[str, Any] | None:
+    asset = _extract_lunar_asset(payload, symbol)
+    if not isinstance(asset, dict):
+        return None
+
+    volume_24h = _to_int(
+        asset.get("social_volume_24h")
+        or asset.get("social_volume")
+        or asset.get("social_mentions")
+    )
+    engagement_24h = _to_int(
+        asset.get("social_engagement_24h")
+        or asset.get("social_engagement")
+        or asset.get("social_interactions_24h")
+        or asset.get("social_impact_score")
+    )
+    dominance = _to_float(
+        asset.get("social_dominance_24h") or asset.get("social_dominance")
+    )
+    if dominance is not None:
+        if dominance <= 1.0:
+            dominance *= 100.0
+        dominance = round(_clamp(dominance, 0.0, 100.0), 2)
+
+    sentiment_payload = _coerce_sentiment_payload(
+        asset.get("sentiment_24h")
+        or asset.get("average_sentiment")
+        or asset.get("sentiment")
+    )
+
+    social_rank = _to_int(asset.get("social_rank") or asset.get("alt_rank"))
+    social_heat = _normalize_lunar_heat(
+        asset.get("social_heat")
+        or asset.get("social_score")
+        or asset.get("galaxy_score")
+    )
+    posts_60m = _to_int(
+        asset.get("social_volume_1h") or asset.get("social_mentions_1h")
+    )
+    posts_24h = volume_24h
+    unique_authors = _to_int(
+        asset.get("social_contributors") or asset.get("social_contributors_24h")
+    )
+    updated_at = (
+        asset.get("time")
+        or asset.get("updated_at")
+        or asset.get("last_updated")
+        or _now_ts()
+    )
+
+    heat_trend = None
+    vol_change_24h = _to_float(
+        asset.get("social_volume_change_24h") or asset.get("social_volume_change")
+    )
+    if vol_change_24h is not None:
+        if vol_change_24h >= 15:
+            heat_trend = "rising"
+        elif vol_change_24h <= -15:
+            heat_trend = "collapsing"
+        else:
+            heat_trend = "flat"
+    elif posts_60m is not None and posts_24h is not None and posts_24h > 0:
+        expected_hourly = max(1.0, posts_24h / 24.0)
+        ratio = posts_60m / expected_hourly
+        if ratio >= 1.5:
+            heat_trend = "rising"
+        elif ratio <= 0.6:
+            heat_trend = "collapsing"
+        else:
+            heat_trend = "flat"
+
+    metrics = _empty_social_metrics(source="lunarcrush")
+    metrics.update(
+        {
+            "social_volume_24h": volume_24h,
+            "social_engagement_24h": engagement_24h,
+            "social_dominance_24h": dominance,
+            "sentiment_24h": sentiment_payload,
+            "social_rank": social_rank,
+            "social_heat": social_heat,
+            "social_heat_trend": heat_trend,
+            "posts_60m": posts_60m,
+            "posts_24h": posts_24h,
+            "unique_authors_24h": unique_authors,
+            "source": "lunarcrush",
+            "updated_at": updated_at,
+        }
+    )
+
+    if not any(
+        _is_meaningful_metric(metrics.get(key))
+        for key in (
+            "social_volume_24h",
+            "social_engagement_24h",
+            "social_dominance_24h",
+            "social_heat",
+            "sentiment_24h",
+        )
+    ):
+        return None
+    return metrics
+
+
+def fetch_lunarcrush_social_metrics(symbol: str | None) -> dict[str, Any]:
+    sym = _normalize_symbol(symbol)
+    now_ts = _now_ts()
+    if not sym:
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "symbol_missing",
+        }
+
+    api_key = (
+        os.getenv("LUNARCRUSH_API_KEY") or os.getenv("LUNARCRUSH_KEY") or ""
+    ).strip()
+    if not api_key:
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "not_configured",
+        }
+
+    cache_key = f"lunarcrush:metrics:{sym}"
+    cached = _cache_get(cache_key)
+    if cached and isinstance(cached.get("payload"), dict):
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = dict(cached.get("payload") or {})
+        if age < _SOCIAL_TTL_S:
+            return payload
+
+    params = {
+        "data": "assets",
+        "symbol": sym,
+        "key": api_key,
+    }
+    url = f"{_LUNARCRUSH_URL}?{urlencode(params)}"
+    status, data, err = _http_get_json(url)
+
+    if status == 200:
+        metrics = _normalize_lunar_metrics(data, sym)
+        if metrics is not None:
+            payload = {
+                "status": "live",
+                "metrics": metrics,
+                "ts": now_ts,
+            }
+            _cache_set(cache_key, payload)
+            return payload
+        err = "invalid_payload"
+
+    if cached and isinstance(cached.get("payload"), dict):
+        payload = dict(cached.get("payload") or {})
+        payload["status"] = "degraded"
+        payload["ts"] = now_ts
+        payload["error"] = "rate_limited" if status == 429 else (err or "unavailable")
+        return payload
+
+    return {
+        "status": "offline",
+        "metrics": None,
+        "ts": now_ts,
+        "error": "rate_limited" if status == 429 else (err or "unavailable"),
+    }
+
+
+def _merge_metrics(
+    primary: dict[str, Any], fallback: dict[str, Any], *, source: str
+) -> dict[str, Any]:
+    merged = dict(fallback or {})
+    for key, value in (primary or {}).items():
+        if value is None:
+            continue
+        merged[key] = value
+    merged["source"] = source
+    if merged.get("updated_at") is None:
+        merged["updated_at"] = _now_ts()
+    return merged
+
+
+def _resolve_social_metrics(symbol: str, social_feed: dict[str, Any]) -> dict[str, Any]:
+    fallback_bundle = _derive_coinpaprika_metrics(symbol, social_feed)
+    fallback_metrics = dict(
+        fallback_bundle.get("metrics") or _empty_social_metrics(source="coinpaprika")
+    )
+    fallback_status = str(fallback_bundle.get("status") or "offline")
+
+    metric_keys = (
+        "social_volume_24h",
+        "social_engagement_24h",
+        "social_dominance_24h",
+        "social_heat",
+        "sentiment_24h",
+        "posts_24h",
+        "posts_60m",
+        "unique_authors_24h",
+        "trending_rank",
+    )
+
+    merged_metrics = fallback_metrics
+    statuses = [fallback_status]
+    errors: list[str] = []
+
+    fallback_has_data = any(
+        _is_meaningful_metric(fallback_metrics.get(k)) for k in metric_keys
+    )
+    should_try_gecko = any(
+        not _is_meaningful_metric(fallback_metrics.get(k))
+        for k in ("social_volume_24h", "social_engagement_24h")
+    )
+
+    if should_try_gecko:
+        gecko_bundle = fetch_coingecko_social_metrics(symbol)
+        gecko_status = str(gecko_bundle.get("status") or "offline")
+        gecko_metrics = gecko_bundle.get("metrics")
+        if isinstance(gecko_metrics, dict):
+            current_source = str(merged_metrics.get("source") or "").strip().lower()
+            if fallback_has_data and current_source and current_source != "coingecko":
+                merged_source = current_source
+            else:
+                merged_source = "coingecko"
+            # Fallback merge: keep existing values and only backfill missing fields.
+            merged_metrics = _merge_metrics(
+                primary=merged_metrics,
+                fallback=gecko_metrics,
+                source=merged_source,
+            )
+            statuses.append("live" if gecko_status == "live" else gecko_status)
+        else:
+            statuses.append(gecko_status)
+        gecko_error = str(gecko_bundle.get("error") or "").strip()
+        if gecko_error:
+            errors.append(gecko_error)
+
+    trending_bundle = fetch_coingecko_trending_metrics(symbol)
+    trending_status = str(trending_bundle.get("status") or "offline")
+    trending_metrics = trending_bundle.get("metrics")
+    if isinstance(trending_metrics, dict):
+        has_base_data = any(
+            _is_meaningful_metric(merged_metrics.get(k)) for k in metric_keys
+        )
+        merged_metrics = _merge_metrics(
+            primary=trending_metrics,
+            fallback=merged_metrics,
+            source="mixed" if has_base_data else "coingecko",
+        )
+        statuses.append(trending_status)
+    else:
+        # "not_trending" is a live negative signal, not an outage.
+        if trending_bundle.get("error") != "not_trending":
+            statuses.append(trending_status)
+            trending_error = str(trending_bundle.get("error") or "").strip()
+            if trending_error:
+                errors.append(trending_error)
+
+    lunar_bundle = fetch_lunarcrush_social_metrics(symbol)
+    lunar_status = str(lunar_bundle.get("status") or "offline")
+    lunar_metrics = lunar_bundle.get("metrics")
+
+    if isinstance(lunar_metrics, dict):
+        has_base_data = any(
+            _is_meaningful_metric(merged_metrics.get(k)) for k in metric_keys
+        )
+        merged_metrics = _merge_metrics(
+            primary=lunar_metrics,
+            fallback=merged_metrics,
+            source="mixed" if has_base_data else "lunarcrush",
+        )
+        statuses.append("degraded" if lunar_status == "degraded" else "live")
+    elif lunar_status == "degraded":
+        statuses.append("degraded")
+    lunar_error = str(lunar_bundle.get("error") or "").strip()
+    if lunar_error:
+        errors.append(lunar_error)
+
+    out_status = _aggregate_status(*statuses)
+    out = {
+        "status": out_status,
+        "metrics": merged_metrics,
+        "ts": _now_ts(),
+    }
+    if errors and out_status in {"degraded", "offline"}:
+        out["error"] = errors[0]
+    return out
+
+
+def _provider_rows(
+    *,
+    coin_id: str | None,
+    gecko_id: str | None,
+    events: dict[str, Any] | None = None,
+    social: dict[str, Any] | None = None,
+    social_metrics: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    lunar_key_present = bool(
+        (os.getenv("LUNARCRUSH_API_KEY") or os.getenv("LUNARCRUSH_KEY") or "").strip()
+    )
+    coinglass_key_present = bool((os.getenv("COINGLASS_API_KEY") or "").strip())
+    arkham_key_present = bool((os.getenv("ARKHAM_API_KEY") or "").strip())
+    coinmarketcal_key_present = bool((os.getenv("COINMARKETCAL_API_KEY") or "").strip())
+
+    def provider_status(block: dict[str, Any] | None, fallback: str) -> str:
+        status = str((block or {}).get("status") or fallback)
+        items = (block or {}).get("items")
+        if status == "live" and isinstance(items, list) and not items:
+            return "quiet"
+        return status
+
+    rows = [
+        {
+            "name": "CoinPaprika events",
+            "status": provider_status(events, "live" if coin_id else "offline"),
+            "access": "free_public",
+            "scope": "coin_context",
+            "configured": bool(coin_id),
+            "detail": "Recent/upcoming events only; old events are filtered out.",
+        },
+        {
+            "name": "CoinPaprika official timeline",
+            "status": provider_status(social, "live" if coin_id else "offline"),
+            "access": "free_public_deprecated_endpoint",
+            "scope": "coin_context",
+            "configured": bool(coin_id),
+            "detail": "Recent official timeline items only; deprecated upstream endpoint.",
+        },
+        {
+            "name": "CoinGecko community + trending",
+            "status": (
+                "live"
+                if gecko_id or (social_metrics or {}).get("status") in {"live", "stale"}
+                else "offline"
+            ),
+            "access": "free_public_demo_or_pro_key",
+            "scope": "attention_proxy",
+            "configured": bool(gecko_id),
+            "detail": "Community and search-trending proxy, not direct sentiment.",
+        },
+        {
+            "name": "LunarCrush",
+            "status": "configured" if lunar_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "coin_context_social",
+            "configured": lunar_key_present,
+            "detail": "Best fit for creator/social sentiment without direct Reddit/X keys.",
+        },
+        {
+            "name": "CoinGlass",
+            "status": "configured" if coinglass_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "derivatives_context",
+            "configured": coinglass_key_present,
+            "detail": "Would separate spot-led moves from leverage, crowding, squeezes, and liquidations.",
+        },
+        {
+            "name": "Arkham",
+            "status": "configured" if arkham_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "onchain_context",
+            "configured": arkham_key_present,
+            "detail": "Would add labeled whale, exchange-deposit, and smart-money context.",
+        },
+        {
+            "name": "CoinMarketCal",
+            "status": "configured" if coinmarketcal_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "catalyst_context",
+            "configured": coinmarketcal_key_present,
+            "detail": "Would explain moves near listings, launches, votes, upgrades, and other catalysts.",
+        },
+    ]
+    return rows
+
+
+def fetch_coin_intel(symbol: str | None) -> dict[str, Any]:
+    sym = _normalize_symbol(symbol)
+    now_ts = _now_ts()
+    if not sym:
+        events = {"status": "offline", "items": []}
+        social = {
+            "status": "offline",
+            "items": [],
+            "metrics": _empty_social_metrics(source="none"),
+        }
+        return {
+            "symbol": "",
+            "status": "offline",
+            "events": events,
+            "news": events,
+            "social": social,
+            "providers": _provider_rows(
+                coin_id=None,
+                gecko_id=None,
+                events=events,
+                social=social,
+                social_metrics=None,
+            ),
+            "ts": now_ts,
+            "error": "symbol_missing",
+        }
+
+    coin_id = coinpaprika_coin_id(sym)
+    gecko_id = coingecko_coin_id(sym)
+    if not coin_id:
+        events = {"status": "offline", "items": [], "error": "coin_not_found"}
+        social_seed = {
+            "status": "offline",
+            "items": [],
+            "error": "coin_not_found",
+        }
+        social_metrics = _resolve_social_metrics(sym, social_seed)
+        social = dict(social_seed)
+        social["metrics"] = dict(
+            social_metrics.get("metrics") or _empty_social_metrics(source="none")
+        )
+        social["status"] = _aggregate_status(
+            social.get("status"), social_metrics.get("status")
+        )
+        if social_metrics.get("error"):
+            social["error"] = social_metrics.get("error")
+        status = _aggregate_status(events.get("status"), social.get("status"))
+        return {
+            "symbol": sym,
+            "coin_id": gecko_id or None,
+            "status": status,
+            "events": events,
+            "news": events,
+            "social": social,
+            "providers": _provider_rows(
+                coin_id=None,
+                gecko_id=gecko_id,
+                events=events,
+                social=social,
+                social_metrics=social_metrics,
+            ),
+            "ts": now_ts,
+        }
+
+    events = fetch_coinpaprika_events(coin_id)
+    social = fetch_coinpaprika_twitter(coin_id)
+    social_metrics = _resolve_social_metrics(sym, social)
+
+    social_payload = dict(social)
+    social_payload["metrics"] = dict(
+        social_metrics.get("metrics") or _empty_social_metrics(source="none")
+    )
+    social_payload["status"] = _aggregate_status(
+        social_payload.get("status"), social_metrics.get("status")
+    )
+
+    if social_metrics.get("error"):
+        social_payload["error"] = social_metrics.get("error")
+
+    status = _aggregate_status(events.get("status"), social_payload.get("status"))
+
+    return {
+        "symbol": sym,
+        "coin_id": coin_id,
+        "status": status,
+        "events": events,
+        "news": events,
+        "social": social_payload,
+        "providers": _provider_rows(
+            coin_id=coin_id,
+            gecko_id=gecko_id,
+            events=events,
+            social=social_payload,
+            social_metrics=social_metrics,
+        ),
+        "ts": now_ts,
+    }
+
+===== END SOURCE 05 =====
+
+===== BEGIN SOURCE 06 | backend/chart_reader.py =====
+"""Chart Read — deterministic OHLCV analysis for basic-user summaries.
+
+Math reads the chart. Language is assembled from templates.
+No predictions, no advice, no buy/sell/hold/entry/exit language.
+
+Candle shape (Coinbase Exchange): ``[time, low, high, open, close, volume]``,
+returned descending by time from the API. Pass raw; this module sorts ascending.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+__all__ = ["analyze_candles"]
+
+
+# ─── normalise ────────────────────────────────────────────────────────────────
+
+
+def _normalize_candles(
+    raw: list[list[Any]],
+) -> list[tuple[float, float, float, float, float, float]]:
+    """Parse + sort raw Coinbase candles ascending by timestamp."""
+    rows: list[tuple[float, float, float, float, float, float]] = []
+    for c in raw or []:
+        if not c or len(c) < 6:
+            continue
+        try:
+            ts, low, high, open_, close, vol = (
+                float(c[0]),
+                float(c[1]),
+                float(c[2]),
+                float(c[3]),
+                float(c[4]),
+                float(c[5]),
+            )
+        except (TypeError, ValueError):
+            continue
+        if high <= 0 or low <= 0 or close <= 0:
+            continue
+        rows.append((ts, low, high, open_, close, vol))
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def _price_fmt(value: float) -> float:
+    """Round a price to a visually clean number of decimal places."""
+    if value >= 10_000:
+        return round(value, 0)
+    if value >= 1_000:
+        return round(value, 1)
+    if value >= 100:
+        return round(value, 1)
+    if value >= 10:
+        return round(value, 2)
+    if value >= 1:
+        return round(value, 3)
+    return round(value, 6)
+
+
+def _zone_n(total: int) -> int:
+    """Candles used to define a support/resistance zone (~20%, min 3)."""
+    return max(3, total // 5)
+
+
+def _f(
+    evidence: dict[str, Any], *keys: str, default: float | None = None
+) -> float | None:
+    """Return the first finite numeric value found across the given keys."""
+    for key in keys:
+        value = evidence.get(key)
+        if value is None:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if number == number and number not in (float("inf"), float("-inf")):
+            return number
+    return default
+
+
+# ─── calculation helpers ───────────────────────────────────────────────────────
+
+
+def _calculate_trend(rows: list[tuple]) -> dict:
+    """Compare avg close of second half vs first half to derive direction."""
+    closes = [r[4] for r in rows]
+    n = len(closes)
+    if n < 4:
+        return {"label": "sideways", "slope_pct": 0.0}
+    half = n // 2
+    first_avg = sum(closes[:half]) / half
+    second_avg = sum(closes[half:]) / (n - half)
+    if first_avg <= 0:
+        return {"label": "sideways", "slope_pct": 0.0}
+    slope_pct = ((second_avg - first_avg) / first_avg) * 100.0
+    if slope_pct > 2.0:
+        label = "up"
+    elif slope_pct < -2.0:
+        label = "down"
+    else:
+        label = "sideways"
+    return {"label": label, "slope_pct": round(slope_pct, 2)}
+
+
+def _find_support_zone(rows: list[tuple]) -> list[float]:
+    """Lowest ~20% of candle lows define the support zone."""
+    lows = sorted(r[1] for r in rows)
+    n = _zone_n(len(lows))
+    zone = lows[:n]
+    lo = _price_fmt(zone[0])
+    hi = _price_fmt(zone[-1])
+    if lo >= hi:
+        hi = _price_fmt(lo * 1.005)
+    return [lo, hi]
+
+
+def _find_resistance_zone(rows: list[tuple]) -> list[float]:
+    """Highest ~20% of candle highs define the resistance zone."""
+    highs = sorted((r[2] for r in rows), reverse=True)
+    n = _zone_n(len(highs))
+    zone = highs[:n]
+    lo = _price_fmt(zone[-1])
+    hi = _price_fmt(zone[0])
+    if lo >= hi:
+        lo = _price_fmt(hi * 0.995)
+    return [lo, hi]
+
+
+def _compare_volume(rows: list[tuple]) -> dict:
+    """Recent 5 candles vs the baseline of the rest."""
+    volumes = [r[5] for r in rows]
+    if len(volumes) < 4:
+        return {"label": "normal", "ratio": 1.0}
+    recent = volumes[-5:]
+    baseline = volumes[:-5] or volumes[:-1]
+    recent_avg = sum(recent) / len(recent)
+    base_avg = sum(baseline) / len(baseline)
+    if base_avg <= 0:
+        return {"label": "normal", "ratio": 1.0}
+    ratio = recent_avg / base_avg
+    if ratio > 1.5:
+        label = "high"
+    elif ratio < 0.6:
+        label = "low"
+    else:
+        label = "normal"
+    return {"label": label, "ratio": round(ratio, 2)}
+
+
+def _range_position(rows: list[tuple]) -> dict:
+    """Where the last close sits in the full recent high-low range."""
+    lows = [r[1] for r in rows]
+    highs = [r[2] for r in rows]
+    price = rows[-1][4]
+    support = min(lows)
+    resistance = max(highs)
+    span = resistance - support
+    if span <= 0:
+        pct = 50.0
+    else:
+        pct = max(0.0, min(100.0, ((price - support) / span) * 100.0))
+    if pct <= 15:
+        zone = "near_support"
+    elif pct < 40:
+        zone = "lower_range"
+    elif pct <= 60:
+        zone = "mid_range"
+    elif pct < 85:
+        zone = "upper_range"
+    else:
+        zone = "near_resistance"
+    return {"pct": round(pct, 1), "zone": zone}
+
+
+def _score_confidence(
+    trend_label: str,
+    volume_label: str,
+    candle_count: int,
+) -> str:
+    score = 0
+    if candle_count >= 20:
+        score += 1
+    if candle_count >= 40:
+        score += 1
+    if trend_label in ("up", "down"):
+        score += 1
+    # Volume behind the trend adds conviction
+    if volume_label == "high" and trend_label in ("up", "down"):
+        score += 1
+    if score >= 3:
+        return "high"
+    if score >= 2:
+        return "medium"
+    return "low"
+
+
+# ─── text builders ────────────────────────────────────────────────────────────
+
+_DIRECTION_TEXT = {
+    "up": "The price has generally been moving higher.",
+    "down": "The price has generally been moving lower.",
+    "sideways": "The price has been moving sideways without a clear direction.",
+}
+
+_VOLUME_TEXT = {
+    "high": "Trading activity is above normal, suggesting more participants are involved in the move.",
+    "normal": "Trading activity is not unusually strong or weak.",
+    "low": "Trading activity is below normal, which makes the move harder to trust.",
+}
+
+
+def _vol_phrase(label: str) -> str:
+    return {
+        "high": "trading activity is above normal",
+        "normal": "trading activity is normal",
+        "low": "trading activity is below normal",
+    }[label]
+
+
+def _fmt_zone(lo: float, hi: float) -> str:
+    return f"${lo}–${hi}"
+
+
+def _build_summary(
+    symbol: str,
+    trend_label: str,
+    volume_label: str,
+    range_zone: str,
+    lower_area: list[float],
+    upper_area: list[float],
+) -> str:
+    vol = _vol_phrase(volume_label)
+    lo_lo, lo_hi = lower_area
+    up_lo, up_hi = upper_area
+    lo_z = _fmt_zone(lo_lo, lo_hi)
+    up_z = _fmt_zone(up_lo, up_hi)
+
+    if trend_label == "up":
+        if range_zone == "near_resistance":
+            return (
+                f"{symbol} has been moving up, but it is getting close to a price area "
+                f"({up_z}) where sellers recently pushed it back. "
+                f"The move is notable, but {vol}, so it is not strongly confirmed yet."
+            )
+        if range_zone in ("mid_range", "lower_range"):
+            return (
+                f"{symbol} has been moving higher through its recent range. "
+                f"It has room before reaching the upper area around {up_z}, "
+                f"and {vol}."
+            )
+        if range_zone == "upper_range":
+            return (
+                f"{symbol} has been moving up and is now in the upper part of its recent range, "
+                f"approaching the area around {up_z} where sellers have pushed back before. "
+                f"Notably, {vol}."
+            )
+        # near_support
+        return (
+            f"{symbol} has been moving up from near the lower area around {lo_z} "
+            f"where buyers recently showed up. "
+            f"Notably, {vol}."
+        )
+
+    if trend_label == "down":
+        if range_zone == "near_support":
+            return (
+                f"{symbol} has been moving down and is approaching the lower area "
+                f"({lo_z}) where buyers have shown up before. "
+                f"Whether buyers step in again is unclear, and {vol}."
+            )
+        if range_zone in ("mid_range", "upper_range"):
+            return (
+                f"{symbol} has been moving lower through its recent range. "
+                f"The lower area around {lo_z} is further below, "
+                f"and {vol}."
+            )
+        if range_zone == "lower_range":
+            return (
+                f"{symbol} has been moving lower and is now in the lower part of its recent range. "
+                f"The lower area around {lo_z} is nearby, and {vol}."
+            )
+        # near_resistance
+        return (
+            f"{symbol} has been moving down from near the upper area around {up_z} "
+            f"where sellers recently pushed it back. "
+            f"Notably, {vol}."
+        )
+
+    # sideways
+    return (
+        f"{symbol} has been moving sideways without a clear direction, "
+        f"trading between the lower area around {lo_z} "
+        f"and the upper area around {up_z}. "
+        f"Notably, {vol}."
+    )
+
+
+def _watch_next(
+    trend_label: str,
+    lower_area: list[float],
+    upper_area: list[float],
+    event_price: float | None = None,
+) -> list[str]:
+    lo = lower_area[0]
+    hi = upper_area[1]
+    if event_price is not None:
+        ref = f"${_price_fmt(event_price)}"
+        if trend_label == "up":
+            return [
+                f"The read gets stronger if price holds above {ref} with higher trading activity.",
+                f"The read gets weaker if price falls back below {ref} with rising trading activity.",
+            ]
+        if trend_label == "down":
+            return [
+                f"The read gets stronger if price stays below {ref} with higher trading activity.",
+                f"The read gets weaker if price moves back above {ref} with rising trading activity.",
+            ]
+        return [
+            f"Watch whether price accepts above {ref} with higher trading activity to suggest upward pressure.",
+            f"Watch whether price rejects below {ref} with rising trading activity to suggest downward pressure.",
+        ]
+    if trend_label == "up":
+        return [
+            f"The read gets stronger if price pushes above ${hi} with higher trading activity.",
+            f"The read gets weaker if price falls below ${lo} with rising trading activity.",
+        ]
+    if trend_label == "down":
+        return [
+            f"The read gets stronger if price falls through ${lo} with higher trading activity.",
+            f"The read gets weaker if price bounces above ${hi} with rising trading activity.",
+        ]
+    return [
+        f"Watch for a move above ${hi} with higher trading activity to suggest upward momentum.",
+        f"Watch for a move below ${lo} with rising trading activity to suggest downward pressure.",
+    ]
+
+
+# ─── granularity helper ───────────────────────────────────────────────────────
+
+
+def _hours_per_candle(timeframe: str) -> float:
+    return {
+        "1m": 1 / 60,
+        "5m": 5 / 60,
+        "15m": 0.25,
+        "1h": 1.0,
+        "4h": 4.0,
+        "1d": 24.0,
+    }.get(timeframe, 1.0)
+
+
+def _normalize_event_context(
+    event_context: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """Keep optional launch context narrow and deterministic."""
+    if not isinstance(event_context, dict):
+        return None
+
+    raw_type = str(
+        event_context.get("type_key") or event_context.get("type") or ""
+    ).strip()
+    evidence = event_context.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+
+    normalized: dict[str, Any] = {}
+    if raw_type:
+        normalized["type_key"] = raw_type.upper()
+
+    evidence_out: dict[str, Any] = {}
+    raw_window = str(
+        evidence.get("window") or event_context.get("window") or ""
+    ).strip()
+    if raw_window:
+        evidence_out["window"] = raw_window
+
+    price = _f(evidence, "price")
+    if price is None:
+        price = _f(event_context, "price")
+    if price is not None:
+        evidence_out["price"] = price
+
+    pct = _f(evidence, "pct")
+    if pct is None:
+        pct = _f(event_context, "pct")
+    if pct is not None:
+        evidence_out["pct"] = pct
+
+    if evidence_out:
+        normalized["evidence"] = evidence_out
+
+    return normalized or None
+
+
+def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
+    """Turn trigger metadata into a spatial reminder, not a detector read."""
+    ctx = _normalize_event_context(event_context)
+    if not ctx:
+        return None
+
+    type_key = str(ctx.get("type_key") or "").strip()
+    evidence = ctx.get("evidence") if isinstance(ctx.get("evidence"), dict) else {}
+    window = str(evidence.get("window") or "").strip()
+    price = _f(evidence, "price")
+
+    if type_key and window and price is not None:
+        return f"The triggering {type_key} alert came from the {window} window near ${_price_fmt(price)}."
+    if type_key and price is not None:
+        return f"The triggering {type_key} alert came near ${_price_fmt(price)}."
+    if type_key and window:
+        return f"The triggering {type_key} alert came from the {window} window."
+    if price is not None:
+        return f"The alert fired near ${_price_fmt(price)}."
+    if window:
+        return f"The alert came from the {window} window."
+    return None
+
+
+# ─── public API ───────────────────────────────────────────────────────────────
+
+
+def analyze_candles(
+    raw_candles: list[list[Any]],
+    symbol: str,
+    timeframe: str = "1h",
+    event_context: dict[str, Any] | None = None,
+) -> dict | None:
+    """Analyze raw OHLCV candles and return a basic-user-friendly read.
+
+    Returns ``None`` when there are not enough candles to produce an honest read.
+    Caller is responsible for fetching candles; this module does no network I/O.
+    """
+    rows = _normalize_candles(raw_candles)
+    if len(rows) < 5:
+        return None
+
+    sym = str(symbol or "").upper().strip()
+    trend = _calculate_trend(rows)
+    lower_area = _find_support_zone(rows)
+    upper_area = _find_resistance_zone(rows)
+    volume = _compare_volume(rows)
+    rpos = _range_position(rows)
+    confidence = _score_confidence(trend["label"], volume["label"], len(rows))
+    ctx = _normalize_event_context(event_context)
+    ctx_note = _event_context_note(ctx)
+    ctx_price = None
+    if ctx and isinstance(ctx.get("evidence"), dict):
+        ctx_price = _f(ctx["evidence"], "price")
+
+    summary = _build_summary(
+        sym,
+        trend["label"],
+        volume["label"],
+        rpos["zone"],
+        lower_area,
+        upper_area,
+    )
+    if ctx_note:
+        summary = f"{summary} {ctx_note}"
+
+    return {
+        "symbol": sym,
+        "timeframe": timeframe,
+        "summary": summary,
+        "direction": {
+            "label": trend["label"],
+            "basic_text": _DIRECTION_TEXT[trend["label"]],
+        },
+        "lower_area": {
+            "zone": lower_area,
+            "basic_text": "Buyers recently showed up around this area.",
+            "technical_label": "support",
+        },
+        "upper_area": {
+            "zone": upper_area,
+            "basic_text": "Sellers recently pushed price back around this area.",
+            "technical_label": "resistance",
+        },
+        "trading_activity": {
+            "label": volume["label"],
+            "basic_text": _VOLUME_TEXT[volume["label"]],
+        },
+        "confidence": confidence,
+        "watch_next": _watch_next(trend["label"], lower_area, upper_area, ctx_price),
+        "not_financial_advice": True,
+        "candle_count": len(rows),
+        "window_hours": round(len(rows) * _hours_per_candle(timeframe), 1),
+    }
+
+===== END SOURCE 06 =====
+
+===== BEGIN SOURCE 07 | frontend/src/components/ChartReadPanel.jsx =====
+import React from 'react';
+
+function windowLabel(window_hours, timeframe) {
+  const h = Math.round(window_hours || 0);
+  if (!h) return null;
+  const tfLabel = { '1h': '1-hour candles', '4h': '4-hour candles', '1d': 'daily candles', '15m': '15-min candles' }[timeframe] || `${timeframe} candles`;
+  if (h <= 24) return `last ~${h} hours · ${tfLabel}`;
+  const d = Math.round(h / 24);
+  return `last ~${d} day${d !== 1 ? 's' : ''} · ${tfLabel}`;
+}
+
+const DIRECTION_ICON = { up: '↑', down: '↓', sideways: '↔' };
+const DIRECTION_COLOR = { up: 'var(--sentiment-pos)', down: 'var(--sentiment-neg)', sideways: 'var(--sentiment-neu)' };
+const VOLUME_COLOR = { high: 'var(--sentiment-pos)', normal: 'var(--sentiment-subtext)', low: 'var(--sentiment-neg)' };
+const CONFIDENCE_COLOR = { high: 'var(--sentiment-pos)', medium: 'var(--sentiment-neu)', low: 'var(--sentiment-muted)' };
+
+function Chip({ label, color, children }) {
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.3rem',
+      padding: '0.2rem 0.55rem',
+      borderRadius: '0.4rem',
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      fontSize: '0.72rem',
+      color: color || 'var(--sentiment-subtext)',
+      whiteSpace: 'nowrap',
+    }}>
+      {label && <strong style={{ color }}>{label}</strong>}
+      {children}
+    </span>
+  );
+}
+
+function ZoneChip({ label, zone, color }) {
+  if (!zone || zone.length < 2) return null;
+  const [lo, hi] = zone;
+  return (
+    <Chip color={color}>
+      <strong style={{ color }}>{label}:</strong>
+      {' '}${lo}–${hi}
+    </Chip>
+  );
+}
+
+export default function ChartReadPanel({ data, loading, error }) {
+  if (loading) {
+    return (
+      <div style={styles.wrapper}>
+        <div style={styles.header}>
+          <span style={styles.title}>Chart Read</span>
+        </div>
+        <p style={styles.loading}>Reading the chart…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.wrapper}>
+        <div style={styles.header}>
+          <span style={styles.title}>Chart Read</span>
+        </div>
+        <p style={styles.errorText}>Chart data temporarily unavailable.</p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { summary, direction, lower_area, upper_area, trading_activity, confidence, watch_next, symbol, timeframe, window_hours } = data;
+  const dirColor = DIRECTION_COLOR[direction?.label] || 'var(--sentiment-subtext)';
+  const wLabel = windowLabel(window_hours, timeframe);
+  const volColor = VOLUME_COLOR[trading_activity?.label] || 'var(--sentiment-subtext)';
+  const confColor = CONFIDENCE_COLOR[confidence] || 'var(--sentiment-subtext)';
+
+  return (
+    <div style={styles.wrapper}>
+      <div style={styles.header}>
+        <span style={styles.title}>Chart Read</span>
+        {wLabel && <span style={styles.meta}>{wLabel}</span>}
+      </div>
+
+      <p style={styles.summary}>{summary}</p>
+
+      <div style={styles.chips}>
+        <Chip color={dirColor}>
+          <strong style={{ color: dirColor }}>Direction:</strong>
+          {' '}{DIRECTION_ICON[direction?.label]} {direction?.label}
+        </Chip>
+
+        <ZoneChip
+          label="Lower area"
+          zone={lower_area?.zone}
+          color="rgba(69,255,179,0.75)"
+        />
+
+        <ZoneChip
+          label="Upper area"
+          zone={upper_area?.zone}
+          color="rgba(174,75,245,0.75)"
+        />
+
+        <Chip color={volColor}>
+          <strong style={{ color: volColor }}>Activity:</strong>
+          {' '}{trading_activity?.label}
+        </Chip>
+
+        <Chip color={confColor}>
+          <strong style={{ color: confColor }}>Confidence:</strong>
+          {' '}{confidence}
+        </Chip>
+      </div>
+
+      {Array.isArray(watch_next) && watch_next.length > 0 && (
+        <div style={styles.watchNext}>
+          <p style={styles.watchLabel}>What to watch next</p>
+          <ul style={styles.watchList}>
+            {watch_next.map((item, i) => (
+              <li key={i} style={styles.watchItem}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <p style={styles.disclaimer}>
+        Descriptive only · Not financial advice
+      </p>
+    </div>
+  );
+}
+
+const styles = {
+  wrapper: {
+    marginTop: '0.75rem',
+    padding: '0.85rem 1rem',
+    background: 'rgba(255,255,255,0.025)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: '0.6rem',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.6rem',
+    marginBottom: '0.5rem',
+  },
+  title: {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--sentiment-subtext)',
+  },
+  meta: {
+    fontSize: '0.67rem',
+    color: 'var(--sentiment-muted)',
+  },
+  summary: {
+    margin: '0 0 0.65rem',
+    fontSize: '0.82rem',
+    lineHeight: 1.55,
+    color: 'var(--sentiment-text)',
+  },
+  chips: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.35rem',
+    marginBottom: '0.65rem',
+  },
+  watchNext: {
+    marginBottom: '0.5rem',
+  },
+  watchLabel: {
+    margin: '0 0 0.3rem',
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'var(--sentiment-muted)',
+  },
+  watchList: {
+    margin: 0,
+    padding: '0 0 0 1.1rem',
+  },
+  watchItem: {
+    fontSize: '0.77rem',
+    color: 'var(--sentiment-subtext)',
+    lineHeight: 1.5,
+    marginBottom: '0.2rem',
+  },
+  disclaimer: {
+    margin: 0,
+    fontSize: '0.63rem',
+    color: 'var(--sentiment-muted)',
+    opacity: 0.7,
+  },
+  loading: {
+    margin: 0,
+    fontSize: '0.78rem',
+    color: 'var(--sentiment-muted)',
+  },
+  errorText: {
+    margin: 0,
+    fontSize: '0.78rem',
+    color: 'var(--sentiment-muted)',
+    opacity: 0.7,
+  },
+};
+
+===== END SOURCE 07 =====
+
+===== BEGIN SOURCE 08 | docs/research/RADAR_BOARD_RUNNER_SCREEN_20261113.md =====
+# Board runner screen · November 13, 2026
+
+The replicated overextension finding and a concentration of runners coexist
+in the October 28 through November 12 UTC sample. Among 3-minute gainers,
+the largest entry moves averaged a 10.12% runner rate when flagged and
+3.82% otherwise. This exploratory result uses the same dates as the
+[fresh replication](https://github.com/tgpetrie/moonwalking/blob/7bd275748e1b9ee5758835337843a2dc1fe2a64e/docs/research/LIVE_MOVERS_FRESH_REPLICATION_RESULTS_20261113.md),
+which measured directional return and found a negative mean in the
+highest-move band. The two outcomes answer different questions.
+
+## Exploratory results
+
+Each cell is the mean across 16 UTC days of the runner rate among gradable
+flagged entries. A runner had a stored directional peak at or above that
+day's top-5% cutoff for its board, with outcome ties included. Each score
+gets the same flag count per board/day, the largest fifth of entries with
+all compared inputs present, rounded up. A tied score at the flag cutoff
+gets a proportional share. Flags are ranked before excluding ungradable
+outcomes. The all-day ranking gives a common comparison budget and uses
+future entries, so it supplies no live flag threshold.
+
+| Entry-time signal | 1m gainers | 3m gainers | 3m losers |
+| --- | ---: | ---: | ---: |
+| Matched base rate | 5.01% | 5.07% | 5.01% |
+| Directional percentage move | 9.45% | **10.12%** | **11.14%** |
+| Entry rank | 8.89% | 9.43% | 9.71% |
+| Direction-aligned stored live score | 8.34% | 9.32% | 9.87% |
+| Nominal 1m acceleration | **10.96%** | 7.91% | 9.08% |
+| 1h volume change | 5.65% | 6.23% | 6.04% |
+| Prior same-board entries over 24h | 4.53% | 6.40% | 6.30% |
+
+Acceleration on 1m gainers beat percentage move on all 16 days in this
+sample. Its unflagged rate was 3.53%. The daily runner cutoff varied from
+about 0.67% to 1.53% across boards and days. As a sensitivity read, 11.96%
+of gradable 1m acceleration flags had a sampled peak of at least 1% and
+6.24% still had at least 1% at the observed 15-minute checkpoint.
+For 3m gainers, the raw-move flags were 11.52% and 6.48% on those two
+measures. The 1% level is an exploratory reference. The illustrative flag
+budget averaged 14–16 flags per calendar hour per board. A notification
+budget would need its own cap.
+
+The score for acceleration is the directional difference between the
+nominal last-minute log return and the per-minute log return of the
+preceding two minutes. The volume field describes 1h change and gives no
+trade count at entry. The persistence count uses only earlier entries and
+inherits the tracker's cooldown. These single-variable comparisons do not
+measure incremental value from a blend or activity gate. No model was fitted.
+Use the results to select a question for fresh confirmation, accounting for
+overlapping windows, repeated products and cross-board dependence.
+
+## Coverage and label audit
+
+| Board | Total entries | Gross 15m checkpoint present | Gross 60m checkpoint present | All compared inputs | All compared inputs and 15m grade |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1m gainers | 31,454 | 30,928 | 29,609 | 30,825 | 30,358 |
+| 3m gainers | 27,828 | 27,345 | 26,103 | 27,085 | 26,652 |
+| 3m losers | 27,873 | 27,385 | 26,168 | 27,003 | 26,567 |
+
+- All 87,155 entries have ranks 1–8. The checked dashboard uses 1m gainers
+  and 3m gainers and losers. The sample can study a coin at its tracked entry.
+  It cannot compare simultaneous board rows, measure every later appearance,
+  evaluate ranks 9–16 or describe coins before board entry.
+- The minimum same-board entry spacing was 3,615 seconds. There were zero
+  re-entries within an hour. The 24h count is a coarse repeat-appearance proxy.
+- `max_favorable_15m` is the largest observed gross directional excursion
+  from entry, floored at zero. The code updates it through age 900 seconds
+  **or while the 15m checkpoint is missing**. Consequently it can include
+  the first observation after 900 seconds and keep accumulating if that
+  checkpoint is never recorded. The screen requires a stored gross 15m
+  return and an observed, non-interrupted 15m grade. This excludes missing
+  checkpoint cases but cannot remove checkpoint overshoot. The default
+  checkpoint slack is 300 seconds. A synthetic probe on the existing
+  tracker included a move at +940s in the stored 15m peak and excluded
+  the next move at +960s after the checkpoint. The ledger has no peak clock,
+  per-product observation count or quote age. A wick can grade as a runner
+  and then fade. The 60m checkpoint is a directional return; the generic
+  peak is over the tracked horizon. No 60m runner screen was run.
+- 87,069 rows have feature snapshots and all are v2, dated within the
+  contract's 60-second pre-entry window. None has numeric realized
+  volatility, quote-volume USD or BTC-relative return. The local 60-second
+  candle archive has 5,920,622 rows for 407 products and ends October 12
+  at 17:59 UTC, so it contributes no candle in the discovery interval.
+  This also blocks reconstructing a staircase from completed minutes for
+  these dates.
+
+## Next research decision
+
+### Relative drawdown check
+
+The follow-up used the identical capture, dates, eligibility, score weights,
+and top-fifth flag budget. Each UTC board/day has two outcome cutoffs: the
+upper 5% of `max_favorable_15m` and the lower 5% of `max_adverse_15m`. Both
+include boundary ties and use all entries with the existing 15m grade.
+The adverse field measures the worst excursion from entry, with the same
+sampling and possible checkpoint overshoot as the favorable field. On the
+losers board, an adverse excursion is a price rebound. The two events can
+occur in one episode. Their order is unavailable.
+
+Each cell shows the average daily flagged runner / adverse-tail rates.
+Matched base rates were about 5% for each tail on every board.
+
+| Entry-time signal | 1m gainers | 3m gainers | 3m losers |
+| --- | ---: | ---: | ---: |
+| Directional percentage move | 9.45% / 15.67% | 10.12% / 16.24% | 11.14% / 16.47% |
+| Entry rank | 8.89% / 13.86% | 9.43% / 15.01% | 9.71% / 15.11% |
+| Direction-aligned stored live score | 8.34% / 13.71% | 9.32% / 14.19% | 9.87% / 14.84% |
+| Nominal 1m acceleration | 10.96% / 16.49% | 7.91% / 13.24% | 9.08% / 13.36% |
+| 1h volume change | 5.65% / 6.20% | 6.23% / 5.62% | 6.04% / 5.99% |
+| Prior same-board entries over 24h | 4.53% / 3.36% | 6.40% / 5.40% | 6.30% / 5.29% |
+
+On 3m gainers, the raw-move flags had a 16.24% adverse-tail rate against
+2.26% unflagged. For 1m acceleration the rates were 16.49% and 2.16%.
+About 2% of flags in each of these comparisons reached both tails.
+At equal-sized 1% excursions, 3m raw-move flags reached +1% in the board
+direction 11.52% of the time and −1% 26.52%. The 1m acceleration figures
+were 11.96% and 24.34%.
+
+The 1m acceleration runner-minus-adverse gap was −5.53 percentage points
+(exploratory three-day block interval −6.61 to −4.32), versus −6.22 for
+raw move. The paired improvement was +0.69 points (+0.27 to +1.14).
+On 3m gainers the raw-move gap was −6.12 points (−8.65 to −4.20).
+Volume on 3m gainers and prior entries on both 3m boards had small
+positive gaps of 0.61–1.01 points. Prior entries on 1m gainers also had
+a positive gap, driven by fewer adverse events and a runner rate below
+base. Intervals use 5,000 draws of contiguous three-UTC-day blocks of
+paired daily rates. They are descriptive across signals on 16 explored
+days, with no multiplicity adjustment.
+
+### Carbon's sustained-runner proposal
+
+Carbon's November 13 memo supplied a useful absolute label. On the same
+dates, score a runner when the gross directional 15m checkpoint is at
+least +1%, the 5m checkpoint is above −0.5%, and either the stored 15m
+peak or the 30m checkpoint reaches +1.5%. Its mirror uses the negated
+directional returns and adverse excursion. Require all three finite
+checkpoints and the original non-interrupted 15m grade. This label
+matures at the 30m checkpoint and inherits ledger timing and last-trade
+limitations. It allows an episode to qualify from the 30m value, so
+the extension need not precede the 15m checkpoint.
+
+For this separate sensitivity, use Carbon's 25% daily quota, rounded down,
+on the same input-eligible rows before grading. Ties receive proportional
+weights. This preserves the alert denominator when an outcome is missing.
+The full-day quota remains a retrospective comparison.
+
+| Entry-time signal | 1m gainers runner / reversal | 3m gainers runner / reversal | 3m losers runner / reversal |
+| --- | ---: | ---: | ---: |
+| Matched base rates | 2.05% / 3.69% | 2.18% / 4.33% | 2.36% / 3.80% |
+| Directional percentage move | 3.49% / 9.25% | 4.19% / 11.02% | 4.81% / 9.79% |
+| Entry rank | 3.39% / 8.50% | 3.85% / 10.50% | 3.75% / 9.09% |
+| Direction-aligned stored live score | 3.19% / 8.44% | 4.02% / 10.15% | 4.25% / 9.50% |
+| Nominal 1m acceleration | 3.96% / 9.59% | 3.01% / 9.33% | 3.56% / 8.38% |
+| 1h volume change | 2.51% / 4.41% | 2.57% / 4.87% | 2.78% / 4.59% |
+| Prior same-board entries over 24h | 2.13% / 2.67% | 2.79% / 4.64% | 2.48% / 3.67% |
+
+The sustained comparison has 29,903 graded rows for 1m gainers, 26,227
+for 3m gainers, and 26,189 for 3m losers. Every tested flag has a higher
+sustained reversal rate than runner rate. The small positive gaps for
+volume and prior entries under the relative labels disappear under the
+sustained definition. Carbon expected a 5–10% runner base rate. The observed
+2.05–2.36% matters for any power calculation.
+
+### Disposition
+
+No tested flag clears the requested directional screen. Keep percentage
+move as the reference. The two-sided enrichment supports describing
+activity or reversal exposure. Volatility, liquidity and quote effects
+remain possible explanations that the ledger cannot separate.
+
+Use Carbon's absolute label as a design candidate alongside its adverse
+mirror. Before any freeze, specify an entry-time flag rule with a practical
+budget, and derive sample requirements from paired day or market-wave
+variation under the observed base rates. Carbon's full-day quota cannot
+run at entry. The proposed stopping rules also leave the 12–13 valid-day
+case ambiguous and need one fixed rule or a calibrated sequential design.
+Set the holdout after the finalized rule. No confirmation outcomes were
+read and no signal or protocol was frozen in this follow-up.
+
+### Independent Step 1 comparison and confirmation sizing
+
+Claude's Step 1 protocol `aa94299`, implementation `7ebd794`, and result
+`6ed116c` on `claude/instant-radar-fresh-replication-20261113` were three
+local commits ahead of the remote when checked. The production screen
+used 333,104 eligible entries from August 18 through October 17 UTC.
+Its October 18–27 check used 54,033. The Codex screen used October 28
+through November 12, so the evaluated dates do not overlap. Both
+capture digests and the frozen production episode index verified.
+
+Under the sustained label, Claude's largest percentage moves had more
+runners than base on all three boards, and the same flags had roughly
+1.8–1.9 times as many reversals as runners. None of Claude's signals
+cleared its selection gate. The reverse of acceleration on 1m gainers
+was nearly even (2.00% runners, 1.98% reversals), with fewer runners than
+the 2.72% board base rate. The positive acceleration score gained 0.09
+points of runner precision over raw move (−0.07 to +0.24) and −0.02
+points in the check sample. Codex measured +0.47 points on its dates
+under the sustained label. The score formulas, cutoff tie-breaks and
+handling of outcome eligibility differ. Claude used a ratio of 1m to
+3m moves and ranked the gradable cohort. Codex used the difference in
+nominal log-return rates and ranked before grading. Claude's cross-board
+persistence variant also uses entries up to 180 seconds after the
+decision. Use these as separate exploratory comparisons of the tested
+rules. On the losers board, an adverse result means a rebound.
+
+On 3m gainers, the sustained-runner base rate averaged 2.95% (median
+2.81%) across Claude's 61 scored production days, 2.95% (median 2.85%)
+across its ten check days, and 2.18% on Codex's 16 days. Claude's paired
+daily precision difference for its acceleration score versus raw move
+had a sample standard deviation of 0.98 percentage points in production
+and 1.51 points in the check. These are planning proxies from a snapshot
+signal. The variance of a future candle signal at an entry-time flag
+budget remains to be measured.
+
+For one paired contrast against zero, a two-sided 5% normal approximation
+at 80% power gives
+`ceil(D × ((1.960 + 0.842) × daily_SD / true_gain)^2)` days. `D`
+represents variance inflation from dependence between days. The table
+uses daily standard deviations in percentage points. Each cell shows
+independent days / days at illustrative `D=1.5`.
+
+| Daily paired SD | +0.5 point | +1.0 point | +1.5 points |
+| --- | ---: | ---: | ---: |
+| 1.0 points | 32 / 48 | 8 / 12 | 4 / 6 |
+| 1.5 points | 71 / 106 | 18 / 27 | 8 / 12 |
+| 2.0 points | 126 / 189 | 32 / 48 | 14 / 21 |
+| 3.0 points | 283 / 424 | 71 / 106 | 32 / 48 |
+
+At 2-point daily SD and `D=1.5`, 14 days give 80% power against zero
+only for a gain of about 1.83 points or larger. A 25% lift over a
+2–3% base is just 0.50–0.75 points. Carbon's separate +1.5-point
+gain over the raw-move flag is a different effect. Power against zero
+also differs from the chance of clearing a gate that requires the
+point estimate itself to exceed +1.5 points, favorable direction,
+and multiple interval checks. Small counts in this table describe the
+formula and give no minimum for reliable resampling or market-regime
+coverage. Size the actual test after a candidate and causal flag
+rule exist, using paired day or market-wave blocks and a single fixed
+sample and calendar cap. Keep zero-runner days when they meet the
+outcome-blind coverage criteria.
+
+### Existing candle coverage for Step 2
+
+The read-only archive has 5,920,622 one-minute candles for 407 product
+IDs. Its first and last open timestamps are September 6 at 12:00 and
+October 12 at 17:59 UTC. The table profiles the frozen production
+episode index inside that span. The availability probe uses the last
+whole minute before board entry. A comparison with stored snapshot
+features must use their recorded capture timestamp where it is earlier.
+Counts are coverage diagnostics before any runner label or signal score.
+
+| Board | Eligible entries | Latest closed coin candle | Three consecutive coin candles | Coin and BTC 3m endpoints | 61 consecutive coin closes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1m gainers | 72,270 | 44,350 | 19,278 | 23,586 | 8,088 |
+| 3m gainers | 63,244 | 33,940 | 14,991 | 18,391 | 5,833 |
+| 3m losers | 63,615 | 34,047 | 15,334 | 19,005 | 5,838 |
+
+The 3m endpoints are the closes at the cutoff and three minutes earlier.
+Sixty-one consecutive closes supply 60 one-minute returns. Strict
+volatility coverage is about 9–11% of eligible entries, so a complete-case
+comparison could change the liquidity mix substantially. For a future
+screen, compare the candidate and raw move on identical rows and report
+the raw-move baseline and exclusion rates on the original roster.
+Declare any sparse-window rule before outcomes. No candle signal was
+scored in this coverage check.
+
+One-minute candles can support research on unusual moves, activity and
+BTC-relative movement, and a separate pre-entry early-watch comparison.
+Start with explicit historical product IDs and audit completed-minute
+coverage. Current listings, old archive rosters and observed episode IDs
+give partial roster evidence. Successful requests may still leave gaps.
+A candle-only replay can measure minute-scale opportunities under an
+explicit observation model. Live board membership, sub-minute lead and
+delivery require their own timestamped evidence.
+[Coinbase Exchange candle documentation](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).
+
+Carbon's early-watch proposal requires these boundaries in a replay:
+historical roster coverage is partial, a successful fetch does not
+prove every missing minute had no trades, and eligibility at the cutoff
+cannot depend on a window's later availability. Use closed candles and
+describe any publication lag as a replay assumption. A synthetic top
+eight from minute closes is a proxy for the live board. A null result
+would bound the tested candle signals, horizon and population.
+
+For any future recorder extension, retain the original top-eight entry
+series and add separate observation for ranks 9–16, including transitions
+into the top eight and re-entries during cooldown. Timestamp sampled
+peaks, checkpoint observations and any BBO measurements. These data
+changes require a separate implementation and deployment decision.
+
+## Reproduction
+
+The analysis uses the immutable private `board_episodes.sqlite` from the
+fresh replication and checks its published SHA-256 before reading it. It
+uses October 27 entries only to initialize prior appearances and reads no
+entries from November 13 onward. No new capture or candle backfill ran.
+The 23 existing board, gap and candle-archive tests, the synthetic peak
+probe, formatting, JSON, diff and repository guardrail checks passed.
+The follow-up matched every previously emitted result across three boards
+and 18 score cells. The 14 board and gap tests passed again. Synthetic
+checks covered tied cutoffs, both tails on one row, ungradable flags,
+and the sustained label boundaries.
+
+```powershell
+python scripts/scoring_experiment/screen_board_runners_20261113.py "$env:USERPROFILE/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite"
+python scripts/scoring_experiment/screen_board_runners_20261113.py "$env:USERPROFILE/.moonwalking/analysis/live_movers_fresh_replication_20261113/board_episodes.sqlite" --carbon
+```
+
+===== END SOURCE 08 =====
+
+===== BEGIN SOURCE 09 | docs/research/RADAR_CANDLE_SCREEN_20261113.md =====
+# Radar candle exploration · November 13
+
+## Board continuation
+
+Use the immutable production board capture and its verified eligible episode
+index. Restrict to complete UTC dates September 7 through October 11 in the
+existing 1m Coinbase Exchange archive. Compare the first 21 days with the
+remaining 14 days as a stability check within exploration. Earlier research
+already used this period. Leave November 13 onward for a separately frozen
+confirmation.
+
+Reuse the sustained runner and mirrored reversal labels from
+[the board screen](RADAR_BOARD_RUNNER_SCREEN_20261113.md). All three gross
+checkpoints and both sampled extrema must be finite, with an observed
+non-interrupted 15m grade. Keep each board and direction separate.
+
+Anchor candle features to the earlier recorded feature snapshot time.
+Allow a 60-second publication lag after a candle closes. Require the exact
+minute bars each feature consumes and leave gaps missing. Use directional
+percentage change as the reference. Compare these standalone scores:
+
+- **Unusual move** divides the displayed move by the root mean square of 60
+  consecutive 1m log returns ending before the trailing 3m signal interval,
+  with a 0.10% one-minute floor. Compare on the same fully observed rows.
+- **Activity** ranks the estimated USD notional of the trailing three candles
+  (`sum(close × base volume)`). It measures activity and cannot identify
+  the number or size of individual prints.
+- **BTC-relative move** ranks the direction-aligned difference between the
+  coin and BTC's synchronized 3m log returns, with BTC excluded as a candidate.
+
+Rank and flag the top quarter per board/day before reading grades. Break
+score ties by original move then episode ID. Score the comparator both on
+the full input roster and on each signal's matched subset. Report input and
+outcome coverage, actual grade coverage among flags, runner precision, adverse
+rate, paired precision gain and directional gap. Equal-weight days with at
+least 20 input-eligible rows and positive graded denominators for both arms.
+Retain days with zero runners. Use paired three-calendar-day blocks for
+descriptive 95% intervals on the longer window. A candidate needs positive
+runner-minus-reversal balance and at least +1 point precision over raw move
+in the first window, a positive lower interval bound for precision gain,
+and positive gains and directional balance in the second window before
+designing confirmation. The all-day quota measures exploration only.
+
+## Early watch
+
+Replay the same archive dates on a 5m decision grid. Use exact closed
+minute candles with the same 60s publication lag and no gap imputation.
+The fixed roster is all archived USD products excluding stablecoins.
+Before each cutoff require exact coin endpoints, at least 30 traded minutes
+in the prior day and five in the prior hour, then exclude the synthetic
+top eight by 1m or 3m gain. Consider the remaining coins with at least
++0.30% 3m gain. This synthetic board models ranks from candle closes.
+
+Compare raw 3m return with estimated 3m dollar-volume pace against the prior
+57 minutes and volatility-adjusted 3m return. Use matched candidate sets for
+each comparison. Both arms may flag one coin per cutoff and use their own
+60m product cooldown. Grade flags against the last close known at the cutoff.
+Require fresh checkpoints at +5m and +15m and complete intervening observed
+closes for this first screen. Success requires +1% at +15m, above −0.5%
+at +5m, and either an observed +1.5% close within 15m or graduation into
+the synthetic top eight within ten minutes. The adverse mirror uses −1% at
++15m, below +0.5% at +5m, and −1.5% close or synthetic top-eight loser
+graduation. Report grade coverage, flag counts, both rates, and observed
+lead to graduation among successful graduates. This is a minute-candle
+replay with a publication-lag assumption. It cannot establish delivery or
+lead time relative to the live board.
+
+===== END SOURCE 09 =====
+
+===== BEGIN SOURCE 10 | docs/research/RADAR_CANDLE_RESULTS_20261113.md =====
+# Radar candle results · November 13
+
+The [exploratory protocol](RADAR_CANDLE_SCREEN_20261113.md) was committed
+with its driver at `4aa233e` before scoring. The screen used complete UTC
+days September 7–October 11, a fixed 60s candle publication lag, and the
+existing Coinbase archive. The replay loaded 5,737,981 traded minute bars
+from 405 archived USD products in its bounded input span including
+warmup and maturation. No fresh confirmation outcomes were read.
+
+## Step 2 · board continuation
+
+All nine board/candidate combinations lost runner precision to raw
+percentage move on the same entries in both windows. The table reports
+the matched runner precision difference in percentage points for
+September 7–27 / September 28–October 11. These are standalone comparisons.
+
+| Board | Volatility-adjusted move | Estimated dollar activity | BTC-relative move |
+| --- | ---: | ---: | ---: |
+| 1m gainers | −4.74 / −2.26 | −5.59 / −3.80 | −3.78 / −2.80 |
+| 3m gainers | −4.83 / −3.61 | −4.90 / −4.24 | −2.41 / −1.31 |
+| 3m losers | −7.30 / −5.49 | −6.16 / −6.07 | −4.10 / −3.67 |
+
+All nine descriptive 35-day block intervals had upper bounds below zero.
+On 3m gainers, 5,667 / 61,090 entries had the strict volatility baseline,
+14,140 had the three activity candles, and 16,641 had both coin and BTC
+endpoints. The corresponding product-day counts were 851, 2,113, and
+2,416 out of 4,148. The production episode index already conditions on
+5m/15m checkpoint observability. Every input-matched row in this window
+also had the three sustained-label checkpoints and both extrema.
+
+The matched raw-move baseline was stronger than its full-roster read. For
+example, on the initial 3m-up BTC-relative subset, raw move found 9.15%
+runners versus 5.16% on the full cohort. BTC-relative flags found 6.74%
+runners and 7.83% reversals on that subset. The result demonstrates why
+the unmatched comparison would be misleading. No candidate passed the
+declared gate. Leave the board's percentage-change order and directional
+labels as they stand.
+
+## Early watch · minute-candle replay
+
+| Input-matched comparison | Flags graded / issued | Sustained runner | Sustained reversal | Successful synthetic graduates |
+| --- | ---: | ---: | ---: | ---: |
+| Raw 3m move, volume-pace cohort | 2,072 / 2,250 | 10.86% | 10.47% | 215 |
+| Volume pace | 2,117 / 2,272 | 9.45% | 8.03% | 192 |
+| Raw 3m move, volatility cohort | 2,063 / 2,236 | 10.71% | 10.28% | 212 |
+| Volatility-adjusted move | 2,113 / 2,270 | 7.67% | 6.81% | 152 |
+
+Each arm could issue at most one flag per 5m cutoff, with its own product
+cooldown. The two input-matched cohorts supplied candidates at 2,468
+and 2,459 of 10,080 cutoffs. Cooldowns caused modest differences in realized
+flag count. Median lead among successful synthetic graduates was 2 minutes
+in every arm. The unscored flags, overlapping waves, simulated universe,
+and assumed data availability limit the inference. Lower reversal rates
+came with fewer runners. The raw-move arms had nearly equal runner and
+reversal rates. Before a product decision, a separate predeclared replay
+could compare the raw outside-top-eight rule with simple matched controls,
+tie down the actual desired flag budget, and test the lead distribution
+against timestamped live board entries. This first replay supplies no
+confirmation or delivery measurement.
+
+## Checks
+
+The frozen board capture and eligibility hashes verified. Synthetic
+probes covered the closed-bar availability boundary, a missing volatility
+bar, a missing outcome bar, and synthetic graduation timing.
+
+```powershell
+python scripts/scoring_experiment/screen_radar_candles_20261113.py board
+python scripts/scoring_experiment/screen_radar_candles_20261113.py early
+```
+
+===== END SOURCE 10 =====
+
+===== BEGIN SOURCE 11 | docs/research/RADAR_SENTIMENT_AND_CHART_20261113.md =====
+# Sentiment and Chart Read in Radar · November 13
+
+## What the app uses
+
+- **Mover boards** rank gainers and losers by their displayed percentage
+  change. The 1m gainers component shows eight by default and can expand to
+  16. Its sort consumes the 1m change. The 3m lists split by return sign
+  and sort by the 3m change. The dashboard also has a separate Live Strength
+  rail. See `backend/app.py`, `DashboardShell.jsx`, and
+  `GainersTable1Min.jsx`.
+- **Live Strength** scores price, volume, streaks, directional local alerts,
+  sampled Coinbase spot pressure, market-relative movement and liquidity.
+  It takes no external sentiment input. The local flow fields describe
+  trades and liquidity. Their appearance in a sentiment or context panel
+  does not make them independent social evidence. See `backend/live_ranking.py`
+  and `backend/signal_context.py`.
+- **Sentiment** is served separately. `backend/sentiment_api.py` aggregates
+  market-wide context including Alternative.me and CoinGecko global data.
+  Alternative.me publishes a daily BTC-based index that partly uses price and
+  volume. It can be tested as a regime filter shared by the whole board.
+  Coin-specific context in `backend/coin_intel_external.py` can include
+  CoinPaprika events or official timeline items, CoinGecko community proxies,
+  and an optional keyed LunarCrush adapter. Code presence supplies no
+  evidence of current credentials, freshness, or historical 1–3m coverage.
+  [Alternative.me methodology](https://alternative.me/crypto/fear-and-greed-index/)
+- **Chart Read** is wired into the coin popup through `/api/chart-read/<symbol>`.
+  The route fetches roughly 50 hourly Coinbase candles and the deterministic
+  reader returns trend, price zones, volume context, confidence in the read,
+  and conditions to watch. This is useful context for inspecting a coin.
+  It has no validated continuation probability and does not feed mover
+  ordering. The separate October chart research found weekly levels and
+  Fibonacci lines comparable to distance-matched placebo lines, and the
+  volume-profile study found no discovery survivor. The large-move study's
+  giveback result is at daily horizons. [Chart research handoff](https://github.com/tgpetrie/moonwalking/blob/74c1cf4eab17a6c1b4d57d81e4f5db0690619513/docs/developer/HANDOFF_FOR_CODEX_2026-10-18.md)
+  [Volume-profile result](https://github.com/tgpetrie/moonwalking/blob/bc8a887/docs/developer/VOLUME_PROFILE_STUDY.md)
+
+The simplest plausible external input is abnormal coin-specific attention,
+measured against the same coin's earlier observations with separate event
+and receipt clocks. Attention can rise in either direction. A separate
+signed catalyst or social-polarity field would need evidence of incremental
+runner precision at the same flag budget and an adverse-outcome check.
+Until such a source has measurable latency and coverage, retain these
+features as research candidates. The
+[Carbon or Gemini assignment](../ai/CARBON_SENTIMENT_RADAR_ASSIGNMENT_20261113.md)
+requests a documented shortlist and a causal test with the observed base rate.
+
+## Forward data work
+
+The runner branch already contains the v3 feature-snapshot retention wiring
+for numeric quote volume and volatility from `080f124`. The checked Windows
+collector remains on `ed3e231`, which predates that wiring.
+The separate opt-in `MW_BOARD_OUTCOME_RESEARCH_V3=1` recorder writes
+`board_outcomes_v3` and maintains its own membership, cooldown and gap
+heartbeat. It includes ranks up to 16 from each supplied board snapshot,
+retains the existing v2 statistics and stores sampled ticker bid/ask
+at entry and each first observed return checkpoint. A quote includes its
+age at observation and product identity. An absent or over-15s quote stays
+null. The v3 15m extrema stop at 900s and include a count of post-entry price
+observations. This count measures tracker samples and does not count
+distinct trades. Promotion within ranks 1–16 is not a new v3 episode.
+The original v2 ledger separately records top-eight entry transitions.
+The opt-in recorder has not been deployed to the running collector.
+
+The resumable public candle backfill writes a separate research SQLite
+file under `~/.moonwalking/analysis/radar_candle_backfill_20261113`. Its
+497-product roster is the union of archived, observed, and currently
+listed Coinbase USD products. This is a coverage inventory with possible
+omissions in the historical listing record. The BTC pilot recorded
+45,898 1m candles, 153 requests and no errors. The wider run was launched
+at the existing two-requests-per-second ceiling. The final manifest records
+completed, empty, 404 and unrecorded windows by product and hashes the
+closed archive. Date bounds use the most recent completed archive grid
+window and can be extended by rerunning the same command. A 404 or empty
+response leaves availability explicit. [Coinbase candle API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles)
+
+===== END SOURCE 11 =====

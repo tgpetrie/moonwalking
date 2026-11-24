@@ -4,6 +4,77 @@
    BHABIT Integration
    ============================================================ */
 
+.cp-dossier-score,
+.cp-cycle-story {
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--sentiment-border);
+    border-radius: 12px;
+    background: var(--sentiment-card-bg);
+}
+.cp-dossier-score p,
+.cp-cycle-story p {
+    color: var(--sentiment-subtext);
+    font-size: 0.8rem;
+}
+.cp-dossier-gauges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+.cp-dossier-gauges article {
+    padding: 10px;
+    background: var(--sentiment-glass);
+}
+.cp-dossier-gauges meter {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+}
+.cp-dossier-section {
+    border-top: 1px solid var(--sentiment-border);
+    padding: 12px 0;
+}
+.cp-dossier-section > summary,
+.cp-cycle-story summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 10px;
+}
+.cp-cycle-story svg { width: 100%; color: var(--sentiment-text); }
+.cp-cycle-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.cp-cycle-layout > * { min-width: 0; }
+@media (max-width: 760px) {
+    .cp-cycle-layout { grid-template-columns: minmax(0, 1fr); }
+}
+.cp-cycle-story li { margin-bottom: 8px; }
+.bh-workspace-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    padding: 10px 0 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bh-workspace-tabs button {
+    padding: 8px 0 9px;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(245, 243, 240, 0.58);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease;
+}
+.bh-workspace-tabs button:hover { color: #fff; }
+.bh-workspace-tabs button[aria-pressed="true"] { color: #fff; border-bottom-color: var(--bh-gain, #f97316); }
+.bh-workspace-tabs button:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: 3px; }
+
 /* CSS Variables - Design Tokens */
 :root {
     /* Primary Colors */
@@ -130,6 +201,12 @@
     width: 22px;
     height: 22px;
     color: var(--sentiment-neg);
+}
+
+.header-icon--token {
+    object-fit: cover;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(174, 75, 245, 0.15), rgba(69, 255, 179, 0.1));
 }
 
 .header-text h1 {
@@ -401,7 +478,7 @@
 
 .tab-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--r-2);
 }
 
 .tab-panel {
@@ -527,7 +604,7 @@
 .streak-dot {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -759,7 +836,7 @@
     margin-top: 0.65rem;
     padding: 0.25rem;
     border: 1px solid rgba(174, 75, 245, 0.2);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     background: rgba(5, 7, 13, 0.62);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
@@ -767,7 +844,7 @@
 .mini-toggle-btn {
     appearance: none;
     border: 1px solid transparent;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.38rem 0.72rem;
     background: transparent;
     color: var(--sentiment-subtext);
@@ -955,7 +1032,7 @@
     font-size: 0.66rem;
     letter-spacing: 0.45px;
     text-transform: uppercase;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.22rem 0.5rem;
     border: 1px solid transparent;
 }
@@ -1017,7 +1094,7 @@
     font-size: 0.7rem;
     color: #d4dffd;
     text-decoration: none;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(112, 95, 255, 0.35);
     background: rgba(112, 95, 255, 0.14);
     padding: 0.3rem 0.6rem;
@@ -1198,7 +1275,7 @@ a.news-item-title:hover {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 0.26rem 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid transparent;
     color: var(--sentiment-text);
 }
@@ -1246,7 +1323,7 @@ a.news-item-title:hover {
     color: var(--sentiment-subtext);
     border: 1px solid var(--sentiment-border);
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.28rem 0.6rem;
 }
 
@@ -1434,7 +1511,7 @@ a.news-item-title:hover {
 }
 
 .alert-filter-chip {
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid var(--sentiment-border);
     background: rgba(255, 255, 255, 0.02);
     color: var(--sentiment-subtext);
@@ -1483,7 +1560,7 @@ a.news-item-title:hover {
     color: #d7dcff;
     background: rgba(112, 95, 255, 0.18);
     border: 1px solid rgba(112, 95, 255, 0.3);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.23rem 0.5rem;
 }
 
@@ -1491,7 +1568,7 @@ a.news-item-title:hover {
     font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.21rem 0.48rem;
     border: 1px solid transparent;
     font-weight: 700;
@@ -1575,7 +1652,7 @@ a.news-item-title:hover {
 
 .evidence-chip {
     font-size: 0.69rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.22rem 0.46rem;
     color: #cce8ff;
     border: 1px solid rgba(84, 184, 255, 0.27);
@@ -1813,7 +1890,7 @@ a.news-item-title:hover {
     width: 100%;
     height: 6px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    border-radius: var(--r-2);
     overflow: hidden;
     margin-bottom: 0.5rem;
 }
@@ -1821,7 +1898,7 @@ a.news-item-title:hover {
 .tier-bar-fill {
     height: 100%;
     transition: width var(--transition-slow);
-    border-radius: 3px;
+    border-radius: var(--r-2);
 }
 
 .tier-1-fill {
@@ -1868,7 +1945,7 @@ a.news-item-title:hover {
     flex: 1;
     display: flex;
     height: 10px;
-    border-radius: 5px;
+    border-radius: var(--r-2);
     overflow: hidden;
     background: rgba(255,255,255,0.05);
 }
@@ -2164,7 +2241,7 @@ a.news-item-title:hover {
 
 .bh-coin-warmup{
     width: 100%;
-    border-radius: 16px;
+    border-radius: var(--r-3);
     padding: 14px 16px;
     background: linear-gradient(135deg, rgba(40,20,70,0.18), rgba(0,0,0,0.22));
     border: 1px solid rgba(255,255,255,0.06);
@@ -2348,7 +2425,7 @@ a.news-item-title:hover {
 
 .mw-component-track {
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     background: rgba(255, 255, 255, 0.08);
     overflow: hidden;
 }
@@ -3081,7 +3158,7 @@ a.news-item-title:hover {
     align-items: center;
     min-height: 1.45rem;
     padding: 0.16rem 0.45rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.04);
     color: var(--sentiment-text);
@@ -3256,7 +3333,7 @@ a.news-item-title:hover {
     gap: 0.25rem;
     padding: 0.6rem 0.9rem;
     margin-bottom: 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     border-left: 3px solid var(--sentiment-neu, #f1b43a);
     background: rgba(241, 180, 58, 0.06);
 }
@@ -3329,7 +3406,7 @@ a.news-item-title:hover {
 .coh-card {
     background: rgba(255, 255, 255, 0.025);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 4px;
+    border-radius: var(--r-2);
     padding: 12px 14px;
 }
 
@@ -3354,7 +3431,7 @@ a.news-item-title:hover {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid;
 }
 
@@ -3409,7 +3486,7 @@ a.news-item-title:hover {
     font-style: italic;
 }
 
-/* Brightness-only evidence tier — mirrors sc-evidence-tier in scorecard.css.
+/* Brightness-only evidence tier (originally mirrored sc-evidence-tier from the retired scorecard.css).
    No brand colors: teal/purple carry directional meaning in this UI.          */
 .coh-evidence-tier {
     font-size: 0.6rem;
@@ -3435,4 +3512,656 @@ a.news-item-title:hover {
 
 .coh-note--error {
     color: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Sell-side intelligence / Risk Levels ──────────────────────────────── */
+
+.risk-chart { min-width: 0; padding: 16px; background: #0c1119; border: 1px solid #ffffff18; border-radius: 8px; font-family: Raleway, sans-serif; }
+.risk-chart__header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.risk-chart h3 { margin: 0 0 6px; color: #f3f6fa; font-size: 1rem; }
+.risk-chart__header p, .risk-chart__hint { color: #a3acb9; font-size: .73rem; line-height: 1.6; margin: 6px 0 10px; }
+.risk-chart__hint a { color: #b9ceff; text-decoration: underline; }
+.risk-chart__badge { background: #ffffff0c; border: 1px solid #ffffff18; border-radius: 4px; padding: 6px 8px; color: #ffce90; font-size: .7rem; }
+.risk-chart__scroll { overflow-x: auto; }
+.risk-chart__svg { display: block; width: 100%; min-width: 640px; font-family: Raleway, sans-serif; }
+.risk-chart__line { cursor: pointer; }
+.risk-chart__line:focus-visible rect { stroke: #fff; stroke-width: 2; }
+.risk-chart__choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin: 12px 0; }
+.risk-chart__choices button { display: flex; flex-direction: column; gap: 7px; padding: 10px; text-align: left; border: 1px solid #ffffff20; border-top: 2px solid var(--level-color); border-radius: 4px; background: #ffffff04; color: #e6edf5; cursor: pointer; font: inherit; }
+.risk-chart__choices button[aria-pressed="true"] { background: #ffffff0e; border-color: var(--level-color); }
+.risk-chart__choices span { font-size: .68rem; color: var(--level-color); }
+.risk-chart__choices strong { font-size: .84rem; overflow-wrap: anywhere; }
+.risk-chart__choices button:focus-visible, .risk-chart__scroll:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.risk-chart__explanation { border-left: 3px solid; padding: 12px 14px; background: #ffffff05; }
+.risk-chart__explanation h4 { margin: 0 0 7px; color: #f3f6fa; font-size: .85rem; }
+.risk-chart__explanation p { margin: 0; color: #bac3d0; font-size: .8rem; line-height: 1.65; }
+
+.risk-levels-loading,
+.risk-levels-empty {
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.risk-levels-compact {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-left: 3px solid rgba(255, 255, 255, 0.22);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.14));
+}
+
+.risk-levels-compact--negative { border-left-color: var(--sentiment-neg); }
+.risk-levels-compact--caution { border-left-color: #f1b43a; }
+.risk-levels-compact--positive { border-left-color: var(--sentiment-pos); }
+
+.risk-levels-compact__head,
+.risk-levels-hero,
+.risk-history__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.risk-levels-compact__head > div,
+.risk-history__head > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.risk-levels-compact__head span,
+.risk-levels-eyebrow,
+.risk-history__head span {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.risk-levels-compact__head strong,
+.risk-history__head strong {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.95rem;
+}
+
+.risk-levels-compact__head button {
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.26);
+    color: rgba(255, 255, 255, 0.75);
+    font: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.risk-levels-compact__head button:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
+.risk-levels-compact__grid,
+.risk-history__counts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.risk-levels-compact__grid > div,
+.risk-history__counts > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.risk-levels-compact__grid span,
+.risk-history__counts span {
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.risk-levels-compact__grid strong,
+.risk-history__counts strong {
+    color: rgba(255, 255, 255, 0.84);
+    font: 600 0.82rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-compact > p {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.54);
+    font-size: 0.76rem;
+}
+
+.risk-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.risk-levels-hero {
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 3px solid rgba(255, 255, 255, 0.24);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18));
+}
+
+.risk-levels-hero--negative { border-left-color: var(--sentiment-neg); }
+.risk-levels-hero--caution { border-left-color: #f1b43a; }
+.risk-levels-hero--positive { border-left-color: var(--sentiment-pos); }
+
+.risk-levels-hero h2 {
+    margin: 4px 0 5px;
+    color: #fff;
+    font-size: 1.45rem;
+}
+
+.risk-levels-hero p,
+.risk-history__head p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.risk-levels-score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.risk-levels-score span {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+}
+
+.risk-levels-score strong {
+    color: rgba(255, 255, 255, 0.9);
+    font: 700 1.15rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.risk-level-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 110px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.risk-level-card > span {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.risk-level-card > strong {
+    margin: 10px 0 7px;
+    color: rgba(255, 255, 255, 0.9);
+    font: 700 1rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-level-card--stop > strong,
+.risk-level-card--limit > strong { color: #ff8f8f; }
+.risk-level-card--target > strong { color: var(--sentiment-pos); }
+
+.risk-level-card small {
+    margin-top: auto;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
+.risk-levels-explain {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 12px;
+}
+
+.risk-levels-explain article,
+.risk-levels-reasons,
+.risk-history {
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.16);
+}
+
+.risk-levels-explain h3,
+.risk-levels-reasons h3 {
+    margin: 0 0 10px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.86rem;
+}
+
+.risk-levels-explain ul,
+.risk-levels-reasons ul {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.risk-levels-warning {
+    margin-top: 12px;
+    padding: 10px;
+    border-left: 2px solid #f1b43a;
+    background: rgba(241, 180, 58, 0.06);
+    color: rgba(255, 226, 168, 0.72);
+    font-size: 0.74rem;
+    line-height: 1.45;
+}
+
+.risk-levels-zone {
+    color: var(--sentiment-pos);
+    font: 700 1rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-explain article > p {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.76rem;
+    line-height: 1.5;
+}
+
+.risk-levels-explain dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.risk-levels-explain dl > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.risk-levels-explain dt {
+    color: rgba(255, 255, 255, 0.36);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+}
+
+.risk-levels-explain dd {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+    font: 600 0.75rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-history__head p {
+    max-width: 470px;
+    text-align: right;
+    font-size: 0.7rem;
+}
+
+.risk-history__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 10px;
+}
+
+.risk-history__row {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 1fr;
+    gap: 10px;
+    padding: 9px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 0.72rem;
+}
+
+.risk-history__row strong { color: rgba(255, 255, 255, 0.68); }
+.risk-history__row strong[data-outcome="target_first"] { color: var(--sentiment-pos); }
+.risk-history__row strong[data-outcome="stop_first"] { color: #ff8f8f; }
+
+.risk-levels-disclosure {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.7rem;
+    font-style: italic;
+    line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+    .risk-levels-grid,
+    .risk-levels-compact__grid,
+    .risk-history__counts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .risk-levels-explain {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-history__head {
+        flex-direction: column;
+    }
+
+    .risk-history__head p {
+        text-align: left;
+    }
+
+    .risk-history__row {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+}
+
+/* ============================================================
+   COIN MODAL: HEADER STRIP, CHART HERO, COMPACT SELL-SIDE ROW
+   ============================================================ */
+
+.cp-strip {
+    --cp-strip-accent: rgba(143, 199, 255, 0.85);
+    display: grid;
+    gap: 0.38rem;
+    margin-bottom: 0.6rem;
+    padding: 0.45rem 0.75rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-left: 3px solid var(--cp-strip-accent);
+    background: linear-gradient(100deg, rgba(143, 199, 255, 0.06), rgba(0, 0, 0, 0.3) 46%);
+}
+
+.cp-strip--positive { --cp-strip-accent: var(--sentiment-pos); }
+.cp-strip--negative { --cp-strip-accent: var(--sentiment-neg); }
+
+.cp-strip__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+.cp-strip__headline {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    color: var(--sentiment-text);
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.cp-strip__tape {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.15rem 0.5rem;
+    max-width: 52%;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.62);
+    font: 400 0.64rem/1.3 'Fragment Mono', 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+}
+
+.cp-strip__tape > * + *::before {
+    content: "·";
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.cp-strip__tape--positive { border-color: rgba(69, 255, 179, 0.3); }
+.cp-strip__tape--negative { border-color: rgba(174, 75, 245, 0.4); }
+
+.cp-strip__posture {
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--sentiment-text);
+}
+
+.cp-strip__tape--positive .cp-strip__posture { color: var(--sentiment-pos); }
+.cp-strip__tape--negative .cp-strip__posture { color: var(--sentiment-neg); }
+
+.cp-strip__levels {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin: 0;
+}
+
+.cp-strip__level {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.5rem;
+    min-width: 0;
+    padding: 0.22rem 0.5rem;
+    background: rgba(0, 0, 0, 0.22);
+    border-left: 2px solid rgba(255, 255, 255, 0.14);
+}
+
+.cp-strip__level--zone { border-left-color: #8fc7ff; }
+.cp-strip__level--support { border-left-color: #5fdbad; }
+.cp-strip__level--stop { border-left-color: #ffbc66; }
+.cp-strip__level--target,
+.cp-strip__level--trim { border-left-color: #b9a0ff; }
+
+.cp-strip__level dt {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.cp-strip__level dd {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font: 600 0.8rem/1.2 'JetBrains Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+}
+
+.cp-strip__risk {
+    margin: 0;
+    color: var(--sentiment-neg);
+    font-size: 0.74rem;
+    line-height: 1.35;
+}
+
+.cp-chart-hero > div:first-child {
+    margin-top: 0;
+}
+
+/* Chart Read: chart and the reasons for the read side by side on a wide modal,
+   stacked on a narrow one. */
+.chart-read__split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 0.3rem 1rem;
+    align-items: start;
+}
+
+.chart-read__chart,
+.chart-read__context {
+    min-width: 0;
+}
+
+.chart-read__context {
+    padding-top: 0.25rem;
+}
+
+@media (max-width: 900px) {
+    .chart-read__split {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-read__context {
+        padding-top: 0;
+    }
+}
+
+.cp-full-chart {
+    margin: 0.85rem 0;
+}
+
+.cp-full-chart .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.cp-full-chart .section-header .mini-toggle {
+    margin-top: 0;
+}
+
+/* Sell-side prices as one row under the chart. */
+.risk-levels-compact--row {
+    margin: 0.7rem 0;
+    padding: 0.55rem 0.7rem;
+}
+
+.risk-levels-compact__row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.risk-levels-compact--row .risk-levels-compact__grid {
+    flex: 1 1 auto;
+    margin-top: 0;
+    gap: 0.4rem;
+}
+
+.risk-levels-compact--row .risk-levels-compact__grid > div {
+    padding: 0.4rem 0.55rem;
+}
+
+.risk-levels-compact__open {
+    flex: 0 0 auto;
+    padding: 0 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.26);
+    color: rgba(255, 255, 255, 0.78);
+    font: inherit;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.risk-levels-compact__open:hover,
+.risk-levels-compact__open:focus-visible {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.risk-levels-compact--row > .risk-levels-compact__warning {
+    margin: 0.45rem 0 0;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.74rem;
+}
+
+/* Tape posture detail inside "See the evidence". */
+.cp-tape-posture {
+    margin-bottom: 0.9rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 3px solid var(--sentiment-neu);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cp-tape-posture--positive { border-left-color: var(--sentiment-pos); }
+.cp-tape-posture--negative { border-left-color: var(--sentiment-neg); }
+
+.cp-tape-posture__early,
+.cp-tape-posture__line {
+    margin: 0.4rem 0 0;
+    color: var(--sentiment-subtext);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.cp-tape-posture__line span {
+    margin-right: 0.4rem;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.cp-tape-posture__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.cp-tape-posture__columns h4 {
+    margin: 0 0 0.25rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.64rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.cp-tape-posture__columns ul {
+    margin: 0;
+    padding-left: 1rem;
+}
+
+.cp-tape-posture__columns li,
+.cp-tape-posture__columns p {
+    margin: 0;
+    color: var(--sentiment-subtext);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+    .cp-strip__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .cp-strip__tape {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    .cp-strip__levels {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-levels-compact__row {
+        flex-direction: column;
+    }
+
+    .risk-levels-compact__open {
+        padding: 0.45rem 0.75rem;
+    }
+
+    .cp-tape-posture__columns {
+        grid-template-columns: 1fr;
+    }
 }

@@ -8,10 +8,6 @@ vi.mock("../context/WatchlistContext.jsx", () => ({
 vi.mock("../hooks/useDataFeed", () => ({
   useDataFeed: vi.fn(),
 }));
-// TokenRowUnified imports rowCue / moveStatus — keep them real but mock coinbaseUrl
-vi.mock("../utils/coinbaseUrl", () => ({
-  coinbaseSpotUrl: () => "https://coinbase.com/trade/BTC",
-}));
 vi.mock("../context/IntelligenceContext.jsx", () => ({
   useIntelligence: () => ({ reports: {} }),
 }));
@@ -32,6 +28,23 @@ function renderPanel() {
 }
 
 describe("WatchlistPanel — Since added label", () => {
+  it("uses RENDER-USD for the Watchlist Trade link", async () => {
+    useWatchlist.mockReturnValue({
+      items: [{ symbol: "RENDER", addedPrice: 1, addedAt: Date.now() }],
+      add: vi.fn(),
+      toggle: vi.fn(),
+    });
+    useDataFeed.mockReturnValue({
+      ...noopDataFeed,
+      data: { data: { latest_by_symbol: { RENDER: { symbol: "RENDER", current_price: 2 } } } },
+    });
+    renderPanel();
+    const link = await screen.findByRole("link", { name: "Open Coinbase Advanced Trade" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   it("shows 'Since added' when a valid added-price baseline exists", async () => {
     const addedPrice = 100_000;
     const currentPrice = 112_400; // +12.4%

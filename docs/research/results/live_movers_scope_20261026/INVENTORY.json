@@ -1,0 +1,399 @@
+{
+  "captured_at_utc": "2026-10-27T02:12:05.504668+00:00",
+  "read_only": true,
+  "scope": "Recent bounded metadata samples, not full-history coverage or predictive results",
+  "runtime_commit": "ed3e23154d3923c822ddff675db0d2249e474820",
+  "code_price_windows": [
+    "1m",
+    "3m",
+    "1h"
+  ],
+  "stores": {
+    "price_snapshots.db": {
+      "file_bytes": 37175296,
+      "tables": {
+        "price_snapshots": [
+          "ts",
+          "product_id",
+          "price"
+        ]
+      },
+      "price_span": {
+        "first_utc": "2026-10-26T02:11:48+00:00",
+        "last_utc": "2026-10-27T02:11:45+00:00",
+        "hours": 23.999166666666667,
+        "products_at_latest_batch": 119,
+        "btc_recent_intervals_sampled": 999,
+        "btc_median_gap_seconds": 23,
+        "btc_max_gap_seconds": 110
+      }
+    },
+    "signal_outcomes.sqlite": {
+      "file_bytes": 679452672,
+      "tables": {
+        "signal_outcomes": [
+          "signal_id",
+          "event_id",
+          "product_id",
+          "primary_state",
+          "read_label",
+          "direction",
+          "confidence",
+          "started_ts",
+          "start_price",
+          "last_ts",
+          "last_price",
+          "return_5m",
+          "return_15m",
+          "return_30m",
+          "return_60m",
+          "max_favorable_pct",
+          "max_adverse_pct",
+          "target_hit_ts",
+          "adverse_hit_ts",
+          "outcome",
+          "complete",
+          "feature_schema_version",
+          "feature_snapshot_json",
+          "methodology_version"
+        ],
+        "board_outcomes_v2": [
+          "id",
+          "model_version",
+          "board",
+          "product_id",
+          "symbol",
+          "direction",
+          "entered_ts",
+          "last_seen_ts",
+          "exited_ts",
+          "start_price",
+          "entry_rank",
+          "start_change_pct",
+          "control_product_id",
+          "control_start_price",
+          "control_change_pct",
+          "estimated_cost_pct",
+          "gross_return_5m",
+          "gross_return_15m",
+          "gross_return_30m",
+          "gross_return_60m",
+          "return_5m",
+          "return_15m",
+          "return_30m",
+          "return_60m",
+          "control_return_5m",
+          "control_return_15m",
+          "control_return_30m",
+          "control_return_60m",
+          "max_favorable_15m",
+          "max_adverse_15m",
+          "max_favorable_pct",
+          "max_adverse_pct",
+          "outcome_15m",
+          "complete",
+          "feature_schema_version",
+          "feature_snapshot_json"
+        ],
+        "tracker_heartbeat": [
+          "tracker",
+          "ts"
+        ]
+      },
+      "recent_samples": {
+        "signal_outcomes": {
+          "rows": 1000,
+          "first_sample_ts": 1793060586,
+          "last_sample_ts": 1793067110,
+          "with_snapshot": 1000,
+          "complete": 490,
+          "with_5m_label": 950,
+          "with_15m_label": 853,
+          "snapshot_field_presence": {
+            "captured_ts": 1000,
+            "components": 1000,
+            "components.confirmation": 1000,
+            "components.momentum_1m": 1000,
+            "components.momentum_3m": 1000,
+            "components.persistence": 1000,
+            "components.trend_1h": 1000,
+            "components.volume": 1000,
+            "data_quality": 1000,
+            "expected_inputs": 1000,
+            "live_label": 1000,
+            "live_rank": 1000,
+            "live_risks": 1000,
+            "live_score": 1000,
+            "model_version": 1000,
+            "observed_inputs": 1000,
+            "raw_inputs": 1000,
+            "raw_inputs.bearish_alerts": 1000,
+            "raw_inputs.bullish_alerts": 1000,
+            "raw_inputs.liquidity": 1000,
+            "raw_inputs.market_relation": 1000,
+            "raw_inputs.pct_1h": 1000,
+            "raw_inputs.pct_1m": 1000,
+            "raw_inputs.pct_3m": 1000,
+            "raw_inputs.quote_volume_age_seconds": 1000,
+            "raw_inputs.quote_volume_minute_coverage": 1000,
+            "raw_inputs.quote_volume_usd": 1000,
+            "raw_inputs.realized_volatility_observations": 1000,
+            "raw_inputs.realized_volatility_pct_hour": 1000,
+            "raw_inputs.realized_volatility_staleness_seconds": 1000,
+            "raw_inputs.realized_volatility_unavailable_reason": 1000,
+            "raw_inputs.spot_pressure": 1000,
+            "raw_inputs.trend_streak": 1000,
+            "raw_inputs.volume_change_1h_pct": 1000,
+            "schema_version": 1000,
+            "scoring_detail": 1000,
+            "scoring_detail.chase_penalty": 1000,
+            "scoring_detail.raw_score": 1000,
+            "scoring_detail.reliability": 1000,
+            "scoring_detail.weighted_before_penalty": 1000,
+            "universe_size": 1000
+          },
+          "caveat": "Newest rows include immature outcomes; these are not population missingness rates."
+        },
+        "board_outcomes_v2": {
+          "rows": 1000,
+          "first_sample_ts": 1793051463,
+          "last_sample_ts": 1793067110,
+          "with_snapshot": 1000,
+          "complete": 771,
+          "with_5m_label": 978,
+          "with_15m_label": 948,
+          "snapshot_field_presence": {
+            "captured_ts": 1000,
+            "components": 1000,
+            "components.confirmation": 1000,
+            "components.momentum_1m": 1000,
+            "components.momentum_3m": 1000,
+            "components.persistence": 1000,
+            "components.trend_1h": 1000,
+            "components.volume": 1000,
+            "data_quality": 1000,
+            "expected_inputs": 1000,
+            "live_label": 1000,
+            "live_rank": 1000,
+            "live_risks": 1000,
+            "live_score": 1000,
+            "model_version": 1000,
+            "observed_inputs": 1000,
+            "raw_inputs": 1000,
+            "raw_inputs.bearish_alerts": 1000,
+            "raw_inputs.bullish_alerts": 1000,
+            "raw_inputs.liquidity": 1000,
+            "raw_inputs.market_relation": 1000,
+            "raw_inputs.pct_1h": 1000,
+            "raw_inputs.pct_1m": 1000,
+            "raw_inputs.pct_3m": 1000,
+            "raw_inputs.quote_volume_age_seconds": 1000,
+            "raw_inputs.quote_volume_minute_coverage": 1000,
+            "raw_inputs.quote_volume_usd": 1000,
+            "raw_inputs.realized_volatility_observations": 1000,
+            "raw_inputs.realized_volatility_pct_hour": 1000,
+            "raw_inputs.realized_volatility_staleness_seconds": 1000,
+            "raw_inputs.realized_volatility_unavailable_reason": 1000,
+            "raw_inputs.spot_pressure": 1000,
+            "raw_inputs.trend_streak": 1000,
+            "raw_inputs.volume_change_1h_pct": 1000,
+            "schema_version": 1000,
+            "scoring_detail": 1000,
+            "scoring_detail.chase_penalty": 1000,
+            "scoring_detail.raw_score": 1000,
+            "scoring_detail.reliability": 1000,
+            "scoring_detail.weighted_before_penalty": 1000,
+            "universe_size": 1000
+          },
+          "caveat": "Newest rows include immature outcomes; these are not population missingness rates."
+        }
+      }
+    },
+    "control_dry_run.sqlite": {
+      "file_bytes": 712728576,
+      "tables": {
+        "dry_run_observations": [
+          "signal_id",
+          "observed_ts",
+          "config_version",
+          "product_id",
+          "primary_state",
+          "direction",
+          "read_label",
+          "has_volatility",
+          "has_move",
+          "has_quote_volume",
+          "has_categorical_liquidity",
+          "unmatchable_reason",
+          "universe_size",
+          "universe_with_volatility",
+          "universe_with_quote_volume",
+          "horizon",
+          "rung",
+          "basket_size",
+          "basket_met_minimum",
+          "signal_move_pct",
+          "signal_volatility",
+          "signal_quote_volume",
+          "basket_mean_move_pct",
+          "basket_mean_volatility",
+          "basket_mean_quote_volume"
+        ]
+      }
+    },
+    "pit_context.sqlite": {
+      "file_bytes": 71487488,
+      "tables": {
+        "meta": [
+          "key",
+          "value"
+        ],
+        "symbol_registry": [
+          "product_id",
+          "base_currency",
+          "quote_currency",
+          "coinbase_status",
+          "first_seen_utc",
+          "last_seen_utc",
+          "removed_seen_utc",
+          "hyperliquid_coin",
+          "okx_inst_id",
+          "chain",
+          "contract_address",
+          "mapping_note"
+        ],
+        "source_health": [
+          "source_id",
+          "role",
+          "data_status",
+          "last_ok_utc",
+          "last_try_utc",
+          "http_status",
+          "last_error"
+        ],
+        "pit_context_log": [
+          "record_id",
+          "product_id",
+          "venue_symbol",
+          "source_id",
+          "role",
+          "event_type",
+          "source_published_utc",
+          "first_seen_utc",
+          "metric_primary",
+          "metric_secondary",
+          "label",
+          "source_url",
+          "payload_json",
+          "payload_sha256",
+          "revision_of"
+        ],
+        "watch_state": [
+          "source_id",
+          "item_id",
+          "state_sha256",
+          "state_json",
+          "last_record_id",
+          "updated_utc"
+        ],
+        "positioning_snapshot": [
+          "first_seen_utc",
+          "venue",
+          "venue_symbol",
+          "product_id",
+          "funding_rate",
+          "funding_interval_hours",
+          "open_interest",
+          "mark_price",
+          "oracle_price",
+          "premium",
+          "day_notional_volume",
+          "pass_record_id",
+          "mid_price",
+          "impact_bid_price",
+          "impact_ask_price"
+        ]
+      }
+    },
+    "volume_1h.sqlite": {
+      "file_bytes": 15228928,
+      "tables": {
+        "volume_minute": [
+          "product_id",
+          "minute_ts",
+          "vol_base",
+          "close"
+        ],
+        "volume_hour": [
+          "product_id",
+          "hour_ts",
+          "base_volume",
+          "quote_volume_usd",
+          "minute_coverage",
+          "open",
+          "high",
+          "low",
+          "close",
+          "source"
+        ]
+      },
+      "recent_btc_minute_timestamps": []
+    },
+    "candle_archive.sqlite": {
+      "file_bytes": 767275008,
+      "tables": {
+        "archive_meta": [
+          "key",
+          "value"
+        ],
+        "candles": [
+          "product_id",
+          "granularity",
+          "ts",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "fetched_windows": [
+          "product_id",
+          "granularity",
+          "window_start",
+          "window_end",
+          "candles",
+          "status",
+          "source",
+          "methodology_version",
+          "fetched_ts"
+        ],
+        "archive_runs": [
+          "id",
+          "started_ts",
+          "finished_ts",
+          "granularity",
+          "range_start",
+          "range_end",
+          "products",
+          "requests",
+          "candles_written",
+          "windows_skipped",
+          "rate_limited",
+          "errors",
+          "status",
+          "note"
+        ]
+      },
+      "recorded_window_granularities_seconds": [
+        60,
+        3600
+      ]
+    }
+  },
+  "source_hashes": {
+    "backend/live_ranking.py": "6bd323f3dcc0cbd3cb528daca1e56d9504eea3ab2b51fcccc2f8877d0e273906",
+    "backend/board_outcomes.py": "3c403b69df4ef8d268d2ba1a9ef560929778d50bec8e7b0f78b7955d050c1296",
+    "backend/price_db.py": "6d94ae600c991075ee647e70ea777aa8c95599acf02200192f0e31a2ec6a60b0",
+    "backend/app.py": "97b1ec4a955b7656d1f23ef06aeaa8718aff44d4c36c4bfe05b214ece0ab95bd"
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 import TradingViewChart from './TradingViewChart.jsx';
@@ -354,12 +355,14 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                   >
                     Open Full Chart →
                   </button>
-                  <button
-                    onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
+                  <a
+                    href={getCoinbaseAdvancedSpotUrl(selectedCoin)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-full text-left px-3 py-2 bg-blue/20 hover:bg-blue/30 rounded text-xs text-blue-300 transition-colors"
                   >
                     Trade on Coinbase →
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>
@@ -642,12 +645,14 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             >
               Refresh
             </button>
-            <button
-              onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
+            <a
+              href={getCoinbaseAdvancedSpotUrl(selectedCoin)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-4 py-2 bg-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
             >
               Trade on Coinbase
-            </button>
+            </a>
           </div>
         </div>
       </div>

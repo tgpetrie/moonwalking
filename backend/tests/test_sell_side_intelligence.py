@@ -1,0 +1,139 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+import sell_side_intelligence
+from sell_side_intelligence import build_sell_plan
+
+
+LEVELS = {
+    "support": 95,
+    "resistance": 112,
+    "atr": 2,
+    "band_low": 98,
+    "band_high": 102,
+    "range_position_pct": 60,
+    "range_zone": "mid_range",
+    "volatility_pct": 2,
+    "momentum_1h_pct": 1.2,
+    "volume_ratio": 1.1,
+    "window_hours": 50,
+    "candle_count": 50,
+    "source": "coinbase_candles",
+}
+
+
+def test_builds_stop_trigger_below_support_and_limit_below_trigger():
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=LEVELS)
+
+    assert plan["available"] is True
+    assert plan["stop"]["trigger_price"] < LEVELS["support"]
+    assert plan["stop"]["limit_price"] < plan["stop"]["trigger_price"]
+    assert plan["stop"]["invalidation_price"] == LEVELS["support"]
+    assert plan["stop"]["trigger_source"] == "structural_support"
+    assert plan["stop"]["structural_trigger_price"] == plan["stop"]["trigger_price"]
+    assert plan["stop"]["limit_price_status"] == "uncalibrated_placeholder"
+    assert plan["stop"]["limit_price_basis"] == "atr_legacy"
+    assert plan["stop"]["limit_price_available"] is True
+    assert "uncalibrated legacy placeholder" in plan["stop"]["why"][3]
+    assert "order-book depth" in plan["stop"]["execution_warning"]
+    assert plan["methodology"]["order_placement"] is False
+
+
+def test_wide_risk_boundary_is_inclusive_at_six_percent():
+    at_boundary = build_sell_plan(
+        product_id="BTC-USD", current_price=100, levels={**LEVELS, "support": 96}
+    )
+    above_boundary = build_sell_plan(
+        product_id="BTC-USD", current_price=100, levels={**LEVELS, "support": 95.99}
+    )
+
+    assert at_boundary["stop"]["structural_risk_pct"] == 6.0
+    assert at_boundary["stop"]["structural_actionable"] is True
+    assert at_boundary["stop"]["risk_band"] == "standard"
+    assert above_boundary["stop"]["structural_risk_pct"] > 6.0
+    assert above_boundary["stop"]["structural_actionable"] is False
+    assert above_boundary["stop"]["risk_band"] == "wide"
+
+
+def test_one_atr_buffer_keeps_structural_trigger_below_volatility_reference():
+    levels = {**LEVELS, "atr": 10}
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=levels)
+
+    assert plan["stop"]["trigger_source"] == "structural_support"
+    assert plan["stop"]["trigger_price"] == plan["stop"]["structural_trigger_price"]
+    assert plan["stop"]["volatility_reference_price"] == 90
+    assert plan["stop"]["structural_trigger_price"] == 85
+    assert plan["stop"]["structural_risk_pct"] == 15
+    assert plan["stop"]["structural_actionable"] is False
+    assert "support-derived" in plan["stop"]["why"][1]
+
+
+def test_trigger_source_stays_truthful_when_volatility_reference_wins(monkeypatch):
+    # Exercise the compatibility branch without changing the production convention.
+    monkeypatch.setattr(sell_side_intelligence, "SUPPORT_BUFFER_ATR_MULTIPLE", 0.20)
+    levels = {**LEVELS, "support": 99}
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=levels)
+
+    assert plan["stop"]["trigger_source"] == "volatility_reference"
+    assert plan["stop"]["trigger_price"] == plan["stop"]["volatility_reference_price"]
+    assert plan["stop"]["structural_trigger_price"] == 98.6
+
+
+def test_support_buffer_is_declared_convention_not_optimized_parameter():
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=LEVELS)
+
+    assert plan["stop"]["structural_trigger_price"] == 93
+    conventions = plan["methodology"]["conventions"]
+    assert conventions["support_buffer_atr_multiple"] == 1.0
+    assert conventions["support_buffer_status"] == "declared_convention"
+    assert conventions["support_buffer_reference"] == "2026-09-08 level calibration study"
+    disclosure = plan["methodology"]["disclosure"]
+    assert "declared convention" in disclosure
+    assert "not an optimized, validated, or predictive parameter" in disclosure
+
+
+def test_uses_resistance_as_first_trim_and_reports_reward_risk():
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=LEVELS)
+
+    assert plan["profit"]["first_trim_price"] == 112
+    assert plan["profit"]["reward_pct"] == 12
+    assert plan["profit"]["reward_risk_ratio"] > 1
+
+
+def test_top_watch_combines_resistance_momentum_and_live_warning():
+    levels = {
+        **LEVELS,
+        "range_position_pct": 92,
+        "range_zone": "near_resistance",
+        "momentum_1h_pct": -1.4,
+        "volume_ratio": 1.8,
+        "resistance": 101,
+    }
+    plan = build_sell_plan(
+        product_id="BTC-USD",
+        current_price=100,
+        levels=levels,
+        signal_context={"primary_state": "Reversal Risk", "direction": "down"},
+    )
+
+    assert plan["top_signal"]["status"] == "high"
+    assert plan["top_signal"]["label"] == "Protect now"
+    assert any("reversal" in reason.lower() for reason in plan["top_signal"]["reasons"])
+
+
+def test_support_zone_is_not_presented_as_automatic_buy():
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=LEVELS)
+
+    assert "require a hold or reclaim" in plan["support_zone"]["why"]
+
+
+def test_requires_price_and_candle_structure():
+    missing_price = build_sell_plan(
+        product_id="BTC-USD", current_price=None, levels=LEVELS
+    )
+    missing_levels = build_sell_plan(product_id="BTC-USD", current_price=100, levels={})
+
+    assert missing_price["available"] is False
+    assert missing_levels["available"] is False

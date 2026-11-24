@@ -3,9 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
-import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { deriveRowCue } from "../utils/rowCue.js";
-import { getMoveStatus } from "../utils/moveStatus.js";
+import { getMoveStatus, getMoveStatusLabel } from "../utils/moveStatus.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -34,6 +33,7 @@ export function TokenRowUnified({
   activeAlert = null,
   recentAlerts = [],
   rankDelta = 0,
+  structurePosture = null, // optional chart-structure context; never hides or reorders a row
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -144,14 +144,6 @@ export function TokenRowUnified({
     }
   };
 
-  const url = coinbaseSpotUrl(token || {});
-
-  const openTrading = () => {
-    if (!url) return;
-    if (window.getSelection?.().toString()) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const dataSide =
     side === "gainer" || side === "loser"
       ? side
@@ -193,12 +185,14 @@ export function TokenRowUnified({
   const liveRisks = Array.isArray(token?.live_risks) ? token.live_risks.map((item) => String(item).toLowerCase()) : [];
   const dataQuality = Number(token?.data_quality) || 0;
   const moveStatus = getMoveStatus(token, dataSide);
+  // Tone comes from the stable status key, never the display label.
   const moveTone = moveStatus.toLowerCase();
+  const moveStatusLabel = getMoveStatusLabel(moveStatus, dataSide);
   const liveInputRead = Number.isFinite(Number(token?.observed_inputs))
     ? `${token.observed_inputs}/${token.expected_inputs || 6} inputs live`
     : `${dataQuality}% input coverage`;
   const liveRankTitle = hasLiveRank
-    ? `${moveStatus} move · live strength #${liveRank}${Number.isFinite(liveUniverse) ? ` of ${liveUniverse}` : ""} · ${liveScore}/100 ${token?.live_label || ""} · ${liveInputRead}${liveEvidence ? ` · ${liveEvidence}` : ""}${liveRisks.length ? ` · risk: ${liveRisks.join(" · ")}` : ""}`
+    ? `${moveStatusLabel} move · live strength #${liveRank}${Number.isFinite(liveUniverse) ? ` of ${liveUniverse}` : ""} · ${liveScore}/100 ${token?.live_label || ""} · ${liveInputRead}${liveEvidence ? ` · ${liveEvidence}` : ""}${liveRisks.length ? ` · risk: ${liveRisks.join(" · ")}` : ""}`
     : "";
 
   const renderCells = () => (
@@ -222,7 +216,7 @@ export function TokenRowUnified({
                   title={liveRankTitle}
                   aria-label={liveRankTitle}
                 >
-                  {moveStatus}
+                  {moveStatusLabel}
                 </span>
               ) : null}
               {primaryCue?.emoji ? (
@@ -264,6 +258,21 @@ export function TokenRowUnified({
               ) : null}
             </div>
           </div>
+          {/* Chart-structure context sits under the symbol; it never hides or reorders the row. */}
+          {structurePosture?.label ? (
+            <span
+              className={`bh-structure bh-structure--${structurePosture.tone === "risk" ? "risk" : "constructive"}`}
+              data-testid="structure-posture"
+              data-posture={structurePosture.key || ""}
+              title={`${structurePosture.label}. ${structurePosture.detail || ""}`.trim()}
+              aria-label={`Chart structure: ${structurePosture.label}`}
+            >
+              <span className="bh-structure__full">{structurePosture.label}</span>
+              <span className="bh-structure__short" aria-hidden="true">
+                {structurePosture.short_label || structurePosture.label}
+              </span>
+            </span>
+          ) : null}
         </div>
       </CellTag>
 
@@ -292,7 +301,7 @@ export function TokenRowUnified({
         <RowActions
           starred={Boolean(isWatchlisted)}
           onToggleStar={handleToggleStar}
-          onInfoClick={openTrading}
+          coin={token}
         />
       </CellTag>
     </>

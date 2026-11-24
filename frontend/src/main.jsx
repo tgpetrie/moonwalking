@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import "./styles/info-modal.css";
 import App from "./App.jsx";
+import "./styles/bhabit-alignment.css";
 import { SentimentProvider } from "./context/SentimentContext.jsx";
 import { cleanupStaleCache } from "./config/api.js";
 

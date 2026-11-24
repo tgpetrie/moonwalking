@@ -1,16 +1,29 @@
+# Load backend/.env before anything reads os.environ, so local secrets
+# (Coinbase keys, OAuth client, session key) work without exporting them by hand.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    from pathlib import Path as _Path
+
+    _load_dotenv(_Path(__file__).resolve().parent / ".env")
+except Exception:  # python-dotenv is optional; env vars can still come from the shell
+    pass
+
 from flask import Flask, jsonify
 import os
+import secrets
 import argparse
 import socket
 import subprocess
 import sys
 import math
-from flask import Flask, jsonify, request, g
+from flask import Flask, copy_current_request_context, jsonify, request, g
 from flask_talisman import Talisman
 from flask_cors import CORS
 import random
 import requests
+import sqlite3
 import time
+import copy
 import threading
 from collections import defaultdict, deque
 import json
@@ -41,8 +54,10 @@ try:
         get_price_at_or_before,
         get_price_at_or_after,
         get_recent_price_snapshots,
+        realized_volatility_by_product,
     )
     from volume_1h_store import ensure_db as ensure_volume_db
+    from volume_1h_store import latest_quote_volume_by_product
     from volume_1h_candles import refresh_product_minutes, RateLimitError
     from volume_1h_compute import compute_volume_1h
 except ImportError as e:
@@ -50,6 +65,12 @@ except ImportError as e:
 
     def ensure_volume_db():
         pass
+
+    def realized_volatility_by_product(now_ts, **kwargs):
+        return {}
+
+    def latest_quote_volume_by_product(now_ts, **kwargs):
+        return {}
 
     refresh_product_minutes = None
 
@@ -202,8 +223,40 @@ from alert_events import (
 from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
+from sell_side_intelligence import build_sell_plan
+from entry_signal_intelligence import build_entry_read
+from sell_plan_outcomes import store as sell_plan_outcome_store
+
+try:
+    from control_dry_run import dry_run_report, record_dry_run_observation
+except ImportError as e:  # pragma: no cover - optional during partial installs
+    logging.warning(f"Control dry-run imports failed: {e}")
+
+    def record_dry_run_observation(ranking_snapshot, captured_ts, signal_events):
+        return 0
+
+    def dry_run_report():
+        return {"config_version": None, "observations": 0, "rungs": {}}
+
+
+from board_outcomes import research_store as board_outcome_research_store
 from board_outcomes import store as board_outcome_store
-from live_ranking import LIVE_RANKING_MODEL_VERSION, build_live_rankings
+from live_ranking import (
+    LIVE_RANKING_MODEL_VERSION,
+    build_live_rankings,
+    public_ranking_rows,
+)
+
+try:
+    from coin_intel_external import fetch_coin_icon_url, peek_coin_icon_url
+except Exception:
+
+    def peek_coin_icon_url(symbol):
+        return True, None
+
+    def fetch_coin_icon_url(symbol):
+        return None
+
 
 try:
     from coin_intel_external import fetch_coin_intel
@@ -787,7 +840,9 @@ if not _secret_key:
             "SECRET_KEY environment variable must be set in production "
             "(it signs user session cookies)."
         )
-    _secret_key = "dev-only-insecure-secret"  # pragma: allowlist secret
+    # A dev listener may still be reachable on the LAN. Never sign sessions
+    # with a key that can be read from this repository.
+    _secret_key = secrets.token_hex(32)
 app.config["SECRET_KEY"] = _secret_key
 
 # Session cookie policy: both dev (Vite proxy) and production (Vercel
@@ -970,7 +1025,9 @@ def oauth_coinbase_authorize():
     """Start the Coinbase OAuth flow by redirecting to Coinbase login."""
     from flask import redirect, session as flask_session
 
-    user_id = flask_session.get("mw_user_id")
+    from watchlist import current_session_user_id
+
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -1005,7 +1062,9 @@ def oauth_coinbase_callback():
     if not code or not state:
         return jsonify({"error": "Missing authorization code or state"}), 400
 
-    user_id = flask_session.get("mw_user_id")
+    from watchlist import current_session_user_id
+
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Session expired"}), 401
 
@@ -1058,7 +1117,7 @@ def oauth_coinbase_callback():
                 conn.close()
 
         # Redirect back to portfolio page
-        return flask_redirect("/mvp/portfolio")
+        return flask_redirect("/app/portfolio")
     except OAuthTokenError as e:
         logging.error(f"OAuth token exchange failed: {e}")
         return jsonify({"error": str(e)}), 503
@@ -1070,10 +1129,14 @@ def oauth_coinbase_callback():
 @app.route("/api/oauth/coinbase/disconnect", methods=["POST"])
 def oauth_coinbase_disconnect():
     """Disconnect Coinbase OAuth and clear stored tokens."""
-    from flask import session as flask_session
-    from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
+    from watchlist import (
+        _db_connect,
+        _DB_LOCK,
+        _utc_now_iso,
+        current_session_user_id,
+    )
 
-    user_id = flask_session.get("mw_user_id")
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -1103,10 +1166,9 @@ def oauth_coinbase_disconnect():
 @app.route("/api/oauth/coinbase/status", methods=["GET"])
 def oauth_coinbase_status():
     """Check if user has active Coinbase OAuth connection."""
-    from flask import session as flask_session
-    from watchlist import _db_connect
+    from watchlist import _db_connect, current_session_user_id
 
-    user_id = flask_session.get("mw_user_id")
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"connected": False}), 200
 
@@ -1243,7 +1305,9 @@ def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dic
         return {}
 
 
-def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
+def _gather_levels_for_symbols(
+    symbols: set, price_by_symbol: dict, *, include_chart=False
+) -> dict:
     """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
 
     Fetches missing/stale candles on demand with bounded concurrency, capped per
@@ -1261,7 +1325,7 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
     to_fetch: list[str] = []
 
     with _LEVELS_CANDLE_LOCK:
-        for sym in symbols:
+        for sym in sorted(symbols):
             product_id = f"{sym}-USD"
             cached = _LEVELS_CANDLE_CACHE.get(product_id)
             if cached and (now - cached.get("ts", 0)) < _LEVELS_CANDLE_TTL_S:
@@ -1276,12 +1340,16 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
         from concurrent.futures import ThreadPoolExecutor
 
         def _fetch(sym):
-            candles = _fetch_coinbase_candles(
-                f"{sym}-USD",
-                granularity=_LEVELS_GRANULARITY_S,
-                count=_LEVELS_CANDLE_COUNT,
-            )
-            return sym, candles
+            try:
+                candles = _fetch_coinbase_candles(
+                    f"{sym}-USD",
+                    granularity=_LEVELS_GRANULARITY_S,
+                    count=_LEVELS_CANDLE_COUNT,
+                )
+                return sym, candles
+            except Exception:
+                logging.warning("Candle history unavailable for %s", sym)
+                return sym, None
 
         with ThreadPoolExecutor(max_workers=_LEVELS_FETCH_WORKERS) as pool:
             for sym, candles in pool.map(_fetch, to_fetch):
@@ -1296,10 +1364,18 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
     levels: dict = {}
     for sym, candles in fresh_candles.items():
         try:
+            if include_chart:
+                # The picture and the plan must use the very same completed bars.
+                candles = [
+                    c
+                    for c in candles
+                    if c and len(c) >= 6 and float(c[0]) + _LEVELS_GRANULARITY_S <= now
+                ]
             computed = compute_levels(
                 candles,
                 price_by_symbol.get(sym),
                 granularity_seconds=_LEVELS_GRANULARITY_S,
+                include_candles=include_chart,
             )
         except Exception:
             computed = None
@@ -1411,16 +1487,55 @@ def portfolio_with_intel():
     return jsonify(enriched)
 
 
-def _require_portfolio_owner():
-    """Return (user, None) for the configured portfolio owner, else (None, resp).
+_LOCAL_DESK_OWNER_ID = -1  # Reserved for local paper state; account IDs are positive.
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
-    Mirrors the owner gate on /api/portfolio/intel so the cost-basis write
-    routes stay consistent with who can see the portfolio.
-    """
+
+def _is_test_runtime():
+    return app.testing or "PYTEST_CURRENT_TEST" in os.environ
+
+
+def _local_desk_access():
+    if (
+        _is_test_runtime()
+        or _IS_PRODUCTION
+        or (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").strip().lower() == "production"
+        or os.getenv("MOONWALKING_REQUIRE_OWNER_AUTH", "").strip() == "1"
+        or request.remote_addr not in _LOOPBACK_HOSTS
+    ):
+        return False
+    # Vite forwards the original client and host before replacing Host.
+    # Check both ends of the proxy hop, and reject cross-site browser requests.
+    forwarded_clients = request.headers.get("X-Forwarded-For")
+    if forwarded_clients and any(
+        address.strip() not in _LOOPBACK_HOSTS for address in forwarded_clients.split(",")
+    ):
+        return False
+    hosts = [request.host]
+    forwarded_host = request.headers.get("X-Forwarded-Host")
+    if forwarded_host:
+        hosts.extend(forwarded_host.split(","))
+    try:
+        if any(urlparse(f"//{host.strip()}").hostname not in _LOOPBACK_HOSTS for host in hosts):
+            return False
+        for header in ("Origin", "Referer"):
+            if header in request.headers:
+                origin = urlparse(request.headers[header])
+                if origin.scheme not in {"http", "https"} or origin.hostname not in _LOOPBACK_HOSTS:
+                    return False
+    except ValueError:
+        return False
+    return True
+
+
+def _require_portfolio_owner(*, allow_local_desk=False):
+    """Authorize the configured owner, with a loopback fallback for desk routes."""
     from watchlist import get_authenticated_user
 
     user = get_authenticated_user()
     if not user:
+        if allow_local_desk and _local_desk_access():
+            return {"id": _LOCAL_DESK_OWNER_ID}, None
         return None, (jsonify({"error": "Not authenticated"}), 401)
     owner_email = (
         str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
@@ -4550,7 +4665,7 @@ CONFIG = {
         os.environ.get("ONE_MIN_DEFAULT_SEED_COUNT", 10)
     ),  # seed count for 1m list
     "PRICE_UNIVERSE_SAMPLE_SIZE": int(
-        os.environ.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120)
+        os.environ.get("PRICE_UNIVERSE_SAMPLE_SIZE", 220)
     ),  # USD products sample size
     "PRICE_UNIVERSE_MAX": int(
         os.environ.get("PRICE_UNIVERSE_MAX", 250)
@@ -5755,6 +5870,34 @@ def _mw_get_alerts_normalized_with_sticky():
     return alerts, meta
 
 
+def _mw_peek_alerts_normalized_with_sticky():
+    """Read-only twin of _mw_get_alerts_normalized_with_sticky().
+
+    Applies the identical sticky-fallback selection but writes nothing: it does
+    not refresh _MW_LAST_GOOD_ALERTS/_MW_LAST_GOOD_ALERTS_TS, so it cannot move
+    the sticky window that the published path depends on, and it deep-copies
+    the stream first because _normalize_alert() mutates nested ``evidence`` in
+    place for market-mood alerts.
+
+    For observability snapshots only. The published alerts and rankings must
+    keep using the getter above, at its original call site and timing.
+    """
+    raw = copy.deepcopy([item for item in alerts_log_main if isinstance(item, dict)])
+    alerts = _normalize_alerts(raw)
+    if alerts:
+        return alerts
+
+    sticky_window_s = int(CONFIG.get("ALERTS_STICKY_SECONDS", 60) or 60)
+    if _MW_LAST_GOOD_ALERTS and _MW_LAST_GOOD_ALERTS_TS is not None:
+        try:
+            age_s = float(time.time() - float(_MW_LAST_GOOD_ALERTS_TS))
+        except Exception:
+            return []
+        if age_s <= sticky_window_s:
+            return list(_MW_LAST_GOOD_ALERTS)
+    return []
+
+
 def _emit_alert(
     alert: dict,
     cooldown_s: int = ALERT_IMPULSE_COOLDOWN,
@@ -6904,7 +7047,7 @@ def get_coinbase_prices():
                 "TAO-USD",
             ]
 
-            sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120))
+            sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 220))
             sample_max = int(CONFIG.get("PRICE_UNIVERSE_MAX", 250))
             sample = max(30, min(sample, sample_max))
 
@@ -8719,6 +8862,11 @@ def data_aggregate():
                     except (TypeError, ValueError):
                         continue
                     latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
+
+            # Full-universe quotes come from the existing worker, not selected movers.
+            full_quotes = _mw_get_component_snapshot("watchlist_quotes")
+            if isinstance(full_quotes, dict):
+                latest_by_symbol.update(full_quotes)
 
             # Dedupe movers by product_id and inject must-include staples
             dedupe_dropped = {}
@@ -11632,6 +11780,21 @@ def get_scorecard():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/signals/control-dry-run")
+def get_control_dry_run():
+    """Feasibility of the matched-peer control: coverage and balance only.
+
+    Reports no outcome and selects no liquidity rung. It exists so the rung can
+    be chosen from what was knowable at signal time, never from which variant
+    produced a better-looking result.
+    """
+    try:
+        return jsonify({"status": "live", **dry_run_report()})
+    except Exception as exc:
+        logging.exception("Control dry-run report failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/coin-history/<product_id>")
 def get_coin_history(product_id: str):
     """Per-coin signal outcome history. Accepts BTC or BTC-USD."""
@@ -11642,6 +11805,1127 @@ def get_coin_history(product_id: str):
         return jsonify({"status": "live", **result})
     except Exception as exc:
         logging.exception("Coin history failed for %s", normalized)
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+def _risk_level_signal_context(symbol: str) -> dict:
+    """Latest canonical signal/risk context for a risk-level explanation."""
+    normalized = str(symbol or "").upper().split("-")[0]
+    source = [
+        dict(item)
+        for item in list(alerts_log_main)
+        if isinstance(item, dict)
+        and str(item.get("symbol") or item.get("product_id") or "")
+        .upper()
+        .split("-")[0]
+        == normalized
+    ]
+    latest = None
+    try:
+        latest = next(iter(build_event_evolution(source)), None)
+    except Exception:
+        latest = None
+
+    read = (
+        latest.get("the_read")
+        if isinstance(latest, dict) and isinstance(latest.get("the_read"), dict)
+        else {}
+    )
+    with _SIGNAL_CONTEXT_LOCK:
+        tape_context = dict(_SIGNAL_CONTEXT_BY_SYMBOL.get(normalized) or {})
+    return {
+        "primary_state": latest.get("primary_state") if latest else None,
+        "direction": latest.get("direction") if latest else None,
+        "confidence": latest.get("confidence") if latest else None,
+        "read_label": read.get("label"),
+        # detector_types is produced by Event Evolution after its retention
+        # cutoff. Do not let an old raw reversal alert keep top risk elevated.
+        "alert_types": list(latest.get("detector_types") or []) if latest else [],
+        "spot_pressure": tape_context.get("spot_pressure"),
+    }
+
+
+@app.get("/api/risk-levels/status")
+def get_risk_levels_status():
+    try:
+        return jsonify({"status": "live", **sell_plan_outcome_store.status()})
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/agents/status")
+def get_agents_status():
+    """Read the agent ledger and queue a refresh for a stale owner desk."""
+    try:
+        from agents.catalog import describe
+        from agents.runner import DEFAULT_AGENT_FACTORIES
+        from agents.store import AgentStore
+        from local_ai.client import LocalLLMConfig
+
+        store = AgentStore()
+        llm_config = LocalLLMConfig.from_env()
+        known = [factory.name for factory in DEFAULT_AGENT_FACTORIES]
+        now = int(time.time())
+        user, _ = _require_portfolio_owner(allow_local_desk=True)
+        visibility = {
+            "include_cycle_strategist": user is not None,
+            "include_portfolio_watch": user is not None,
+        }
+        if user is not None:
+            _maybe_start_desk_heartbeat(user, store, now)
+        payload = {
+            "status": "live",
+            "generated_ts": now,
+            **store.status(**visibility),
+            # Per-agent view for the Agents page; includes agents that have
+            # never run here so they are listed rather than silently missing.
+            "agent_summaries": [
+                {**summary, **describe(summary["agent"])}
+                for summary in store.agent_summaries(
+                    known, now=now, **visibility
+                )
+            ],
+            "local_llm": {
+                "enabled": llm_config.enabled,
+                "provider": llm_config.provider,
+                "base_url": llm_config.base_url,
+                "model": llm_config.model or None,
+                "allow_remote": llm_config.allow_remote,
+            },
+        }
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/agents/observations")
+def get_agent_observations():
+    """Return recent local agent observations without running any agent."""
+    try:
+        from agents.store import AgentStore
+
+        raw_limit = request.args.get("limit", "100")
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "error": "Invalid limit."}), 400
+        agent = request.args.get("agent") or None
+        symbol = request.args.get("symbol") or None
+        if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+            return jsonify({"status": "error", "error": "Invalid symbol."}), 400
+        user, _ = _require_portfolio_owner(allow_local_desk=True)
+        rows = AgentStore().latest(
+            limit=limit, agent=agent, symbol=symbol,
+            include_cycle_strategist=user is not None,
+            include_portfolio_watch=user is not None,
+        )
+        response = jsonify({"status": "live", "observations": rows})
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+# ─── Cycle Strategist proposals & autonomy (owner-only, dry-run) ─────────────
+
+_PROPOSAL_ID_RE = re.compile(r"[0-9a-f]{16}")
+_PROPOSAL_STATUSES = {
+    "pending_approval", "approved", "rejected", "blocked_by_guard",
+    "auto_executed_dry_run", "auto_armed_dry_run",
+}
+_MAX_SQLITE_ID = 2**63 - 1
+
+
+@app.after_request
+def _prevent_cycle_control_caching(response):
+    path = request.path
+    if (
+        path in {
+            "/api/agents/status",
+            "/api/agents/observations",
+            "/api/agents/proposals",
+            "/api/agents/autonomy",
+            "/api/agents/settings",
+            "/api/agents/run-cycle-pass",
+            "/api/smart-alerts",
+            "/api/execution-agent/mode",
+            "/api/execution-agent/tickets",
+        }
+        or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
+    ):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _request_limit(maximum):
+    raw = request.args.get("limit", "100")
+    if re.fullmatch(r"[0-9]{1,3}", raw):
+        parsed = int(raw)
+        if 1 <= parsed <= maximum:
+            return parsed
+    return None
+
+
+def _owner_json_body():
+    """(payload, None) for a JSON object body, else (None, error response)."""
+    if not request.is_json:
+        return None, (jsonify({"error": "A JSON request is required."}), 415)
+    try:
+        payload = request.get_json(silent=True)
+    except (RecursionError, ValueError):
+        payload = None
+    if not isinstance(payload, dict):
+        return None, (jsonify({"error": "A JSON object is required."}), 400)
+    return payload, None
+
+
+def _private_json(payload, status=200):
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response, status
+
+
+def _stance_readout(configured, scan=None, resolved=None):
+    """The configured and effective mission stance plus every stance profile."""
+    from agents.cycle_strategist import resolve_stance, stance_profiles
+
+    if resolved is None:
+        if scan:
+            from agents.cycle_context import usable_cycle_scan
+
+            if not usable_cycle_scan(scan, now=time.time()):
+                scan = None
+        resolved = resolve_stance(configured, scan)
+    return {
+        "configured_stance": resolved["configured_stance"],
+        "effective_stance": resolved["effective_stance"],
+        "effective_stance_reason": resolved["reason"],
+        "effective_stance_metrics": resolved.get("metrics"),
+        "stance_profiles": stance_profiles(),
+    }
+
+
+@app.get("/api/agents/proposals")
+def get_agent_proposals():
+    """Cycle Strategist trade proposals plus the current autonomy settings."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    status = request.args.get("status") or None
+    symbol = request.args.get("symbol") or None
+    if status and status not in _PROPOSAL_STATUSES:
+        return jsonify({"error": "Invalid status."}), 400
+    if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+        return jsonify({"error": "Invalid symbol."}), 400
+    limit = _request_limit(250)
+    if limit is None:
+        return jsonify({"error": "Limit must be an integer from 1 to 250."}), 400
+    store = AgentStore()
+    _maybe_start_desk_heartbeat(user, store, time.time())
+    with _MACRO_SCAN_LOCK:
+        scan = _MACRO_SCAN_STATE["payload"]
+    autonomy = store.get_autonomy_settings()
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
+        # Reload ladders from approved or dry-run executed trims that still hold USDC.
+        "reload_plans": store.active_reload_plans(symbol),
+        "compounding_summary": store.get_compounding_summary(
+            _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
+        ),
+        "cycle_scan": _cycle_scan_summary(scan),
+        "autonomy": autonomy,
+        **_stance_readout(autonomy["stance"], scan),
+    })
+
+
+@app.post("/api/agents/proposals/<proposal_id>/<decision>")
+def decide_agent_proposal(proposal_id, decision):
+    """Record an operator decision. Approval never places an order."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    if decision not in {"approve", "reject"}:
+        return jsonify({"error": "Decision must be approve or reject."}), 404
+    if not _PROPOSAL_ID_RE.fullmatch(proposal_id):
+        return jsonify({"error": "Invalid proposal ID."}), 400
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if payload:
+        return jsonify({"error": "Expected an empty JSON object."}), 400
+    store = AgentStore()
+    try:
+        proposal = store.decide_proposal(proposal_id, decision)
+    except KeyError:
+        return jsonify({"error": "Proposal not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "proposal": proposal,
+        "autonomy": store.get_autonomy_settings(),
+    })
+
+
+@app.route("/api/agents/autonomy", methods=["GET", "POST"])
+@app.route("/api/agents/settings", methods=["GET", "POST"])
+def agent_autonomy_settings():
+    """Read or update the Cycle Strategist autonomy settings and mission stance.
+
+    ``/api/agents/settings`` is the same handler. ``stance`` must be one of
+    autopilot, bunker, orbit, gravity_assist or full_burn.
+    ``live_guarded`` is stored but cannot route an order: no live route exists,
+    so automatic exits stay blocked in that mode.
+    """
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    from agents.store import AgentStore
+
+    store = AgentStore()
+    if request.method == "POST":
+        payload, error = _owner_json_body()
+        if error:
+            return error
+        try:
+            store.set_autonomy_settings(**payload)
+        except (TypeError, ValueError) as exc:
+            return jsonify({"error": str(exc)}), 400
+    autonomy = store.get_autonomy_settings()
+    with _MACRO_SCAN_LOCK:
+        scan = _MACRO_SCAN_STATE["payload"]
+    return _private_json({
+        "status": "live",
+        "dry_run_only": True,
+        "autonomy": autonomy,
+        **_stance_readout(autonomy["stance"], scan),
+    })
+
+
+# ─── Smart wake-up alert rules (owner-only) ──────────────────────────────────
+
+
+def _smart_alert_engine():
+    from smart_alerts import SmartAlertEngine
+
+    return SmartAlertEngine(dispatcher=alert_delivery_dispatcher)
+
+
+# ─── In-process cycle pass (owner-only, dry-run) ─────────────────────────────
+
+_CYCLE_PASS_LOCK = threading.Lock()
+_DESK_FRESHNESS_SECONDS = 15 * 60
+_DESK_HEARTBEAT_RETRY_SECONDS = 60
+_next_desk_heartbeat_attempt = 0.0
+
+
+def _maybe_start_desk_heartbeat(user, store, now):
+    """Start at most one stale desk pass without waiting for it in a GET."""
+    global _next_desk_heartbeat_attempt
+    if _is_test_runtime() or not _CYCLE_PASS_LOCK.acquire(blocking=False):
+        return
+
+    started = False
+    try:
+        if time.monotonic() < _next_desk_heartbeat_attempt:
+            return
+        from agents.runner import DESK_AGENT_NAMES
+
+        last_runs = store.last_successful_runs(DESK_AGENT_NAMES)
+        due = {
+            name for name in DESK_AGENT_NAMES
+            if name not in last_runs or last_runs[name] < now - _DESK_FRESHNESS_SECONDS
+        }
+        if not due:
+            return
+
+        @copy_current_request_context
+        def refresh():
+            try:
+                # The view-only portfolio lookup uses the authorized request's session.
+                _run_desk_pass(user, store, due)
+            except Exception:
+                logging.exception("[CyclePass] automatic desk pass failed")
+            finally:
+                _CYCLE_PASS_LOCK.release()
+
+        _next_desk_heartbeat_attempt = time.monotonic() + _DESK_HEARTBEAT_RETRY_SECONDS
+        threading.Thread(target=refresh, name="desk-heartbeat", daemon=True).start()
+        started = True
+    except Exception:
+        logging.exception("[CyclePass] could not schedule the desk heartbeat")
+    finally:
+        if not started:
+            _CYCLE_PASS_LOCK.release()
+
+
+def _cycle_pass_portfolio_holdings():
+    """The signed-in owner's live holdings, or None when no live snapshot exists."""
+    from flask import make_response
+    from portfolio_mode import portfolio_snapshot
+
+    try:
+        response = make_response(portfolio_snapshot())
+        snapshot = response.get_json(silent=True) or {}
+        if response.status_code == 200 and snapshot.get("status") == "live":
+            try:
+                stamp = datetime.fromisoformat(str(snapshot.get("updated_at")).replace("Z", "+00:00"))
+                observed_at = stamp.timestamp() if stamp.tzinfo else None
+            except (ValueError, OverflowError, OSError):
+                observed_at = None
+            return [
+                {**row, "observed_at_ts": observed_at}
+                for row in snapshot.get("holdings") or [] if isinstance(row, dict)
+            ]
+    except Exception:
+        logging.exception("[CyclePass] portfolio snapshot unavailable")
+    return None
+
+
+def _cycle_pass_positions(user):
+    """Return positions, source and cash for equity marked on the cycle snapshot."""
+    import paper_execution_store
+    from portfolio_mode import USD_EQUIVALENTS
+
+    holdings = None if user["id"] == _LOCAL_DESK_OWNER_ID else _cycle_pass_portfolio_holdings()
+    if holdings is not None:
+        holdings = [row for row in holdings if isinstance(row, dict)]
+        cash_rows = [row for row in holdings if row.get("is_cash") or row.get("symbol") in USD_EQUIVALENTS]
+        marks = [_num_or_none(row.get("market_value_usd")) for row in cash_rows]
+        cash = sum(marks) if all(mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks) else None
+        return [
+            {
+                "symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio",
+                "observed_at_ts": row.get("observed_at_ts"),
+            }
+            for row in holdings
+            if not row.get("is_cash") and row.get("symbol") not in USD_EQUIVALENTS
+        ], "portfolio", cash
+    observed_at = time.time()
+    positions = paper_execution_store.list_open_positions(user["id"])
+    return [{**row, "observed_at_ts": observed_at} for row in positions], "paper", None
+
+
+def _cycle_pass_watchlist(user):
+    if user["id"] == _LOCAL_DESK_OWNER_ID:
+        return []
+
+    from watchlist import _db_connect, _serialize_watchlists
+
+    conn = _db_connect()
+    try:
+        watchlists = _serialize_watchlists(conn, user["id"])
+    finally:
+        conn.close()
+    return [
+        str(item.get("itemKey") or "").upper().split("-")[0]
+        for watchlist in watchlists
+        for item in watchlist.get("items", [])
+    ]
+
+
+def _cycle_pass_scan(wanted):
+    """The cached cycle scan. Never computes in the request."""
+    payload = _macro_scan_snapshot(wanted, allow_inline=False)
+    if not payload:
+        return None
+    return _macro_scan_response(payload, wanted, required=wanted)
+
+
+def _cycle_scan_prices(scan):
+    """Symbol -> price from a current scan, even while the outer atlas fills."""
+    now = time.time()
+    if not scan:
+        return {}
+    from agents.cycle_context import usable_cycle_scan
+
+    if not usable_cycle_scan(scan, now=now):
+        return {}
+    computed_at = scan.get("computed_at", now)
+    if not isinstance(computed_at, (int, float)) or not 0 <= now - computed_at < MACRO_SCAN_TTL_SECONDS:
+        return {}
+    if _macro_scan_day(computed_at) != _macro_scan_day(now):
+        return {}
+    return {
+        row["symbol"]: row.get("price")
+        for row in scan.get("coins") or []
+        if isinstance(row, dict) and row.get("available") and row.get("symbol")
+    }
+
+
+def _cycle_scan_summary(scan):
+    scan = scan or {}
+    return {
+        "status": scan.get("status", "warming"),
+        **{
+            key: scan.get(key)
+            for key in ("computed_at", "market_snapshot", "target_universe_size", "ready_count", "coverage_pct", "atlas_refreshing")
+        },
+    }
+
+
+def _cycle_pass_quote_fetcher(products):
+    # Called by the strategist only for exits Mode B is about to simulate.
+    from agents.cycle_context import fetch_live_quotes
+
+    return fetch_live_quotes(products)
+
+
+def _cycle_pass_histories(symbols, *, now, scan=None):
+    """Read current 1D Atlas candles for the held symbols without fetching."""
+    atlas = _MACRO_ATLAS
+    if atlas is None:
+        return {}
+    try:
+        products = [f"{symbol}-USD" for symbol in symbols]
+        histories = atlas.histories([product for product in products if atlas.state(product, now) == "fresh"])
+        if scan and scan.get("market_snapshot"):
+            from macro_industry_scanner import daily_history_id
+
+            rows = {row["product_id"]: row for row in scan["coins"]}
+            histories = {
+                product: candles for product, candles in histories.items()
+                if daily_history_id(candles) == rows.get(product, {}).get("history_id")
+            }
+        return histories
+    except Exception:
+        logging.debug("[CyclePass] atlas histories unavailable", exc_info=True)
+        return {}
+
+
+def _desk_board_snapshot():
+    from agents.data_quality import BOARD_TABLES
+    from portfolio_risk import timestamp
+
+    with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        snapshots = {name: _MW_COMPONENT_SNAPSHOTS.get(name) for name in BOARD_TABLES}
+    if not any(snapshots.values()):
+        return None
+    board, table_timestamps = {}, {}
+    for name, snapshot in snapshots.items():
+        board[name], stamp = _wrap_rows_and_ts(snapshot)
+        table_timestamps[name] = timestamp(stamp)
+    board["timestamp"] = max(table_timestamps.values())
+    board["table_timestamps"] = table_timestamps
+    return board
+
+
+def _desk_risk_board(context, positions_source):
+    from portfolio_risk import timestamp
+
+    positions = context["positions"]
+    source = "portfolio" if positions_source == "portfolio" else "watchlist"
+    rows = positions if source == "portfolio" else [
+        {"symbol": symbol}
+        for symbol in dict.fromkeys([*(row["symbol"] for row in positions), *context["watchlist"]])
+    ]
+    quotes = last_current_prices
+    prices = quotes.get("data") or {}
+    holdings = [{**row, "price_usd": prices.get(f"{row['symbol']}-USD")} for row in rows]
+    return _portfolio_risk_payload(
+        holdings, source=source, quote_as_of=timestamp(quotes.get("timestamp")),
+        include_chart=False,
+    )
+
+
+def _desk_sentiment_summaries():
+    from catalyst_sentiment import get_service
+
+    service = get_service()
+    symbols = [
+        symbol for symbol in dict.fromkeys(["BTC", *_macro_atlas_movers()])
+        if re.fullmatch(r"[A-Z0-9]{1,15}", symbol)
+    ][:6]
+    summaries = [service.symbol(symbol) for symbol in symbols]
+    if any(
+        source.get("status") == "ok"
+        for name, source in service.source_health().items() if name != "fear_greed"
+    ):
+        return summaries
+    return []
+
+
+def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
+    from agents.cycle_context import build_cycle_context
+    from agents.cycle_strategist import CycleStrategistAgent
+    from agents.runner import DESK_SUPPORT_FACTORIES, run_once
+    from agents.trading_costs import configured_cost_model
+
+    positions, positions_source, cash = _cycle_pass_positions(user)
+    watch = _cycle_pass_watchlist(user)
+    context = build_cycle_context(
+        None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
+    )
+    held = [row["symbol"] for row in context["positions"]]
+    reload = [plan["symbol"] for plan in store.active_reload_plans()]
+    _macro_atlas_set_priority(held=held, watchlist=context["watchlist"], reload=reload)
+    from macro_industry_scanner import is_atlas_eligible
+
+    known = _macro_scan_known_products()
+    wanted = [
+        product for symbol in dict.fromkeys((*held, *context["watchlist"], *reload))
+        if is_atlas_eligible(product := f"{symbol}-USD") and (not known or product in known)
+    ][:MACRO_SCAN_MAX_PRODUCTS]
+    if names.intersection({"data_quality", "tape_scout"}):
+        context["board_snapshot"] = _desk_board_snapshot()
+    if "portfolio_watch" in names:
+        context["risk_board"] = _desk_risk_board(context, positions_source)
+    if "sentiment_scout" in names:
+        try:
+            context["catalyst_sentiments"] = _desk_sentiment_summaries()
+        except Exception:
+            logging.exception("[CyclePass] catalyst sentiment unavailable")
+
+    scan = _cycle_pass_scan(wanted)
+    # A refresh may complete while the scan is being read.
+    now = time.time()
+    context["now_ts"] = now
+    context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
+    prices = _cycle_scan_prices(scan)
+    if positions_source == "portfolio" and cash is not None and all(sym in prices for sym in held):
+        context["portfolio_equity_usd"] = cash + sum(
+            row["quantity"] * prices[row["symbol"]] for row in context["positions"]
+        )
+
+    agents = [factory() for factory in DESK_SUPPORT_FACTORIES if factory.name in names]
+    run_cycle = context["cycle_scan"] is not None and CycleStrategistAgent.name in names
+    strategist = None
+    if run_cycle:
+        context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
+        strategist = CycleStrategistAgent(costs=configured_cost_model())
+        agents.append(strategist)
+
+    alert_engine = _smart_alert_engine() if run_cycle and evaluate_alerts else None
+    result = run_once(context, store=store, agents=agents, smart_alert_engine=alert_engine)
+    autonomy = store.get_autonomy_settings()
+    body = {
+        **result,
+        "dry_run_only": True,
+        "cycle_scan": {**_cycle_scan_summary(scan), "usable": context["cycle_scan"] is not None},
+        "positions_source": positions_source,
+        "positions": len(context["positions"]),
+        "watchlist": len(context["watchlist"]),
+        "proposals": list(getattr(strategist, "last_proposals", None) or []),
+        "cluster_guard": getattr(strategist, "last_cluster_guard", None),
+        "compounding_summary": store.get_compounding_summary(
+            prices, market_snapshot=(scan or {}).get("market_snapshot"),
+        ),
+        "autonomy": autonomy,
+        **_stance_readout(
+            autonomy["stance"], context["cycle_scan"],
+            resolved=getattr(strategist, "last_stance", None),
+        ),
+    }
+    if CycleStrategistAgent.name in names and not run_cycle:
+        body.update(status="skipped", reason="no_cycle_scan")
+    return body
+
+
+@app.post("/api/agents/run-cycle-pass")
+def run_agent_cycle_pass():
+    """Run the desk agents and evaluate smart alerts when the cycle scan is ready."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if payload:
+        return jsonify({"error": "Expected an empty JSON object."}), 400
+    if not _CYCLE_PASS_LOCK.acquire(blocking=False):
+        return jsonify({"error": "A cycle pass is already running."}), 409
+    try:
+        from agents.runner import DESK_AGENT_NAMES
+        from agents.store import AgentStore
+
+        return _private_json(_run_desk_pass(
+            user, AgentStore(), set(DESK_AGENT_NAMES),
+            evaluate_alerts=user["id"] != _LOCAL_DESK_OWNER_ID,
+        ))
+    finally:
+        _CYCLE_PASS_LOCK.release()
+
+
+@app.route("/api/smart-alerts/rules", methods=["GET", "POST"])
+def smart_alert_rules():
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    engine = _smart_alert_engine()
+    if request.method in {"GET", "HEAD"}:
+        from smart_alerts import PREDICATES, SCOPES, URGENCIES
+
+        return _private_json({
+            "status": "live",
+            "rules": engine.list_rules(),
+            "predicates": sorted(PREDICATES),
+            "urgencies": list(URGENCIES),
+            "scopes": list(SCOPES),
+            "ntfy_configured": bool(engine.ntfy_url),
+        })
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    from smart_alerts import DuplicateRuleName
+
+    try:
+        rule = engine.create_rule(payload)
+    except DuplicateRuleName as exc:
+        return jsonify({"error": str(exc)}), 409
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "rule": rule}, 201)
+
+
+@app.route("/api/smart-alerts/rules/<rule_id>", methods=["PATCH", "DELETE"])
+def smart_alert_rule(rule_id):
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    from smart_alerts import DuplicateRuleName
+
+    if not re.fullmatch(r"[1-9][0-9]{0,18}", rule_id) or int(rule_id) > _MAX_SQLITE_ID:
+        return jsonify({"error": "Invalid rule ID."}), 404
+    rule_id = int(rule_id)
+    engine = _smart_alert_engine()
+    if request.method == "DELETE":
+        if not engine.delete_rule(rule_id):
+            return jsonify({"error": "Rule not found."}), 404
+        return _private_json({"status": "live", "deleted": rule_id})
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    try:
+        if set(payload) == {"enabled"}:
+            if not isinstance(payload["enabled"], bool):
+                raise ValueError("enabled must be a boolean")
+            rule = engine.set_enabled(rule_id, payload["enabled"])
+        else:
+            rule = engine.update_rule(rule_id, payload)
+    except KeyError:
+        return jsonify({"error": "Rule not found."}), 404
+    except DuplicateRuleName as exc:
+        return jsonify({"error": str(exc)}), 409
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "rule": rule})
+
+
+@app.get("/api/smart-alerts/history")
+def smart_alert_history():
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    symbol = request.args.get("symbol") or None
+    if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+        return jsonify({"error": "Invalid symbol."}), 400
+    limit = _request_limit(500)
+    if limit is None:
+        return jsonify({"error": "Limit must be an integer from 1 to 500."}), 400
+    return _private_json({
+        "status": "live",
+        "history": _smart_alert_engine().history(limit=limit, symbol=symbol),
+    })
+
+
+@app.post("/api/smart-alerts/test")
+def smart_alert_test():
+    """Send one test alert through the configured channels."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+    payload, error = _owner_json_body()
+    if error:
+        return error
+    if set(payload) - {"urgency", "rule_id"} or {"urgency", "rule_id"} <= payload.keys():
+        return jsonify({"error": "Provide either urgency or rule_id."}), 400
+    rule_id = payload.get("rule_id")
+    if "rule_id" in payload and (type(rule_id) is not int or not 1 <= rule_id <= _MAX_SQLITE_ID):
+        return jsonify({"error": "rule_id must be a positive SQLite integer."}), 400
+    try:
+        fired = _smart_alert_engine().send_test(
+            urgency=payload.get("urgency", "wake_up"), rule_id=rule_id
+        )
+    except KeyError:
+        return jsonify({"error": "Rule not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return _private_json({"status": "live", "alert": fired})
+
+
+@app.route("/api/execution-agent/mode", methods=["GET", "POST"])
+def execution_agent_mode():
+    """Owner-only paper mode; never changes exchange permissions."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    import paper_execution_store
+
+    if request.method == "POST":
+        if not request.is_json:
+            return jsonify({"error": "A JSON request is required."}), 415
+        payload = request.get_json()
+        if not isinstance(payload, dict):
+            return jsonify({"error": "A JSON object is required."}), 400
+        try:
+            paper_execution_store.set_mode(user["id"], payload.get("mode"))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+    response = jsonify({
+        "status": "live",
+        "mode": paper_execution_store.get_mode(user["id"]),
+        "paper": True,
+    })
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/api/execution-agent/tickets", methods=["GET", "POST"])
+def execution_agent_tickets():
+    """List, preview, stage, or approve local paper tickets only."""
+    user, error = _require_portfolio_owner(allow_local_desk=True)
+    if error:
+        return error
+    import paper_execution_store
+    from coinbase_execution_agent import CoinbaseExecutionAgent
+
+    if request.method == "GET":
+        product_id = str(request.args.get("product_id") or "").upper()
+        if product_id and not re.fullmatch(r"[A-Z0-9]{1,15}-USD", product_id):
+            return jsonify({"error": "Invalid product_id."}), 400
+        response = jsonify({
+            "status": "live",
+            "paper": True,
+            "tickets": paper_execution_store.list_tickets(user["id"], product_id or None),
+        })
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    if not request.is_json:
+        return jsonify({"error": "A JSON request is required."}), 415
+    payload = request.get_json()
+    if not isinstance(payload, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+    action = payload.get("action")
+    try:
+        if action in {"approve", "fill", "close", "cancel"}:
+            if not isinstance(payload.get("ticket_id"), str) or not payload["ticket_id"]:
+                raise ValueError("A paper ticket ID is required.")
+            if action == "approve":
+                ticket = paper_execution_store.approve_ticket(user["id"], payload["ticket_id"])
+            elif action == "fill":
+                ticket = paper_execution_store.fill_ticket(user["id"], payload["ticket_id"], payload.get("fill_price"))
+            elif action == "close":
+                ticket = paper_execution_store.close_position(user["id"], payload["ticket_id"], payload.get("exit_price"))
+            else:
+                ticket = paper_execution_store.cancel_ticket(user["id"], payload["ticket_id"])
+        elif action in {"preview", "stage"}:
+            intent = payload.get("ticket")
+            if not isinstance(intent, dict):
+                raise ValueError("A paper ticket is required.")
+            intent = dict(intent)
+            if not re.fullmatch(r"[A-Z0-9]{1,15}-USD", str(intent.get("product_id") or "")):
+                raise ValueError("Invalid product_id.")
+            # A caller cannot lower the circuit-breaker notional independently
+            # of the actual order size and price.
+            intent.pop("notional_usd", None)
+            # A browser-provided flag is not evidence of an actual holding.
+            intent.pop("held_position", None)
+            intent["position_held"] = False
+            mode = paper_execution_store.get_mode(user["id"])
+            if mode == "guardian" and intent.get("side") == "sell" and user["id"] != _LOCAL_DESK_OWNER_ID:
+                from portfolio_mode import get_portfolio_service, PortfolioModeError
+
+                try:
+                    snapshot = get_portfolio_service().snapshot()
+                except PortfolioModeError as exc:
+                    logging.warning("[PaperExecution] held position unavailable: %s", exc)
+                else:
+                    size = intent.get("base_size") or intent.get("size")
+                    if isinstance(size, (int, float)) and not isinstance(size, bool) and math.isfinite(size) and size > 0 and snapshot.get("status") == "live":
+                        intent["position_held"] = any(
+                            holding.get("product_id") == intent["product_id"]
+                            and not holding.get("is_cash")
+                            and isinstance(holding.get("available_quantity"), (int, float))
+                            and holding["available_quantity"] >= size
+                            for holding in snapshot.get("holdings") or []
+                        )
+            entry = intent.get("entry_price") if intent.get("side") == "buy" else intent.get("current_price")
+            stop = intent.get("stop_limit_price")
+            target = intent.get("target_price")
+            if all(
+                isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                for value in (entry, stop, target)
+            ) and 0 < stop < entry < target:
+                intent["rr_planned"] = round((target - entry) / (entry - stop), 2)
+            else:
+                intent.pop("rr_planned", None)
+            posture = _trusted_execution_sentiment(intent["product_id"].split("-")[0]) if mode == "autonomous" else None
+
+            def evaluate(risk):
+                context = {"mode": mode, "trade_intents": [intent], **risk, "sentiment_posture": posture}
+                return dict(CoinbaseExecutionAgent().run(context)[0].evidence["ticket"])
+
+            if action == "stage":
+                ticket = paper_execution_store.stage_evaluated_ticket(user["id"], evaluate)
+            else:
+                ticket = evaluate(paper_execution_store.risk_metrics(user["id"]))
+        else:
+            raise ValueError("Action must be preview, stage, approve, fill, close, or cancel.")
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except (ValueError, TypeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    response = jsonify({"status": "live", "paper": True, "ticket": ticket})
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _trusted_execution_sentiment(symbol):
+    """Require fresh mandatory feeds and structure before autonomous approval."""
+    from catalyst_sentiment import get_service, structure_sentiment_posture
+
+    service = get_service()
+    summary = service.symbol(symbol)
+    if summary.get("severe_negative") or summary.get("negative_catalyst_risk"):
+        return "negative_catalyst_risk"
+    sources = service.source_health()
+    required = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
+    if not required or not all(source.get("status") == "ok" for source in required.values()):
+        return None
+    try:
+        structure = _structure_posture_for(symbol)
+    except (requests.RequestException, ValueError, OSError):
+        logging.warning("[PaperExecution] structure unavailable for %s", symbol, exc_info=True)
+        return None
+    if not structure or not all((structure.get("reads") or {}).get(tf) for tf in ("15m", "1h", "4h")):
+        return None
+    return structure_sentiment_posture(summary, structure=structure).get("key")
+
+
+_ICON_BATCH_SYMBOL_LIMIT = 250
+_ICON_BATCH_RESOLVE_CAP = 8  # bounded synchronous CoinGecko lookups per request
+
+
+@app.get("/api/coin-icons")
+def get_coin_icons():
+    """Resolve real coin logo URLs for a batch of symbols.
+
+    Cache-first and bounded: already-resolved (or already-confirmed-missing)
+    symbols return immediately from cache; only a small number of new symbols
+    per request are looked up against CoinGecko synchronously, so a large
+    watchlist fills in its icons over a few polls instead of blocking one
+    request on dozens of external calls. Unresolved symbols come back as
+    null and the client keeps its own fallback (a different icon CDN, then
+    initials) rather than treating null as an error.
+    """
+    raw = request.args.get("symbols", "")
+    if len(raw) > 6000:
+        return jsonify({"error": "Too many symbols."}), 400
+    symbols = []
+    seen = set()
+    for value in raw.split(","):
+        symbol = value.strip().upper().removesuffix("-USD")
+        if not symbol or symbol in seen:
+            continue
+        if not re.fullmatch(r"[A-Z0-9]{1,20}", symbol):
+            return jsonify({"error": "Invalid symbol."}), 400
+        seen.add(symbol)
+        symbols.append(symbol)
+    if len(symbols) > _ICON_BATCH_SYMBOL_LIMIT:
+        return jsonify({"error": "Too many symbols."}), 400
+
+    icons = {}
+    pending = []
+    to_resolve = []
+    for symbol in symbols:
+        cached, url = peek_coin_icon_url(symbol)
+        if cached:
+            icons[symbol] = url
+        else:
+            to_resolve.append(symbol)
+
+    for symbol in to_resolve[:_ICON_BATCH_RESOLVE_CAP]:
+        try:
+            icons[symbol] = fetch_coin_icon_url(symbol)
+        except Exception:
+            logging.warning("Coin icon lookup failed for %s", symbol)
+            icons[symbol] = None
+    pending = to_resolve[_ICON_BATCH_RESOLVE_CAP:]
+
+    response = jsonify({"icons": icons, "pending": pending})
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
+
+@app.get("/api/risk-levels/portfolio")
+def get_portfolio_risk_levels():
+    """Batch public risk calculations against only the current user's holdings."""
+    from flask import make_response
+    from portfolio_mode import portfolio_snapshot
+    from portfolio_risk import timestamp
+    from watchlist import get_authenticated_user, _db_connect, _serialize_watchlists
+
+    user = get_authenticated_user()
+    source = "watchlist"
+    fallback_reason = (
+        "Showing your watchlist. Connect a portfolio to include position sizes."
+    )
+    holdings = []
+    quote_as_of = timestamp(last_current_prices.get("timestamp"))
+    if user:
+        # Reuse the same OAuth/owner gates, view-only checks and per-account
+        # snapshot cache as /api/portfolio. Never consult the owner service for
+        # a guest or a different account.
+        portfolio_response = make_response(portfolio_snapshot())
+        snapshot = portfolio_response.get_json(silent=True) or {}
+        if portfolio_response.status_code == 200 and snapshot.get("status") == "live":
+            source = "portfolio"
+            fallback_reason = None
+            holdings = snapshot.get("holdings") or []
+            quote_as_of = timestamp(snapshot.get("updated_at"))
+        else:
+            fallback_reason = "Your portfolio is unavailable. Showing your saved watchlist without position sizes."
+
+    if source == "watchlist":
+        if user:
+            conn = _db_connect()
+            try:
+                watchlists = _serialize_watchlists(conn, user["id"])
+            finally:
+                conn.close()
+            symbols = {
+                str(item.get("itemKey") or "").upper().split("-")[0]
+                for watchlist in watchlists
+                for item in watchlist.get("items", [])
+            }
+        else:
+            raw = request.args.get("symbols", "")
+            if len(raw) > 6000:
+                return jsonify({"error": "Watchlist is too large."}), 400
+            symbols = {
+                value.strip().upper().removesuffix("-USD")
+                for value in raw.split(",")
+                if value.strip()
+            }
+            if len(symbols) > 250 or any(
+                not re.fullmatch(r"[A-Z0-9]{1,20}", value) for value in symbols
+            ):
+                return jsonify({"error": "Invalid watchlist symbols."}), 400
+        prices = last_current_prices.get("data") or {}
+        holdings = [
+            {
+                "symbol": symbol,
+                "price_usd": prices.get(f"{symbol}-USD", prices.get(symbol)),
+            }
+            for symbol in symbols
+        ]
+
+    payload = _portfolio_risk_payload(holdings, source=source, quote_as_of=quote_as_of)
+    payload["fallback_reason"] = fallback_reason
+    for row in payload["rows"]:
+        if row["plan"].get("available"):
+            try:
+                row["plan"]["plan_id"] = sell_plan_outcome_store.record_plan(
+                    row["plan"]
+                )
+            except Exception:
+                logging.warning(
+                    "Risk plan history could not be recorded for %s", row["symbol"]
+                )
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Cookie"
+    return response
+
+
+def _portfolio_risk_payload(holdings, *, source, quote_as_of, include_chart=True):
+    from portfolio_risk import build_risk_board, normalize_holdings
+
+    holdings = normalize_holdings(holdings, positions=source == "portfolio")
+    price_map = {
+        row["symbol"]: row["price_usd"]
+        for row in holdings
+        if row["price_usd"] is not None
+    }
+    now = time.time()
+    levels = {}
+    if 0 < quote_as_of <= now + 30 and now - quote_as_of <= 120:
+        try:
+            levels = _gather_levels_for_symbols(set(price_map), price_map, include_chart=include_chart)
+        except Exception:
+            logging.exception("Portfolio risk candle batch unavailable")
+    contexts = {row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings}
+    return build_risk_board(
+        holdings, levels, contexts, source=source, quote_as_of=quote_as_of, now=now
+    )
+
+
+@app.get("/api/risk-levels/<product_id>")
+def get_risk_levels(product_id: str):
+    """Explainable stop-limit, exit, support, and measured-history map."""
+    raw = str(product_id or "").strip().upper()
+    symbol = raw.split("-")[0]
+    normalized = raw if "-" in raw else f"{raw}-USD"
+    if not symbol or not re.fullmatch(r"[A-Z0-9]{1,20}", symbol):
+        return jsonify({"status": "degraded", "error": "Invalid product"}), 400
+
+    prices = (
+        last_current_prices.get("data")
+        if isinstance(last_current_prices, dict)
+        and isinstance(last_current_prices.get("data"), dict)
+        else {}
+    )
+    current_price = prices.get(normalized)
+    if current_price is None:
+        current_price = prices.get(symbol)
+
+    try:
+        levels = (
+            _gather_levels_for_symbols(
+                {symbol}, {symbol: current_price}, include_chart=True
+            ).get(symbol)
+            if current_price is not None
+            else None
+        )
+        plan = build_sell_plan(
+            product_id=normalized,
+            current_price=current_price,
+            levels=levels,
+            signal_context=_risk_level_signal_context(symbol),
+        )
+        plan["generated_at"] = int(time.time())
+        plan["price_as_of"] = int(last_current_prices.get("timestamp") or 0)
+        if plan.get("available") and levels and levels.get("chart"):
+            plan["chart"] = {**levels["chart"], "product_id": normalized}
+        # Entry read from the same quote, the same measured levels and the same
+        # structural support, so protection and entry never disagree on a level.
+        entry = build_entry_read(
+            product_id=normalized,
+            current_price=current_price,
+            levels=levels,
+            signal_context=_risk_level_signal_context(symbol),
+            sell_plan=plan,
+        )
+        entry["generated_at"] = plan["generated_at"]
+        entry["price_as_of"] = plan["price_as_of"]
+        plan_id = sell_plan_outcome_store.record_plan(plan)
+        if plan_id:
+            plan["plan_id"] = plan_id
+        history = sell_plan_outcome_store.history(normalized)
+        return jsonify(
+            {"status": "live", "plan": plan, "entry": entry, "history": history}
+        )
+    except Exception as exc:
+        logging.exception("Risk levels failed for %s", normalized)
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
@@ -12684,15 +13968,151 @@ def get_chart(symbol):
     )
 
 
+def _fetch_coinbase_candles_before(product_id, granularity, end_ts, count=300):
+    """Candles ending at or before ``end_ts``, newest first, or ``None``.
+
+    ``_fetch_coinbase_candles`` only returns the latest page. The longer
+    chart-read horizons page back with this.
+    """
+    try:
+        end = datetime.fromtimestamp(float(end_ts), tz=timezone.utc)
+        start = end - timedelta(seconds=granularity * (count - 1))
+        resp = requests.get(
+            f"https://api.exchange.coinbase.com/products/{product_id}/candles",
+            params={
+                "granularity": granularity,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+            },
+            timeout=5,
+        )
+        if not resp.ok:
+            logging.debug(f"[Candles] HTTP {resp.status_code} paging {product_id}")
+            return None
+        data = resp.json()
+        return data[:count] if isinstance(data, list) else None
+    except Exception as exc:
+        logging.debug(f"[Candles] Paging error for {product_id}: {exc}")
+        return None
+
+
+def _fetch_coinbase_candle_history(product_id, granularity, pages=1):
+    """Up to ``pages`` x 300 candles, newest first. Stops at the first gap."""
+    history = _fetch_coinbase_candles(product_id, granularity=granularity, count=300)
+    if not history:
+        return history
+    history = list(history)
+    for _ in range(max(0, int(pages) - 1)):
+        try:
+            oldest = min(float(c[0]) for c in history)
+        except (TypeError, ValueError, IndexError):
+            break
+        older = _fetch_coinbase_candles_before(
+            product_id, granularity, oldest - granularity
+        )
+        if not older:
+            break
+        seen = {c[0] for c in history}
+        added = [c for c in older if c and c[0] not in seen]
+        if not added:
+            break
+        history.extend(added)
+    return history
+
+
+def _closed_candles(candles, step, now):
+    """Completed candles only, oldest first."""
+    rows = []
+    for candle in candles or []:
+        try:
+            if float(candle[0]) + step <= now:
+                rows.append(candle)
+        except (TypeError, ValueError, IndexError):
+            continue
+    rows.sort(key=lambda candle: float(candle[0]))
+    return rows
+
+
+_CYCLE_BACKTEST_FIELDS = (
+    "initial_coins",
+    "hodl_final_coins",
+    "compounded_final_coins",
+    "extra_coins_gained",
+    "extra_coins_pct",
+    "strategy_final_coin_equivalent",
+    "hodl_final_value_usd",
+    "strategy_final_value_usd",
+    "max_drawdown_hodl_pct",
+    "max_drawdown_strategy_pct",
+    "drawdown_reduction_pct",
+    "completed_trim_reload_cycles",
+    "ended_stopped_out",
+    "bars",
+    "first_timestamp",
+    "last_timestamp",
+)
+
+
+CYCLE_BACKTEST_CACHE_MAX = 256
+_CYCLE_BACKTEST_CACHE = {}
+_CYCLE_BACKTEST_LOCK = threading.Lock()
+
+
+def _cycle_backtest_cached(product_id, daily_candles):
+    """Keep one replay per product, invalidated by UTC rollover or changed OHLC."""
+    bars = [tuple(bar[:5]) for bar in daily_candles or [] if isinstance(bar, (list, tuple))]
+    fingerprint = hashlib.sha256(repr(bars).encode()).digest()
+    with _CYCLE_BACKTEST_LOCK:
+        key = (_macro_scan_day(time.time()), fingerprint)
+        hit = _CYCLE_BACKTEST_CACHE.get(product_id)
+        if hit is not None and hit[0] == key:
+            return dict(hit[1])
+        summary = _cycle_backtest_summary(bars)
+        if summary.get("reason") == "replay_failed":
+            return summary
+        _CYCLE_BACKTEST_CACHE.pop(product_id, None)
+        _CYCLE_BACKTEST_CACHE[product_id] = (key, summary)
+        while len(_CYCLE_BACKTEST_CACHE) > CYCLE_BACKTEST_CACHE_MAX:
+            del _CYCLE_BACKTEST_CACHE[next(iter(_CYCLE_BACKTEST_CACHE))]
+    return dict(summary)
+
+
+def _cycle_backtest_summary(daily_candles):
+    """Summary of ``cycle_backtest.simulate_cycle_compounding`` over the daily history.
+
+    The event list is left out to keep the chart read small. Never raises.
+    """
+    try:
+        import cycle_backtest
+
+        replay = cycle_backtest.simulate_cycle_compounding(daily_candles)
+    except ValueError as exc:
+        return {"available": False, "reason": str(exc)[:120]}
+    except Exception:
+        logging.exception("[ChartRead] cycle replay failed")
+        return {"available": False, "reason": "replay_failed"}
+    summary = {key: replay[key] for key in _CYCLE_BACKTEST_FIELDS}
+    summary.update(
+        available=True,
+        event_count=len(replay["events"]),
+        fresh_cash_added_usd=0.0,
+        outcome_validated=False,
+    )
+    return summary
+
+
 @app.route("/api/chart-read/<symbol>")
 def get_chart_read(symbol):
     """Deterministic chart read for a coin — math-derived, basic-user language.
 
-    Uses 1h candles over the most recent ~50 hours (Coinbase Exchange).
-    No predictions, no trading advice.
+    ``horizon`` picks the view: ``swing`` (default) reads 1h candles over the
+    most recent ~50 hours plus up to 300 completed 1h candles for the
+    structure read, ``short`` reads 15m candles and ``macro`` reads 4h candles
+    built from about a month of 1h history. No predictions, no trading advice.
     """
     try:
-        from chart_reader import analyze_candles
+        import chart_reader
+        import chart_structure
     except ImportError as exc:
         logging.error(f"[ChartRead] chart_reader import failed: {exc}")
         return jsonify({"error": "Chart reader unavailable"}), 503
@@ -12721,16 +14141,701 @@ def get_chart_read(symbol):
         if evidence:
             event_context["evidence"] = evidence
 
+    horizon = str(request.args.get("horizon") or "").strip().lower()
+    if horizon not in chart_structure.HORIZONS:
+        horizon = chart_structure.DEFAULT_HORIZON
+    timeframe = chart_structure.HORIZONS[horizon]["timeframe"]
+    now = time.time()
     product_id = f"{sym}-USD"
-    candles = _fetch_coinbase_candles(product_id, granularity=3600, count=50)
-    if not candles:
-        return jsonify({"error": f"No candle data for {sym}"}), 404
+    higher = None  # None lets the reader resample the trend check itself
 
-    result = analyze_candles(candles, sym, "1h", event_context=event_context)
+    def fetch_daily():
+        try:
+            return chart_reader.fetch_multi_year_daily_candles(
+                product_id, years=chart_reader.CYCLE_HISTORY_YEARS
+            )
+        except (requests.RequestException, ValueError, OSError, sqlite3.Error):
+            logging.warning("[ChartRead] multi-year history unavailable for %s", sym, exc_info=True)
+            return None
+
+    if horizon == "cycle":
+        daily = fetch_daily()
+        if daily is None:
+            return jsonify({"error": f"Multi-year history unavailable for {sym}"}), 503
+        history = daily
+        higher = chart_reader.aggregate_weekly_candles(daily)
+    else:
+        from elliott_wave_engine import resample_candles
+
+        # Daily history comes from the day-keyed cache once warm. On a cache
+        # miss, load it alongside the selected view's intraday requests.
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            daily_job = pool.submit(fetch_daily)
+            if horizon == "short":
+                history_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=900, count=300)
+                hourly_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=3600, count=300)
+                history = history_job.result()
+                try:
+                    higher = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                except Exception:
+                    logging.debug("[ChartRead] 4h trend bars unavailable for %s", sym, exc_info=True)
+            elif horizon == "macro":
+                hourly_job = pool.submit(_fetch_coinbase_candle_history, product_id, 3600, pages=3)
+                history = None
+                try:
+                    bars = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                    history = list(reversed(bars))  # newest first, like Coinbase
+                except Exception:
+                    logging.warning("[ChartRead] 4h bars unavailable for %s", sym, exc_info=True)
+            else:
+                history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+            daily = daily_job.result()
+        if horizon == "macro" and history:
+            higher = (daily or _fetch_coinbase_candles(product_id, granularity=86400, count=300) or [])[:300]
+    if not history:
+        return jsonify({"error": f"No candle data for {sym}"}), 404
+    candles = history[:50]
+
+    result = chart_reader.analyze_candles(candles, sym, timeframe, event_context=event_context)
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
 
-    return jsonify(result)
+    try:
+        result["wave_analysis"] = chart_reader.build_wave_analysis(
+            history, timeframe, higher, as_of_ts=now
+        )
+    except Exception as exc:
+        logging.warning(f"[ChartRead] wave analysis unavailable for {sym}: {exc}")
+        result.setdefault(
+            "wave_analysis", {"available": False, "active_pattern": "none"}
+        )
+    result["horizon"] = horizon
+    result["horizons"] = chart_structure.horizon_list()
+    result["candles"] = chart_reader.chart_candle_series(history, timeframe, as_of_ts=now)
+    cycle = chart_structure.multi_year_context(daily)
+    result["multi_year_context"] = cycle
+    result["multiyear_cycle_anatomy"] = cycle["multiyear_cycle_anatomy"]
+    if horizon == "cycle":
+        cycle["weekly_wave_analysis"] = chart_reader.build_wave_analysis(higher, "1w", [], as_of_ts=now)
+        cycle["backtest"] = _cycle_backtest_cached(product_id, history)
+    if horizon in {"swing", "cycle"}:
+        from elliott_wave_engine import resample_candles
+
+        try:
+            if horizon == "cycle":
+                hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300) or []
+                wave_1h = chart_reader.build_wave_analysis(hourly, "1h", as_of_ts=now)
+            else:
+                hourly = history
+                wave_1h = result["wave_analysis"]
+            closed = _closed_candles(hourly, 3600, now)
+            four_hour = resample_candles(closed, 14400)
+            wave_4h = chart_reader.build_wave_analysis(four_hour, "4h", as_of_ts=now)
+            result["top_down_confluence"] = chart_structure.top_down_confluence(
+                cycle, {"1h": wave_1h, "4h": wave_4h},
+                closed[-1][4] if closed else None,
+            )
+        except (requests.RequestException, ValueError, OSError, sqlite3.Error):
+            logging.warning("[ChartRead] top-down history unavailable for %s", sym, exc_info=True)
+            result["top_down_confluence"] = {"available": False, "reason": "history_unavailable"}
+        # The industry gate picks which target tier is the active expectation.
+        try:
+            regime = _macro_regime_for_chart_read()
+        except Exception:
+            logging.exception("[ChartRead] industry regime unavailable for %s", sym)
+            regime = {"available": False, "reason": "unavailable"}
+        chart_structure.apply_macro_regime(
+            result["top_down_confluence"], regime if regime.get("available") else None
+        )
+        if horizon == "cycle":
+            result["macro_industry_regime"] = regime
+
+    try:
+        from catalyst_sentiment import get_service, structure_sentiment_posture
+
+        service = get_service()
+        summary = service.symbol(sym)
+        sources = service.source_health()
+        relevant = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
+        fresh = any(source.get("status") == "ok" for source in relevant.values())
+        complete = bool(relevant) and all(source.get("status") == "ok" for source in relevant.values())
+        structure = {"reads": {"1h": result["wave_analysis"]}} if horizon == "swing" else {}
+        posture = structure_sentiment_posture(summary, structure=structure) if fresh else None
+        if posture and posture["key"] == "quiet" and not complete:
+            posture = None
+        result["catalyst_sentiment"] = {
+            "status": "live" if complete else "partial" if fresh else "unavailable",
+            "summary": summary if fresh else None,
+            "posture": posture,
+            "sources": sources,
+        }
+    except Exception:
+        logging.exception("[ChartRead] catalyst context unavailable for %s", sym)
+        result["catalyst_sentiment"] = {"status": "unavailable", "posture": None}
+
+    user, owner_error = _require_portfolio_owner(allow_local_desk=True)
+    if not owner_error:
+        import paper_execution_store
+
+        tickets = paper_execution_store.list_tickets(user["id"], product_id)
+        result["paper_order_ticket"] = tickets[0] if tickets else None
+        if not tickets and horizon == "swing":
+            from coinbase_execution_agent import CoinbaseExecutionAgent
+
+            mode = paper_execution_store.get_mode(user["id"])
+            observations = CoinbaseExecutionAgent().run({
+                "product_id": product_id,
+                "symbol": sym,
+                "wave_analysis": result["wave_analysis"],
+                "mode": mode,
+                **paper_execution_store.risk_metrics(user["id"]),
+                "sentiment_posture": _trusted_execution_sentiment(sym) if mode == "autonomous" else result["catalyst_sentiment"].get("posture"),
+            })
+            if observations:
+                result["paper_order_ticket"] = observations[0].evidence["ticket"]
+    response = jsonify(result)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+# Structure posture for board rows. Display context only: nothing below is read
+# by the alert pipeline, so it cannot block, rank or delay an alert.
+_STRUCTURE_POSTURE_CACHE = {}  # symbol -> (computed_at, payload)
+_STRUCTURE_POSTURE_LOCK = threading.Lock()
+STRUCTURE_POSTURE_TTL_SECONDS = 300
+STRUCTURE_POSTURE_MISS_TTL_SECONDS = 60
+STRUCTURE_POSTURE_MAX_SYMBOLS = 40
+STRUCTURE_POSTURE_MAX_FRESH = 12
+_STRUCTURE_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,15}$")
+
+
+def _structure_posture_for(sym):
+    """Fetch 1h and 15m candles for one symbol and read its structure."""
+    import chart_structure
+
+    product_id = f"{sym}-USD"
+    hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+    if not hourly:
+        return None
+    quarter = _fetch_coinbase_candles(product_id, granularity=900, count=300)
+    return chart_structure.radar_structure(quarter or [], hourly, as_of_ts=time.time())
+
+
+@app.route("/api/structure-posture")
+def get_structure_posture():
+    """Plain-English chart-structure posture for a list of board symbols.
+
+    ``?symbols=BTC,ETH``. Reads are cached per symbol; at most
+    ``STRUCTURE_POSTURE_MAX_FRESH`` new symbols are computed per call and the
+    rest come back under ``pending`` for the next poll.
+    """
+    symbols = []
+    for raw in str(request.args.get("symbols") or "").split(","):
+        sym = raw.strip().upper()
+        if _STRUCTURE_SYMBOL_RE.match(sym) and sym not in symbols:
+            symbols.append(sym)
+    symbols = symbols[:STRUCTURE_POSTURE_MAX_SYMBOLS]
+
+    now = time.time()
+    found, missing = {}, []
+    with _STRUCTURE_POSTURE_LOCK:
+        for sym in symbols:
+            hit = _STRUCTURE_POSTURE_CACHE.get(sym)
+            ttl = (
+                STRUCTURE_POSTURE_TTL_SECONDS
+                if hit and hit[1] is not None
+                else STRUCTURE_POSTURE_MISS_TTL_SECONDS
+            )
+            if hit and now - hit[0] < ttl:
+                found[sym] = hit[1]
+            else:
+                missing.append(sym)
+    fresh = missing[:STRUCTURE_POSTURE_MAX_FRESH]
+    pending = missing[STRUCTURE_POSTURE_MAX_FRESH:]
+
+    if fresh:
+
+        def safe(sym):
+            try:
+                return _structure_posture_for(sym)
+            except Exception as exc:
+                logging.debug(f"[StructurePosture] {sym} failed: {exc}")
+                return None
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            computed = list(pool.map(safe, fresh))
+        with _STRUCTURE_POSTURE_LOCK:
+            for sym, payload in zip(fresh, computed):
+                _STRUCTURE_POSTURE_CACHE[sym] = (now, payload)
+                found[sym] = payload
+            if len(_STRUCTURE_POSTURE_CACHE) > 600:
+                cutoff = now - STRUCTURE_POSTURE_TTL_SECONDS
+                for key in [
+                    k for k, v in _STRUCTURE_POSTURE_CACHE.items() if v[0] < cutoff
+                ]:
+                    _STRUCTURE_POSTURE_CACHE.pop(key, None)
+
+    return jsonify(
+        {
+            "postures": {
+                sym: {
+                    "posture": payload.get("posture"),
+                    "trend_4h": payload.get("trend_4h"),
+                    "reads": payload.get("reads") or {},
+                }
+                for sym, payload in found.items()
+                if payload is not None
+            },
+            "pending": pending,
+            "ttl_seconds": STRUCTURE_POSTURE_TTL_SECONDS,
+            "blocks_alerts": False,
+            "outcome_validated": False,
+        }
+    )
+
+
+# Industry liquidity gate and multi-coin cycle scanner.
+MACRO_SCAN_TTL_SECONDS = 1800
+# Rolling Universe Cycle Atlas: the scan covers up to this many liquid USD
+# pairs, read from Coinbase a bounded slice at a time and served from cache.
+MACRO_SCAN_MAX_PRODUCTS = 120
+MACRO_SCAN_MAX_REQUESTED = 30
+MACRO_SCAN_EXTRA_BATCH = 6
+# Network reads per slice (about five candle requests each) and the shortest
+# gap between two slices.
+MACRO_ATLAS_SLICE_SIZE = 8
+MACRO_ATLAS_SLICE_INTERVAL_SECONDS = 20
+MACRO_SCAN_EXTRA_INTERVAL_SECONDS = 20
+_MACRO_ATLAS = None
+_MACRO_ATLAS_PRIORITY = {
+    "held": (), "watchlist": (), "reload": (), "paper": (), "saved_watchlist": (), "requested": (),
+}
+_MACRO_SCAN_LOCK = threading.Lock()
+_MACRO_SCAN_STATE = {
+    "payload": None,
+    "computed_at": 0.0,
+    "day": None,
+    "products": (),
+    "running": False,
+    "supplements": {},
+    "supplement_day": None,
+    "supplement_at": 0.0,
+    "retry_after": 0.0,
+}
+
+
+def _macro_scan_inline():
+    """Compute in the request instead of a worker thread (tests, or by env)."""
+    return (
+        os.environ.get("MW_MACRO_SCAN_SYNC") == "1"
+        or "PYTEST_CURRENT_TEST" in os.environ
+    )
+
+
+def _macro_scan_universe():
+    """Atlas universe: core assets, owner symbols, then observed liquidity."""
+    import macro_industry_scanner
+
+    volumes = {}
+    try:
+        volumes = latest_quote_volume_by_product(int(time.time())) or {}
+    except Exception:
+        logging.debug("[MacroScan] liquidity snapshot unavailable", exc_info=True)
+    with _MACRO_SCAN_LOCK:
+        priority = dict(_MACRO_ATLAS_PRIORITY)
+    # Symbols asked for on the public route count only once the board has
+    # verified them, so a caller cannot push arbitrary tickers into the scan.
+    known = _macro_scan_known_products()
+    requested = [product for product in priority.get("requested", ()) if product in known]
+    return macro_industry_scanner.select_atlas_universe(
+        core=(*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS),
+        held=(*priority["held"], *priority.get("paper", ())),
+        watchlist=(*priority["watchlist"], *priority.get("saved_watchlist", ())),
+        reload=(*priority["reload"], *requested),
+        volumes=volumes,
+        movers=_macro_atlas_movers(),
+        limit=MACRO_SCAN_MAX_PRODUCTS,
+    )
+
+
+def _macro_atlas_movers():
+    """Symbols of the board's current 3-minute gainers, strongest first."""
+    try:
+        # Read the board's in-memory 3-minute snapshot only. The scan worker
+        # must never start a price fetch; an empty cache means no movers yet.
+        data = cache.get("data") or {}
+        return [
+            str(coin.get("symbol") or "")
+            for coin in (data.get("gainers") or [])[:30]
+            if isinstance(coin, dict)
+        ]
+    except Exception:
+        logging.debug("[MacroScan] movers unavailable", exc_info=True)
+        return []
+
+
+def _macro_atlas_seed_priority():
+    """Read the configured owner's current saved priority before a universe build."""
+    from contextlib import closing
+    from watchlist import _db_connect, _user_by_email
+
+    paper, watch, reload = [], [], []
+    owner_email = str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    owner = None
+    try:
+        if owner_email:
+            with closing(_db_connect()) as conn:
+                owner = _user_by_email(conn, owner_email)
+    except Exception:
+        logging.debug("[MacroScan] portfolio owner unavailable", exc_info=True)
+    try:
+        import paper_execution_store
+
+        if owner is not None:
+            paper = [row["product_id"] for row in paper_execution_store.list_open_positions(owner["id"])]
+            watch = _cycle_pass_watchlist(owner)
+    except Exception:
+        logging.debug("[MacroScan] owner positions/watchlist unavailable", exc_info=True)
+    try:
+        from agents.store import AgentStore
+
+        if owner is not None:
+            reload = [plan["symbol"] for plan in AgentStore().active_reload_plans()]
+    except Exception:
+        logging.debug("[MacroScan] reload plans unavailable", exc_info=True)
+    with _MACRO_SCAN_LOCK:
+        for key, found in (("paper", paper), ("saved_watchlist", watch), ("reload", reload)):
+            _MACRO_ATLAS_PRIORITY[key] = tuple(dict.fromkeys(found))[:60]
+
+
+def _macro_atlas_priority_products():
+    """Owner and verified request products in the same order as the atlas."""
+    with _MACRO_SCAN_LOCK:
+        symbols = [
+            str(symbol).upper().removesuffix("-USD")
+            for key in ("held", "paper", "watchlist", "saved_watchlist", "reload", "requested")
+            for symbol in _MACRO_ATLAS_PRIORITY.get(key, ())
+        ]
+    return [f"{symbol}-USD" for symbol in dict.fromkeys(symbols) if symbol]
+
+
+def _macro_atlas_set_priority(*, held=(), watchlist=(), reload=()):
+    """Record the owner's symbols so the next universe build puts them first."""
+    with _MACRO_SCAN_LOCK:
+        _MACRO_ATLAS_PRIORITY.update(
+            held=tuple(held)[:60], watchlist=tuple(watchlist)[:60], reload=tuple(reload)[:60]
+        )
+
+
+def _macro_atlas_fetch(product):
+    import chart_reader
+
+    return chart_reader.fetch_multi_year_daily_candles(
+        product, years=chart_reader.CYCLE_HISTORY_YEARS
+    )
+
+
+def _macro_atlas_wants_slice(state, now):
+    """True when cold or expired atlas symbols are due their next slice."""
+    payload = state["payload"]
+    return bool(
+        payload
+        and payload.get("atlas_pending_count")
+        and now - state["computed_at"] >= MACRO_ATLAS_SLICE_INTERVAL_SECONDS
+        and now >= (payload.get("atlas_retry_at") or 0)
+    )
+
+
+def _macro_scan_known_products():
+    # Use products already verified by the board. Never resolve an arbitrary
+    # caller-supplied ticker by making a history request.
+    return PRODUCT_IDS or set()
+
+
+def _macro_cycle_scan_compute(products):
+    """Refresh one atlas slice, then scan every product the atlas can serve.
+
+    Only one refresh worker runs at a time (``_MACRO_SCAN_STATE["running"]``),
+    so the atlas is touched by a single thread.
+    """
+    import macro_industry_scanner as scanner
+
+    global _MACRO_ATLAS
+    # A cleared snapshot (new process, or a test reset) starts a new atlas.
+    if _MACRO_ATLAS is None or _MACRO_SCAN_STATE["payload"] is None:
+        _MACRO_ATLAS = scanner.CycleAtlas()
+    atlas = _MACRO_ATLAS
+    core = (*scanner.MAJORS, *scanner.ALT_INDEX_MEMBERS)
+    now = time.time()
+    required = (*core, *_macro_atlas_priority_products())
+    slice_size = MACRO_ATLAS_SLICE_SIZE + sum(
+        atlas.state(product, now) in {"cold", "expired"} for product in core if product in products
+    )
+    scanner.refresh_cycle_atlas_slice(
+        atlas, products, _macro_atlas_fetch, now=now,
+        slice_size=slice_size, required=required, clock=time.time,
+    )
+    # Prior-day candles can still contribute to cache coverage, but never to
+    # a new regime, price mark or actionable cycle row.
+    fresh_products = [product for product in products if atlas.state(product, now) == "fresh"]
+    payload = scanner.scan_universe_cycles(
+        atlas.histories(fresh_products),
+        members=scanner.ALT_INDEX_MEMBERS,
+        breadth_products=frozenset(core),
+        as_of_ts=int(now // 86400) * 86400,
+    )
+    coverage = scanner.atlas_coverage(atlas, products, now)
+    payload.update(
+        status="ready",
+        computed_at=time.time(),
+        requested=len(products),
+        unavailable=coverage.pop("atlas_unavailable"),
+        ttl_seconds=MACRO_SCAN_TTL_SECONDS,
+        # True while cold or expired symbols are still due a later slice.
+        atlas_refreshing=bool(coverage["atlas_pending_count"]),
+        **coverage,
+    )
+    return payload
+
+
+def _macro_scan_day(now):
+    return int(now // 86400)
+
+
+def _macro_scan_is_fresh(state, now):
+    return (
+        state["payload"] is not None
+        and state["day"] == _macro_scan_day(now)
+        and now - state["computed_at"] < MACRO_SCAN_TTL_SECONDS
+    )
+
+
+def _macro_scan_refresh(wanted, refresh_base, day):
+    import macro_industry_scanner as scanner
+
+    try:
+        if refresh_base:
+            _macro_atlas_seed_priority()
+            if wanted and not _macro_scan_known_products():
+                # A fresh process may not have run the board's product loader.
+                # Warm metadata at most once per baseline refresh, then rebuild
+                # so verified requested symbols join this first slice.
+                _load_product_ids(timeout=3)
+            known = _macro_scan_known_products()
+            with _MACRO_SCAN_LOCK:
+                recent = (*wanted, *_MACRO_ATLAS_PRIORITY.get("requested", ()))
+                _MACRO_ATLAS_PRIORITY["requested"] = tuple(
+                    product for product in dict.fromkeys(recent)
+                    if product in known and scanner.is_atlas_eligible(product)
+                )[:MACRO_SCAN_MAX_REQUESTED]
+            products = _macro_scan_universe()
+            payload = _macro_cycle_scan_compute(products)
+            with _MACRO_SCAN_LOCK:
+                _MACRO_SCAN_STATE.update(
+                    payload=payload, computed_at=payload["computed_at"],
+                    day=day, products=tuple(products),
+                )
+        with _MACRO_SCAN_LOCK:
+            extras = _macro_scan_missing(wanted, _MACRO_SCAN_STATE, day)
+        atlas = _MACRO_ATLAS
+        now = time.time()
+        if (
+            extras and atlas is not None and now >= atlas.backoff_until
+            and now - _MACRO_SCAN_STATE["supplement_at"] >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS
+        ):
+            # Share the atlas's 429 backoff across public supplements and base slices.
+            rows = {}
+            for product in extras[:MACRO_SCAN_EXTRA_BATCH]:
+                try:
+                    candles = _macro_atlas_fetch(product)
+                    row = scanner.cycle_row(product, candles, as_of_ts=day * 86400) if candles else None
+                    if row and row.get("available"):
+                        btc = (
+                            atlas.histories(["BTC-USD"]).get("BTC-USD")
+                            if atlas.state("BTC-USD", now) == "fresh" else None
+                        )
+                        scanner.annotate_cluster_and_beta(row, candles, btc)
+                    rows[product] = row
+                except Exception as exc:
+                    if scanner.is_atlas_rate_limit(exc):
+                        atlas.record_rate_limit(time.time())
+                        break
+                    logging.debug("[MacroScan] supplemental cycle read failed for %s", product, exc_info=True)
+                    rows[product] = None
+            with _MACRO_SCAN_LOCK:
+                if _MACRO_SCAN_STATE["supplement_day"] != day:
+                    _MACRO_SCAN_STATE.update(supplements={}, supplement_day=day)
+                _MACRO_SCAN_STATE["supplements"].update(rows)
+                _MACRO_SCAN_STATE["supplement_at"] = time.time()
+                if atlas.backoff_until > time.time():
+                    payload = _MACRO_SCAN_STATE["payload"]
+                    _MACRO_SCAN_STATE["payload"] = {**payload, "atlas_retry_at": atlas.backoff_until}
+    except Exception:
+        logging.exception("[MacroScan] scan failed")
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["retry_after"] = time.monotonic() + 12
+    finally:
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["running"] = False
+
+
+def _macro_scan_missing(wanted, state, day):
+    from macro_industry_scanner import is_atlas_eligible
+
+    known = _macro_scan_known_products()
+    supplements = state["supplements"] if state["supplement_day"] == day else {}
+    return [
+        product for product in wanted
+        if product in known and product not in state["products"] and product not in supplements
+        and is_atlas_eligible(product)
+    ]
+
+
+def _macro_scan_snapshot(wanted=(), *, allow_inline=True):
+    """Read the stable snapshot and schedule a bounded refresh if necessary."""
+    now = time.time()
+    day = _macro_scan_day(now)
+    inline = _macro_scan_inline()
+    with _MACRO_SCAN_LOCK:
+        state = _MACRO_SCAN_STATE
+        prior = state["payload"]
+        refresh_base = not _macro_scan_is_fresh(state, now) or _macro_atlas_wants_slice(state, now)
+        refresh_extra = (
+            now - state["supplement_at"] >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS
+            and bool(_macro_scan_missing(wanted, state, day))
+        )
+        if (
+            (inline and not allow_inline)
+            or state["running"]
+            or (_MACRO_ATLAS is not None and now < _MACRO_ATLAS.backoff_until)
+            or (state["retry_after"] and time.monotonic() < state["retry_after"])
+            or not (refresh_base or refresh_extra)
+        ):
+            return prior
+        state["running"] = True
+    if inline:
+        _macro_scan_refresh(wanted, refresh_base, day)
+        with _MACRO_SCAN_LOCK:
+            return _MACRO_SCAN_STATE["payload"]
+    try:
+        threading.Thread(
+            target=_macro_scan_refresh,
+            args=(wanted, refresh_base, day),
+            name="macro-cycle-scan",
+            daemon=True,
+        ).start()
+    except Exception:
+        with _MACRO_SCAN_LOCK:
+            _MACRO_SCAN_STATE["running"] = False
+        logging.exception("[MacroScan] worker could not start")
+    return prior
+
+
+def _macro_regime_for_chart_read():
+    """The cached industry regime for a chart read. Never computes in the request."""
+    payload = _macro_scan_snapshot(allow_inline=False)
+    if not payload:
+        return {"available": False, "reason": "warming"}
+    regime = dict(payload.get("industry") or {"available": False})
+    regime["as_of"] = payload.get("computed_at")
+    return regime
+
+
+def _macro_scan_response(payload, wanted, *, required=None):
+    import macro_industry_scanner as scanner
+
+    now = time.time()
+    day = _macro_scan_day(now)
+    with _MACRO_SCAN_LOCK:
+        state = _MACRO_SCAN_STATE
+        extra_products = [product for product in wanted if product not in state["products"]]
+        extra_rows = {
+            product: state["supplements"][product]
+            for product in extra_products
+            if state["supplement_day"] == day and product in state["supplements"]
+        }
+        pending = _macro_scan_missing(wanted, state, day)
+        fresh = _macro_scan_is_fresh(state, now)
+        refreshing = not fresh or bool(pending)
+        payload = state["payload"] or payload
+
+    industry = payload["industry"]
+    stage_tier = industry.get("active_target_tier")
+    additions = []
+    for row in extra_rows.values():
+        if row is None:
+            continue
+        row = dict(row)
+        tiers = row.pop("_tiers", None) or {}
+        if row.get("available"):
+            row["macro_regime_gate"] = industry.get("macro_regime_gate")
+            if stage_tier and tiers.get(stage_tier):
+                row["active_target_tier"] = stage_tier
+        additions.append(row)
+    if additions:
+        coins = sorted([*payload["coins"], *additions], key=lambda row: row["product_id"])
+        breadth = scanner.universe_breadth(coins)
+        buckets = {
+            name: sorted(
+                (row for row in coins if row.get("bucket") == name),
+                key=lambda row: (-row["score"], row["symbol"]),
+            )
+            for name in scanner.BUCKETS
+        }
+        payload = {
+            **payload, "coins": coins, "breadth": breadth, "buckets": buckets,
+            "scanned": breadth["coins"],
+            "skipped": [row["symbol"] for row in coins if not row.get("available")],
+        }
+    scan = {
+        **payload,
+        "status": "refreshing" if refreshing else "ready",
+        "requested": payload["requested"] + len(extra_products),
+        "unavailable": [
+            *payload["unavailable"],
+            *(product for product in extra_products if product not in pending and extra_rows.get(product) is None),
+        ],
+        "pending": pending,
+    }
+    if required is not None:
+        from agents.cycle_context import core_and_priority_ready
+
+        if not fresh or not core_and_priority_ready(scan, required):
+            scan["status"] = "refreshing"
+    if "market_snapshot" in payload:
+        scan["market_snapshot"] = scanner.market_snapshot(scan, payload["market_snapshot"]["as_of_ts"])
+    return scan
+
+
+@app.route("/api/macro-cycle-scan")
+def get_macro_cycle_scan():
+    """Industry stage, breadth and buckets, plus requested verified symbols."""
+    symbols = []
+    for raw in str(request.args.get("symbols") or "").split(","):
+        sym = raw.strip().upper().removesuffix("-USD")
+        if _STRUCTURE_SYMBOL_RE.fullmatch(sym) and sym not in symbols:
+            symbols.append(sym)
+            if len(symbols) >= MACRO_SCAN_MAX_REQUESTED:
+                break
+    wanted = [f"{symbol}-USD" for symbol in symbols]
+    payload = _macro_scan_snapshot(wanted)
+    if not payload:
+        return jsonify(
+            {
+                "status": "warming",
+                "industry": {"available": False, "reason": "warming"},
+                "breadth": None,
+                "buckets": {},
+                "coins": [],
+                "target_universe_size": MACRO_SCAN_MAX_PRODUCTS,
+                "ready_count": 0,
+                "coverage_pct": 0.0,
+                "atlas_refreshing": True,
+                "blocks_alerts": False,
+                "outcome_validated": False,
+            }
+        )
+    return jsonify(_macro_scan_response(payload, wanted))
 
 
 @app.route("/api/recommendations")
@@ -13710,6 +15815,14 @@ def _compute_snapshots_from_cache():
         price_snapshot = {}
         volume_snapshot = {}
         signal_context = {}
+        # Observability-only feature snapshots. These never reach the frontend
+        # and never feed a scoring decision; they exist so a historical outcome
+        # can be explained later. Defaults keep them in scope after the blocks
+        # that populate them, so a failure there degrades to "no snapshot".
+        _signal_features: dict = {}
+        _signal_features_ts: int | None = None
+        _board_features: dict = {}
+        _board_features_ts: int | None = None
         try:
             global _ALERT_ENGINE_STATE
 
@@ -13794,10 +15907,65 @@ def _compute_snapshots_from_cache():
                 delivery_events,
                 include_history=False,
             )
+            # Observability only: the feature state as of the moment these
+            # signal records are written. Deliberately a second, private
+            # calculation rather than a reuse of the published ranking, which
+            # is sampled later in this cycle from a live alert list. It reads
+            # through the peek helper so it cannot disturb the sticky-alert
+            # globals the published path depends on. Isolated in its own guard
+            # so a failure here degrades to a null snapshot and never blocks
+            # signal recording or notification delivery.
+            try:
+                _signal_features_ts = int(time.time())
+                # Control-matching inputs, gathered universe-wide at the same
+                # instant as the ranking they describe. Failures here degrade
+                # the snapshot rather than the signal path: a missing
+                # volatility map means peers cannot be matched later, not that
+                # the scan stops.
+                try:
+                    _signal_volatility = realized_volatility_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_volatility = {}
+                    logging.warning("Volatility snapshot skipped: %s", exc)
+                try:
+                    _signal_liquidity = latest_quote_volume_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_liquidity = {}
+                    logging.warning("Liquidity snapshot skipped: %s", exc)
+                _signal_features = {
+                    str(row.get("symbol") or "").upper(): row
+                    for row in build_live_rankings(
+                        price_snapshot=price_snapshot,
+                        volume_snapshot=volume_snapshot,
+                        context_snapshot=signal_context,
+                        alerts=_mw_peek_alerts_normalized_with_sticky(),
+                        include_internal_features=True,
+                        volatility_snapshot=_signal_volatility,
+                        liquidity_snapshot=_signal_liquidity,
+                    )
+                }
+                try:
+                    # The actual transitions being recorded this scan — the
+                    # population whose peer availability we need to measure.
+                    record_dry_run_observation(
+                        _signal_features, _signal_features_ts, delivery_events
+                    )
+                except Exception as exc:
+                    logging.warning("Dry-run observation skipped: %s", exc)
+            except Exception as exc:
+                _signal_features, _signal_features_ts = {}, None
+                logging.warning("Signal feature snapshot skipped: %s", exc)
+
             signal_outcome_store.observe(
                 delivery_events,
                 last_current_prices.get("data") or {},
                 now_ts=int(time.time()),
+                ranking_snapshot=_signal_features,
+                ranking_captured_ts=_signal_features_ts,
             )
             delivery_events = _enrich_signal_events(delivery_events)
             alert_delivery_dispatcher.dispatch_async(
@@ -13864,25 +16032,52 @@ def _compute_snapshots_from_cache():
         # used by the detector engine. This is local computation only—no per-coin
         # network fan-out and no synthetic sentiment values.
         try:
+            # This is the canonical ranking: same call site, same timing, and
+            # the same alert list as before this retention work. Internal
+            # features are collected so board entries recorded below can be
+            # explained later, then stripped so the published payload keeps its
+            # original shape.
+            _board_features_ts = int(time.time())
+            # Retain matching evidence at this board calculation's own time.
+            # These optional maps only populate raw_inputs; public scoring is
+            # unchanged. Do not reuse the earlier signal sample or timestamp.
+            try:
+                _board_volatility = realized_volatility_by_product(_board_features_ts)
+            except Exception as exc:
+                _board_volatility = {}
+                logging.warning("Board volatility snapshot skipped: %s", exc)
+            try:
+                _board_liquidity = latest_quote_volume_by_product(_board_features_ts)
+            except Exception as exc:
+                _board_liquidity = {}
+                logging.warning("Board liquidity snapshot skipped: %s", exc)
             live_rankings = build_live_rankings(
                 price_snapshot=price_snapshot,
                 volume_snapshot=volume_snapshot,
                 context_snapshot=signal_context,
                 alerts=alerts_items,
+                include_internal_features=True,
+                volatility_snapshot=_board_volatility,
+                liquidity_snapshot=_board_liquidity,
             )
+            _board_features = {
+                str(row.get("symbol") or "").upper(): row for row in live_rankings
+            }
             updates["live_rankings"] = {
                 "component": "live_rankings",
-                "data": live_rankings,
+                "data": public_ranking_rows(live_rankings),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
                 "model_version": LIVE_RANKING_MODEL_VERSION,
             }
         except Exception as exc:
+            _board_features, _board_features_ts = {}, None
             logging.warning("Live ranking compute skipped: %s", exc)
 
         # Measure what happens after a coin enters the exact top-eight cohorts
         # published by the dashboard.  Membership transitions and 5/15/30/60m
         # directional returns share the persistent signal database, so deploys
         # do not reset the sample.
+        observed_boards = None
         try:
 
             def _board_rows(name):
@@ -13895,14 +16090,17 @@ def _compute_snapshots_from_cache():
                     else None
                 )
 
+            observed_boards = {
+                "ignition_1m": _board_rows("gainers_1m"),
+                "confirmation_3m_up": _board_rows("gainers_3m"),
+                "confirmation_3m_down": _board_rows("losers_3m"),
+            }
             board_outcome_store.observe(
-                {
-                    "ignition_1m": _board_rows("gainers_1m"),
-                    "confirmation_3m_up": _board_rows("gainers_3m"),
-                    "confirmation_3m_down": _board_rows("losers_3m"),
-                },
+                observed_boards,
                 price_snapshot,
                 now_ts=int(time.time()),
+                ranking_snapshot=_board_features,
+                ranking_captured_ts=_board_features_ts,
             )
             updates["board_outcomes"] = {
                 "component": "board_outcomes",
@@ -13911,6 +16109,37 @@ def _compute_snapshots_from_cache():
             }
         except Exception as exc:
             logging.warning("Board outcome measurement skipped: %s", exc)
+
+        if board_outcome_research_store is not None and observed_boards is not None:
+            try:
+                quote_snapshot = {}
+                if coinbase_ws_get_feed is not None:
+                    feed = coinbase_ws_get_feed()
+                    if feed is not None:
+                        quote_snapshot = feed.fresh_quotes()
+                board_outcome_research_store.observe(
+                    observed_boards,
+                    price_snapshot,
+                    now_ts=int(time.time()),
+                    ranking_snapshot=_board_features,
+                    ranking_captured_ts=_board_features_ts,
+                    quote_snapshot=quote_snapshot,
+                )
+            except Exception as exc:
+                logging.warning("Expanded board research measurement skipped: %s", exc)
+
+        watchlist_quotes = {}
+        for key, quote in price_snapshot.items():
+            symbol = str(key).removesuffix("-USD")
+            product_id = f"{symbol}-USD"
+            row = {**quote, "symbol": symbol, "product_id": product_id}
+            if row.get("pct_1h") is None and row.get("price"):
+                baseline = _db_baseline_for_window(product_id, int(quote.get("sample_ts") or now_s), "1h")
+                if baseline and baseline[1] > 0:
+                    row["pct_1h"] = pct_change(row["price"], baseline[1])
+            watchlist_quotes[symbol] = row
+        if watchlist_quotes:
+            updates["watchlist_quotes"] = watchlist_quotes
 
         _mw_set_component_snapshots(**updates)
         if do_heavy:
@@ -13945,6 +16174,13 @@ def _fetch_prices_and_update_history():
                 prune_old(now_ts - retention)
             except Exception as e:
                 logging.error(f"SQLite price snapshot persistence failed: {e}")
+
+            # Advance only plans that were actually shown/recorded. Isolate
+            # this ledger so it can never interrupt the canonical price tape.
+            try:
+                sell_plan_outcome_store.observe(current_prices, now_ts=now_ts)
+            except Exception as e:
+                logging.warning(f"Risk-level outcome measurement skipped: {e}")
 
             # Update 3m data cache with fresh prices (force refresh to append history)
             data_3min = get_crypto_data(
@@ -14864,6 +17100,47 @@ def _dev_component(name: str):
 
 # Start only after every route above has been registered. Keeping this call at
 # EOF prevents script mode from blocking before compatibility routes exist.
+@app.get("/api/watchlist-market/24h")
+def watchlist_market_24h():
+    from watchlist_market import get_market_24h
+    return jsonify(get_market_24h())
+
+
+@app.get("/api/watchlist-market/quotes")
+def watchlist_market_quotes():
+    from watchlist_market import get_equity_quotes, get_market_24h, get_spot_quotes, normalize_symbols
+
+    symbols = normalize_symbols(request.args.get("symbols", "").split(","))
+    spot = get_spot_quotes(symbols)
+    equity = get_equity_quotes([symbol for symbol in symbols if symbol not in spot.get("quotes", {})])
+    day = get_market_24h()
+    quotes = {}
+    now = int(time.time())
+    for symbol, price in spot.get("quotes", {}).items():
+        product_id = f"{symbol}-USD"
+        # Requested watchlist symbols are also admitted to the normal rolling
+        # history, so their 1m/3m values become real after enough observations.
+        try:
+            price_history_1min[symbol].append((now, float(price)))
+            price_history[symbol].append((now, float(price)))
+            price_history_1hour[symbol].append((now, float(price)))
+        except (KeyError, TypeError, ValueError):
+            pass
+        row = {"symbol": symbol, "product_id": product_id, "price": price, "sample_ts": now}
+        for key in ("1m", "3m", "1h"):
+            baseline = _db_baseline_for_window(product_id, now, key)
+            row[f"pct_{key}"] = pct_change(price, baseline[1]) if baseline and baseline[1] > 0 else None
+            row[f"previous_price_{key}"] = baseline[1] if baseline and baseline[1] > 0 else None
+        day_row = day.get("products", {}).get(product_id) or {}
+        row["previous_price_24h"] = day_row.get("previous_price")
+        row["pct_24h"] = day_row.get("pct_24h")
+        quotes[symbol] = row
+    for symbol, quote in equity.items():
+        quotes[symbol] = {"symbol": symbol, "product_id": symbol, "price": quote["price"], "sample_ts": now,
+                          "pct_1m": None, "pct_3m": None, "pct_1h": None, "previous_price_24h": quote.get("previous_price"), "pct_24h": quote.get("pct_24h")}
+    return jsonify({"quotes": quotes, "requested": len(symbols), "matched": len(quotes), "updated_at": spot.get("updated_at"), "stale": bool(spot.get("stale"))})
+
+
 if __name__ == "__main__":
     main()
 

@@ -1,0 +1,146 @@
+{
+  "stop": "queue_overflow",
+  "segment_status": "finished",
+  "plan_sha256": "0befca7d531fcb86b2d1cbe80099a44585ee9b444162ab0e7034283d19deb2e8",
+  "journal_sha256": "dc2ee91a6726ffd4e3a3cf0d47c954d89bf7f30a587773bb5613e9ff030eb8e6",
+  "sqlite_quick_check": "ok",
+  "packet_records_verified": 302679,
+  "batch_ingress_clocks_verified": 302677,
+  "pending_ingress_frames": 0,
+  "publication_prefixes_verified": 0,
+  "journal_only_publications": 0,
+  "unacknowledged_publications": 0,
+  "local_observations_verified": 0,
+  "schedule_results": {
+    "1500": {
+      "planned_cohorts": 10,
+      "consumer_age_bound_ms": 2500,
+      "products": {
+        "BTC-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "SOL-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "ALCX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AURORA-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "LINK-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AVAX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        }
+      },
+      "cutoff_to_consumer_ms": {
+        "n": 0
+      },
+      "cutoffs_with_two_ready_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      },
+      "cutoffs_with_two_on_time_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      }
+    },
+    "5000": {
+      "planned_cohorts": 10,
+      "consumer_age_bound_ms": 6000,
+      "products": {
+        "BTC-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "SOL-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "ALCX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AURORA-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "LINK-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AVAX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        }
+      },
+      "cutoff_to_consumer_ms": {
+        "n": 0
+      },
+      "cutoffs_with_two_ready_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      },
+      "cutoffs_with_two_on_time_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      }
+    }
+  }
+}

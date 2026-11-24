@@ -116,6 +116,7 @@ class CoinbaseAdvancedTradeClient:
         self.oauth_access_token = str(oauth_access_token or "").strip()
         self.http = http_session or requests.Session()
         self.timeout = timeout
+        self.request_deadline_monotonic: float | None = None
         self.auth_method = "oauth" if self.oauth_access_token else "jwt"
 
     @classmethod
@@ -148,12 +149,18 @@ class CoinbaseAdvancedTradeClient:
         )
 
     def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        deadline = self.request_deadline_monotonic
         try:
             if self.auth_method == "oauth":
                 auth_header = f"Bearer {self.oauth_access_token}"
             else:
                 auth_header = f"Bearer {self._jwt('GET', path)}"
 
+            timeout = self.timeout
+            if deadline is not None:
+                timeout = min(timeout, deadline - time.monotonic())
+                if timeout <= 0:
+                    raise CoinbaseRequestError("Coinbase preflight time budget expired.")
             response = self.http.get(
                 f"{COINBASE_BASE_URL}{path}",
                 params=params or None,
@@ -162,7 +169,7 @@ class CoinbaseAdvancedTradeClient:
                     "Accept": "application/json",
                     "Cache-Control": "no-cache",
                 },
-                timeout=self.timeout,
+                timeout=timeout,
             )
         except PortfolioModeError:
             raise
@@ -184,6 +191,8 @@ class CoinbaseAdvancedTradeClient:
             raise CoinbaseRequestError(
                 "Coinbase returned an unreadable response."
             ) from exc
+        if deadline is not None and time.monotonic() >= deadline:
+            raise CoinbaseRequestError("Coinbase preflight time budget expired.")
         return payload if isinstance(payload, dict) else {}
 
     def _pages(
@@ -193,22 +202,52 @@ class CoinbaseAdvancedTradeClient:
         *,
         limit: int,
         max_pages: int = 5,
+        require_complete: bool = False,
+        filters: dict[str, Any] | None = None,
     ) -> PageResult:
+        if max_pages < 1:
+            raise ValueError("pagination requires at least one page")
         cursor = ""
+        seen_cursors: set[str] = set()
         items: list[dict[str, Any]] = []
         complete = True
         for page_index in range(max_pages):
-            params: dict[str, Any] = {"limit": limit}
+            params: dict[str, Any] = {**(filters or {}), "limit": limit}
             if cursor:
                 params["cursor"] = cursor
             payload = self.get(path, params=params)
             page_items = payload.get(field)
+            if require_complete and (
+                not isinstance(page_items, list)
+                or any(not isinstance(item, dict) for item in page_items)
+            ):
+                return PageResult(items, complete=False)
             if isinstance(page_items, list):
                 items.extend(item for item in page_items if isinstance(item, dict))
             if payload.get("proof_token_required") is True:
                 return PageResult(items=items, complete=False)
-            cursor = str(payload.get("cursor") or "")
+            cursor_value = payload.get("cursor")
+            if require_complete and cursor_value is not None and not isinstance(
+                cursor_value, str
+            ):
+                return PageResult(items, complete=False)
+            next_cursor = str(cursor_value or "")
             has_next_value = payload.get("has_next")
+            if require_complete:
+                has_next = (
+                    bool(next_cursor) if has_next_value is None else has_next_value
+                )
+                if type(has_next) is not bool:
+                    return PageResult(items, complete=False)
+                if not has_next:
+                    return PageResult(items)
+                if not next_cursor or next_cursor in seen_cursors:
+                    return PageResult(items, complete=False)
+                seen_cursors.add(next_cursor)
+                cursor = next_cursor
+                complete = False
+                continue
+            cursor = next_cursor
             has_next = (
                 bool(has_next_value)
                 if has_next_value is not None
@@ -225,14 +264,28 @@ class CoinbaseAdvancedTradeClient:
     def get_key_permissions(self) -> dict[str, Any]:
         return self.get("/api/v3/brokerage/key_permissions")
 
-    def list_accounts(self) -> PageResult:
-        return self._pages("/api/v3/brokerage/accounts", "accounts", limit=250)
+    def list_accounts(self, *, require_complete: bool = False) -> PageResult:
+        return self._pages(
+            "/api/v3/brokerage/accounts",
+            "accounts",
+            limit=250,
+            require_complete=require_complete,
+        )
 
-    def list_fills(self) -> PageResult:
+    def list_fills(
+        self,
+        *,
+        asset: str | None = None,
+        require_complete: bool = False,
+        max_pages: int = 5,
+    ) -> PageResult:
         return self._pages(
             "/api/v3/brokerage/orders/historical/fills",
             "fills",
-            limit=1000,
+            limit=100 if require_complete else 1000,
+            max_pages=max_pages,
+            require_complete=require_complete,
+            filters={"asset_filters": [asset]} if asset else None,
         )
 
     def list_orders(self) -> PageResult:
@@ -252,6 +305,32 @@ def _fill_base_quantity(fill: dict[str, Any]) -> Decimal:
     if fill.get("size_in_quote") is True:
         return (size / price) if price > 0 else Decimal("0")
     return size
+
+
+def _weighted_fill_inventory(
+    fills: Iterable[dict[str, Any]], *, require_covered_sales: bool = False
+) -> tuple[Decimal, Decimal]:
+    covered_quantity = Decimal("0")
+    covered_cost = Decimal("0")
+    for fill in fills:
+        quantity = _fill_base_quantity(fill)
+        price = _decimal(fill.get("price"))
+        commission = _decimal(fill.get("commission"))
+        if quantity <= 0 or price <= 0:
+            continue
+        side = str(fill.get("side") or "").upper()
+        if side == "BUY":
+            covered_quantity += quantity
+            covered_cost += (quantity * price) + commission
+        elif side == "SELL":
+            if require_covered_sales and quantity > covered_quantity:
+                raise ValueError("fill history contains a sale of uncovered inventory")
+            if covered_quantity > 0:
+                removed = min(quantity, covered_quantity)
+                average = covered_cost / covered_quantity
+                covered_quantity -= removed
+                covered_cost = max(Decimal("0"), covered_cost - (average * removed))
+    return covered_quantity, covered_cost
 
 
 def reconstruct_cost_basis(
@@ -279,23 +358,7 @@ def reconstruct_cost_basis(
         )
     )
 
-    covered_quantity = Decimal("0")
-    covered_cost = Decimal("0")
-    for fill in relevant:
-        quantity = _fill_base_quantity(fill)
-        price = _decimal(fill.get("price"))
-        commission = _decimal(fill.get("commission"))
-        if quantity <= 0 or price <= 0:
-            continue
-        side = str(fill.get("side") or "").upper()
-        if side == "BUY":
-            covered_quantity += quantity
-            covered_cost += (quantity * price) + commission
-        elif side == "SELL" and covered_quantity > 0:
-            removed = min(quantity, covered_quantity)
-            average = covered_cost / covered_quantity
-            covered_quantity -= removed
-            covered_cost = max(Decimal("0"), covered_cost - (average * removed))
+    covered_quantity, covered_cost = _weighted_fill_inventory(relevant)
 
     tolerance = max(Decimal("0.00000001"), current_quantity * Decimal("0.005"))
     unknown_quantity = max(Decimal("0"), current_quantity - covered_quantity)
@@ -542,10 +605,12 @@ class PortfolioService:
                 snapshot = deepcopy(self._cache) if self._cache else None
         if not snapshot:
             return set()
+        # Snapshot rows carry "symbol"; "currency" is only kept as a fallback
+        # for cached rows written by older builds.
         return {
-            str(row.get("currency") or "").upper()
+            str(row.get("symbol") or row.get("currency") or "").upper()
             for row in snapshot.get("holdings") or []
-            if row.get("currency") and not row.get("is_cash")
+            if (row.get("symbol") or row.get("currency")) and not row.get("is_cash")
         }
 
     def _load(self) -> dict[str, Any]:

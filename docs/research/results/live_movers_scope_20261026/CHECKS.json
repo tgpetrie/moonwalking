@@ -1,0 +1,12 @@
+{
+  "local_model_jobs_completed": 2,
+  "local_drafts_require_hosted_review": true,
+  "database_access": "mode=ro plus query_only",
+  "database_queries_bounded_seconds": 2,
+  "sample_rows_per_outcome_table": 1000,
+  "forecast_models_fitted": 0,
+  "production_changes": false,
+  "models_unloaded": true,
+  "collector_restart": false,
+  "known_draft_errors_recorded_in_workplan": true
+}

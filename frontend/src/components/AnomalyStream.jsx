@@ -5,6 +5,8 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 import { stripLeadingSymbol, stripLeadingType } from "../utils/alertText";
 import { createEventKey, shouldSkip, markSeen, expireOldKeys } from "../utils/intelligenceDedup";
+import { TAPE_FILTERS, baseSymbol, buildDeskTape, filterTape, scanIsReady, signalDirection } from "../utils/deskTape";
+import { pickTsMs } from "../utils/priorityEngine.js";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -192,27 +194,18 @@ const renderIntelMessage = (message) => {
   return parts;
 };
 
-const spotUrl = (token, symbol) => {
-  const productId =
-    token?.product_id ||
-    token?.symbol ||
-    token?.ticker ||
-    (symbol ? `${symbol}-USD` : null);
-  return coinbaseSpotUrl({ product_id: productId, symbol });
-};
+const EMPTY = [];
 
-const getAlertTradeUrl = (log) => {
-  const u = log?.url;
-  if (typeof u === "string" && u.startsWith("http")) return u;
-
-  const pid = (log?.product_id || log?.symbol || "").toString().trim().toUpperCase();
-  if (!pid) return null;
-  const productId = pid.includes("-") ? pid : `${pid}-USD`;
-  return `https://www.coinbase.com/advanced-trade/spot/${encodeURIComponent(productId)}`;
-};
-
-export default function AnomalyStream({ data = {}, volumeData = [] }) {
+export default function AnomalyStream({
+  data = {},
+  volumeData = [],
+  cycleScan = null,
+  scanError = null,
+  watchSymbols = EMPTY,
+  heldSymbols = EMPTY,
+}) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [filter, setFilter] = useState("desk");
   const [logs, setLogs] = useState([
     { id: "init-1", time: "INIT", msg: "ESTABLISHING NEURAL LINK...", label: "SYSTEM" },
     { id: "init-2", time: "INIT", msg: "M3_COPROCESSOR: ONLINE", label: "SYSTEM" },
@@ -235,9 +228,18 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     if (!isCollapsed && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs, isCollapsed]);
+  }, [logs, isCollapsed, filter]);
 
-  const visibleLogs = isCollapsed ? [] : logs;
+  const tape = useMemo(
+    () => buildDeskTape(logs, classifyLog, { scan: cycleScan, watchSymbols, heldSymbols }),
+    [logs, cycleScan, watchSymbols, heldSymbols]
+  );
+  const scanReady = scanIsReady(cycleScan);
+  const { rows, fallback } = useMemo(
+    () => filterTape(tape, filter, { scanReady }),
+    [tape, filter, scanReady]
+  );
+  const visibleRows = isCollapsed ? EMPTY : rows;
 
   // Rows inserted within the last 3s get the fresh-entry animation
   const freshIds = useMemo(() => {
@@ -283,7 +285,6 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       if (nowMs - lastFired < 5 * 60 * 1000) continue;
 
       const volRounded = Math.floor(pct);
-      const url = spotUrl(token, symbol);
       newLogs.push({
         id: `vol-${symbol}-${nowMs}`,
         ts: nowMs,
@@ -292,7 +293,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         label: "VOLUME",
         chipTone: "sent",
         symbol,
-        url,
+        product_id: token?.product_id,
         prefix: "",
         body: `Vol +${volRounded}% above average`,
         vol_change_pct: volRounded,
@@ -314,23 +315,11 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     const nowMs = Date.now();
     expireOldKeys(seenRef.current, nowMs);
 
-    const timeStr = new Date(nowMs)
-      .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
-      .replace(/\u200E/g, "");
-
     const newLogs = [];
     for (const a of alerts) {
       if (!a) continue;
-      // Semantic dedup: same type+symbol+window+direction = same ongoing condition
-      const key = createEventKey(a);
-      if (shouldSkip(key, seenRef.current, nowMs)) continue;
-
       const norm = normalizeAlert(a);
-      const symbol = safeSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
-      const url = a.trade_url || spotUrl(
-        { product_id: norm.product_id || a.product_id || (symbol ? `${symbol}-USD` : null) },
-        symbol
-      );
+      const symbol = baseSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
       const extracted = extractAlertPct(a);
       const type = deriveAlertType({
         type: a?.type ?? norm?.type,
@@ -340,7 +329,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const parsed = parseImpulseMessage(a);
       const pct = extracted.pct ?? pickNumber(norm?.pct, a?.pct, parsed?.parsed_pct);
       const windowLabel = norm?.window || windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
-      const volPct = pickNumber(a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
+      const volPct = pickNumber(a.vol_change_pct, a.vol_pct, a.volume_change_pct,
+        a.volume_change_1h_pct, a.meta?.vol_change_pct, a.meta?.vol_pct);
       const sentimentDelta = pickNumber(
         a?.sentiment_delta,
         a?.sentimentDelta,
@@ -350,14 +340,26 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const divergenceRaw = extractDivergenceRaw(a) ?? extractDivergenceRaw(a?.meta || {});
       const rawMsg = a.message || a.title || "";
       const msg = cleanAlertMessage(rawMsg, symbol, type);
+      const direction = String(a.direction || "").toLowerCase();
+      const eventTs = pickTsMs(a);
+      // Resolve direction before semantic dedup so opposite moves without a
+      // direction field still compete by event time and severity on the tape.
+      const key = createEventKey({
+        ...a, symbol, window: windowLabel, direction: signalDirection({ direction, body: msg, pct }, type),
+      });
+      if (shouldSkip(key, seenRef.current, nowMs)) continue;
+      const timeStr = new Date(eventTs ?? nowMs)
+        .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        .replace(/\u200E/g, "");
 
       newLogs.push({
         id: `a-${nowMs}-${Math.random().toString(36).slice(2, 6)}`,
         ts: nowMs,
+        eventTs,
         time: timeStr,
         source: "alert",
         symbol,
-        url,
+        product_id: norm.product_id || a.product_id,
         prefix: "",
         body: msg || "",
         type: norm?.type || a?.type || type,
@@ -369,6 +371,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         vol_change_pct: volPct,
         sentiment_delta: sentimentDelta,
         divergence: divergenceRaw,
+        direction,
+        ref_price: pickNumber(a?.price_now, a?.price, a?.current_price, a?.meta?.price),
       });
       markSeen(key, seenRef.current, nowMs);
     }
@@ -399,16 +403,45 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         {relLabel ? <span className="bh-intel-updated">{relLabel}</span> : null}
       </div>
 
+      {!isCollapsed ? (
+        <div className="bh-intel-filters">
+          <div className="bh-intel-pills bh-utabs" role="group" aria-label="Intelligence log filter">
+            {TAPE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={`bh-intel-pill${filter === f.key ? " is-active" : ""}`}
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div
         ref={scrollRef}
         className={`bh-intel-log ${isCollapsed ? "is-collapsed" : ""}`}
         role="log"
         aria-live="polite"
       >
-        {visibleLogs.map((log) => {
-          const tradeUrl = getAlertTradeUrl(log);
+        {!isCollapsed && filter === "desk" && fallback ? (
+          <div className="bh-intel-note">
+            {scanError ? "Cycle scan unavailable" : "Cycle scan warming"} · showing top anomalies
+          </div>
+        ) : null}
+        {!isCollapsed && rows.length === 0 ? (
+          <div className="bh-intel-note">
+            {filter === "watchlist"
+              ? "No anomalies on watchlist or held coins yet."
+              : "No desk-grade confluence right now. Raw Tape shows the wider feed."}
+          </div>
+        ) : null}
+        {visibleRows.map(({ log, label, chipTone, badges, call }) => {
+          const tradeUrl = coinbaseSpotUrl(log);
           const isClickable = Boolean(tradeUrl);
-          const { label, chipTone } = classifyLog(log);
           const chipClass = `bh-intel-chip bh-intel-chip--${chipTone}`;
           const message = buildMessage(log, label);
           const showPrefix = Boolean(log.prefix) && log.prefix !== "!!!";
@@ -416,20 +449,22 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           return (
             <div
               key={log.id}
-              className={`bh-intel-line${isClickable ? " bh-intel-clickable" : ""}${freshIds.has(log.id) ? " is-fresh" : ""}`}
+              data-testid="intel-row"
+              data-symbol={log.symbol || undefined}
+              className={`bh-intel-line${isClickable ? " bh-intel-clickable" : ""}${freshIds.has(log.id) ? " is-fresh" : ""}${call ? ` is-confluence is-confluence--${call.tone}` : ""}`}
               role={isClickable ? "link" : undefined}
               tabIndex={isClickable ? 0 : undefined}
               onClick={(e) => {
                 if (!isClickable) return;
                 const target = e.target;
                 if (target && target.closest && target.closest("a")) return;
-                window.open(tradeUrl, "_blank", "noreferrer");
+                window.open(tradeUrl, "_blank", "noopener,noreferrer");
               }}
               onKeyDown={(e) => {
                 if (!isClickable) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  window.open(tradeUrl, "_blank", "noreferrer");
+                  window.open(tradeUrl, "_blank", "noopener,noreferrer");
                 }
               }}
             >
@@ -439,7 +474,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
                 {showPrefix ? <span className="bh-intel-prefix">{log.prefix}</span> : null}{" "}
                 {log.symbol ? (
                   tradeUrl ? (
-                    <a className="bh-intel-sym" href={tradeUrl} target="_blank" rel="noreferrer">
+                    <a className="bh-intel-sym" href={tradeUrl} target="_blank" rel="noopener noreferrer">
                       {log.symbol}
                     </a>
                   ) : (
@@ -447,6 +482,16 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
                   )
                 ) : null}{" "}
                 <span className="bh-intel-text">{renderIntelMessage(message)}</span>
+                {call ? (
+                  <span className={`bh-intel-call bh-intel-call--${call.tone}`} title={call.detail}>
+                    {call.label}
+                  </span>
+                ) : null}
+                {badges.map((b) => (
+                  <span key={b.key} className={`bh-intel-badge bh-intel-badge--${b.tone}`}>
+                    {b.label}
+                  </span>
+                ))}
               </span>
             </div>
           );

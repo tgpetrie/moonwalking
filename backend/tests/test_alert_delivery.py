@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+
 try:
     from alert_delivery import AlertDeliveryDispatcher, format_delivery
 except Exception:  # pragma: no cover
@@ -57,3 +60,30 @@ def test_dispatch_respects_global_hourly_budget(monkeypatch):
     assert dispatcher.dispatch([_event()], now=now) == 1
     second = {**_event("event-2", ts_ms=int((now + 5) * 1000)), "symbol": "BTC-USD"}
     assert dispatcher.dispatch([second], now=now + 5) == 0
+
+def test_dispatch_budget_includes_events_that_are_still_sending(monkeypatch):
+    monkeypatch.setenv("MW_ALERT_NOTIFY_ENABLED", "1")
+    monkeypatch.setenv("MW_DISCORD_WEBHOOK_URL", "https://example.invalid/webhook")
+    monkeypatch.setenv("MW_NOTIFY_MAX_PER_HOUR", "1")
+    dispatcher = AlertDeliveryDispatcher()
+    started = Event()
+    release = Event()
+    sent = []
+
+    def send(event):
+        sent.append(event["id"])
+        if len(sent) == 1:
+            started.set()
+            assert release.wait(5)
+
+    monkeypatch.setattr(dispatcher, "_send_discord", send)
+    now = 1_800_000_000.0
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(dispatcher.dispatch, [_event()], now=now)
+        try:
+            assert started.wait(5)
+            assert dispatcher.dispatch([{**_event("other"), "symbol": "ETH"}], now=now) == 0
+        finally:
+            release.set()
+        assert first.result() == 1
+    assert sent == ["event-1"]

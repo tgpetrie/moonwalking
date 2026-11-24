@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 import PropTypes from 'prop-types';
 import { FiInfo } from 'react-icons/fi';
 import WatchStar from './WatchStar.jsx';
@@ -104,7 +105,7 @@ export default function GainersTable1Min({
         const prevPrice = item && Number.isFinite(item.price) && typeof pct === 'number' && pct !== 0
           ? item.price / (1 + pct / 100)
           : null;
-        const coinbaseUrl = item?.symbol ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
+        const coinbaseUrl = getCoinbaseAdvancedSpotUrl(item) || '#';
 
         return (
           <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">

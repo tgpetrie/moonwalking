@@ -1,0 +1,28 @@
+{
+  "verified_utc": "2026-11-04T10:16:29.468950+00:00",
+  "source_commit": "6abd95ef728c58bee66f21b1f86f6f3d1182e94d",
+  "integrated_as": "5ff6a8fbb0d3aa7bdc8f1b08b96b39630652ad23",
+  "prepatch_failures": 4,
+  "prepatch_controls_passed": 54,
+  "targeted_tests_passed": 579,
+  "new_cases": 58,
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "platform": "Windows",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "protected_source_unchanged_from": "4fd3d6e_except_book",
+  "source_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_book.py": "c06834d77694e1e624abe765aafa26edb7105d704d891af599cf7719d8cb6db9",
+    "scripts/scoring_experiment/instant_publication.py": "db1c7ede0db61f7a278edcfde90095b665d7410b64bb8c609ab8099da03702ab",
+    "tests/test_instant_book_review.py": "8bd39356022bb9bbba041ec5d7f8d245b7cada10dd2e3e6e596309bad205fcec"
+  },
+  "full_suite_run": false,
+  "native_Mac_verified": false,
+  "new_market_run": false,
+  "model_fit": false,
+  "live_changes": false,
+  "study_frozen": false,
+  "reconciliation_merged": false
+}

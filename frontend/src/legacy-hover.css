@@ -16,7 +16,7 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out;
-  border-radius: 9999px;
+  border-radius: var(--r-2);
   filter: drop-shadow(0 0 14px rgba(0, 0, 0, 0.35));
 }
 

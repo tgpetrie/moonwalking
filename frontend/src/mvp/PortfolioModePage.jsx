@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { formatPrice } from "../utils/format.js";
 import CoinPositioning from "../components/CoinPositioning.jsx";
 import {
   fetchPortfolioIntel,
@@ -29,6 +30,22 @@ function money(value) {
   return Number.isFinite(parsed) ? moneyFormatter.format(parsed) : "Unavailable";
 }
 
+// Unit prices span orders of magnitude (AMP ~$0.0004, ETH ~$4,000). money() is
+// fixed at 2dp, which collapses every sub-cent price to "$0.00" and makes the
+// levels card unreadable, so per-unit prices use the shared significant-digit
+// formatter. Aggregates (totals, position value, P&L) keep money() for grouped,
+// cents-accurate reads.
+function unitPrice(value) {
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "Unavailable";
+  // At a dollar and above, money() already reads well and keeps thousands
+  // separators ($4,281.55). Below that it rounds everything to "$0.00", so
+  // hand off to the shared significant-digit formatter.
+  if (Math.abs(parsed) >= 1) return money(parsed);
+  return formatPrice(parsed, { fallback: "Unavailable" });
+}
+
 function number(value, maximumFractionDigits = 8) {
   if (value === null || value === undefined || value === "") return "Unavailable";
   const parsed = Number(value);
@@ -41,6 +58,15 @@ function percent(value, { signed = false } = {}) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "Unavailable";
   return `${signed && parsed > 0 ? "+" : ""}${parsed.toFixed(2)}%`;
+}
+
+// Color class for a signed money/percent result: up amber, down violet,
+// zero or unknown muted. Presentation only; never changes the value shown.
+function signClass(value) {
+  if (value === null || value === undefined || value === "") return "is-neutral";
+  const n = Number(value);
+  if (!Number.isFinite(n) || n === 0) return "is-neutral";
+  return n > 0 ? "is-positive" : "is-negative";
 }
 
 function finiteOrNull(value) {
@@ -160,7 +186,7 @@ function HoldingIntel({ intel }) {
   return (
     <div className="mw-holding-intel">
       <div className="mw-holding-intel__header">
-        <span className={`mw-posture-chip is-${posture.tone}`}>
+        <span className={`mw-posture-chip is-${posture.tone}`} data-posture={posture.posture}>
           {posture.label}
           {posture.confidence !== null ? ` · ${posture.confidence}` : ""}
         </span>
@@ -266,7 +292,7 @@ function CostBasisEntry({ holding, onSaved }) {
         {isManual ? (
           <>
             <span className="mw-cost-basis-entry__current">
-              Manual average {money(basis.manual_average_price)}
+              Manual average {unitPrice(basis.manual_average_price)}
             </span>
             <button type="button" className="mw-cost-basis-entry__link" onClick={() => setOpen(true)}>
               Edit
@@ -357,20 +383,20 @@ function HoldingLevels({ levels }) {
 
       {support !== null && resistance !== null ? (
         <div className="mw-holding-levels__range">
-          <span className="mw-holding-levels__end">S {money(support)}</span>
+          <span className="mw-holding-levels__end">S {unitPrice(support)}</span>
           <div className="mw-holding-levels__track" aria-hidden="true">
             {rangePos !== null ? (
               <span className="mw-holding-levels__marker" style={{ left: `${rangePos}%` }} />
             ) : null}
           </div>
-          <span className="mw-holding-levels__end">R {money(resistance)}</span>
+          <span className="mw-holding-levels__end">R {unitPrice(resistance)}</span>
         </div>
       ) : null}
 
       <div className="mw-holding-levels__grid">
         {zone ? <div><span>Position</span><strong>{zone}</strong></div> : null}
         {bandLow !== null && bandHigh !== null ? (
-          <div><span>ATR band</span><strong>{money(bandLow)} – {money(bandHigh)}</strong></div>
+          <div><span>ATR band</span><strong>{unitPrice(bandLow)} – {unitPrice(bandHigh)}</strong></div>
         ) : null}
         {volatility !== null ? (
           <div><span>Volatility</span><strong>{percent(volatility)} ATR</strong></div>
@@ -415,14 +441,14 @@ function HoldingCard({ holding, liveRow, onCostBasisChange }) {
         <div><span>Value</span><strong>{money(holding.market_value_usd)}</strong></div>
         <div><span>Quantity</span><strong>{number(holding.quantity)}</strong></div>
         <div><span>Allocation</span><strong>{percent(holding.allocation_pct)}</strong></div>
-        <div><span>24h move</span><strong>{percent(holding.price_change_24h_pct, { signed: true })}</strong></div>
+        <div><span>24h move</span><strong className={signClass(holding.price_change_24h_pct)}>{percent(holding.price_change_24h_pct, { signed: true })}</strong></div>
       </div>
 
       <div className="mw-holding-card__detail-grid">
         <div><span>Position impact</span><strong>{concentrationLabel(holding.allocation_pct)}</strong></div>
         <div>
           <span>Unrealized result</span>
-          <strong className={pnlKnown && Number(holding.unrealized_pnl_usd) < 0 ? "is-negative" : "is-positive"}>
+          <strong className={pnlKnown ? signClass(holding.unrealized_pnl_usd) : "is-neutral"}>
             {pnlKnown
               ? `${money(holding.unrealized_pnl_usd)} · ${percent(holding.unrealized_pnl_pct, { signed: true })}`
               : "Unknown until cost basis is complete"}
@@ -432,7 +458,7 @@ function HoldingCard({ holding, liveRow, onCostBasisChange }) {
           <span>Cost basis</span>
           <strong>
             <CostBasisStatus holding={holding} />
-            {basis.average_price ? ` · ${money(basis.average_price)} average` : ""}
+            {basis.average_price ? ` · ${unitPrice(basis.average_price)} average` : ""}
           </strong>
         </div>
         <div>
@@ -481,7 +507,7 @@ function OpenOrders({ orders }) {
                       <td><strong>{order.symbol}</strong><span>{dateTime(order.created_at)}</span></td>
                       <td>{order.side || "Unavailable"}</td>
                       <td>{number(order.base_size ?? order.quote_size)}</td>
-                      <td>{money(order.limit_price)}</td>
+                      <td>{unitPrice(order.limit_price)}</td>
                       <td>{order.status}</td>
                     </tr>
                     {hint || intel.context ? (
@@ -624,7 +650,7 @@ export default function PortfolioModePage() {
       <section className="mw-portfolio-summary" aria-label="Portfolio summary">
         <article className="mw-panel mw-portfolio-stat is-primary"><span>Total portfolio</span><strong>{money(summary.total_value_usd)}</strong><small>{cryptoHoldings.length} crypto holdings</small></article>
         <article className="mw-panel mw-portfolio-stat"><span>Cash available</span><strong>{money(summary.cash_value_usd)}</strong><small>{cashHoldings.map((holding) => holding.symbol).join(" · ") || "No cash balance"}</small></article>
-        <article className="mw-panel mw-portfolio-stat"><span>Known unrealized P&amp;L</span><strong className={Number(summary.known_unrealized_pnl_usd) < 0 ? "is-negative" : "is-positive"}>{money(summary.known_unrealized_pnl_usd)}</strong><small>Only complete cost basis included</small></article>
+        <article className="mw-panel mw-portfolio-stat"><span>Known unrealized P&amp;L</span><strong className={signClass(summary.known_unrealized_pnl_usd)}>{money(summary.known_unrealized_pnl_usd)}</strong><small>Only complete cost basis included</small></article>
         <article className="mw-panel mw-portfolio-stat"><span>Cost-basis coverage</span><strong>{percent(summary.cost_basis_coverage_pct)}</strong><small>{summary.open_order_count || 0} open orders</small></article>
       </section>
 
@@ -671,7 +697,7 @@ export default function PortfolioModePage() {
               </div>
               <p>
                 {dbSize > 0
-                  ? `BHABIT has graded ${number(dbSize)} forward outcomes system-wide. Per-holding confidence varies — each card shows how much comparable evidence backs its own read, from Emerging to Strong.`
+                  ? `BHABIT has graded ${number(dbSize)} forward outcomes system-wide. Per-holding confidence varies — each card shows how much comparable evidence backs its own read, from Emerging to Deep.`
                   : "BHABIT is still collecting forward outcomes. Until comparable evidence accumulates, holding reads stay descriptive rather than claiming target probabilities or protection prices."}
               </p>
             </>

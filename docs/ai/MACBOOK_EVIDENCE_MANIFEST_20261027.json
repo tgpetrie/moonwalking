@@ -1,0 +1,78 @@
+{
+  "version": "moonwalking-macbook-evidence-v1",
+  "created_utc": "2026-10-28T06:25:43.007699+00:00",
+  "repository": "tgpetrie/moonwalking",
+  "release_tag": "research-handoff-20261027",
+  "archive": {
+    "name": "moonwalking-live-movers-evidence-20261027.tar.gz",
+    "bytes": 112436118,
+    "sha256": "54a3c1588e8411611e31a4fb01c082e4bf89fa942c74885ecda11173f63a7d8b"
+  },
+  "unpacked_bytes": 763938160,
+  "files": {
+    "live_movers_contract_20261027_production/board_episodes.sqlite": {
+      "bytes": 742359040,
+      "sha256": "b3c26d4dd963161c8bbb858e5d341e3edf681e6e6c0f65c5d2711fc86887b30e"
+    },
+    "live_movers_contract_20261027_production/CONTRACT.json": {
+      "bytes": 2644,
+      "sha256": "f6252bf0badaea4e6bbec0ad5bceaafa9bce1abc1088aa7020a117fde2828e0e"
+    },
+    "live_movers_contract_20261027_production/eligible_episodes.csv": {
+      "bytes": 17888601,
+      "sha256": "8a5235aed7c38e76696dddd0404b508cde238f073ae58a8cd958e8e2b5d2b7b9"
+    },
+    "live_movers_contract_20261027_production/MANIFEST.json": {
+      "bytes": 1004,
+      "sha256": "c8adca26d7e1ee6577da4fa37fe4c5fb8d6f18c98e1903d39f246edcf071ca70"
+    },
+    "feed_audit_20261027_1h/capture.json": {
+      "bytes": 1048,
+      "sha256": "b8a663fddd56641b94224efd012f521242be06a88d2b789e427bf4fd486801c9"
+    },
+    "feed_audit_20261027_1h/MANIFEST.json": {
+      "bytes": 299,
+      "sha256": "f2a6c5437778b1770bff70ce0cad7c32d530ded323b2fff272002fd36273c833"
+    },
+    "feed_audit_20261027_1h/REPORT.json": {
+      "bytes": 7438,
+      "sha256": "f416b0d1eecebf260f183120a4fb7ace43bb5212f505069b59536ce1bdddef26"
+    },
+    "feed_audit_20261027_1h/STATUS.json": {
+      "bytes": 196,
+      "sha256": "94c26b83e2d43a3ff79bfe5fb7b5a1048f0f1b47d974c4b72d6af57efe2e9d48"
+    },
+    "feed_audit_20261027_1h/websocket.jsonl.gz": {
+      "bytes": 1007000,
+      "sha256": "c81bce23018d500c7a32140a918e5b43d2ae6481fca8d8859f1ab617c20eb76d"
+    },
+    "feed_audit_20261027_1h/rest.jsonl.gz": {
+      "bytes": 2466519,
+      "sha256": "fff55e7f7cb2b64734fc97185258bcf50a04cf47e464f65bad6458a9d09497f6"
+    },
+    "live_movers_comparison/results_verify_live_movers.json": {
+      "bytes": 2209,
+      "sha256": "1e0185aecafa033a7a4efdc7cab93408173e3a6f74e93dae962a35f901c4604e"
+    },
+    "live_movers_comparison/results_discovery_live_movers.json": {
+      "bytes": 96280,
+      "sha256": "1547d76bbd8d710805a543c748f2dff8a0c4a1a50398b90eec3212c7365beaf0"
+    },
+    "live_movers_comparison/results_test_live_movers.json": {
+      "bytes": 104928,
+      "sha256": "6ca1acfde1635bffb94f8ce886110fd778255acbbdf05dda5a03bee2d17d9ba3"
+    },
+    "live_movers_comparison/test_attempt_live_movers.json": {
+      "bytes": 954,
+      "sha256": "afa6cd1c45a62539c7e181803ff9ce0bc8aa788b75071e421cc37fd66d9a78fc"
+    }
+  },
+  "scope": "Frozen board-entry public-market research, completed historical results/attempt marker, and interrupted public Exchange feed capture only. No live app stores, accounts, credentials or environment files.",
+  "historical_validation_complete": true,
+  "feed_audit_hour_gate_pass": false,
+  "source_commits": {
+    "historical_results": "2199848",
+    "feed_capture_code": "5e56095",
+    "audit_handoff": "7e3b4fb"
+  }
+}

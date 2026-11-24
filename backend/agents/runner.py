@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+from typing import Iterable
+from copy import deepcopy
+import time
+
+from .audit_triage import AuditTriageAgent
+from .cycle_context import evaluate_smart_alerts
+from .cycle_strategist import CycleStrategistAgent
+from .trading_costs import configured_cost_model
+from .data_quality import DataQualityAgent
+from .development_efficiency import DevelopmentEfficiencyAgent
+from .portfolio_watch import PortfolioWatchAgent
+from .store import AgentStore
+from .tape_scout import TapeScoutAgent
+
+try:
+    from ..coinbase_execution_agent import CoinbaseExecutionAgent
+    from ..catalyst_sentiment import CatalystSentimentAgent
+except ImportError:
+    from coinbase_execution_agent import CoinbaseExecutionAgent
+    from catalyst_sentiment import CatalystSentimentAgent
+
+
+# The other agents take explicit audit, repository, or trade-intent input.
+DESK_SUPPORT_FACTORIES = (
+    DataQualityAgent, TapeScoutAgent, CatalystSentimentAgent, PortfolioWatchAgent,
+)
+DESK_AGENT_NAMES = tuple(
+    factory.name for factory in (*DESK_SUPPORT_FACTORIES, CycleStrategistAgent)
+)
+
+
+DEFAULT_AGENT_FACTORIES = (
+    DataQualityAgent,
+    AuditTriageAgent,
+    TapeScoutAgent,
+    PortfolioWatchAgent,
+    DevelopmentEfficiencyAgent,
+    CoinbaseExecutionAgent,
+    CatalystSentimentAgent,
+    CycleStrategistAgent,
+)
+
+
+def run_once(
+    context: dict | None,
+    *,
+    store: AgentStore | None = None,
+    agents: Iterable[object] | None = None,
+    smart_alert_engine: object | None = None,
+) -> dict:
+    store = store or AgentStore()
+    context = deepcopy(context or {})
+    started = time.monotonic()
+    active_agents = (
+        [
+            factory(costs=configured_cost_model()) if factory is CycleStrategistAgent else factory()
+            for factory in DEFAULT_AGENT_FACTORIES
+        ] if agents is None else list(agents)
+    )
+    runs = []
+    total_observations = 0
+    for agent in active_agents:
+        name = getattr(agent, "name", agent.__class__.__name__)
+        bind_store = getattr(agent, "bind_store", None)
+        if callable(bind_store):
+            # Agents that persist state (e.g. trade proposals) share the run's ledger.
+            bind_store(store)
+        run_id = store.begin_run(name, model_version=getattr(agent, "model_version", None))
+        try:
+            observations = list(agent.run(deepcopy(context)))
+            recorded = store.record_observations(run_id, observations)
+            store.finish_run(run_id, status="ok", observation_count=recorded)
+            total_observations += recorded
+            runs.append({"agent": name, "status": "ok", "observations": recorded})
+        except Exception as exc:
+            store.finish_run(run_id, status="error", error=str(exc), observation_count=0)
+            runs.append({"agent": name, "status": "error", "error": str(exc)[:300]})
+    result = {"status": "ok", "runs": runs, "observation_count": total_observations}
+    if smart_alert_engine is not None:
+        # Alerts read the same cycle scan as the strategist, after it has run.
+        try:
+            if isinstance(context.get("now_ts"), (int, float)):
+                context["now_ts"] += time.monotonic() - started
+            alerts = evaluate_smart_alerts(context or {}, smart_alert_engine)
+            result["smart_alerts"] = {
+                "status": alerts["status"],
+                "fired": len(alerts["fired"]),
+                "reason": alerts.get("reason"),
+            }
+        except Exception as exc:
+            result["smart_alerts"] = {"status": "error", "error": str(exc)[:300]}
+    return result

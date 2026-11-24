@@ -124,21 +124,27 @@ def _assess_order(
             assessment["signal_label"] = read["label"]
 
         if side == "SELL" and assessment.get("order_type_hint") == "stop_loss":
-            if direction == "down" and confidence >= 60:
+            if state == "Reversal Risk":
+                assessment["context"] = (
+                    "Reversal risk active — consider tightening stop"
+                )
+            elif direction == "down" and confidence >= 60:
                 assessment["context"] = (
                     "Active downside pressure detected — stop may be tested"
                 )
-            elif direction == "up" and state in ("Confirmed", "Strengthening"):
+            elif direction == "up" and state in ("Breakout", "Moonwalking"):
                 assessment["context"] = (
                     "Upside momentum active — stop has breathing room"
                 )
-            elif state == "Weakening":
-                assessment["context"] = "Signal weakening — consider tightening stop"
         elif side == "SELL" and assessment.get("order_type_hint") == "take_profit":
-            if direction == "up" and state == "Confirmed":
-                assessment["context"] = "Confirmed upside — target may be reachable"
-            elif state in ("Weakening", "Fading"):
-                assessment["context"] = "Momentum fading — target may not be reached"
+            if state == "Reversal Risk":
+                assessment["context"] = (
+                    "Reversal risk active — target may not be reached"
+                )
+            elif direction == "up" and state in ("Breakout", "Moonwalking"):
+                assessment["context"] = (
+                    "Upside momentum active — target may be reachable"
+                )
 
     if outcome_stats and outcome_stats.get("sample_size", 0) >= 10:
         ftr = outcome_stats.get("follow_through_rate")
@@ -186,12 +192,12 @@ def _assess_holding(
         if read.get("short"):
             intel["signal"]["short_read"] = read["short"]
 
-        if direction == "up" and state in ("Confirmed", "Strengthening"):
+        if state == "Reversal Risk":
+            intel["posture"] = "momentum_fading"
+        elif direction == "up" and state in ("Breakout", "Moonwalking"):
             intel["posture"] = "momentum_favorable"
         elif direction == "down" and confidence >= 60:
             intel["posture"] = "pressure_adverse"
-        elif state in ("Weakening", "Fading"):
-            intel["posture"] = "momentum_fading"
         elif state == "Building":
             intel["posture"] = "developing"
         else:

@@ -11,6 +11,7 @@ Enabled via ENABLE_COINBASE_WS=1 (see get_feed()).
 
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -94,6 +95,7 @@ class TickerStore:
                 self._quotes[key] = {
                     "bid": bid,
                     "ask": ask,
+                    "product_id": message.get("product_id"),
                     "bid_size": bid_size,
                     "ask_size": ask_size,
                     "ts": now,
@@ -163,6 +165,22 @@ class TickerStore:
                 }
         return out
 
+    def fresh_quotes(self, max_age_s=15, now=None):
+        """Return sampled ticker BBO and age at the snapshot, in seconds."""
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            return {
+                quote["product_id"]: {
+                    "bid": quote["bid"],
+                    "ask": quote["ask"],
+                    "age_s": now - quote["ts"],
+                }
+                for quote in self._quotes.values()
+                if isinstance(quote["product_id"], str)
+                and 0 <= now - quote["ts"] <= max_age_s
+                and math.isfinite(quote["ask"])
+            }
+
     def size(self):
         with self._lock:
             return len(self._prices)
@@ -218,6 +236,9 @@ class CoinbaseTickerFeed:
 
     def market_snapshot(self, max_age_s=15, flow_window_s=60):
         return self.store.market_snapshot(max_age_s, flow_window_s)
+
+    def fresh_quotes(self, max_age_s=15):
+        return self.store.fresh_quotes(max_age_s)
 
     def status(self):
         with self._sub_lock:

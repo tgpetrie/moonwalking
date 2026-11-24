@@ -252,7 +252,13 @@ def _read_history(evidence: dict[str, Any]) -> dict[str, Any]:
         rate = _as_float(history.get("continuation_rate"))
     if rate is not None and 0 <= rate <= 1:
         rate *= 100
-    if sample_size >= 20 and rate is not None and 0 <= rate <= 100:
+    # Readiness is the store's decision, not this module's.  A local sample-size
+    # threshold here would be a second, competing evidence bar — and would keep
+    # quoting a rate the store had already withdrawn.
+    # Defaults to learning: a payload that omits readiness has not asserted it,
+    # and absence must never be read as permission to publish.
+    measured = str(history.get("measurement_status") or "learning") == "measured"
+    if measured and rate is not None and 0 <= rate <= 100:
         target_pct = _as_float(history.get("target_pct"))
         adverse_pct = _as_float(history.get("adverse_pct"))
         if target_pct is not None and adverse_pct is not None:
@@ -269,9 +275,11 @@ def _read_history(evidence: dict[str, Any]) -> dict[str, Any]:
             "label": label,
         }
     collecting_label = "Comparable-event history is still being collected"
-    if sample_size > 0:
+    required = history.get("required_market_periods")
+    if required:
+        periods = int(_as_float(history.get("market_periods")) or 0)
         collecting_label = (
-            f"{sample_size} comparable events collected; 20 needed for a measured Read"
+            f"Track record still collecting — {periods} of {required} market periods"
         )
     return {
         "status": "collecting",

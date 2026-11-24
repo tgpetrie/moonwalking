@@ -1,0 +1,1124 @@
+/* Outcome Scorecard — redesigned variant.
+   Namespaced under .scr-* so it can render beside the original .sc-* page. */
+
+/* Left-aligned in the workspace like every other /app page (the workspace
+   already supplies the gutter), capped so long ledes stay readable. */
+.scr-page {
+  padding: 0;
+  max-width: 1120px;
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--white-92);
+}
+
+.scr-loading,
+.scr-error {
+  /* Left-aligned under the page title, like every other /app state panel. */
+  text-align: left;
+  padding: var(--space-6) 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+}
+
+.scr-error {
+  color: var(--danger);
+}
+
+/* Returns are price direction: amber up, violet down, as on the board.
+   (This used to be teal up / purple down, the opposite of the board.) */
+.scr-up {
+  color: var(--signal-positive);
+}
+
+.scr-down {
+  color: var(--signal-negative);
+}
+
+/* ── Provenance banner ─────────────────────── */
+/* Only rendered when the numbers are NOT measured outcomes. Live data is
+   labelled by the hero chip alone; a banner on every page would train people
+   to ignore the one case that matters. */
+
+.scr-provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 11px 14px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 179, 71, 0.28);
+  background: rgba(255, 179, 71, 0.07);
+}
+
+.scr-provenance__headline {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--caution);
+}
+
+.scr-provenance__note {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  max-width: 84ch;
+  color: var(--text-muted);
+}
+
+/* ── Hero ──────────────────────────────────── */
+
+.scr-hero {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 179, 71, 0.06), transparent 60%),
+    rgba(255, 255, 255, 0.02);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+/* Coin + provenance on the left, coin picker on the right, one row. */
+.scr-hero__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.scr-hero__id {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* The coin is the page title. Nothing else competes with it. */
+.scr-hero__coin {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  font-weight: 650; /* the board's .bh-symbol treatment */
+  letter-spacing: 0.02em;
+  color: var(--white-92);
+  line-height: 1;
+}
+
+.scr-hero__source {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 4px 10px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.scr-hero__source[data-source="live"] {
+  border-color: rgba(16, 174, 155, 0.3);
+  background: rgba(16, 174, 155, 0.1);
+  color: var(--status-ok);
+}
+
+.scr-hero__source[data-source="sample"],
+.scr-hero__source[data-source="demo"] {
+  border-color: rgba(255, 179, 71, 0.3);
+  background: rgba(255, 179, 71, 0.1);
+  color: var(--caution);
+}
+
+/* ── Scoring rule, folded away ─────────────── */
+
+.scr-scoring {
+  margin-top: 12px;
+}
+
+.scr-scoring__toggle {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+
+.scr-scoring__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scr-scoring__toggle::after {
+  content: " ▾";
+}
+
+.scr-scoring[open] .scr-scoring__toggle::after {
+  content: " ▴";
+}
+
+.scr-scoring__toggle:hover {
+  color: var(--text-muted);
+}
+
+.scr-hero__rule {
+  margin: 8px 0 0;
+  font-size: 0.79rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.scr-hero__rule strong {
+  color: var(--white-92);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Coin picker ───────────────────────────── */
+
+/* Screen-reader-only. */
+.scr-vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.scr-coinpicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.scr-coinpicker__input {
+  box-sizing: border-box;
+  width: 130px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-2);
+  color: var(--white-92);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.scr-coinpicker__input::placeholder {
+  color: var(--text-faint);
+}
+
+.scr-coinpicker__input:focus {
+  outline: none;
+  border-color: rgba(255, 179, 71, 0.4);
+  box-shadow: 0 0 0 2px rgba(255, 179, 71, 0.12);
+}
+
+.scr-coinpicker__button {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  border-radius: var(--r-2);
+  font-size: 0.7rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.scr-coinpicker__button:hover:not(:disabled) {
+  background: rgba(255, 179, 71, 0.2);
+}
+
+.scr-coinpicker__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Headline metrics ──────────────────────── */
+
+.scr-headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scr-headline__card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scr-headline__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.scr-headline__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--white-92);
+  line-height: 1.15;
+}
+
+.scr-headline__value--text {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 1.15rem;
+}
+
+.scr-headline__note {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+/* ── Shared <details> toggles ──────────────── */
+
+.scr-advanced__toggle {
+  list-style: none;
+  cursor: pointer;
+}
+
+.scr-advanced__toggle::-webkit-details-marker {
+  display: none;
+}
+
+/* ── Zones ─────────────────────────────────── */
+/* Four kinds of information live on this page — coin context, signal history,
+   board history, and internal diagnostics. Each gets its own numbered band and
+   accent color so they never read as one continuous stream. */
+
+.scr-zone {
+  position: relative;
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.scr-zone[data-tone="diagnostics"] {
+  background: rgba(255, 255, 255, 0.008);
+}
+
+/* Step markers share one brand color. They used to cycle mint / violet /
+   amber per zone, which borrowed status and price-direction colors for
+   decoration. */
+.scr-zone[data-tone="signals"] .scr-zone__step,
+.scr-zone[data-tone="boards"] .scr-zone__step,
+.scr-zone[data-tone="coin"] .scr-zone__step {
+  border-color: rgba(192, 132, 252, 0.5);
+  color: var(--accent-primary);
+}
+
+.scr-zone__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scr-zone__step {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.scr-zone__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--white-92);
+}
+
+/* One line per zone answering what it measures, why it matters, and what to
+   do with it — so a section is legible before any number is read. */
+.scr-zone__lede {
+  margin: 0 0 14px;
+  max-width: 92ch;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.scr-zone__controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  /* Chart switch + order select do not fit one narrow row; without wrapping,
+     the select is clipped past the right edge and cannot be reached. */
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+
+/* ── "Not simultaneous calls" note ─────────── */
+/* Signal categories sit side by side and can look contradictory. This states
+   outright that they are separate historical buckets, not live advice. */
+
+.scr-scope-note {
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border-left: 2px solid rgba(255, 179, 71, 0.4);
+  border-radius: var(--r-1);
+  background: rgba(255, 179, 71, 0.05);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 92ch;
+}
+
+.scr-scope-note strong {
+  color: var(--white-92);
+}
+
+.scr-scope-note em {
+  font-style: normal;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.94em;
+  color: var(--text-muted);
+}
+
+.scr-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scr-order__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.scr-order__select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2);
+  color: var(--white-92);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.scr-order__select:focus {
+  outline: none;
+  border-color: rgba(255, 179, 71, 0.4);
+}
+
+/* ── Status chip ───────────────────────────── */
+
+.scr-status {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.scr-status[data-status="measured"] {
+  background: rgba(16, 174, 155, 0.13);
+  color: var(--status-ok);
+}
+
+.scr-status[data-status="learning"] {
+  background: rgba(255, 179, 71, 0.13);
+  color: var(--caution);
+}
+
+/* ── Checkpoints ───────────────────────────── */
+
+.scr-checkpoints__title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.scr-checkpoints__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.scr-checkpoints__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.scr-checkpoints__time {
+  font-size: 0.65rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.scr-checkpoints__val {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Coin section ──────────────────────────── */
+
+.scr-coin {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scr-coin__summary {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scr-coin__title {
+  font-size: 0.95rem;
+  color: var(--white-92);
+}
+
+.scr-coin__body {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.scr-coin__meta {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.scr-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-2);
+  font-size: 0.82rem;
+}
+
+.scr-note--error {
+  background: rgba(192, 132, 252, 0.08);
+  border: 1px solid rgba(192, 132, 252, 0.18);
+  color: rgba(233, 213, 255, 0.86);
+}
+
+.scr-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 30px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-2);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-faint);
+}
+
+.scr-empty--compact {
+  padding: 18px 16px;
+}
+
+/* ── Advanced block ────────────────────────── */
+
+.scr-advanced {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 14px 16px;
+}
+
+.scr-advanced__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.scr-advanced__hint {
+  font-size: 0.64rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+
+.scr-advanced__body {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Diagnostic tables can be wider than a phone; scroll inside the block
+   instead of spilling past the page edge. */
+.scr-advanced__block {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.scr-advanced__block h4 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--white-92);
+}
+
+.scr-advanced__note {
+  margin: 0 0 10px;
+  max-width: 72ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.scr-keyvals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.scr-keyvals li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-2);
+}
+
+.scr-keyvals span {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+
+.scr-keyvals strong {
+  font-size: 0.95rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--white-92);
+}
+
+.scr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.scr-table th,
+.scr-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scr-table th {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.scr-table td {
+  color: var(--text-muted);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.scr-table td:first-child {
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+/* ── Expanded detail ────────────────── */
+
+.scr-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.scr-detail__dt {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.scr-detail__grid p {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* == Chart treatments ================================================== */
+/* One shared surface per zone instead of a grid of boxes. The old per-item
+   panels read as separate objects competing for attention; a single chart with
+   coloured regions reads as one comparison. */
+
+.scr-chart {
+  padding: 4px 2px 2px;
+}
+
+/* Share on the left, rates on the right. The pie is fixed-width so the rate
+   list absorbs the slack; below 900px they stack, share first, because the
+   share is what names the colours the rate rows are keyed to. */
+.scr-chart--dual {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.scr-piewrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* -- Rates: the bars, which are also the pie's legend ----------------- */
+
+.scr-rates {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.scr-rates__caption,
+.scr-piewrap__caption {
+  display: block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.scr-bars {
+  position: relative;
+  /* Reserves a band for the average label so it cannot land on the first row. */
+  padding-top: 15px;
+}
+
+.scr-bars__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scr-barrow-item {
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.scr-barrow-item.is-open {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.scr-barrow__detail {
+  padding: 2px 12px 12px;
+}
+
+.scr-bars__avg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.scr-bars__avg-label {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.scr-barrow {
+  display: grid;
+  grid-template-columns: minmax(190px, 280px) 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 9px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scr-barrow:hover,
+.scr-barrow.is-open {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Name over sub rather than side by side: two categories can share a name and
+   differ only by direction, so the sub has to stay readable, not be clipped to
+   "Reversal risk · Pred…". */
+.scr-barrow__label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.scr-barrow__dot {
+  grid-row: 1 / span 2;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-2);
+  flex-shrink: 0;
+}
+
+.scr-barrow__name {
+  grid-column: 2;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--white-92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The sub line can carry a status chip beside the text. The text truncates;
+   the chip never does, or a board would read as "Still learn…". */
+.scr-barrow__sub {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.64rem;
+  color: var(--text-faint);
+}
+
+.scr-barrow__subtext {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scr-barrow__sub .scr-status {
+  font-size: 0.56rem;
+  padding: 1px 7px;
+}
+
+.scr-barrow__track {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.scr-barrow__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-2);
+  transition: width 500ms ease;
+}
+
+/* Hit-rate quality is a STATUS, not a price direction: good = --status-ok,
+   mixed = --caution, weak = faint. Weak used to be violet, which on the
+   board means "price fell". */
+.scr-barrow__fill[data-tone="good"] {
+  background: var(--status-ok);
+}
+
+.scr-barrow__fill[data-tone="mixed"] {
+  background: var(--caution);
+}
+
+.scr-barrow__fill[data-tone="weak"] {
+  background: var(--text-faint);
+}
+
+/* Hit rate over share: two numbers about the same category that answer
+   different questions, so the one the bar draws stays dominant and the one the
+   slice draws sits under it as the tie back to the pie. */
+.scr-barrow__pct {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-width: 76px;
+  text-align: right;
+}
+
+.scr-barrow__share {
+  font-family: inherit;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.scr-barrow__pct[data-tone="good"] {
+  color: var(--status-ok);
+}
+
+.scr-barrow__pct[data-tone="mixed"] {
+  color: var(--caution);
+}
+
+.scr-barrow__pct[data-tone="weak"] {
+  color: var(--text-muted);
+}
+
+/* Folds away the long tail of categories a live payload can carry. */
+.scr-bars__more {
+  margin-top: 8px;
+  background: none;
+  border: 0;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.scr-bars__more:hover {
+  color: var(--accent-primary);
+}
+
+/* -- Sectioned donut -------------------------------------------------- */
+
+.scr-pie {
+  flex-shrink: 0;
+  overflow: visible;
+  /* Fixed 300px would be clipped by a narrow column; the viewBox lets it
+     scale down instead. */
+  max-width: 100%;
+  height: auto;
+}
+
+.scr-pie__slice {
+  cursor: pointer;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;
+}
+
+.scr-pie__slice:hover {
+  opacity: 1 !important;
+}
+
+.scr-pie__label {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  font-weight: 700;
+  fill: rgba(10, 7, 14, 0.9);
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.scr-pie__center {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 700;
+  fill: rgba(255, 255, 255, 0.92);
+}
+
+.scr-pie__centersub {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: rgba(255, 255, 255, 0.34);
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 900px) {
+  /* Side by side, the pie would squeeze the rate rows to nothing. Stacked, the
+     pie stays full size above the list it colour-codes. */
+  .scr-chart--dual {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .scr-rates {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .scr-page {
+    padding: 16px;
+  }
+
+  .scr-hero {
+    padding: 18px;
+  }
+
+  .scr-hero__coin {
+    font-size: 1.35rem;
+  }
+
+  /* Name and rate keep sharing a line; only the bar drops below them. Placing
+     all three explicitly, because `grid-column: 1 / -1` on the track otherwise
+     pushes the rate onto a third row of its own. */
+  .scr-barrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+  }
+
+  .scr-barrow__label {
+    grid-area: 1 / 1;
+  }
+
+  .scr-barrow__pct {
+    grid-area: 1 / 2;
+  }
+
+  .scr-barrow__track {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+
+  .scr-zone {
+    padding: 16px 14px 16px 16px;
+  }
+
+  .scr-zone__head {
+    gap: 10px;
+  }
+
+  .scr-zone__controls {
+    justify-content: flex-start;
+  }
+}
+
+.scr-pie__empty {
+  stroke: rgba(255, 255, 255, 0.06);
+}
+
+.scr-barrow__pct[data-tone="none"] {
+  color: var(--text-faint);
+}
+
+/* == Collection progress ==============================================
+   Shown instead of an empty chart. An empty chart implies we measured and
+   found nothing; this says plainly that measurement is still running. */
+
+.scr-collecting {
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.scr-collecting__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.scr-collecting__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--caution);
+}
+
+.scr-collecting__count {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--white-92);
+}
+
+.scr-collecting__track {
+  height: 6px;
+  border-radius: var(--r-1);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.scr-collecting__fill {
+  height: 100%;
+  background: var(--caution);
+  transition: width 500ms ease;
+}
+
+.scr-collecting__note {
+  margin: 10px 0 0;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-faint);
+}

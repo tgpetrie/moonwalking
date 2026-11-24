@@ -1,0 +1,22 @@
+{
+  "version": "instant-diagnostics-v1-draft",
+  "scope": "evaluation_only_separate_from_unchanged_target_labels",
+  "target_version": "instant-target-v2-draft",
+  "grid_ms": 5000,
+  "whole_window_metric": "retain_existing_pre_window_peak_and_timing",
+  "additional_metric": "pre_window_to_forward_peak_consumed_fraction",
+  "additional_peak_search": "anchor_through_anchor_plus_horizon",
+  "price_reference": "anchor_minus_30000ms_not_physical_origin",
+  "fraction_clamping": false,
+  "null_reasons": [
+    "reference_quality_reason",
+    "pre_window_reference_unavailable",
+    "invalid_pre_window_peak",
+    "nonpositive_pre_window_peak",
+    "publication_unavailable"
+  ],
+  "catalog_left_censoring": "previous_grid_anchor_missing_or_not_ready",
+  "physical_onset_defined": false,
+  "fitting_allowed": false,
+  "operational_rates_enabled": false
+}

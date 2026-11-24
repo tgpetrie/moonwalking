@@ -59,6 +59,7 @@ Tasks live in MW_BACKLOG.md.
 - mw_last_good_at
 - mw_last_good_sentiment, mw_last_good_sentiment_at
 - mw_watchlist
+- mw_watchlist_views_v1 (per-list display density, change window, sorting, and visible metrics; no quotes)
 - mw_coin_history_v1 (bounded recent alert context per coin)
 - mw_alerts_last_seen_id (local unread marker)
 - mw_spot_universe_v1, mw_spot_universe_ts_v1 (bounded Coinbase product cache)
@@ -148,6 +149,17 @@ Tasks live in MW_BACKLOG.md.
 
 
 ## 5) Table layout contracts
+
+5.0 Range-position band meaning
+- The fixed 15/85 range-position bands are a declared descriptive convention for recent-range location.
+- `near_support` and `near_resistance` are geometric location labels, not empirical rarity, tail-probability, or calibration claims.
+- Per-coin empirical tail bands require a separately declared history window, minimum observation policy, completed-history-only computation, persistence and cold-start behavior, and an explicit insufficient-history fallback.
+
+5.0.1 Relative volume gate meaning
+- `volume_ratio >= 1.5` is a declared descriptive multiplier convention. It means the latest measured candle carried at least 1.5 times the median volume of the measured window.
+- It is not a rarity, rank, top-decile, or empirically calibrated volume claim.
+- The numerator is the newest bucket in the measured window and may still be in progress; product copy must not call it a completed candle.
+- Historical relative-volume ranking requires a separately declared ratio definition, denominator window, minimum comparable observations, completed-candle policy, fetch or persistence policy, cold-start behavior, and insufficient-history fallback.
 
 5.1 1-minute gainers table contract (strict)
 If there are 4 or fewer tokens available:

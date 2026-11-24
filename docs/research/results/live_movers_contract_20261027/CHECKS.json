@@ -1,0 +1,31 @@
+{
+  "focused_tests_passed": 77,
+  "new_retention_tests": 4,
+  "new_contract_tests": 6,
+  "production_eligible_episodes": 333170,
+  "phase_counts": {
+    "train": 217302,
+    "discovery": 38764,
+    "test": 77104
+  },
+  "frozen_capture_verification": {
+    "local": {
+      "manifest_sha256": "30214097bfb0d8e8c64bf46b1c33d207277f87f492748b56eb84c6cf675d0a1a",
+      "files_verified": 3,
+      "readonly": true
+    },
+    "production": {
+      "manifest_sha256": "c8adca26d7e1ee6577da4fa37fe4c5fb8d6f18c98e1903d39f246edcf071ca70",
+      "files_verified": 3,
+      "readonly": true
+    }
+  },
+  "v2_null_move_or_mismatched_snapshot_schema_rows": 0,
+  "forecast_models_fitted": 0,
+  "outcome_performance_summarized": false,
+  "collector_restarted": false,
+  "running_worktree_modified": false,
+  "public_payload_and_scores_unchanged_in_regressions": true,
+  "snapshot_version_after_deployment": "live-strength-v1-snapshot-v3",
+  "source_tag_verified": "research/fundamentals-driver-2026-10-26 -> 058d740"
+}

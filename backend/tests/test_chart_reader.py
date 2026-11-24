@@ -286,3 +286,84 @@ def test_chart_reader_does_not_import_alerts_engine():
 # Small helper to avoid importing pytest in the assertion (works with plain assert too).
 def pytest_approx(value, rel=1e-6):
     return value
+
+
+# ─── wave_analysis ────────────────────────────────────────────────────────────
+
+from chart_reader import build_wave_analysis  # noqa: E402
+
+_EXISTING_KEYS = {
+    "symbol",
+    "timeframe",
+    "summary",
+    "direction",
+    "lower_area",
+    "upper_area",
+    "trading_activity",
+    "confidence",
+    "watch_next",
+    "not_financial_advice",
+    "candle_count",
+    "window_hours",
+}
+
+
+def _wave_candles(step=3600, t0=1_699_992_000):
+    """A pullback in an advance: origin low, P0, A, B, C, then a bounce."""
+    legs = [(40, 90.0), (20, 110.0), (8, 102.0), (6, 106.0), (9, 97.0), (5, 102.0)]
+    out, price, ts = [], 100.0, t0
+    for bars, end in legs:
+        delta = (end - price) / bars
+        for _ in range(bars):
+            o, c = price, price + delta
+            out.append([ts, min(o, c) - 0.1, max(o, c) + 0.1, o, c, 1000])
+            price, ts = c, ts + step
+    return out
+
+
+def test_short_history_keeps_every_field_and_adds_an_unavailable_wave_read():
+    result = analyze_candles(_UPTREND, "SOL", "1h")
+    assert _EXISTING_KEYS <= set(result)
+    wave = result["wave_analysis"]
+    assert wave["available"] is False
+    assert wave["reason"] == "insufficient_history"
+    assert wave["active_pattern"] == "none"
+    assert wave["pivots"] == [] and wave["invalidation_price"] is None
+    assert "chart" not in wave
+
+
+def test_wave_candles_do_not_change_the_basic_read():
+    base = analyze_candles(_UPTREND, "SOL", "1h")
+    deep = analyze_candles(_UPTREND, "SOL", "1h", wave_candles=_wave_candles())
+    for key in _EXISTING_KEYS:
+        assert deep[key] == base[key]
+    wave = deep["wave_analysis"]
+    assert (wave["active_pattern"], wave["bias"]) == ("abc_complete", "bullish")
+    assert wave["timeframe"] == "1h" and wave["higher_timeframe"] == "4h"
+    assert [p["label"] for p in wave["wave_points"]] == ["start", "0", "A", "B", "C"]
+    assert wave["chart"]["granularity_seconds"] == 3600
+    assert wave["chart"]["candles"][-1] == _wave_candles()[-1]
+    assert wave["outcome_validated"] is False
+
+
+def test_forming_candle_is_dropped_before_the_wave_read():
+    candles = _wave_candles()
+    last_open = candles[-1][0]
+    closed = build_wave_analysis(candles, "1h", as_of_ts=last_open + 3600)
+    forming = build_wave_analysis(candles, "1h", as_of_ts=last_open + 1800)
+    assert closed["candle_count"] == len(candles)
+    assert forming["candle_count"] == len(candles) - 1
+    assert forming["as_of_ts"] == last_open
+
+
+def test_wave_failure_falls_back_instead_of_raising(monkeypatch):
+    import elliott_wave_engine
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("engine down")
+
+    monkeypatch.setattr(elliott_wave_engine, "analyze_wave_structure", boom)
+    result = analyze_candles(_UPTREND, "SOL", "1h", wave_candles=_wave_candles())
+    assert _EXISTING_KEYS <= set(result)
+    assert result["wave_analysis"]["available"] is False
+    assert result["wave_analysis"]["reason"] == "engine_error"

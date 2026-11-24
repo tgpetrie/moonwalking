@@ -1,0 +1,76 @@
+{
+  "version": "moonwalking-instant-evidence-v1",
+  "created_utc": "2026-10-30T03:43:21.273791+00:00",
+  "repository": "tgpetrie/moonwalking",
+  "resume_branch": "codex/instant-radar-20261028",
+  "implementation_commit": "cb7034a48d5a533153dfe1d113921318db82f3ec",
+  "release_tag": "research-handoff-20261027",
+  "archive": {
+    "name": "moonwalking-instant-evidence-20261029.tar.gz",
+    "bytes": 9549587,
+    "sha256": "c3af127e71346a7d0cf20d6c0ca1d0c36eda0e81952eab878bde2ebbe7eab9f3"
+  },
+  "unpacked_bytes": 9596787,
+  "files": {
+    "feed_audit_campaign_20261028/STATUS.json": {
+      "bytes": 841,
+      "sha256": "2b4fe9d1dd140c5393558794856b5e6273fb44d09ed014be9b50fb8468146261"
+    },
+    "feed_audit_20261028_1h/capture.json": {
+      "bytes": 1045,
+      "sha256": "58e65f2829832dbda5e3a615c98296cd646d6a46fe80b22ecc202dd71a07f9fe"
+    },
+    "feed_audit_20261028_1h/MANIFEST.json": {
+      "bytes": 299,
+      "sha256": "8a082ad80c280ec2ccfdf6b15df14c6dbb4c6adae19d11c18a9949cf47bb6140"
+    },
+    "feed_audit_20261028_1h/REPORT.json": {
+      "bytes": 7392,
+      "sha256": "31c4082eb194937cfe133734d1b20446cc6ccd4400a0de3b95e833c83276587e"
+    },
+    "feed_audit_20261028_1h/STATUS.json": {
+      "bytes": 196,
+      "sha256": "3a0fae83d0ef6ec0d099b0b5b337f2a473e06a6706196fa4f198153cf7f9aa74"
+    },
+    "feed_audit_20261028_1h/websocket.jsonl.gz": {
+      "bytes": 427336,
+      "sha256": "db1d7260267ba512c921956d2d7e7578dfddeefeeb93fd38e6016a4ce504b374"
+    },
+    "feed_audit_20261028_1h/rest.jsonl.gz": {
+      "bytes": 1103790,
+      "sha256": "05e0b2405041af95cf70e3a51d64ccca074af6519f6faf5cac88183a98264a33"
+    },
+    "feed_audit_campaign_20261028/attempt-01/capture.json": {
+      "bytes": 949,
+      "sha256": "101c2a1f938d04522a85a4f48d2707bff9c515b81c093ec8c75313ee2686ca34"
+    },
+    "feed_audit_campaign_20261028/attempt-01/MANIFEST.json": {
+      "bytes": 299,
+      "sha256": "bc375dbc2c080868e6fad29c07e75d90e4061e6e32777d789c4b021ec5474b50"
+    },
+    "feed_audit_campaign_20261028/attempt-01/REPORT.json": {
+      "bytes": 7167,
+      "sha256": "f02228d380cea1625e139d9fc397092c2e78f6c84c631293594ffb1e8e21f157"
+    },
+    "feed_audit_campaign_20261028/attempt-01/STATUS.json": {
+      "bytes": 216,
+      "sha256": "46c86af5f57ebc955550c61dee0780102ee6fac25fdc68f3188096d76f4d0fc6"
+    },
+    "feed_audit_campaign_20261028/attempt-01/websocket.jsonl.gz": {
+      "bytes": 3691155,
+      "sha256": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b"
+    },
+    "feed_audit_campaign_20261028/attempt-01/rest.jsonl.gz": {
+      "bytes": 4356102,
+      "sha256": "a167fc0af1b9a29eb5cc3b449ee0b68ce9b63aa35d9b28a26f9e28ed888823ce"
+    }
+  },
+  "exclusions": [
+    "account data",
+    "production stores",
+    "credentials",
+    ".env",
+    "Git metadata",
+    "AI chat/session state"
+  ]
+}

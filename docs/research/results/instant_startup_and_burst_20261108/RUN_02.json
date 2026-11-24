@@ -1,0 +1,2078 @@
+{
+  "version": "instant-queue-burst-test-v1-draft",
+  "implementation_commit": "3e5e168dabe8085b420c962be4df3724efa53dd8",
+  "scope": "synthetic_queued_socket_real_indexed_sqlite_writer",
+  "burst_frames": 160,
+  "burst_target_ms": 100.0,
+  "tail_frames": 40,
+  "tail_target_ms": 1000,
+  "repetitions": 3,
+  "reports": [
+    {
+      "name": "r1-stall0-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 0,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 138,
+      "synthetic_burst_return_span_ms": 86.3464,
+      "reader_received": 143,
+      "writer_delivered": 14,
+      "journal_committed_data": 14,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 280.35,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 10.138,
+          "p95_ms": 10.138,
+          "p99_ms": 10.138,
+          "max_ms": 10.138,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 24.127,
+          "p95_ms": 24.127,
+          "p99_ms": 24.127,
+          "max_ms": 24.127,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 20.343,
+          "p95_ms": 20.343,
+          "p99_ms": 20.343,
+          "max_ms": 20.343,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 213.634,
+          "p95_ms": 213.634,
+          "p99_ms": 213.634,
+          "max_ms": 213.634,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 280.35,
+          "p95_ms": 280.35,
+          "p99_ms": 280.35,
+          "max_ms": 280.35,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 1,
+          "p50_ms": 0.09,
+          "p95_ms": 0.09,
+          "p99_ms": 0.09,
+          "max_ms": 0.09,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 1,
+          "p50_ms": 6.968,
+          "p95_ms": 6.968,
+          "p99_ms": 6.968,
+          "max_ms": 6.968,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.141,
+          "p95_ms": 14.141,
+          "p99_ms": 14.141,
+          "max_ms": 14.141,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 20.627,
+          "p95_ms": 20.627,
+          "p99_ms": 20.627,
+          "max_ms": 20.627,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 5,
+          "p50_ms": 50.947,
+          "p95_ms": 75.584,
+          "p99_ms": 75.584,
+          "max_ms": 75.584,
+          "negative_n": 0
+        }
+      },
+      "digest": "977a1491872ad5fd54d1c6c4fe26c323f448b8b72ca71c9ec8797ccaf9177cb6",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134215000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134220000
+          },
+          "inventory_recorded_ts_ms": 1794134210493,
+          "inventory_sha256": "f62a9b9773ce79b11c5b96fa7ca3baa3d96c6e75b84b2a7819998b9e92e5a9ce",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "20070d1666454975a4ee88a8970d8edb",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 16,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r1-stall0-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 0,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 104.4778,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 150,
+      "worst_measured_queue_ms": 1480.934,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 13.76,
+          "p95_ms": 13.76,
+          "p99_ms": 13.76,
+          "max_ms": 13.76,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 24.666,
+          "p95_ms": 24.666,
+          "p99_ms": 24.666,
+          "max_ms": 24.666,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 22.426,
+          "p95_ms": 22.426,
+          "p99_ms": 22.426,
+          "max_ms": 22.426,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 216.734,
+          "p95_ms": 216.734,
+          "p99_ms": 216.734,
+          "max_ms": 216.734,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 285.389,
+          "p95_ms": 285.389,
+          "p99_ms": 285.389,
+          "max_ms": 285.389,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 567.95,
+          "p95_ms": 1124.696,
+          "p99_ms": 1124.696,
+          "max_ms": 1124.696,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 575.44,
+          "p95_ms": 1107.612,
+          "p99_ms": 1107.612,
+          "max_ms": 1107.612,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 582.989,
+          "p95_ms": 1109.476,
+          "p99_ms": 1109.476,
+          "max_ms": 1109.476,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 590.094,
+          "p95_ms": 1117.468,
+          "p99_ms": 1117.468,
+          "max_ms": 1117.468,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 791.444,
+          "p95_ms": 1273.115,
+          "p99_ms": 1309.95,
+          "max_ms": 1309.95,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 845.799,
+          "p95_ms": 1410.785,
+          "p99_ms": 1419.004,
+          "max_ms": 1419.004,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 900.109,
+          "p95_ms": 1427.661,
+          "p99_ms": 1427.661,
+          "max_ms": 1427.661,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 947.615,
+          "p95_ms": 1471.679,
+          "p99_ms": 1480.934,
+          "max_ms": 1480.934,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1028.384,
+          "p95_ms": 1367.398,
+          "p99_ms": 1367.398,
+          "max_ms": 1367.398,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1035.99,
+          "p95_ms": 1351.587,
+          "p99_ms": 1351.587,
+          "max_ms": 1351.587,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 538.156,
+          "p95_ms": 538.156,
+          "p99_ms": 538.156,
+          "max_ms": 538.156,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 546.203,
+          "p95_ms": 546.203,
+          "p99_ms": 546.203,
+          "max_ms": 546.203,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 552.904,
+          "p95_ms": 552.904,
+          "p99_ms": 552.904,
+          "max_ms": 552.904,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 559.391,
+          "p95_ms": 559.391,
+          "p99_ms": 559.391,
+          "max_ms": 559.391,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1079.637,
+          "p95_ms": 1194.305,
+          "p99_ms": 1194.305,
+          "max_ms": 1194.305,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1086.643,
+          "p95_ms": 1176.419,
+          "p99_ms": 1176.419,
+          "max_ms": 1176.419,
+          "negative_n": 0
+        }
+      },
+      "digest": "cfe5d9ddfb54104694a56c76b665e1099dfba341166c7ffa7af88d911229c119",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134215000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134220000
+          },
+          "inventory_recorded_ts_ms": 1794134211124,
+          "inventory_sha256": "f62a9b9773ce79b11c5b96fa7ca3baa3d96c6e75b84b2a7819998b9e92e5a9ce",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "b6089fa80a3b46c29c00470dfb8c0939",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r1-stall450-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 450,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 129,
+      "synthetic_burst_return_span_ms": 80.694,
+      "reader_received": 134,
+      "writer_delivered": 5,
+      "journal_committed_data": 5,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 266.187,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 10.117,
+          "p95_ms": 10.117,
+          "p99_ms": 10.117,
+          "max_ms": 10.117,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 25.535,
+          "p95_ms": 25.535,
+          "p99_ms": 25.535,
+          "max_ms": 25.535,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 20.21,
+          "p95_ms": 20.21,
+          "p99_ms": 20.21,
+          "max_ms": 20.21,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 201.969,
+          "p95_ms": 201.969,
+          "p99_ms": 201.969,
+          "max_ms": 201.969,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 266.187,
+          "p95_ms": 266.187,
+          "p99_ms": 266.187,
+          "max_ms": 266.187,
+          "negative_n": 0
+        }
+      },
+      "digest": "47b6fad399e31031c9326a40b27aed86738d1c82d0b068455721bd514f3e5f55",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134215000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134220000
+          },
+          "inventory_recorded_ts_ms": 1794134214119,
+          "inventory_sha256": "f62a9b9773ce79b11c5b96fa7ca3baa3d96c6e75b84b2a7819998b9e92e5a9ce",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "c721014c30e54d3a86a625c9b5abdf08",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 7,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r1-stall450-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 450,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 100.3786,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 174,
+      "worst_measured_queue_ms": 1873.698,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.955,
+          "p95_ms": 14.955,
+          "p99_ms": 14.955,
+          "max_ms": 14.955,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 26.141,
+          "p95_ms": 26.141,
+          "p99_ms": 26.141,
+          "max_ms": 26.141,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 22.856,
+          "p95_ms": 22.856,
+          "p99_ms": 22.856,
+          "max_ms": 22.856,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 208.468,
+          "p95_ms": 208.468,
+          "p99_ms": 208.468,
+          "max_ms": 208.468,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 278.357,
+          "p95_ms": 278.357,
+          "p99_ms": 278.357,
+          "max_ms": 278.357,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 993.398,
+          "p95_ms": 1509.395,
+          "p99_ms": 1509.395,
+          "max_ms": 1509.395,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1000.416,
+          "p95_ms": 1511.58,
+          "p99_ms": 1511.58,
+          "max_ms": 1511.58,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 1006.551,
+          "p95_ms": 1518.159,
+          "p99_ms": 1518.159,
+          "max_ms": 1518.159,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 1014.537,
+          "p95_ms": 1524.808,
+          "p99_ms": 1524.808,
+          "max_ms": 1524.808,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 1207.519,
+          "p95_ms": 1686.676,
+          "p99_ms": 1720.618,
+          "max_ms": 1720.618,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 1263.889,
+          "p95_ms": 1814.679,
+          "p99_ms": 1822.968,
+          "max_ms": 1822.968,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 1323.222,
+          "p95_ms": 1832.006,
+          "p99_ms": 1832.006,
+          "max_ms": 1832.006,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 1364.578,
+          "p95_ms": 1866.711,
+          "p99_ms": 1873.698,
+          "max_ms": 1873.698,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1438.452,
+          "p95_ms": 1754.601,
+          "p99_ms": 1754.601,
+          "max_ms": 1754.601,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1443.696,
+          "p95_ms": 1737.69,
+          "p99_ms": 1737.69,
+          "max_ms": 1737.69,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 965.759,
+          "p95_ms": 965.759,
+          "p99_ms": 965.759,
+          "max_ms": 965.759,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 972.909,
+          "p95_ms": 972.909,
+          "p99_ms": 972.909,
+          "max_ms": 972.909,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 979.491,
+          "p95_ms": 979.491,
+          "p99_ms": 979.491,
+          "max_ms": 979.491,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 985.701,
+          "p95_ms": 985.701,
+          "p99_ms": 985.701,
+          "max_ms": 985.701,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1490.907,
+          "p95_ms": 1581.779,
+          "p99_ms": 1581.779,
+          "max_ms": 1581.779,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1498.239,
+          "p95_ms": 1565.015,
+          "p99_ms": 1565.015,
+          "max_ms": 1565.015,
+          "negative_n": 0
+        }
+      },
+      "digest": "e51c85be3ff8e8c0aae98e6b6b2d006b0bd4410023c64c8c3553c27991f6df07",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134220000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134225000
+          },
+          "inventory_recorded_ts_ms": 1794134215089,
+          "inventory_sha256": "619819a84f1e7fc7aa44f7d7a24bdb33f816ea9cc2b5fe5f92664aa126720a58",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "938071295bee485693bbb4e4723583e9",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r2-stall0-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 0,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 138,
+      "synthetic_burst_return_span_ms": 88.9682,
+      "reader_received": 143,
+      "writer_delivered": 14,
+      "journal_committed_data": 14,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 271.961,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.567,
+          "p95_ms": 14.567,
+          "p99_ms": 14.567,
+          "max_ms": 14.567,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 25.55,
+          "p95_ms": 25.55,
+          "p99_ms": 25.55,
+          "max_ms": 25.55,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 22.381,
+          "p95_ms": 22.381,
+          "p99_ms": 22.381,
+          "max_ms": 22.381,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 206.047,
+          "p95_ms": 206.047,
+          "p99_ms": 206.047,
+          "max_ms": 206.047,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 271.961,
+          "p95_ms": 271.961,
+          "p99_ms": 271.961,
+          "max_ms": 271.961,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 1,
+          "p50_ms": 0.045,
+          "p95_ms": 0.045,
+          "p99_ms": 0.045,
+          "max_ms": 0.045,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 1,
+          "p50_ms": 6.758,
+          "p95_ms": 6.758,
+          "p99_ms": 6.758,
+          "max_ms": 6.758,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 13.107,
+          "p95_ms": 13.107,
+          "p99_ms": 13.107,
+          "max_ms": 13.107,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 21.225,
+          "p95_ms": 21.225,
+          "p99_ms": 21.225,
+          "max_ms": 21.225,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 5,
+          "p50_ms": 53.975,
+          "p95_ms": 77.304,
+          "p99_ms": 77.304,
+          "max_ms": 77.304,
+          "negative_n": 0
+        }
+      },
+      "digest": "1e41a441e1a7d9b626b68c123b9c53ba7a25124fe2b3c59b96a7e2217fbc8147",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134220000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134225000
+          },
+          "inventory_recorded_ts_ms": 1794134218464,
+          "inventory_sha256": "619819a84f1e7fc7aa44f7d7a24bdb33f816ea9cc2b5fe5f92664aa126720a58",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "46cf171eff884d47b681576d8d357b5d",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 16,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r2-stall0-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 0,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 103.9779,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 150,
+      "worst_measured_queue_ms": 1455.066,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 13.646,
+          "p95_ms": 13.646,
+          "p99_ms": 13.646,
+          "max_ms": 13.646,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 24.66,
+          "p95_ms": 24.66,
+          "p99_ms": 24.66,
+          "max_ms": 24.66,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 22.505,
+          "p95_ms": 22.505,
+          "p99_ms": 22.505,
+          "max_ms": 22.505,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 207.196,
+          "p95_ms": 207.196,
+          "p99_ms": 207.196,
+          "max_ms": 207.196,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 274.787,
+          "p95_ms": 274.787,
+          "p99_ms": 274.787,
+          "max_ms": 274.787,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 541.636,
+          "p95_ms": 1107.555,
+          "p99_ms": 1107.555,
+          "max_ms": 1107.555,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 549.781,
+          "p95_ms": 1090.472,
+          "p99_ms": 1090.472,
+          "max_ms": 1090.472,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 557.993,
+          "p95_ms": 1088.771,
+          "p99_ms": 1088.771,
+          "max_ms": 1088.771,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 564.306,
+          "p95_ms": 1095.837,
+          "p99_ms": 1095.837,
+          "max_ms": 1095.837,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 766.609,
+          "p95_ms": 1258.341,
+          "p99_ms": 1290.457,
+          "max_ms": 1290.457,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 826.456,
+          "p95_ms": 1392.544,
+          "p99_ms": 1401.099,
+          "max_ms": 1401.099,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 886.372,
+          "p95_ms": 1409.689,
+          "p99_ms": 1409.689,
+          "max_ms": 1409.689,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 928.268,
+          "p95_ms": 1446.16,
+          "p99_ms": 1455.066,
+          "max_ms": 1455.066,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1011.244,
+          "p95_ms": 1342.969,
+          "p99_ms": 1342.969,
+          "max_ms": 1342.969,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1017.809,
+          "p95_ms": 1326.02,
+          "p99_ms": 1326.02,
+          "max_ms": 1326.02,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 513.668,
+          "p95_ms": 513.668,
+          "p99_ms": 513.668,
+          "max_ms": 513.668,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 518.31,
+          "p95_ms": 518.31,
+          "p99_ms": 518.31,
+          "max_ms": 518.31,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 525.726,
+          "p95_ms": 525.726,
+          "p99_ms": 525.726,
+          "max_ms": 525.726,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 533.845,
+          "p95_ms": 533.845,
+          "p99_ms": 533.845,
+          "max_ms": 533.845,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1060.87,
+          "p95_ms": 1173.953,
+          "p99_ms": 1173.953,
+          "max_ms": 1173.953,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1067.89,
+          "p95_ms": 1157.099,
+          "p99_ms": 1157.099,
+          "max_ms": 1157.099,
+          "negative_n": 0
+        }
+      },
+      "digest": "6a0e901808a1a72d3fbbb4c92050de630916106632bc28c445ee47ab0a5a3fb7",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134220000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134225000
+          },
+          "inventory_recorded_ts_ms": 1794134219074,
+          "inventory_sha256": "619819a84f1e7fc7aa44f7d7a24bdb33f816ea9cc2b5fe5f92664aa126720a58",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "9bdc3e7cb9bc477da7dd289e994b1443",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r2-stall450-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 450,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 129,
+      "synthetic_burst_return_span_ms": 80.732,
+      "reader_received": 134,
+      "writer_delivered": 5,
+      "journal_committed_data": 5,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 281.589,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 16.574,
+          "p95_ms": 16.574,
+          "p99_ms": 16.574,
+          "max_ms": 16.574,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 28.915,
+          "p95_ms": 28.915,
+          "p99_ms": 28.915,
+          "max_ms": 28.915,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 24.565,
+          "p95_ms": 24.565,
+          "p99_ms": 24.565,
+          "max_ms": 24.565,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 212.48,
+          "p95_ms": 212.48,
+          "p99_ms": 212.48,
+          "max_ms": 212.48,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 281.589,
+          "p95_ms": 281.589,
+          "p99_ms": 281.589,
+          "max_ms": 281.589,
+          "negative_n": 0
+        }
+      },
+      "digest": "14ba02cfc887ac94a0f89c14aee0cf4fb49014d64e2785101974c38c9358a517",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134225000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134230000
+          },
+          "inventory_recorded_ts_ms": 1794134222025,
+          "inventory_sha256": "c8b3ceb3a3d89119582fdcf7e7d569fff5547f1c991e063a4ce56298cc6891cb",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "d8d580f0fb684e2da6aa536b66b78a6c",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 7,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r2-stall450-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 450,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 100.5191,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 174,
+      "worst_measured_queue_ms": 1875.672,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.509,
+          "p95_ms": 14.509,
+          "p99_ms": 14.509,
+          "max_ms": 14.509,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 29.258,
+          "p95_ms": 29.258,
+          "p99_ms": 29.258,
+          "max_ms": 29.258,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 25.657,
+          "p95_ms": 25.657,
+          "p99_ms": 25.657,
+          "max_ms": 25.657,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 203.954,
+          "p95_ms": 203.954,
+          "p99_ms": 203.954,
+          "max_ms": 203.954,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 270.628,
+          "p95_ms": 270.628,
+          "p99_ms": 270.628,
+          "max_ms": 270.628,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 987.451,
+          "p95_ms": 1505.836,
+          "p99_ms": 1505.836,
+          "max_ms": 1505.836,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 994.099,
+          "p95_ms": 1510.863,
+          "p99_ms": 1510.863,
+          "max_ms": 1510.863,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 1002.129,
+          "p95_ms": 1518.201,
+          "p99_ms": 1518.201,
+          "max_ms": 1518.201,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 1008.12,
+          "p95_ms": 1525.704,
+          "p99_ms": 1525.704,
+          "max_ms": 1525.704,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 1201.871,
+          "p95_ms": 1688.825,
+          "p99_ms": 1725.034,
+          "max_ms": 1725.034,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 1253.79,
+          "p95_ms": 1819.692,
+          "p99_ms": 1828.104,
+          "max_ms": 1828.104,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 1313.304,
+          "p95_ms": 1836.605,
+          "p99_ms": 1836.605,
+          "max_ms": 1836.605,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 1357.771,
+          "p95_ms": 1868.468,
+          "p99_ms": 1875.672,
+          "max_ms": 1875.672,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1435.881,
+          "p95_ms": 1751.912,
+          "p99_ms": 1751.912,
+          "max_ms": 1751.912,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1441.899,
+          "p95_ms": 1734.838,
+          "p99_ms": 1734.838,
+          "max_ms": 1734.838,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 960.809,
+          "p95_ms": 960.809,
+          "p99_ms": 960.809,
+          "max_ms": 960.809,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 966.083,
+          "p95_ms": 966.083,
+          "p99_ms": 966.083,
+          "max_ms": 966.083,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 973.137,
+          "p95_ms": 973.137,
+          "p99_ms": 973.137,
+          "max_ms": 973.137,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 980.74,
+          "p95_ms": 980.74,
+          "p99_ms": 980.74,
+          "max_ms": 980.74,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1489.911,
+          "p95_ms": 1574.842,
+          "p99_ms": 1574.842,
+          "max_ms": 1574.842,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1496.803,
+          "p95_ms": 1557.536,
+          "p99_ms": 1557.536,
+          "max_ms": 1557.536,
+          "negative_n": 0
+        }
+      },
+      "digest": "ef4b417ac106bc5d38a35f30a4a04663a5f6daaa5d8ae22cb9663ffbd8953a14",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134225000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134230000
+          },
+          "inventory_recorded_ts_ms": 1794134222998,
+          "inventory_sha256": "c8b3ceb3a3d89119582fdcf7e7d569fff5547f1c991e063a4ce56298cc6891cb",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "99b592898f02439fb8088d3aef2eafd3",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r3-stall0-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 0,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 138,
+      "synthetic_burst_return_span_ms": 86.4515,
+      "reader_received": 143,
+      "writer_delivered": 14,
+      "journal_committed_data": 14,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 278.191,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 11.566,
+          "p95_ms": 11.566,
+          "p99_ms": 11.566,
+          "max_ms": 11.566,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 26.609,
+          "p95_ms": 26.609,
+          "p99_ms": 26.609,
+          "max_ms": 26.609,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 19.315,
+          "p95_ms": 19.315,
+          "p99_ms": 19.315,
+          "max_ms": 19.315,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 209.984,
+          "p95_ms": 209.984,
+          "p99_ms": 209.984,
+          "max_ms": 209.984,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 278.191,
+          "p95_ms": 278.191,
+          "p99_ms": 278.191,
+          "max_ms": 278.191,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 1,
+          "p50_ms": 0.105,
+          "p95_ms": 0.105,
+          "p99_ms": 0.105,
+          "max_ms": 0.105,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 1,
+          "p50_ms": 6.455,
+          "p95_ms": 6.455,
+          "p99_ms": 6.455,
+          "max_ms": 6.455,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.052,
+          "p95_ms": 14.052,
+          "p99_ms": 14.052,
+          "max_ms": 14.052,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 20.5,
+          "p95_ms": 20.5,
+          "p99_ms": 20.5,
+          "max_ms": 20.5,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 5,
+          "p50_ms": 49.782,
+          "p95_ms": 72.223,
+          "p99_ms": 72.223,
+          "max_ms": 72.223,
+          "negative_n": 0
+        }
+      },
+      "digest": "32fc1c401fd4b1f889cb148a46ed5e363a1455a7fad2b350b7463a8270013936",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134230000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134235000
+          },
+          "inventory_recorded_ts_ms": 1794134226354,
+          "inventory_sha256": "f35ef21c3e2827a027b83a442bb09f37b39b6a121a65802091f2cb73928d47c5",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "b62ee77866374095a2cc8415ff35114d",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 16,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r3-stall0-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 0,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 100.2209,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 150,
+      "worst_measured_queue_ms": 1423.693,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 13.985,
+          "p95_ms": 13.985,
+          "p99_ms": 13.985,
+          "max_ms": 13.985,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 26.077,
+          "p95_ms": 26.077,
+          "p99_ms": 26.077,
+          "max_ms": 26.077,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 24.671,
+          "p95_ms": 24.671,
+          "p99_ms": 24.671,
+          "max_ms": 24.671,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 209.378,
+          "p95_ms": 209.378,
+          "p99_ms": 209.378,
+          "max_ms": 209.378,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 274.929,
+          "p95_ms": 274.929,
+          "p99_ms": 274.929,
+          "max_ms": 274.929,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 526.351,
+          "p95_ms": 1056.481,
+          "p99_ms": 1056.481,
+          "max_ms": 1056.481,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 533.172,
+          "p95_ms": 1056.333,
+          "p99_ms": 1056.333,
+          "max_ms": 1056.333,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 540.595,
+          "p95_ms": 1062.747,
+          "p99_ms": 1062.747,
+          "max_ms": 1062.747,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 540.461,
+          "p95_ms": 1068.258,
+          "p99_ms": 1068.258,
+          "max_ms": 1068.258,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 747.323,
+          "p95_ms": 1229.715,
+          "p99_ms": 1265.562,
+          "max_ms": 1265.562,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 796.692,
+          "p95_ms": 1361.581,
+          "p99_ms": 1370.399,
+          "max_ms": 1370.399,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 861.128,
+          "p95_ms": 1379.293,
+          "p99_ms": 1379.293,
+          "max_ms": 1379.293,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 905.825,
+          "p95_ms": 1416.225,
+          "p99_ms": 1423.693,
+          "max_ms": 1423.693,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 977.214,
+          "p95_ms": 1300.786,
+          "p99_ms": 1300.786,
+          "max_ms": 1300.786,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 985.158,
+          "p95_ms": 1284.553,
+          "p99_ms": 1284.553,
+          "max_ms": 1284.553,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 500.301,
+          "p95_ms": 500.301,
+          "p99_ms": 500.301,
+          "max_ms": 500.301,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 506.401,
+          "p95_ms": 506.401,
+          "p99_ms": 506.401,
+          "max_ms": 506.401,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 513.237,
+          "p95_ms": 513.237,
+          "p99_ms": 513.237,
+          "max_ms": 513.237,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 520.685,
+          "p95_ms": 520.685,
+          "p99_ms": 520.685,
+          "max_ms": 520.685,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1034.996,
+          "p95_ms": 1127.648,
+          "p99_ms": 1127.648,
+          "max_ms": 1127.648,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1042.11,
+          "p95_ms": 1109.76,
+          "p99_ms": 1109.76,
+          "max_ms": 1109.76,
+          "negative_n": 0
+        }
+      },
+      "digest": "c564b570ce3af25f0a8966947f078d50080dc194f8caa912830ee51fc1d0ab84",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134230000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134235000
+          },
+          "inventory_recorded_ts_ms": 1794134226965,
+          "inventory_sha256": "f35ef21c3e2827a027b83a442bb09f37b39b6a121a65802091f2cb73928d47c5",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "47a4b954171d4da1ac2da7d14086343c",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r3-stall450-queue128",
+      "capacity": 128,
+      "requested_stall_ms": 450,
+      "stop": "queue_overflow",
+      "final_marker": "queue_overflow",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 129,
+      "synthetic_burst_return_span_ms": 80.7848,
+      "reader_received": 134,
+      "writer_delivered": 5,
+      "journal_committed_data": 5,
+      "observed_queue_high_water": 128,
+      "worst_measured_queue_ms": 292.427,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 14.628,
+          "p95_ms": 14.628,
+          "p99_ms": 14.628,
+          "max_ms": 14.628,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 25.553,
+          "p95_ms": 25.553,
+          "p99_ms": 25.553,
+          "max_ms": 25.553,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 24.065,
+          "p95_ms": 24.065,
+          "p99_ms": 24.065,
+          "max_ms": 24.065,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 218.929,
+          "p95_ms": 218.929,
+          "p99_ms": 218.929,
+          "max_ms": 218.929,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 292.427,
+          "p95_ms": 292.427,
+          "p99_ms": 292.427,
+          "max_ms": 292.427,
+          "negative_n": 0
+        }
+      },
+      "digest": "a98010f2bcb4e35e54af06af06ff2caed49adeb53f463dd651ec30f47d1b55fa",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134230000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134235000
+          },
+          "inventory_recorded_ts_ms": 1794134229864,
+          "inventory_sha256": "f35ef21c3e2827a027b83a442bb09f37b39b6a121a65802091f2cb73928d47c5",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "a63e7da46800478f84e97ab53f1e67b5",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 7,
+        "publications": 0
+      }
+    },
+    {
+      "name": "r3-stall450-queue256",
+      "capacity": 256,
+      "requested_stall_ms": 450,
+      "stop": "remote_close",
+      "final_marker": "connection_closed",
+      "source_frames": 205,
+      "synthetic_burst_frames_returned": 160,
+      "synthetic_burst_return_span_ms": 100.1712,
+      "reader_received": 205,
+      "writer_delivered": 205,
+      "journal_committed_data": 205,
+      "observed_queue_high_water": 174,
+      "worst_measured_queue_ms": 1920.177,
+      "reader_to_writer_by_kind": {
+        "snapshot:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 15.417,
+          "p95_ms": 15.417,
+          "p99_ms": 15.417,
+          "max_ms": 15.417,
+          "negative_n": 0
+        },
+        "subscriptions": {
+          "n": 1,
+          "p50_ms": 26.339,
+          "p95_ms": 26.339,
+          "p99_ms": 26.339,
+          "max_ms": 26.339,
+          "negative_n": 0
+        },
+        "snapshot:BTC-USD": {
+          "n": 1,
+          "p50_ms": 21.99,
+          "p95_ms": 21.99,
+          "p99_ms": 21.99,
+          "max_ms": 21.99,
+          "negative_n": 0
+        },
+        "snapshot:SOL-USD": {
+          "n": 1,
+          "p50_ms": 215.733,
+          "p95_ms": 215.733,
+          "p99_ms": 215.733,
+          "max_ms": 215.733,
+          "negative_n": 0
+        },
+        "snapshot:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 284.372,
+          "p95_ms": 284.372,
+          "p99_ms": 284.372,
+          "max_ms": 284.372,
+          "negative_n": 0
+        },
+        "heartbeat:BTC-USD": {
+          "n": 4,
+          "p50_ms": 997.408,
+          "p95_ms": 1552.326,
+          "p99_ms": 1552.326,
+          "max_ms": 1552.326,
+          "negative_n": 0
+        },
+        "heartbeat:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1003.782,
+          "p95_ms": 1539.793,
+          "p99_ms": 1539.793,
+          "max_ms": 1539.793,
+          "negative_n": 0
+        },
+        "heartbeat:ALCX-USD": {
+          "n": 4,
+          "p50_ms": 1010.33,
+          "p95_ms": 1546.216,
+          "p99_ms": 1546.216,
+          "max_ms": 1546.216,
+          "negative_n": 0
+        },
+        "heartbeat:AURORA-USD": {
+          "n": 4,
+          "p50_ms": 1017.721,
+          "p95_ms": 1553.789,
+          "p99_ms": 1553.789,
+          "max_ms": 1553.789,
+          "negative_n": 0
+        },
+        "l2update:BTC-USD": {
+          "n": 67,
+          "p50_ms": 1221.954,
+          "p95_ms": 1725.84,
+          "p99_ms": 1762.966,
+          "max_ms": 1762.966,
+          "negative_n": 0
+        },
+        "l2update:SOL-USD": {
+          "n": 36,
+          "p50_ms": 1276.139,
+          "p95_ms": 1860.287,
+          "p99_ms": 1867.326,
+          "max_ms": 1867.326,
+          "negative_n": 0
+        },
+        "l2update:ALCX-USD": {
+          "n": 3,
+          "p50_ms": 1336.719,
+          "p95_ms": 1876.377,
+          "p99_ms": 1876.377,
+          "max_ms": 1876.377,
+          "negative_n": 0
+        },
+        "l2update:AURORA-USD": {
+          "n": 36,
+          "p50_ms": 1379.61,
+          "p95_ms": 1912.804,
+          "p99_ms": 1920.177,
+          "max_ms": 1920.177,
+          "negative_n": 0
+        },
+        "match:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1458.058,
+          "p95_ms": 1798.1,
+          "p99_ms": 1798.1,
+          "max_ms": 1798.1,
+          "negative_n": 0
+        },
+        "ticker:BTC-USD": {
+          "n": 15,
+          "p50_ms": 1470.446,
+          "p95_ms": 1779.839,
+          "p99_ms": 1779.839,
+          "max_ms": 1779.839,
+          "negative_n": 0
+        },
+        "match:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 963.264,
+          "p95_ms": 963.264,
+          "p99_ms": 963.264,
+          "max_ms": 963.264,
+          "negative_n": 0
+        },
+        "ticker:AURORA-USD": {
+          "n": 1,
+          "p50_ms": 974.121,
+          "p95_ms": 974.121,
+          "p99_ms": 974.121,
+          "max_ms": 974.121,
+          "negative_n": 0
+        },
+        "match:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 983.588,
+          "p95_ms": 983.588,
+          "p99_ms": 983.588,
+          "max_ms": 983.588,
+          "negative_n": 0
+        },
+        "ticker:ALCX-USD": {
+          "n": 1,
+          "p50_ms": 990.027,
+          "p95_ms": 990.027,
+          "p99_ms": 990.027,
+          "max_ms": 990.027,
+          "negative_n": 0
+        },
+        "match:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1519.092,
+          "p95_ms": 1621.158,
+          "p99_ms": 1621.158,
+          "max_ms": 1621.158,
+          "negative_n": 0
+        },
+        "ticker:SOL-USD": {
+          "n": 4,
+          "p50_ms": 1526.316,
+          "p95_ms": 1604.46,
+          "p99_ms": 1604.46,
+          "max_ms": 1604.46,
+          "negative_n": 0
+        }
+      },
+      "digest": "58d8178ee3eff7a417e2de4a5c052061405a3b383df89fe3f8cbad3022ab1507",
+      "segment": {
+        "manifest": {
+          "book_contract_sha256": "4dc2b298b2d6225582df10dc4c7d07f6befd65678f54c3417ac17b6269832d3d",
+          "book_implementation_sha256": "f0d9533fe81370b2392fcebfe2ce1e11fa9bb9ef3fd2e2f3dcfe0139791d7dd2",
+          "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+          "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+          "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+          "inventory": {
+            "benchmark": "BTC-USD",
+            "directions": [
+              "up",
+              "down"
+            ],
+            "first_cutoff": 1794134235000,
+            "grid_ms": 5000,
+            "products": [
+              "ALCX-USD",
+              "AURORA-USD",
+              "BTC-USD",
+              "SOL-USD"
+            ],
+            "stop_cutoff": 1794134240000
+          },
+          "inventory_recorded_ts_ms": 1794134230851,
+          "inventory_sha256": "fc7675f1df442897d3b1955595125524923434769f10151c90d7cd2494cdd197",
+          "journal_implementation_sha256": "f23d951856a4204d34f7e6c7a27b0edb7974e62814eb8f8ff9d53e46347fd917",
+          "journal_mode": "delete",
+          "max_frame_bytes": 1048576,
+          "max_packets": 100000,
+          "max_record_bytes": 268435456,
+          "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+          "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+          "segment_id": "bb2ec8f041f8437ea00d04f2e6dc692f",
+          "synchronous": 3,
+          "version": "instant-stream-journal-v1-draft"
+        },
+        "status": "finished",
+        "packets": 207,
+        "publications": 0
+      }
+    }
+  ],
+  "live_queue_profile": 128,
+  "fitting_allowed": false
+}

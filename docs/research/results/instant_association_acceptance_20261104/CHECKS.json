@@ -1,0 +1,30 @@
+{
+  "verified_utc": "2026-11-04T09:49:10.062833+00:00",
+  "scope": "offline_association_exposure_review_only",
+  "source_commit": "96f565241ca43f15196f14a59999c98d22806d06",
+  "integrated_as": "e3529c2",
+  "current_code_commit": "863123152ac730c7cbd286a5da6044e49dd97467",
+  "targeted_checks_passed": 521,
+  "cloud_cases": 50,
+  "Codex_cases": 3,
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "platform": "Windows",
+  "black_24_8": "passed",
+  "guardrails": "passed",
+  "historical_hashes_verified": 11,
+  "protected_source_bytes_unchanged_from": "1d394e4",
+  "source_hashes_UTF8_LF": {
+    "scripts/scoring_experiment/instant_association.py": "0e79b8f1d609157d40f1ed3d34e7f01b85201c37489bc80e3b065d897bb485c3",
+    "tests/test_instant_association.py": "0cd3d21442ace3d25cc80a105015b04203778d5d26c5905466b2bee675752abe",
+    "docs/research/INSTANT_ASSOCIATION_CONTRACT_V1_DRAFT.json": "4a66c231401eaa64d07edb6dde6011bc23215561ea4a05265388e36fe0905e66"
+  },
+  "fitting_allowed": false,
+  "study_frozen": false,
+  "live_changes": false,
+  "new_capture": false,
+  "historical_rerun": false,
+  "native_Mac_verified": false,
+  "full_suite_run": false,
+  "reconciliation_reviewed": false
+}

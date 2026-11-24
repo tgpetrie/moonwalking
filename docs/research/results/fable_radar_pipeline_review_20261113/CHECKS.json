@@ -1,0 +1,118 @@
+{
+  "reviewer": "Claude Fable (claude-fable-5-2); final commit authored under claude-opus-5-5 after a model switch",
+  "review_branch": "claude/instant-radar-pipeline-review-20261113",
+  "pinned_source_commit": "257be69e6058cd2addc04dc1c191d7cdf3b25c4e",
+  "reader_runtime_commit": "cfa4aff44aa017de704b7fa8c641dcf7389ef159",
+  "offline_verification_commit": "975234ed44c6708a28ccce1df11ed671258cd46c",
+  "packet_sha256": "c1cebf9fa1be33afade06c5886fd6cdf5683e1649f5c86e63d8477e21cb2fd5f",
+  "packet_sources_verified_against_git": 111,
+  "packet_source_mismatches": 0,
+  "platform": "Windows 11",
+  "python": "3.12.10",
+  "pytest": "8.3.5",
+  "sqlite": "3.49.1",
+  "websocket_client": "1.9.0",
+  "black": "24.8.0",
+  "baseline_instant_tests_passed_at_pin": 1253,
+  "new_probe_cases": 34,
+  "new_probes_on_unmodified_pin": {
+    "failed": 8,
+    "passed": 25,
+    "note": "run before the 34th (ragged TLS EOF) case was added; all 8 failures are the fixed/instrumented behaviors"
+  },
+  "instant_tests_passed_after": 1287,
+  "focused_tests_passed_after": 94,
+  "black_check": "passed",
+  "guardrails": "passed",
+  "git_diff_check": "passed",
+  "confirmed_defects_fixed": [
+    {
+      "id": "F1",
+      "severity": "medium_latent",
+      "path": "instant_real_indexed_pilot.DiagnosticCohorts.after_commit",
+      "before": "cohort frozen at clock == asof; same-millisecond frame later entered the as-of prefix; _timing_readiness and verify raised prefix mismatch",
+      "after": "freeze waits until now > asof"
+    },
+    {
+      "id": "F2",
+      "severity": "medium_low",
+      "path": "verify_instant_timing_attempt.verify",
+      "before": "JSONDecodeError on an unterminated final observed.jsonl line; no result",
+      "after": "torn final line counted; row unobserved; other unreadable lines raise explicitly"
+    }
+  ],
+  "instrumentation_added": "instant-reader-transport-v1 reader snapshot + READER_TRANSPORT stderr line",
+  "preserved_asia_reverification": {
+    "read_only": true,
+    "journal_sha256": "592cf1b482e42403174574cdf18f112e80a9b4d2c5fbdbfd22047524a51e0ed6",
+    "inputs_unchanged": true,
+    "all_committed_fields_equal": true,
+    "new_field": {
+      "torn_final_observation_lines": 0
+    },
+    "failure_bracket_ms_after_last_frame": [
+      0,
+      582
+    ],
+    "error_text_maps_to": "zero_byte_read_tcp_fin_or_tls_eof"
+  },
+  "files_changed": {
+    "scripts/scoring_experiment/instant_real_indexed_pilot.py": {
+      "before_sha256": "8e1a37c46d803c5ffe84de4e4b33380a91953cb9d884e14f6276c7b70ef4ca1b",
+      "after_sha256": "812f862357511a0ffb34f25429a0db88aafd72db0579b6c323d69279bdccba27"
+    },
+    "scripts/scoring_experiment/verify_instant_timing_attempt.py": {
+      "before_sha256": "c26ebe0ed1f1cab264c3d9d9fba27a22dbd0f937c00a1bc7de51844fbb6c95cc",
+      "after_sha256": "4a226cc2294d7c0004b22ad24a6e4ddcdd0ac153b9431baf8acb8f37cfd48242"
+    },
+    "scripts/scoring_experiment/run_instant_offline_checks.py": {
+      "before_sha256": "7d81e775a341eb0b81c9b3ca9a7696704b0318a27c11f615f8a286c092efb510",
+      "after_sha256": "73cb71e931ca6776fdceb5ca36716b6435cf2aac87562f2695f74e7dcbd50be2"
+    },
+    "tests/test_instant_pipeline_boundary_review.py": {
+      "before_sha256": null,
+      "after_sha256": "5467d0f25695812cb0d5df72fbdd6f7962bdc8c7ccebb528534b370cf4bb700f"
+    },
+    "tests/test_instant_reader_disconnect.py": {
+      "before_sha256": "fb455859d4e04836acd0a936787acbd8107f3fb28e8d4e7d5e2a23def739aa37",
+      "after_sha256": "94d5d575ecaa41bec7fe5c9409eb86f1f817c4143a6336f9a8424cafb0efab52"
+    },
+    "tests/test_instant_reader_overflow.py": {
+      "before_sha256": "ad2c0c79d3e2d4c42a7a509307ab82bf1ec5c642177800f33505bd1be1b516b1",
+      "after_sha256": "98542aeb0e2f185a335b8743cb1c2d6ad86e5b7294734e340be806b0efa80f3e"
+    },
+    "tests/test_instant_real_indexed_pilot.py": {
+      "before_sha256": "d70c7c445b4f44c985f299488076aa37e5e4a83be3bb929837e0c305e9534d16",
+      "after_sha256": "e8d178c4f50b3aaa2bc2025556670f1cf404ee0940640f472f06576031897d51"
+    }
+  },
+  "evidence_modules_unchanged_sha256": {
+    "scripts/scoring_experiment/instant_stream_journal.py": "3b24834f2dfb0ceb622448aef5295d241977eced984b5f6b02367666ecb3139c",
+    "scripts/scoring_experiment/instant_input_evidence.py": "66ea9626b920a40b1ee968974bf2e2751bb4217d7f0ca051aedc1d376b1ed959",
+    "scripts/scoring_experiment/instant_evidence_index.py": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+    "scripts/scoring_experiment/instant_delayed_decision.py": "2312423761c7220fee5f9528183e641c01638b1c6ca0b352d15b73abc204a16d",
+    "scripts/scoring_experiment/instant_delayed_eligibility.py": "5ead9c0dd9a79cea3e0b836c7a2340888c7d7c7eb4b9bf5b619f79c0b5d3c2d3",
+    "scripts/scoring_experiment/instant_publication.py": "db1c7ede0db61f7a278edcfde90095b665d7410b64bb8c609ab8099da03702ab",
+    "scripts/scoring_experiment/instant_timed_baseline.py": "f7a753d37c139d8f44bb6e94905dd809d6d1ffa95653363b9f6637f101586a43",
+    "scripts/scoring_experiment/instant_timed_features.py": "4a100cf629e460bae69f75c7bedb624c3835274c38af227c9aa3dab8b2e2eb0b",
+    "scripts/scoring_experiment/instant_source_pilot.py": "58d3a5f78fdff9dd8e01771c21484633d46e56954e4db38727f46eabc232b688",
+    "scripts/scoring_experiment/instant_association.py": "0e79b8f1d609157d40f1ed3d34e7f01b85201c37489bc80e3b065d897bb485c3",
+    "scripts/scoring_experiment/instant_directional_exposure.py": "638db051a2eb20c66431281606b384cec101f7cb2114b3dd72e045d89692f424",
+    "scripts/scoring_experiment/instant_targets.py": "a25d746d8f1ff47bacf06c5e11c10b12ad0038daccc2926dda00ef8e0ab16015",
+    "scripts/scoring_experiment/instant_book.py": "4079306928342b9b43178f6ad6e1106c70dd8198f9e83b2d09e8cb3f8e8a270e",
+    "scripts/scoring_experiment/instant_coverage.py": "6588fbf2b09a4ca4582dc6ef4791d7ac61f8ac89eda361f308e9c5693b18f320"
+  },
+  "codex_checkpoint_files_modified": false,
+  "new_capture": false,
+  "network_requests": false,
+  "authenticated_calls": false,
+  "system_or_vpn_settings_changed": false,
+  "caps_or_timing_candidates_changed": false,
+  "historical_validation_rerun": false,
+  "fitting": false,
+  "production_changed": false,
+  "public_delivery_measured": false,
+  "feed_gate_pass": false,
+  "study_frozen": false,
+  "fitting_allowed": false
+}

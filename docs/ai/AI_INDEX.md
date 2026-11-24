@@ -2,6 +2,16 @@
 
 Project: BHABIT Moonwalking
 
+Current instant-radar continuation: [Resume from anywhere](RESUME_HERE.md)
+and [active work record](ACTIVE_WORK.json). Check these before relying on
+an older chat or MacBook handoff for the current research branch/state.
+
+Local no-credit helper: `scripts/local_ai.py`
+
+- Usage and safety: `docs/ai/LOCAL_ASSISTANT.md`
+- Good for grounded project questions, diff review, and log triage.
+- Do not use the local 9B model as an unsupervised repository agent.
+
 Read in this order before implementation:
 
 1. `MW_SPEC.md`
@@ -9,6 +19,14 @@ Read in this order before implementation:
 3. `ARCHITECTURE.md`
 4. `HANDOFF.md`
 5. The relevant files under `docs/`
+6. Touching CSS, colors, spacing, typography, or anything visual on any
+   page: `docs/DESIGN_SYSTEM.md` first. It's the cross-system token
+   reference (values live in `frontend/src/styles/design-tokens.css`) and
+   says where the home board and the Moonwalking `/app/*` shell already
+   agree, where they genuinely still disagree on purpose, and known gaps
+   flagged but not silently fixed. `docs/FRONTEND_UI_RULES.md` and
+   `docs/UI_CONTRACT.md` remain authoritative for the home board's own
+   grid/row/motion rules specifically.
 
 ## Canonical runtime
 
@@ -20,6 +38,12 @@ Read in this order before implementation:
 - Health: `GET /api/health`
 
 There is no active bridge service. Ports 5001, 5002, 5100, and 8002 are legacy.
+
+On Tom's Windows PC, port 5003 is the **always-on collector**, not a dev
+server: a scheduled task runs it from the `Moonwalking-Runtime` worktree and
+writes every store to `%USERPROFILE%\.moonwalking\data`. Don't kill it or use
+`--kill-port` on 5003; run dev backends on another port. See
+`docs/developer/ALWAYS_ON_COLLECTOR.md`.
 
 ## Active frontend
 

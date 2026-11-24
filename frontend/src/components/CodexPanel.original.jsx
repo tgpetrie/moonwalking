@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getCoinbaseAdvancedSpotUrl } from '../utils/coinbaseUrl';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 
 const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
@@ -214,12 +215,14 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             Data updated: {new Date().toLocaleTimeString()}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
+            <a
+              href={getCoinbaseAdvancedSpotUrl(selectedCoin)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-4 py-2 bg-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
             >
               Trade on Coinbase
-            </button>
+            </a>
           </div>
         </div>
       </div>

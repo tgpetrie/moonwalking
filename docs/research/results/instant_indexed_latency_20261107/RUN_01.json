@@ -1,0 +1,269 @@
+{
+  "version": "instant-indexed-latency-v1-draft",
+  "scope": "synthetic_receipt_clock_real_serial_journal_and_computation",
+  "implementation_commit": "dddd2e43a69fa74fa97d60655ed942c0d60e525f",
+  "stop": "duration",
+  "connections": [
+    {
+      "connection_id": "9ea5c33bcceb45ddbeda41d66e1b6161/1",
+      "ack_ts_ms": 0,
+      "stop": "duration"
+    }
+  ],
+  "simulated_ms": 4020016,
+  "host_capture_seconds": 2334.309,
+  "planned_cohorts": 10,
+  "committed_cohorts": 10,
+  "index_decision_preparation": {
+    "n": 80,
+    "p50_ms": 62.668,
+    "p95_ms": 89.16,
+    "p99_ms": 99.85,
+    "max_ms": 99.85
+  },
+  "local_outbox_write_and_ack": {
+    "n": 80,
+    "p50_ms": 14.771,
+    "p95_ms": 16.246,
+    "p99_ms": 16.826,
+    "max_ms": 16.826
+  },
+  "full_serial_cohort": {
+    "n": 10,
+    "p50_ms": 619.181,
+    "p95_ms": 681.971,
+    "p99_ms": 681.971,
+    "max_ms": 681.971
+  },
+  "synthetic_release_after_planned_asof": {
+    "n": 10,
+    "p50_ms": 16,
+    "p95_ms": 16,
+    "p99_ms": 16,
+    "max_ms": 16
+  },
+  "batch_decision_preparation_after_capture": {
+    "n": 16,
+    "p50_ms": 2505.282,
+    "p95_ms": 2666.977,
+    "p99_ms": 2666.977,
+    "max_ms": 2666.977
+  },
+  "exact_content_parity_cases": 16,
+  "callback_through_commit": {
+    "subscriptions": {
+      "n": 1,
+      "p50_ms": 8.739,
+      "p95_ms": 8.739,
+      "p99_ms": 8.739,
+      "max_ms": 8.739,
+      "negative_n": 0
+    },
+    "snapshot:BTC-USD": {
+      "n": 1,
+      "p50_ms": 204.321,
+      "p95_ms": 204.321,
+      "p99_ms": 204.321,
+      "max_ms": 204.321,
+      "negative_n": 0
+    },
+    "snapshot:SOL-USD": {
+      "n": 1,
+      "p50_ms": 66.294,
+      "p95_ms": 66.294,
+      "p99_ms": 66.294,
+      "max_ms": 66.294,
+      "negative_n": 0
+    },
+    "snapshot:ALCX-USD": {
+      "n": 1,
+      "p50_ms": 10.843,
+      "p95_ms": 10.843,
+      "p99_ms": 10.843,
+      "max_ms": 10.843,
+      "negative_n": 0
+    },
+    "snapshot:AURORA-USD": {
+      "n": 1,
+      "p50_ms": 10.513,
+      "p95_ms": 10.513,
+      "p99_ms": 10.513,
+      "max_ms": 10.513,
+      "negative_n": 0
+    },
+    "heartbeat:BTC-USD": {
+      "n": 4021,
+      "p50_ms": 7.629,
+      "p95_ms": 9.424,
+      "p99_ms": 11.777,
+      "max_ms": 27.723,
+      "negative_n": 0
+    },
+    "heartbeat:SOL-USD": {
+      "n": 4020,
+      "p50_ms": 7.584,
+      "p95_ms": 9.01,
+      "p99_ms": 11.396,
+      "max_ms": 285.827,
+      "negative_n": 0
+    },
+    "heartbeat:ALCX-USD": {
+      "n": 4020,
+      "p50_ms": 7.597,
+      "p95_ms": 9.024,
+      "p99_ms": 11.081,
+      "max_ms": 364.644,
+      "negative_n": 0
+    },
+    "heartbeat:AURORA-USD": {
+      "n": 4020,
+      "p50_ms": 7.679,
+      "p95_ms": 9.033,
+      "p99_ms": 11.129,
+      "max_ms": 365.779,
+      "negative_n": 0
+    },
+    "l2update:BTC-USD": {
+      "n": 68340,
+      "p50_ms": 12.93,
+      "p95_ms": 16.128,
+      "p99_ms": 18.994,
+      "max_ms": 387.51,
+      "negative_n": 0
+    },
+    "l2update:SOL-USD": {
+      "n": 48240,
+      "p50_ms": 9.048,
+      "p95_ms": 11.025,
+      "p99_ms": 13.186,
+      "max_ms": 368.86,
+      "negative_n": 0
+    },
+    "l2update:ALCX-USD": {
+      "n": 4020,
+      "p50_ms": 7.828,
+      "p95_ms": 9.056,
+      "p99_ms": 11.896,
+      "max_ms": 81.723,
+      "negative_n": 0
+    },
+    "l2update:AURORA-USD": {
+      "n": 48240,
+      "p50_ms": 7.825,
+      "p95_ms": 9.049,
+      "p99_ms": 11.392,
+      "max_ms": 315.796,
+      "negative_n": 0
+    },
+    "match:BTC-USD": {
+      "n": 20100,
+      "p50_ms": 7.704,
+      "p95_ms": 9.006,
+      "p99_ms": 10.995,
+      "max_ms": 237.91,
+      "negative_n": 0
+    },
+    "ticker:BTC-USD": {
+      "n": 20100,
+      "p50_ms": 7.671,
+      "p95_ms": 8.97,
+      "p99_ms": 10.985,
+      "max_ms": 276.173,
+      "negative_n": 0
+    },
+    "match:AURORA-USD": {
+      "n": 37,
+      "p50_ms": 7.858,
+      "p95_ms": 9.962,
+      "p99_ms": 10.762,
+      "max_ms": 10.762,
+      "negative_n": 0
+    },
+    "ticker:AURORA-USD": {
+      "n": 37,
+      "p50_ms": 7.736,
+      "p95_ms": 8.749,
+      "p99_ms": 11.24,
+      "max_ms": 11.24,
+      "negative_n": 0
+    },
+    "match:ALCX-USD": {
+      "n": 57,
+      "p50_ms": 7.084,
+      "p95_ms": 8.116,
+      "p99_ms": 9.557,
+      "max_ms": 9.557,
+      "negative_n": 0
+    },
+    "ticker:ALCX-USD": {
+      "n": 57,
+      "p50_ms": 7.306,
+      "p95_ms": 8.598,
+      "p99_ms": 10.366,
+      "max_ms": 10.366,
+      "negative_n": 0
+    },
+    "match:SOL-USD": {
+      "n": 7946,
+      "p50_ms": 7.707,
+      "p95_ms": 8.999,
+      "p99_ms": 11.08,
+      "max_ms": 271.686,
+      "negative_n": 0
+    },
+    "ticker:SOL-USD": {
+      "n": 7946,
+      "p50_ms": 7.639,
+      "p95_ms": 8.944,
+      "p99_ms": 10.976,
+      "max_ms": 37.284,
+      "negative_n": 0
+    }
+  },
+  "logical_record_bytes": 167613679,
+  "journal_sha256": "23ab1c403f3a7c37ca5a6b8e2172a14dfd263a0fb072d71888b7a1a13be93537",
+  "journal_bytes": 206057472,
+  "segment": {
+    "manifest": {
+      "book_contract_sha256": "104aaa3ef742f55cfef38f41e0ca2745b2d30d7d15b198d587c6edbf482afc8b",
+      "book_implementation_sha256": "2802fa0809786f1e2b3c8875f0ecc52b5cbfe7dadfd0345effb8a3c4adde779c",
+      "index_implementation_sha256": "4a3420f010e4736aba7bfbbce6e755212e8ef8a62bd957eb0aa4fcced8b65701",
+      "input_contract_sha256": "beb5492f5e232ba835f9fcd157ae035f1a76953ca979939182b0bed78191f696",
+      "input_implementation_sha256": "54c06edd2a66a9b993959e9963e857b634fb0e0065fd210c8f5ca8174db8ba5f",
+      "inventory": {
+        "benchmark": "BTC-USD",
+        "directions": [
+          "up",
+          "down"
+        ],
+        "first_cutoff": 3720000,
+        "grid_ms": 5000,
+        "products": [
+          "ALCX-USD",
+          "AURORA-USD",
+          "BTC-USD",
+          "SOL-USD"
+        ],
+        "stop_cutoff": 3770000
+      },
+      "inventory_recorded_ts_ms": 0,
+      "inventory_sha256": "7a670f1e11e300a1ce5dc4e75334b5e3ec49db342c67166c41109deff175835d",
+      "journal_implementation_sha256": "0f2c1283453effb1f397c989c0be5b026ad204808dcb13924ba795c6b7093f19",
+      "journal_mode": "delete",
+      "max_frame_bytes": 1048576,
+      "max_packets": 250000,
+      "max_record_bytes": 268435456,
+      "monitor_contract_sha256": "ae68dcac52be290051c1790f480630993e03863c8960c89efb9c2843adccac6c",
+      "monitor_implementation_sha256": "d4e1fa960898a4077fa0d89ac8166d0929273c3d2db90bb55723ffeb5bcd7722",
+      "segment_id": "9ea5c33bcceb45ddbeda41d66e1b6161",
+      "synchronous": 3,
+      "version": "instant-stream-journal-v1-draft"
+    },
+    "status": "finished",
+    "packets": 241208,
+    "publications": 80
+  },
+  "feed_gate_pass": false,
+  "fitting_allowed": false,
+  "external_publication_measured": false
+}

@@ -10,7 +10,7 @@
   --mw-accent-strong: #a855f7;
   --mw-signal: var(--bh-gain, #ffb347);
   --mw-danger: #ff9fb4;
-  --mw-radius: 28px;
+  --mw-radius: var(--r-3);
   min-height: 100vh;
   position: relative;
   overflow: hidden;
@@ -77,7 +77,7 @@
   gap: 24px;
   padding: 18px 24px;
   border: 1px solid var(--mw-line);
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
     rgba(8, 6, 12, 0.76);
@@ -106,7 +106,7 @@
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: 14px;
+  border-radius: var(--r-3);
   background: linear-gradient(135deg, rgba(255, 179, 71, 0.96), rgba(192, 132, 252, 0.88));
   color: #120b08;
   font-weight: 800;
@@ -148,7 +148,7 @@
 
 .mw-public-nav__link {
   padding: 10px 16px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   color: var(--mw-muted);
   transition: color 160ms ease, background 160ms ease;
 }
@@ -160,23 +160,38 @@
   border-color: rgba(192, 132, 252, 0.16);
 }
 
+/* Buttons carry a size scale. Without one, a header auth link and a primary
+   hero CTA render at identical weight and nothing reads as more important. */
 .mw-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Without this, min-height excludes padding and borders and every button
+     renders ~6px taller than its declared size. */
+  box-sizing: border-box;
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid transparent;
   background: transparent;
   color: var(--mw-text);
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
   text-decoration: none;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+/* Secondary/utility actions: nav auth links, row actions, toolbar buttons. */
+.mw-button--sm {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .mw-button:hover,
@@ -224,18 +239,19 @@
 
 .mw-hero-card,
 .mw-auth-layout,
+.mw-board,
 .mw-dashboard-grid,
 .mw-watchlists-layout,
 .mw-portfolio-hero,
 .mw-settings-grid {
   display: grid;
-  gap: 24px;
+  gap: var(--layout-section-gap);
 }
 
 .mw-hero-card {
   grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
   padding: 34px;
-  border-radius: calc(var(--mw-radius) + 6px);
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background:
     radial-gradient(circle at top right, rgba(255, 179, 71, 0.08), transparent 28%),
@@ -269,10 +285,10 @@
 
 .mw-eyebrow,
 .mw-surface__eyebrow {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--label-tracking-comfortable);
   color: var(--mw-accent);
   text-transform: uppercase;
 }
@@ -317,7 +333,7 @@
 .mw-panel,
 .mw-auth-card,
 .mw-profile-hero {
-  padding: 24px;
+  padding: var(--layout-panel-pad);
 }
 
 .mw-hero-grid,
@@ -371,7 +387,7 @@
   justify-content: center;
   min-height: 30px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.04);
   color: var(--mw-muted);
@@ -431,7 +447,7 @@
   width: 100%;
   min-height: 48px;
   padding: 13px 14px;
-  border-radius: 18px;
+  border-radius: var(--r-3);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(4, 4, 8, 0.56);
   color: var(--mw-text);
@@ -489,19 +505,19 @@
 
 .mw-member-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: var(--layout-sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .mw-sidebar {
-  padding: 28px 22px;
+  padding: var(--space-6) var(--space-4);
   border-right: 1px solid var(--mw-line);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
     rgba(7, 5, 11, 0.84);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--space-5);
 }
 
 .mw-sidebar__brand span,
@@ -512,12 +528,13 @@
 
 .mw-sidebar__nav {
   display: grid;
-  gap: 8px;
+  gap: var(--space-1);
 }
 
 .mw-sidebar__link {
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-2);
+  font-size: var(--text-sm);
   border: 1px solid transparent;
   color: var(--mw-muted);
 }
@@ -531,9 +548,9 @@
 
 .mw-sidebar__meta {
   display: grid;
-  gap: 12px;
-  padding: 18px;
-  border-radius: 24px;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
 }
@@ -541,6 +558,16 @@
 .mw-sidebar__meta span {
   color: var(--mw-muted);
   display: block;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-sidebar__meta strong {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .mw-sidebar__footer {
@@ -550,10 +577,11 @@
 }
 
 .mw-workspace {
-  padding: 28px;
+  padding: var(--layout-gutter);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--layout-section-gap);
+  min-width: 0;
 }
 
 .mw-member-header {
@@ -565,7 +593,7 @@
 
 .mw-member-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: var(--text-3xl);
 }
 
 .mw-board,
@@ -577,13 +605,48 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-5);
+}
+
+.mw-panel--hero h2 {
+  font-size: var(--text-xl);
 }
 
 .mw-stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: var(--layout-grid-gap);
+}
+
+/* KPI tile: small tracked label over a large tabular number, the same
+   label/number hierarchy the board uses. Before this rule existed the
+   label and number rendered inline ("Watchlists3"). */
+.mw-stat-card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.mw-stat-card span {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-stat-card strong {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mw-text);
+}
+
+/* Optional note line under a KPI value. */
+.mw-stat-card small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .mw-stat-card span,
@@ -598,9 +661,24 @@
 .mw-panel__header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Panel titles read as section labels, like the board's column headers:
+   small, tracked, uppercase. The panel itself carries the weight. */
+.mw-panel__header h3 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+  color: var(--mw-text);
+}
+
+.mw-panel__header span {
+  font-size: var(--text-xs);
 }
 
 .mw-list {
@@ -608,7 +686,7 @@
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
 .mw-list__row,
@@ -617,8 +695,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -629,13 +707,38 @@
   padding-top: 0;
 }
 
+/* Row identity stacks name over detail. Before this, the name and its
+   detail rendered inline with no gap ("My Watchlist8 items"). */
+.mw-list__row > div,
+.mw-mini-list__row > div,
+.mw-session-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-list__row > div span,
+.mw-mini-list__row > div span,
+.mw-session-row > div span {
+  font-size: var(--text-xs);
+}
+
+/* Trailing meta (timestamps, counts) is tabular so a column of them aligns. */
+.mw-list__row > span,
+.mw-mini-list__row > span {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .mw-action-card,
 .mw-watchlist-chip,
 .mw-featured-card {
   display: grid;
-  gap: 8px;
-  padding: 18px;
-  border-radius: 22px;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
 }
@@ -678,18 +781,23 @@
 
 .mw-table th,
 .mw-table td {
-  padding: 14px 12px;
+  padding: var(--space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   text-align: left;
   vertical-align: top;
 }
 
+.mw-table td {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .mw-table thead th {
   border-top: none;
   color: var(--mw-muted);
-  font-size: 0.84rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--label-tracking-comfortable);
 }
 
 .mw-table td span {
@@ -704,6 +812,151 @@
   color: var(--mw-danger);
   cursor: pointer;
   font-weight: 700;
+}
+
+.mw-watchlist-marketbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-3);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--mw-muted);
+  font-size: 0.9rem;
+}
+
+.mw-watchlist-marketbar strong {
+  color: var(--mw-text);
+}
+
+.mw-watchlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.mw-watchlist-asset {
+  display: grid;
+  /* Both tracks must allow shrinking below their content size (grid's
+     implicit minimum is content width, not 0) or the price column's
+     min-content width wins and overlaps the identity column instead of
+     the row growing taller — the cause of the mobile card overlap. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px 40px 16px 16px; /* right clearance for the corner remove button */
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-4);
+  background:
+    radial-gradient(circle at 16% 12%, rgba(192, 132, 252, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.mw-watchlist-asset__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mw-coin-avatar {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  color: white;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.26);
+  flex: 0 0 auto;
+}
+
+.mw-watchlist-asset h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  /* Matches the leaderboard's .bh-symbol treatment: weight + tracking
+     carry the emphasis instead of a bigger size, so symbol and price read
+     at a consistent scale across the two systems. */
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.mw-watchlist-asset p {
+  margin: 4px 0 0;
+  color: var(--mw-muted);
+  font-size: 0.88rem;
+}
+
+.mw-market-move {
+  color: var(--mw-muted);
+  font-weight: 800;
+}
+
+.mw-market-move.is-up {
+  color: var(--signal-positive);
+}
+
+.mw-market-move.is-down {
+  color: var(--signal-negative); /* price direction: violet, same as the board's --bh-loss */
+}
+
+.mw-watchlist-asset__meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mw-watchlist-asset__meta span {
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mw-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.mw-watchlist-asset input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 13px;
+  border-radius: var(--r-3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(4, 4, 8, 0.5);
+  color: var(--mw-text);
+}
+
+/* Tucked into the card's own corner instead of taking a row/column of its
+   own, so it reads as a minor control, not competing with price/identity. */
+.mw-watchlist-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mw-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.mw-watchlist-remove:hover,
+.mw-watchlist-remove:focus-visible {
+  opacity: 1;
+  color: var(--mw-danger);
+  background: rgba(255, 159, 180, 0.12);
 }
 
 .mw-notes-area {
@@ -724,7 +977,7 @@
 .mw-avatar--large {
   width: 72px;
   height: 72px;
-  border-radius: 22px;
+  border-radius: var(--r-3);
   font-size: 1.35rem;
 }
 
@@ -817,7 +1070,7 @@
   }
 
   .mw-public-header {
-    border-radius: 28px;
+    border-radius: var(--r-3);
   }
 
   .mw-hero-copy h1,
@@ -923,13 +1176,13 @@
 .mw-portfolio-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--layout-grid-gap);
 }
 
+/* Same KPI hierarchy as the Dashboard's .mw-stat-card. */
 .mw-portfolio-stat {
   display: grid;
-  gap: 8px;
-  min-height: 140px;
+  gap: var(--space-2);
   align-content: space-between;
 }
 
@@ -942,14 +1195,22 @@
 .mw-holding-card__metrics span,
 .mw-holding-card__detail-grid span {
   color: var(--mw-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--label-tracking-comfortable);
   text-transform: uppercase;
 }
 
 .mw-portfolio-stat > strong {
-  font-size: clamp(1.45rem, 2.2vw, 2.15rem);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mw-portfolio-stat > small {
+  font-size: var(--text-xs);
 }
 
 .mw-portfolio-stat > small {
@@ -968,12 +1229,12 @@
 .mw-portfolio-holding-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--layout-grid-gap);
 }
 
 .mw-holding-card {
   display: grid;
-  gap: 18px;
+  gap: var(--space-4);
   position: relative;
   overflow: hidden;
 }
@@ -994,9 +1255,9 @@
 
 .mw-holding-card__symbol {
   color: var(--mw-text);
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: var(--text-xl);
+  font-weight: 650; /* the board's .bh-symbol treatment */
+  letter-spacing: 0.02em;
 }
 
 .mw-holding-card__name {
@@ -1010,7 +1271,7 @@
   align-items: center;
   width: fit-content;
   border: 1px solid var(--mw-line);
-  border-radius: 999px;
+  border-radius: var(--r-2);
   padding: 7px 10px;
   font-size: 0.72rem;
   font-weight: 800;
@@ -1018,17 +1279,20 @@
   text-transform: uppercase;
 }
 
-.mw-holding-read.is-positive,
-.mw-portfolio-basis.is-complete,
-.mw-portfolio-mode .is-positive {
-  color: #9de8be;
-}
-
+/* Status chips: "good / complete" is --status-ok (mint), the board's
+   strong-read color. */
 .mw-holding-read.is-positive,
 .mw-portfolio-basis.is-complete {
-  border-color: rgba(104, 211, 145, 0.3);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
 }
+
+/* Money and percent results are price direction, not status: amber up,
+   violet down, muted when zero or unknown. Scoped to <strong> values so
+   status chips (spans) never pick these up. */
+.mw-portfolio-mode strong.is-positive { color: var(--signal-positive); }
+.mw-portfolio-mode strong.is-neutral { color: var(--text-muted); }
 
 .mw-holding-read.is-warning,
 .mw-portfolio-basis.is-partial {
@@ -1037,9 +1301,12 @@
   background: rgba(255, 179, 71, 0.07);
 }
 
-.mw-holding-read.is-danger,
-.mw-portfolio-mode .is-negative {
-  color: var(--mw-danger);
+.mw-holding-read.is-danger {
+  color: var(--danger);
+}
+
+.mw-portfolio-mode strong.is-negative {
+  color: var(--signal-negative); /* price/P&L direction, not a warning */
 }
 
 .mw-holding-read.is-danger {
@@ -1051,10 +1318,10 @@
    complete, with a dashed edge to signal they came from an estimate. */
 .mw-portfolio-basis.is-blended,
 .mw-portfolio-basis.is-manual {
-  color: #9de8be;
+  color: var(--status-ok);
   border-style: dashed;
-  border-color: rgba(104, 211, 145, 0.4);
-  background: rgba(104, 211, 145, 0.06);
+  border-color: rgba(16, 174, 155, 0.4);
+  background: rgba(16, 174, 155, 0.06);
 }
 
 /* Manual cost-basis entry */
@@ -1114,7 +1381,7 @@
   flex: 1 1 120px;
   min-width: 0;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.04);
   color: var(--mw-text);
@@ -1125,11 +1392,6 @@
 .mw-cost-basis-entry__input:focus {
   outline: none;
   border-color: var(--mw-accent);
-}
-
-.mw-button--sm {
-  padding: 8px 14px;
-  font-size: 0.78rem;
 }
 
 .mw-cost-basis-entry__hint {
@@ -1149,7 +1411,7 @@
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--mw-line);
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -1176,7 +1438,7 @@
   text-transform: uppercase;
   color: var(--mw-muted);
   border: 1px dashed var(--mw-line);
-  border-radius: 999px;
+  border-radius: var(--r-2);
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -1199,13 +1461,10 @@
   position: relative;
   flex: 1;
   height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 159, 180, 0.5),
-    rgba(255, 179, 71, 0.4),
-    rgba(104, 211, 145, 0.5)
-  );
+  border-radius: var(--r-2);
+  /* Support to resistance: the same mint-to-violet track the Risk Board
+     uses for the same concept. Descriptive position, not good/bad. */
+  background: linear-gradient(90deg, rgba(16, 174, 155, 0.45), rgba(192, 132, 252, 0.45));
 }
 
 .mw-holding-levels__marker {
@@ -1232,14 +1491,16 @@
 }
 
 .mw-holding-levels__grid span {
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   color: var(--mw-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .mw-holding-levels__grid strong {
-  font-size: 0.82rem;
+  font-family: var(--font-numeric);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--mw-text);
   font-variant-numeric: tabular-nums;
 }
@@ -1259,7 +1520,7 @@
   gap: 8px;
   padding: 12px 14px;
   border: 1px solid var(--mw-line);
-  border-radius: 16px;
+  border-radius: var(--r-3);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -1275,7 +1536,7 @@
   align-items: center;
   width: fit-content;
   border: 1px solid var(--mw-line);
-  border-radius: 999px;
+  border-radius: var(--r-2);
   padding: 5px 10px;
   font-size: 0.68rem;
   font-weight: 800;
@@ -1285,9 +1546,24 @@
 }
 
 .mw-posture-chip.is-positive {
-  color: #9de8be;
-  border-color: rgba(104, 211, 145, 0.3);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
+}
+
+/* Descriptive 24h reads ("Up today", "Down big today") describe what the
+   price did, not a signal status, so they use price-direction colors: amber
+   up, violet down. Their tone in portfolioSignals.js stays as-is (tested
+   logic); this only overrides the presentation. */
+.mw-holding-intel .mw-posture-chip[data-posture^="descriptive_up"] {
+  color: var(--signal-positive);
+  border-color: rgba(255, 179, 71, 0.3);
+  background: rgba(255, 179, 71, 0.07);
+}
+.mw-holding-intel .mw-posture-chip[data-posture^="descriptive_down"] {
+  color: var(--signal-negative);
+  border-color: rgba(192, 132, 252, 0.32);
+  background: rgba(192, 132, 252, 0.08);
 }
 
 .mw-posture-chip.is-warning {
@@ -1318,7 +1594,7 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px dashed var(--mw-line);
   font-size: 0.62rem;
   font-weight: 700;
@@ -1355,7 +1631,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid var(--mw-line);
   font-size: 0.62rem;
   font-weight: 800;
@@ -1366,9 +1642,9 @@
 }
 
 .mw-evidence-tier.is-positive {
-  color: #9de8be;
-  border-color: rgba(104, 211, 145, 0.32);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
 }
 
 .mw-evidence-tier.is-info {
@@ -1389,7 +1665,7 @@
 }
 
 .is-tier-strong {
-  color: #9de8be;
+  color: var(--status-ok);
 }
 
 .mw-holding-intel__history {
@@ -1418,7 +1694,7 @@
   display: inline-block;
   margin-right: 10px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid var(--mw-line);
   font-size: 0.68rem;
   font-weight: 700;
@@ -1467,7 +1743,10 @@
 }
 
 .mw-holding-card__metrics strong {
-  font-size: 0.95rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .mw-holding-card__detail-grid {
@@ -1477,7 +1756,10 @@
 }
 
 .mw-holding-card__detail-grid strong {
-  font-size: 0.85rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 600;
   line-height: 1.45;
 }
 
@@ -1486,7 +1768,7 @@
   margin: 0;
   padding: 12px 14px;
   border: 1px solid rgba(255, 179, 71, 0.16);
-  border-radius: 15px;
+  border-radius: var(--r-3);
   background: rgba(255, 179, 71, 0.04);
   color: rgba(255, 255, 255, 0.68);
   font-size: 0.82rem;
@@ -1515,8 +1797,11 @@
 
 .mw-portfolio-setup,
 .mw-portfolio-loading {
+  /* Left-aligned under the page title like every other workspace panel;
+     centered it read as detached from the page. Width stays capped so the
+     copy doesn't run edge to edge. */
   max-width: 880px;
-  margin: 30px auto 0;
+  margin: 0;
 }
 
 .mw-portfolio-setup {
@@ -1531,7 +1816,7 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  border-radius: 18px;
+  border-radius: var(--r-3);
   background: linear-gradient(135deg, var(--mw-signal), var(--mw-accent));
   color: #130b11;
   font-size: 1.3rem;
@@ -1589,4 +1874,89 @@
   .mw-portfolio-setup {
     grid-template-columns: 1fr;
   }
+
+  /* Open orders: five columns fit a phone at compact cell padding instead of
+     side-scrolling by a few pixels. The shell still scrolls if data is wider. */
+  .mw-table th,
+  .mw-table td {
+    padding: var(--space-2);
+  }
+}
+
+/* Watchlist quote controls and density modes. */
+.mw-coin-avatar { overflow: hidden; }
+.mw-coin-avatar img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 3px; }
+.mw-watchlist-marketbar { flex-wrap: wrap; }
+.mw-watchlist-windows, .mw-watchlist-display, .mw-watchlist-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.mw-watchlist-windows button { cursor: pointer; border: 1px solid #ffffff24; border-radius: 8px; background: transparent; color: var(--mw-text); padding: 7px 12px; font: inherit; }
+.mw-watchlist-windows button[aria-pressed="true"] { background: #bb86fc30; border-color: #c084fc; }
+.mw-watchlist-windows button:focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
+.mw-watchlist-display label, .mw-watchlist-help { color: var(--mw-muted); font-size: .8rem; }
+.mw-watchlist-display label { display: flex; align-items: center; gap: 5px; }
+.mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: 10px; box-shadow: 0 18px 38px #0000002b; }
+.mw-watchlist-windows button { border-color: #ffffff12; border-radius: 4px; background: #ffffff0a; color: #c5bfce; }
+.mw-watchlist-windows button[aria-pressed="true"] { background: #b9a0ff18; border-color: #b9a0ff; color: #f0eaf6; }
+.mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }
+.mw-watchlist-asset input.mw-watchlist-select { width: 15px; height: 15px; margin: 0; flex: 0 0 15px; }
+/* ---- Quote + change: the board's row pattern ----
+   Same values as the board's .bh-price-current / .bh-price-previous /
+   .bh-change in index.css, so a price reads identically on the Live Board
+   and in /app: Raleway with tabular digits (not monospace), current price
+   in mint over the previous price in muted white, change in its own column
+   in amber (up) or violet (down). */
+.mw-watchlist-asset__price {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.mw-quote { display: grid; gap: 1px; min-width: 0; line-height: 1.05; }
+.mw-quote__current {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--price-current);
+}
+.mw-quote__previous {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.mw-quote__status { margin-top: var(--space-1); font-size: var(--text-2xs); color: var(--text-faint); }
+.mw-watchlist-changes { display: grid; justify-items: end; gap: var(--space-1); }
+.mw-watchlist-changes .mw-market-move { display: flex; align-items: baseline; gap: var(--space-2); white-space: nowrap; }
+.mw-watchlist-changes .mw-market-move small { font-size: var(--text-2xs); font-weight: 400; color: var(--text-faint); }
+.mw-watchlist-changes .mw-market-move em {
+  font-style: normal;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+/* Cards view stacks identity over the quote row at every width. Dense
+   side-by-side rows are what List view is for — that's the board-style
+   layout; Cards is the comfortable one. */
+.mw-watchlist-grid--cards .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.mw-watchlist-grid--compact { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.mw-watchlist-grid--compact .mw-watchlist-asset { padding: 10px 32px 10px 10px; gap: 8px; }
+.mw-watchlist-grid--compact .mw-watchlist-remove { top: 6px; right: 6px; width: 18px; height: 18px; font-size: .9rem; }
+.mw-watchlist-grid--compact .mw-coin-avatar { width: 30px; height: 30px; border-radius: 50%; }
+.mw-watchlist-grid--compact .mw-watchlist-asset__identity { gap: 6px; }
+.mw-watchlist-grid--compact .mw-watchlist-asset__identity p { display: none; }
+.mw-watchlist-grid--list { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr); padding: 10px 40px 10px 14px; gap: 8px 16px; }
+.mw-watchlist-grid--list .mw-watchlist-asset__meta { grid-column: 1 / -1; }
+.mw-watchlist-grid--list .mw-watchlist-asset__price { justify-content: flex-end; align-items: center; gap: var(--space-6); }
+.mw-watchlist-grid--list .mw-quote { justify-items: end; text-align: right; }
+.mw-watchlist-grid--list .mw-coin-avatar { width: 32px; height: 32px; border-radius: 50%; }
+@media (max-width: 650px) {
+ .mw-watchlist-grid { grid-template-columns: minmax(0, 1fr); }
+ .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
+ .mw-watchlist-grid--list .mw-watchlist-asset__price { justify-content: space-between; }
+ .mw-watchlist-grid--list .mw-quote { justify-items: start; text-align: left; }
 }

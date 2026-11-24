@@ -1,4 +1,6 @@
 // frontend/src/components/tables/RowActions.jsx
+import { getCoinbaseAdvancedSpotUrl } from "../../utils/coinbaseUrl";
+
 function StarIcon({ filled, className = "" }) {
   return (
     <svg
@@ -48,7 +50,22 @@ export function RowStar({ starred, onToggleStar, className = "" }) {
   );
 }
 
-export function RowInfo({ onInfoClick, className = "" }) {
+export function RowInfo({ onInfoClick, tradeUrl, className = "" }) {
+  if (tradeUrl) {
+    return (
+      <a
+        className={`bh-row-action bh-action bh-action--info ${className}`}
+        href={tradeUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        aria-label="Open Coinbase Advanced Trade"
+        title="Open Coinbase Advanced Trade"
+      >
+        <TradeIcon className="bh-row-icon" />
+      </a>
+    );
+  }
   const handleInfoClick = (event) => {
     stopEvent(event);
     onInfoClick?.();
@@ -67,11 +84,11 @@ export function RowInfo({ onInfoClick, className = "" }) {
   );
 }
 
-export default function RowActions({ starred, onToggleStar, onInfoClick }) {
+export default function RowActions({ starred, onToggleStar, onInfoClick, coin, symbol }) {
   return (
     <div className="bh-row-actions row-actions">
       <RowStar starred={starred} onToggleStar={onToggleStar} />
-      <RowInfo onInfoClick={onInfoClick} />
+      <RowInfo onInfoClick={onInfoClick} tradeUrl={getCoinbaseAdvancedSpotUrl(coin || symbol)} />
     </div>
   );
 }

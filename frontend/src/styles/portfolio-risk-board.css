@@ -1,0 +1,70 @@
+.prb-page { box-sizing: border-box; width: 100%; min-width: 0; max-width: 1480px; margin: 0 auto; padding: 24px; color: var(--mw-text, #e8e4ef); font-family: Raleway, sans-serif; }
+.prb-header, .prb-card__heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.mw-app .prb-page h1 { font-size: clamp(1.5rem, 3vw, 2.1rem); text-transform: none; font-weight: 600; margin: 8px 0; }
+.prb-eyebrow { color: #b9a0ff; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+.prb-header p, .prb-summary p, .prb-position, .prb-range p { color: #b6afc4; font-size: .82rem; line-height: 1.6; }
+.prb-refresh { border: 0; padding: 0; margin: 8px 0; }
+.prb-refresh:disabled { opacity: .45; }
+.prb-update { min-height: 24px; color: #c3b8d5; font-size: .8rem; margin: 18px 0 8px; }
+.prb-fallback { padding: 12px 16px; border-left: 2px solid #b9a0ff; background: #b9a0ff0b; font-size: .85rem; }
+.prb-summary { margin: 16px 0 24px; padding: 22px; }
+.prb-counts { display: flex; flex-wrap: wrap; gap: 14px 30px; }
+.prb-counts span { font-size: .83rem; color: #b6afc4; }
+.prb-counts strong { color: #f0eaf6; font-size: 1.5rem; padding-right: 5px; font-weight: 500; }
+.prb-total { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.prb-total strong { color: #f2e4ca; font-size: 1.45rem; font-weight: 500; }
+/* dense: an expanded card takes a full row; later cards backfill the gap it leaves instead of stranding empty columns. */
+.prb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); grid-auto-flow: row dense; gap: 18px; align-items: start; }
+.prb-card { padding: 20px; min-width: 0; border-top: 2px solid #70677e; }
+.prb-card--high { border-top-color: #e7959c; }
+.prb-card--watch { border-top-color: #dfba77; }
+.prb-card--clear { border-top-color: #84b7a9; }
+.prb-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.prb-card__title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.prb-card__icon { width: 20px; height: 20px; border-radius: 50%; align-self: center; }
+.prb-price { font-variant-numeric: tabular-nums; font-size: 1.3rem; color: #e9e2d5; }
+.prb-price--missing { font-size: .8rem; color: #9c94ab; }
+.prb-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.prb-chip { font-size: .69rem; white-space: nowrap; padding: 5px 8px; border-radius: var(--r-1, 4px); background: #ffffff0a; color: #c5bfce; }
+.prb-chip--high { color: #f4a7ae; background: #e7959c12; }
+.prb-chip--watch { color: #e9c991; background: #dfba7712; }
+.prb-chip--clear { color: #a5d0c4; background: #84b7a912; }
+.prb-chip--tone-positive { color: #a5d0c4; background: #84b7a912; }
+.prb-chip--tone-caution { color: #e9c991; background: #dfba7712; }
+.prb-chip--tone-negative { color: #f4a7ae; background: #e7959c12; }
+.prb-chip--tone-neutral { color: #c5bfce; background: #ffffff0a; }
+.prb-read { margin-top: 6px; }
+.prb-read--entry { margin-top: 16px; padding-top: 14px; border-top: 1px solid #ffffff12; }
+.prb-read__title { margin: 0 0 8px; font-size: .68rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #b9a0ff; }
+.prb-entry-note { margin: 8px 0 0; font-size: .74rem; line-height: 1.6; color: #9c94ab; }
+.prb-summary--entry { margin-top: -8px; }
+.prb-reason, .prb-unavailable { font-size: .83rem; line-height: 1.65; min-height: 44px; }
+.prb-muted { display: block; color: #8f889c; font-size: .76rem; margin-top: 2px; }
+.prb-range { margin: 20px 0; }
+.prb-range__labels { display: flex; justify-content: space-between; font-size: .68rem; color: #b6afc4; }
+.prb-range__track { height: 5px; position: relative; margin: 12px 3px 8px; background: linear-gradient(90deg, #537e72, #695483); border-radius: var(--r-1, 4px); }
+.prb-range__track span { position: absolute; top: -4px; width: 3px; height: 13px; transform: translateX(-50%); background: #f2e7d2; }
+.prb-range p { font-size: .7rem; margin: 0; }
+.prb-distances { margin: 18px 0; font-size: .8rem; }
+.prb-distances > div { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0; }
+.prb-distances dt { color: #aaa2b6; }
+.prb-distances dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.prb-card__body { min-width: 0; }
+.prb-toggle { margin-top: 14px; }
+/* Expanded: the chart gets the full row, but the summary keeps its card width so labels stay next to their values. */
+.prb-card--expanded { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 28px; align-items: start; }
+.prb-card--expanded .prb-card__body { max-width: 440px; }
+.prb-expanded { margin-top: 20px; min-width: 0; }
+@media (min-width: 1100px) {
+  .prb-card--expanded { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
+  .prb-card--expanded .prb-expanded { margin-top: 0; }
+}
+.prb-empty { padding: 24px; }
+@media (max-width: 600px) {
+  .prb-page { padding: 16px 10px; }
+  .prb-summary, .prb-card { padding: 16px; }
+  .prb-distances > div { flex-wrap: wrap; }
+  /* Chips drop below the symbol so the price never wraps onto its own line. */
+  .prb-card__heading { flex-direction: column; gap: 10px; }
+  .prb-chips { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+}

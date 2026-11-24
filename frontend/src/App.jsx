@@ -4,10 +4,17 @@ import { IntelligenceProvider } from "./context/IntelligenceContext.jsx";
 import { DataProvider } from "./context/DataContext.jsx";
 import DashboardShell from "./components/DashboardShell.jsx";
 import MvpApp from "./mvp/MvpApp.jsx";
+import bhabitRabbitStencil from "./assets/brand/moon-rabbit-silhouette.svg";
 
 const mvpRouteSet = new Set([
   "/login",
   "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/scorecard",
+  "/scorecard-redesign",
+  "/scorecard-compare",
+  "/risk-board",
   "/app/dashboard",
   "/app/watchlists",
   "/app/portfolio",
@@ -40,9 +47,12 @@ function LegacyDashboardApp() {
         <IntelligenceBridge>
           <div className="bh-legacy-stage">
             <div className="bh-page-backdrop" aria-hidden="true" />
-            <div className="bh-legacy-rabbit" aria-hidden="true">
-              <img src="/purple-rabbit-bg.png" alt="" />
-            </div>
+            <div
+              className="bh-rabbit-stencil"
+              aria-hidden="true"
+              data-testid="bh-rabbit-stencil"
+              style={{ "--bh-rabbit-stencil": `url(${bhabitRabbitStencil})` }}
+            />
             <div className="bh-shell">
               <DashboardShell />
             </div>

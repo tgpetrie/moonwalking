@@ -1,0 +1,47 @@
+{
+  "scope": "synthetic_reproduction_only_no_real_outcome_analysis",
+  "evaluator_sha256": "53cd1776be9b1b830fe5b2a7b45d6febba2ec725688ed7f4e2bcc798d8edc810",
+  "v1_contract_sha256": "35d9b8a286d051aff08148a2af9987b379d65e92d57c3bea76112be52cfca7a4",
+  "v2_draft_contract_sha256": "d1700f552868ceda7ed825af98b3db7d07a5d4e6b2f523733f271d585ca8c0d3",
+  "at_activity_trigger": {
+    "v1_post_trigger_consumed_fraction": 0.0,
+    "v2_named_metrics": {
+      "evaluation_only": true,
+      "physical_onset_defined": false,
+      "post_anchor_consumed_fraction": 0.0,
+      "post_anchor_reference_ts_ms": 3780000,
+      "offset_from_anchor_seconds": 0.0,
+      "lead_to_forward_peak_seconds": 300.0,
+      "price_snapshot_ts_ms": 3780000,
+      "pre_window_consumed_fraction": 0.09090909090909279,
+      "pre_window_reference_ts_ms": 3750000,
+      "pre_window_reference_is_physical_origin": false,
+      "lead_to_pre_window_peak_seconds": 300.0,
+      "timing": "early_after_activity_trigger",
+      "association_kind": "strict_activity_trigger"
+    }
+  },
+  "one_bps_adverse_dip": {
+    "verified_forward": true,
+    "verified_onset": false,
+    "strict_onset_catalog_count": 0,
+    "forward_window_catalog_count": 1
+  },
+  "F1_counterexample": {
+    "verified_onset": true,
+    "fast_30s_log_return": 0.0019999999999998144,
+    "preceding_150s_log_return_per_30s": 0.0024000000000000106,
+    "acceleration_log": -0.0004000000000001962
+  },
+  "gate_claim_limits": [
+    "activity crossing does not algebraically force positive 30s-versus-150s acceleration",
+    "count-pace OR volume-pace gate does not force volume pace >2",
+    "unsigned activity gate does not determine signed taker imbalance"
+  ],
+  "guardrails": {
+    "fitting_allowed": false,
+    "physical_onset_defined": false,
+    "operational_missed_move_rates_enabled": false,
+    "v1_default_preserved": true
+  }
+}

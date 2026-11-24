@@ -1,31 +1,62 @@
 """
-Shared pytest fixtures for sentiment aggregator tests.
+Shared pytest fixtures and backend import bootstrap.
 """
 
+import os
+import sys
 import pytest
 import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
 
 
+BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+
+@pytest.fixture
+def macro_scan_state(monkeypatch):
+    import app as backend_app
+
+    state = {
+        "payload": None, "computed_at": 0.0, "day": None, "products": (),
+        "running": False, "supplements": {}, "supplement_day": None,
+        "supplement_at": 0.0, "retry_after": 0.0,
+    }
+    monkeypatch.setattr(backend_app, "_MACRO_SCAN_STATE", state)
+    monkeypatch.setattr(backend_app, "_MACRO_ATLAS", None)
+    monkeypatch.setattr(
+        backend_app, "_MACRO_ATLAS_PRIORITY",
+        {"held": (), "watchlist": (), "paper": (), "saved_watchlist": (), "reload": (), "requested": ()},
+    )
+    monkeypatch.setattr(backend_app, "cache", {"data": None, "timestamp": 0, "ttl": 60})
+    monkeypatch.setattr(backend_app, "PRODUCT_IDS", set())
+    monkeypatch.setattr(backend_app, "_load_product_ids", lambda **kwargs: None)
+    monkeypatch.setattr(backend_app, "MACRO_SCAN_EXTRA_INTERVAL_SECONDS", 0)
+    monkeypatch.delenv("COINBASE_PORTFOLIO_OWNER_EMAIL", raising=False)
+    return state
+
+
 # ============================================================================
 # Mock Data Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_fear_greed_response():
     """Mock Fear & Greed Index API response."""
     return {
         "name": "Fear and Greed Index",
-        "data": [{
-            "value": "65",
-            "value_classification": "Greed",
-            "timestamp": "1703232000",
-            "time_until_update": "43200"
-        }],
-        "metadata": {
-            "error": None
-        }
+        "data": [
+            {
+                "value": "65",
+                "value_classification": "Greed",
+                "timestamp": "1703232000",
+                "time_until_update": "43200",
+            }
+        ],
+        "metadata": {"error": None},
     }
 
 
@@ -41,7 +72,7 @@ def mock_coingecko_btc_response():
             "price_change_percentage_24h": 3.2,
             "price_change_percentage_7d": 8.5,
             "total_volume": {"usd": 25000000000},
-            "market_cap": {"usd": 845000000000}
+            "market_cap": {"usd": 845000000000},
         },
         "community_data": {
             "facebook_likes": None,
@@ -49,7 +80,7 @@ def mock_coingecko_btc_response():
             "reddit_average_posts_48h": 145.2,
             "reddit_average_comments_48h": 892.5,
             "reddit_subscribers": 4567890,
-            "reddit_accounts_active_48h": 12345
+            "reddit_accounts_active_48h": 12345,
         },
         "developer_data": {
             "forks": 35678,
@@ -59,10 +90,10 @@ def mock_coingecko_btc_response():
             "closed_issues": 11234,
             "pull_requests_merged": 23456,
             "pull_request_contributors": 789,
-            "commit_count_4_weeks": 234
+            "commit_count_4_weeks": 234,
         },
         "sentiment_votes_up_percentage": 72.5,
-        "sentiment_votes_down_percentage": 27.5
+        "sentiment_votes_down_percentage": 27.5,
     }
 
 
@@ -70,30 +101,27 @@ def mock_coingecko_btc_response():
 def mock_rss_feed_response():
     """Mock RSS feed response."""
     return {
-        "feed": {
-            "title": "CoinDesk",
-            "link": "https://www.coindesk.com"
-        },
+        "feed": {"title": "CoinDesk", "link": "https://www.coindesk.com"},
         "entries": [
             {
                 "title": "Bitcoin ETF Approval Sends Crypto Market Soaring",
                 "link": "https://www.coindesk.com/article1",
                 "published": "Wed, 22 Dec 2025 10:00:00 GMT",
-                "summary": "The SEC approved the first Bitcoin spot ETF, causing bullish sentiment."
+                "summary": "The SEC approved the first Bitcoin spot ETF, causing bullish sentiment.",
             },
             {
                 "title": "Ethereum Upgrade Faces Unexpected Delay",
                 "link": "https://www.coindesk.com/article2",
                 "published": "Wed, 22 Dec 2025 09:00:00 GMT",
-                "summary": "Developers postpone the upgrade due to security concerns."
+                "summary": "Developers postpone the upgrade due to security concerns.",
             },
             {
                 "title": "Major Exchange Launches New Trading Features",
                 "link": "https://www.coindesk.com/article3",
                 "published": "Wed, 22 Dec 2025 08:00:00 GMT",
-                "summary": "Binance announces innovative trading tools for institutional investors."
-            }
-        ]
+                "summary": "Binance announces innovative trading tools for institutional investors.",
+            },
+        ],
     }
 
 
@@ -107,7 +135,7 @@ def mock_reddit_response():
             score=1250,
             num_comments=345,
             created_utc=datetime.now().timestamp() - 3600,
-            url="https://reddit.com/r/cryptocurrency/post1"
+            url="https://reddit.com/r/cryptocurrency/post1",
         ),
         Mock(
             title="Concerns about upcoming regulation",
@@ -115,7 +143,7 @@ def mock_reddit_response():
             score=890,
             num_comments=234,
             created_utc=datetime.now().timestamp() - 7200,
-            url="https://reddit.com/r/cryptocurrency/post2"
+            url="https://reddit.com/r/cryptocurrency/post2",
         ),
         Mock(
             title="ETH staking rewards increasing",
@@ -123,8 +151,8 @@ def mock_reddit_response():
             score=567,
             num_comments=123,
             created_utc=datetime.now().timestamp() - 10800,
-            url="https://reddit.com/r/cryptocurrency/post3"
-        )
+            url="https://reddit.com/r/cryptocurrency/post3",
+        ),
     ]
 
 
@@ -132,30 +160,16 @@ def mock_reddit_response():
 def mock_vader_scores():
     """Mock VADER sentiment scores."""
     return {
-        "positive": {
-            "neg": 0.0,
-            "neu": 0.25,
-            "pos": 0.75,
-            "compound": 0.78
-        },
-        "negative": {
-            "neg": 0.70,
-            "neu": 0.25,
-            "pos": 0.05,
-            "compound": -0.65
-        },
-        "neutral": {
-            "neg": 0.10,
-            "neu": 0.80,
-            "pos": 0.10,
-            "compound": 0.0
-        }
+        "positive": {"neg": 0.0, "neu": 0.25, "pos": 0.75, "compound": 0.78},
+        "negative": {"neg": 0.70, "neu": 0.25, "pos": 0.05, "compound": -0.65},
+        "neutral": {"neg": 0.10, "neu": 0.80, "pos": 0.10, "compound": 0.0},
     }
 
 
 # ============================================================================
 # Configuration Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_sentiment_config():
@@ -169,23 +183,23 @@ def mock_sentiment_config():
                 "tier1": 0.85,
                 "tier2": 0.70,
                 "tier3": 0.50,
-                "fringe": 0.30
+                "fringe": 0.30,
             },
-            "divergence_threshold": 0.12
+            "divergence_threshold": 0.12,
         },
         "sources": {
             "fear_greed": {"enabled": True},
             "coingecko": {"enabled": True},
             "rss": {"enabled": True},
             "reddit_global": {"enabled": True},
-            "reddit_symbol": {"enabled": True}
+            "reddit_symbol": {"enabled": True},
         },
         "rss_feeds": [
             {
                 "name": "CoinDesk",
                 "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
                 "tier": 2,
-                "weight": 0.80
+                "weight": 0.80,
             }
         ],
         "reddit_subreddits": ["CryptoCurrency", "Bitcoin", "ethereum"],
@@ -197,14 +211,15 @@ def mock_sentiment_config():
             "rug": -2.5,
             "scam": -2.5,
             "hack": -2.0,
-            "fud": -1.5
-        }
+            "fud": -1.5,
+        },
     }
 
 
 # ============================================================================
 # Cache Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_cache():
@@ -220,7 +235,7 @@ def mock_cache():
     def set(key, data, ttl=300):
         cache_data[key] = {
             "data": data,
-            "expires_at": datetime.now() + timedelta(seconds=ttl)
+            "expires_at": datetime.now() + timedelta(seconds=ttl),
         }
 
     def clear():
@@ -237,6 +252,7 @@ def mock_cache():
 # Symbol Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def common_symbols():
     """Common cryptocurrency symbols for testing."""
@@ -249,15 +265,16 @@ def edge_case_symbols():
     return [
         "BTC/USD",  # With slash
         "BTC-USD",  # With hyphen
-        "btc",      # Lowercase
+        "btc",  # Lowercase
         "  BTC  ",  # With whitespace
-        "UNKNOWN_COIN_2025"  # Unknown symbol
+        "UNKNOWN_COIN_2025",  # Unknown symbol
     ]
 
 
 # ============================================================================
 # Async Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 async def mock_aiohttp_session():
@@ -279,21 +296,26 @@ async def mock_aiohttp_session():
 # Error Simulation Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def simulate_network_error():
     """Simulate network connectivity issues."""
+
     def _simulate(exception_type=Exception, message="Network error"):
         return exception_type(message)
+
     return _simulate
 
 
 @pytest.fixture
 def simulate_rate_limit():
     """Simulate API rate limiting."""
+
     def _simulate():
         error = Exception("429 Too Many Requests")
         error.status_code = 429
         return error
+
     return _simulate
 
 
@@ -301,3 +323,102 @@ def simulate_rate_limit():
 def simulate_invalid_json():
     """Simulate invalid JSON response."""
     return json.JSONDecodeError("Expecting value", "", 0)
+
+
+# ============================================================================
+# Measurement-gate helpers
+# ============================================================================
+#
+# Publication is fail-closed: it needs the control tables to physically exist
+# and a category to clear the evidence gate. Tests that exercise grading
+# mechanics — "does a target before a stop count as follow-through?" — are not
+# testing the gate and must opt out of it explicitly, so that opting out is
+# always visible at the call site and never the default.
+
+
+@pytest.fixture
+def relaxed_evidence_gate(monkeypatch):
+    """Shrink the evidence gate to one market period and no span requirement."""
+    import signal_outcomes
+
+    monkeypatch.setattr(signal_outcomes, "EVIDENCE_GATE_MARKET_PERIODS", 1)
+    monkeypatch.setattr(signal_outcomes, "EVIDENCE_GATE_SPAN_DAYS", 0)
+    return True
+
+
+@pytest.fixture
+def enable_controls():
+    """Create the control table so `publication_enabled()` can return True.
+
+    Simulates the structure Phase 1 will build. Production code never creates
+    this table in Phase 0, which is what makes the gate unbypassable there.
+    """
+
+    def _enable(store):
+        conn = store._connect()
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS signal_controls (signal_id TEXT)")
+            conn.commit()
+        finally:
+            conn.close()
+        return store
+
+    return _enable
+
+
+# ============================================================================
+# Cycle read fixtures
+# ============================================================================
+
+CYCLE_FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+CYCLE_LAST_TS = 1794700800  # 2026-11-15 00:00 UTC, the last bar of every series
+
+
+@pytest.fixture
+def cycle_fixture():
+    """Load a deterministic three-year candle fixture by name (oldest first)."""
+
+    def load(name, full=False):
+        path = os.path.join(CYCLE_FIXTURE_DIR, f"{name}.json")
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return payload if full else payload["candles"]
+
+    return load
+
+
+@pytest.fixture
+def daily_series():
+    """Build synthetic daily candles along straight lines in log price.
+
+    ``legs`` are ``(days, end_price)``. A fixed sine texture gives the bars a
+    range; nothing is random. Bars are oldest first and end at CYCLE_LAST_TS.
+    """
+    import math
+
+    def build(start, legs, texture=0.008, wick=0.012):
+        closes, price = [], start
+        for days, end in legs:
+            for step in range(1, days + 1):
+                closes.append(price * (end / price) ** (step / days))
+            price = end
+        shaped = [
+            close * (1 + texture * (math.sin(i * 0.9) + 0.6 * math.sin(i * 0.23 + 1)))
+            for i, close in enumerate(closes)
+        ]
+        out = []
+        for i, close in enumerate(shaped):
+            open_ = shaped[i - 1] if i else close / 1.002
+            out.append(
+                [
+                    CYCLE_LAST_TS - (len(shaped) - 1 - i) * 86400,
+                    min(open_, close) * (1 - wick),
+                    max(open_, close) * (1 + wick),
+                    open_,
+                    close,
+                    1_000_000.0,
+                ]
+            )
+        return out
+
+    return build

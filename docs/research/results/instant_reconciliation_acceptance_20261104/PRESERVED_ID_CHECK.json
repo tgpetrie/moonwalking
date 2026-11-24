@@ -1,0 +1,23 @@
+{
+  "scope": "offline_ID_and_receipt_quality_check_only_no_outcome_or_price_analysis",
+  "source_sha256": "4b4a56ecf9e65a5c36d70a28be726f39dd67e6523c26c92bf16aa671bc8ea97b",
+  "packets": 63258,
+  "unique_live_matches": 24424,
+  "strict_proofs": 14396,
+  "strict_failures": 33,
+  "merged_proofs": 16,
+  "failed_proofs_reconciled": 33,
+  "failed_proofs_unreconciled": 0,
+  "strict_proofs_unchanged_except_processing_and_added_epoch": true,
+  "trade_first_receipts_and_counts_unchanged": true,
+  "max_merged_proofs": 3,
+  "max_merged_span_ms": 2990,
+  "earliest_repaired_interval_extra_receipt_wait_ms": {
+    "median": 965.5,
+    "maximum": 1993
+  },
+  "processing_clock": "actual_review_time_not_historical_receipt",
+  "full_feed_gate_pass": false,
+  "return_labels_evaluated": false,
+  "new_capture": false
+}

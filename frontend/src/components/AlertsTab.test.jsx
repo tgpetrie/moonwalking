@@ -1,12 +1,27 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { SignalRow } from "./AlertsTab";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { SignalRow, freshnessFromStale } from "./AlertsTab";
+import AnomalyStream from "./AnomalyStream.jsx";
+import SmartAlertRulesPanel, { buildConditionValue } from "./SmartAlertRulesPanel.jsx";
 
 // AlertsTab imports contexts that SignalRow doesn't use — mock so the module loads cleanly
 vi.mock("../context/DataContext", () => ({ useData: () => ({}) }));
 vi.mock("../context/WatchlistContext.jsx", () => ({ useWatchlist: () => ({ watchlist: [] }) }));
 
 const NOW_MS = 1_800_000_000_000;
+
+describe("market mood feed freshness", () => {
+  it("describes literal feed age instead of calling it confidence", () => {
+    expect(freshnessFromStale(1.2, 0.7)).toMatchObject({
+      label: "Feed freshness: 1.2s",
+      hint: "Oldest market input is 1.2s old.",
+    });
+  });
+
+  it("shows unavailable when no freshness measurement exists", () => {
+    expect(freshnessFromStale(null, null).label).toBe("Feed freshness unavailable");
+  });
+});
 
 const base = {
   id: "test-1",
@@ -31,6 +46,25 @@ const productionInterp = {
 // ---------------------------------------------------------------------------
 
 describe("SignalRow – primary text", () => {
+  it("uses the coin's USD spot page for Trade, even when the signal has a source URL", () => {
+    render(
+      <SignalRow
+        a={{ ...base, symbol: "RENDER-USDC", url: "https://example.com/news" }}
+        nowMs={NOW_MS}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Open Coinbase Advanced Trade" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("keeps an intelligence log Trade link on Coinbase when the feed supplies an alternate URL", async () => {
+    render(<AnomalyStream data={{ alerts: [{ ...base, symbol: "RENDER", trade_url: "https://example.com/trade" }] }} />);
+    const link = await screen.findByRole("link", { name: "RENDER" });
+    expect(link).toHaveAttribute("href", "https://www.coinbase.com/advanced-trade/spot/RENDER-USD");
+  });
+
   it("shows interpretation summary when support_level is production", () => {
     render(<SignalRow a={{ ...base, interpretation: productionInterp }} nowMs={NOW_MS} />);
     expect(screen.getByText(/Price broke out.*confirmed multi-window momentum/)).toBeInTheDocument();
@@ -163,31 +197,39 @@ describe("SignalRow – confidence label source", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Confidence fallback — root score used when engine has no coverage
+// 4. Signals/event confidence is semantically distinct from interpretation
 // ---------------------------------------------------------------------------
 
-describe("SignalRow – confidence fallback to root", () => {
-  it("falls back to root confidence when support_level is none", () => {
+describe("SignalRow – event rows do not reuse interpretation confidence labels", () => {
+  it("does not show root event confidence when support_level is none", () => {
     const a = {
       ...base,
       confidence: 80,
       interpretation: { summary: "x", confidence: null, interpretation_support_level: "none" },
     };
     render(<SignalRow a={a} nowMs={NOW_MS} />);
-    expect(screen.getByText("High")).toBeInTheDocument();
-  });
-
-  it("falls back to root confidence when interpretation is absent", () => {
-    const a = { ...base, confidence: 50 };
-    render(<SignalRow a={a} nowMs={NOW_MS} />);
-    expect(screen.getByText("Developing")).toBeInTheDocument();
-  });
-
-  it("shows no confidence chip when both scores are absent", () => {
-    render(<SignalRow a={{ ...base }} nowMs={NOW_MS} />);
     expect(screen.queryByText("High")).not.toBeInTheDocument();
-    expect(screen.queryByText("Developing")).not.toBeInTheDocument();
-    expect(screen.queryByText("Limited")).not.toBeInTheDocument();
+  });
+
+  it("does not show High solely from a Moonwalking event-state score", () => {
+    const a = { ...base, primary_state: "Moonwalking", confidence: 82 };
+    render(<SignalRow a={a} nowMs={NOW_MS} />);
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText("MOONWALKING")).toBeInTheDocument();
+  });
+
+  it("suppresses the chip on Signals rows even if interpretation is present", () => {
+    const a = { ...base, interpretation: { ...productionInterp, confidence: 80 } };
+    render(<SignalRow a={a} nowMs={NOW_MS} confidenceSemantics="none" />);
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText(/Price broke out/)).toBeInTheDocument();
+    expect(screen.getByText("Why this read?")).toBeInTheDocument();
+  });
+
+  it("does not mutate the stored event confidence value", () => {
+    const a = { ...base, primary_state: "Reversal Risk", confidence: 72 };
+    render(<SignalRow a={a} nowMs={NOW_MS} confidenceSemantics="none" />);
+    expect(a.confidence).toBe(72);
   });
 });
 
@@ -267,14 +309,170 @@ describe("SignalRow – legacy alerts (pre-engine)", () => {
     expect(screen.getByText(/surged above resistance/)).toBeInTheDocument();
   });
 
-  it("shows root confidence chip for legacy alert", () => {
+  it("does not present root event confidence as interpretation confidence", () => {
     const legacy = { ...base, confidence: 72, message: "BTC breakout" };
     render(<SignalRow a={legacy} nowMs={NOW_MS} />);
-    expect(screen.getByText("High")).toBeInTheDocument();
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText("breakout")).toBeInTheDocument();
   });
 
   it("shows no Why this read? for legacy alert", () => {
     render(<SignalRow a={{ ...base, message: "BTC moved" }} nowMs={NOW_MS} />);
     expect(screen.queryByText("Why this read?")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Smart wake-up rules & history panel
+// ---------------------------------------------------------------------------
+
+describe("SmartAlertRulesPanel", () => {
+  const seeded = {
+    id: 1,
+    name: "Stage 3 Industry Breakout Wake-Up",
+    enabled: true,
+    urgency: "wake_up",
+    scope: "market",
+    symbols: [],
+    conditions: [{ predicate: "liquidity_rotation_stage", value: { min: 3 } }],
+    match: "all",
+  };
+
+  function mockSmartAlerts({ delivery = { dispatcher: 1 }, createError } = {}) {
+    let rules = [seeded];
+    let history = [{ id: 9, rule_id: 1, symbol: "MARKET", urgency: "wake_up", fired_ts: 1_800_000_000, message: "Stage 3 breakout" }];
+    const calls = [];
+    vi.stubGlobal("fetch", vi.fn((url, options = {}) => {
+      const path = String(url).replace(/^https?:\/\/[^/]+/, "");
+      const method = options.method || "GET";
+      const body = options.body ? JSON.parse(options.body) : undefined;
+      calls.push({ path, method, body });
+      let payload = { status: "live" };
+      const ruleMatch = path.match(/^\/api\/smart-alerts\/rules\/(\d+)$/);
+      if (ruleMatch && method === "PATCH") {
+        rules = rules.map((r) => (r.id === Number(ruleMatch[1]) ? { ...r, ...body } : r));
+        payload.rule = rules.find((r) => r.id === Number(ruleMatch[1]));
+      } else if (ruleMatch && method === "DELETE") {
+        rules = rules.filter((r) => r.id !== Number(ruleMatch[1]));
+        payload.deleted = Number(ruleMatch[1]);
+      } else if (path === "/api/smart-alerts/rules" && method === "POST") {
+        if (createError) return Promise.resolve({ ok: false, status: 409, json: async () => ({ error: createError }) });
+        payload.rule = { id: 2, enabled: true, symbols: [], match: "all", ...body };
+        rules = [...rules, payload.rule];
+      } else if (path === "/api/smart-alerts/rules") {
+        payload = { ...payload, rules, predicates: ["price_above", "stop_proximity_pct", "daily_macd_kiss"], ntfy_configured: false };
+      } else if (path.startsWith("/api/smart-alerts/history")) {
+        payload.history = history;
+      } else if (path === "/api/smart-alerts/test") {
+        payload.alert = { id: 10, rule_id: 0, symbol: "TEST", urgency: body.urgency, fired_ts: 1_800_000_100, message: "Test Alert", delivered: delivery };
+        history = [payload.alert, ...history];
+      }
+      return Promise.resolve({ ok: true, status: method === "POST" ? 201 : 200, json: async () => payload });
+    }));
+    return calls;
+  }
+
+  async function openPanel() {
+    const { container } = render(<SmartAlertRulesPanel />);
+    const details = container.querySelector("details");
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    await screen.findByRole("list", { name: "Smart alert rules" });
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads nothing until opened, then lists rules and history", async () => {
+    const calls = mockSmartAlerts();
+    render(<SmartAlertRulesPanel />);
+    expect(calls).toHaveLength(0);
+    cleanup();
+    await openPanel();
+    const rule = screen.getByRole("listitem", { name: seeded.name });
+    expect(within(rule).getByText("Wake-up")).toBeInTheDocument();
+    expect(within(rule).getByText("liquidity_rotation_stage ≥ 3")).toBeInTheDocument();
+    expect(screen.getByText("Stage 3 breakout")).toBeInTheDocument();
+    expect(screen.getByText(/No ntfy push destination is configured/)).toBeInTheDocument();
+  });
+
+  it("toggles, deletes, creates rules and fires a test alert", async () => {
+    const calls = mockSmartAlerts();
+    await openPanel();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: `Enable ${seeded.name}` }));
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: `Enable ${seeded.name}` })).not.toBeChecked());
+
+    const form = screen.getByRole("form", { name: "New smart alert rule" });
+    const add = within(form).getByRole("button", { name: "Add rule" });
+    expect(add).toBeDisabled();
+    fireEvent.change(within(form).getByRole("textbox", { name: "Name" }), { target: { value: "RENDER reclaim" } });
+    fireEvent.change(within(form).getByRole("combobox", { name: "Urgency" }), { target: { value: "action_queue" } });
+    fireEvent.change(within(form).getByRole("combobox", { name: "Scope" }), { target: { value: "symbols" } });
+    fireEvent.change(within(form).getByRole("textbox", { name: "Symbols" }), { target: { value: "render" } });
+    fireEvent.change(within(form).getByRole("textbox", { name: "Value" }), { target: { value: "9.5" } });
+    fireEvent.click(add);
+    expect(await screen.findByRole("listitem", { name: "RENDER reclaim" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Test alert urgency" }), { target: { value: "action_queue" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send test alert" }));
+    expect(await screen.findByText("Test alert sent.")).toBeInTheDocument();
+    expect(screen.getByText("TEST")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: `Delete ${seeded.name}` }));
+    await waitFor(() => expect(screen.queryByRole("listitem", { name: seeded.name })).not.toBeInTheDocument());
+
+    const writes = calls.filter((c) => c.method !== "GET").map(({ path, method, body }) => ({ path, method, body }));
+    expect(writes).toEqual([
+      { path: "/api/smart-alerts/rules/1", method: "PATCH", body: { enabled: false } },
+      {
+        path: "/api/smart-alerts/rules",
+        method: "POST",
+        body: {
+          name: "RENDER reclaim",
+          urgency: "action_queue",
+          scope: "symbols",
+          symbols: ["RENDER"],
+          conditions: [{ predicate: "price_above", value: 9.5 }],
+        },
+      },
+      { path: "/api/smart-alerts/test", method: "POST", body: { urgency: "action_queue" } },
+      { path: "/api/smart-alerts/rules/1", method: "DELETE", body: undefined },
+    ]);
+  });
+
+  it("keeps the rule form available after a rejected edit and reports a failed test delivery", async () => {
+    mockSmartAlerts({ delivery: { ntfy: "failed:Timeout" }, createError: "Rule name exists." });
+    await openPanel();
+    const form = screen.getByRole("form", { name: "New smart alert rule" });
+    const name = within(form).getByRole("textbox", { name: "Name" });
+    fireEvent.change(name, { target: { value: "Duplicate" } });
+    fireEvent.change(within(form).getByRole("textbox", { name: "Value" }), { target: { value: "9.5" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Add rule" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Rule name exists.");
+    expect(name).toHaveValue("Duplicate");
+
+    fireEvent.click(screen.getByRole("button", { name: "Send test alert" }));
+    expect(await screen.findByText("Test alert recorded. Delivery failed.")).toBeInTheDocument();
+    expect(screen.getByText("TEST")).toBeInTheDocument();
+  });
+
+  it("explains owner-only access", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false, status: 401, json: async () => ({ error: "Sign in" }) })));
+    const { container } = render(<SmartAlertRulesPanel />);
+    const details = container.querySelector("details");
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("available to the configured portfolio owner");
+  });
+
+  it("shapes condition values for each predicate", () => {
+    expect(buildConditionValue("price_above", "9.5")).toBe(9.5);
+    expect(buildConditionValue("price_below", "abc")).toBeNull();
+    expect(buildConditionValue("stop_proximity_pct", "3")).toEqual({ max: 3 });
+    expect(buildConditionValue("liquidity_rotation_stage", "3")).toEqual({ min: 3 });
+    expect(buildConditionValue("liquidity_rotation_stage", "stage_2_btc_majors_lead")).toBe("stage_2_btc_majors_lead");
+    expect(buildConditionValue("daily_macd_kiss", "")).toBe(true);
+    expect(buildConditionValue("fib_zone_hit", "")).toBe("rollover_target_box");
+    expect(buildConditionValue("cycle_bucket", "")).toBeNull();
   });
 });

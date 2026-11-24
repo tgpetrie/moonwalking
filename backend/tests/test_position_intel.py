@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from position_intel import enrich_portfolio, _assess_order, _assess_holding
@@ -39,10 +41,10 @@ def _order(symbol, side, limit_price):
 
 
 def test_holding_gets_signal_context():
-    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    signal = _signal("SOL", "Moonwalking", "up", 85, "BUY WATCH")
     intel = _assess_holding(_holding("SOL", 150.0, 300.0, 15.0), signal, None, None)
     assert intel["posture"] == "momentum_favorable"
-    assert intel["signal"]["state"] == "Confirmed"
+    assert intel["signal"]["state"] == "Moonwalking"
     assert intel["signal"]["label"] == "BUY WATCH"
 
 
@@ -57,8 +59,50 @@ def test_holding_adverse_pressure():
     assert intel["posture"] == "pressure_adverse"
 
 
+@pytest.mark.parametrize(
+    ("state", "direction", "confidence", "expected_posture"),
+    [
+        pytest.param("Building", "up", 48, "developing", id="building-up"),
+        pytest.param("Building", "down", 48, "developing", id="building-down-low"),
+        pytest.param(
+            "Building", "down", 60, "pressure_adverse", id="building-down-active"
+        ),
+        pytest.param("Building", "neutral", 48, "developing", id="building-neutral"),
+        pytest.param("Breakout", "up", 66, "momentum_favorable", id="breakout-up"),
+        pytest.param("Breakout", "down", 66, "pressure_adverse", id="breakout-down"),
+        pytest.param("Breakout", "neutral", 66, "neutral", id="breakout-neutral"),
+        pytest.param(
+            "Moonwalking", "up", 82, "momentum_favorable", id="moonwalking-up"
+        ),
+        pytest.param(
+            "Moonwalking", "down", 82, "pressure_adverse", id="moonwalking-down"
+        ),
+        pytest.param("Moonwalking", "neutral", 82, "neutral", id="moonwalking-neutral"),
+        pytest.param("Reversal Risk", "up", 72, "momentum_fading", id="reversal-up"),
+        pytest.param(
+            "Reversal Risk", "down", 72, "momentum_fading", id="reversal-down"
+        ),
+        pytest.param(
+            "Reversal Risk", "neutral", 72, "momentum_fading", id="reversal-neutral"
+        ),
+    ],
+)
+def test_canonical_event_state_posture_table(
+    state, direction, confidence, expected_posture
+):
+    signal = _signal("SOL", state, direction, confidence)
+    intel = _assess_holding(_holding("SOL", 150.0, 300.0, 15.0), signal, None, None)
+    assert intel["posture"] == expected_posture
+
+
+def test_unknown_state_with_neutral_direction_remains_neutral():
+    signal = _signal("SOL", "", "neutral", 0)
+    intel = _assess_holding(_holding("SOL", 150.0, 300.0, 15.0), signal, None, None)
+    assert intel["posture"] == "neutral"
+
+
 def test_holding_with_outcome_history():
-    signal = _signal("SOL", "Confirmed", "up", 85)
+    signal = _signal("SOL", "Breakout", "up", 85)
     stats = {
         "sample_size": 50,
         "follow_through_rate": 0.62,
@@ -72,18 +116,36 @@ def test_holding_with_outcome_history():
 
 
 def test_stop_loss_order_assessment():
-    signal = _signal("COTI", "Weakening", "up", 45)
+    signal = _signal("COTI", "Reversal Risk", "up", 72)
     assessment = _assess_order(_order("COTI", "SELL", 0.008), 0.01, signal, None)
     assert assessment["order_type_hint"] == "stop_loss"
     assert assessment["buffer_pct"] > 0
     assert "tightening" in assessment.get("context", "").lower()
 
 
-def test_take_profit_order_with_confirmed_upside():
-    signal = _signal("SOL", "Confirmed", "up", 88)
+def test_take_profit_order_with_breakout_upside():
+    signal = _signal("SOL", "Breakout", "up", 88)
     assessment = _assess_order(_order("SOL", "SELL", 180.0), 150.0, signal, None)
     assert assessment["order_type_hint"] == "take_profit"
     assert "reachable" in assessment.get("context", "").lower()
+
+
+def test_stop_loss_order_with_breakout_downside():
+    signal = _signal("SOL", "Breakout", "down", 66)
+    assessment = _assess_order(_order("SOL", "SELL", 120.0), 150.0, signal, None)
+    assert "downside pressure" in assessment.get("context", "").lower()
+
+
+def test_stop_loss_order_with_moonwalking_upside():
+    signal = _signal("SOL", "Moonwalking", "up", 82)
+    assessment = _assess_order(_order("SOL", "SELL", 120.0), 150.0, signal, None)
+    assert "breathing room" in assessment.get("context", "").lower()
+
+
+def test_take_profit_order_with_reversal_risk_is_cautionary():
+    signal = _signal("SOL", "Reversal Risk", "up", 72)
+    assessment = _assess_order(_order("SOL", "SELL", 180.0), 150.0, signal, None)
+    assert "may not be reached" in assessment.get("context", "").lower()
 
 
 def test_limit_buy_order():
@@ -93,7 +155,7 @@ def test_limit_buy_order():
 
 
 def test_holding_with_board_data():
-    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    signal = _signal("SOL", "Moonwalking", "up", 85, "BUY WATCH")
     board = {
         "change_1m": 2.5,
         "change_3m": 4.1,
@@ -134,7 +196,7 @@ def test_enrich_portfolio_adds_intel():
         ],
         "summary": {"holding_count": 2},
     }
-    signals = [_signal("SOL", "Confirmed", "up", 85)]
+    signals = [_signal("SOL", "Moonwalking", "up", 85)]
 
     enriched = enrich_portfolio(snapshot, signals=signals)
 
@@ -223,7 +285,7 @@ def test_no_signal_and_no_price_change_stays_no_signal():
 
 
 def test_real_signal_marks_read_source_signal():
-    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    signal = _signal("SOL", "Moonwalking", "up", 85, "BUY WATCH")
     intel = _assess_holding(_holding_24h("SOL", 4.2), signal, None, None)
     # A live signal wins over the descriptive fallback.
     assert intel["posture"] == "momentum_favorable"
@@ -255,7 +317,7 @@ def test_levels_attach_and_enrich_descriptive_read():
 
 
 def test_levels_do_not_touch_a_signal_read():
-    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    signal = _signal("SOL", "Moonwalking", "up", 85, "BUY WATCH")
     snapshot = {
         "holdings": [_holding_24h("SOL", 4.2)],
         "open_orders": [],
@@ -281,7 +343,7 @@ def test_summary_keeps_signal_coverage_pure():
         "open_orders": [],
         "summary": {"holding_count": 3},
     }
-    signals = [_signal("SOL", "Confirmed", "up", 85)]
+    signals = [_signal("SOL", "Moonwalking", "up", 85)]
     enriched = enrich_portfolio(snapshot, signals=signals)
 
     summary = enriched["intel_summary"]

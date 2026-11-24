@@ -1,0 +1,92 @@
+{
+  "version": "instant-target-v2-draft",
+  "status": "independent_review_required_not_study_ready",
+  "scope": "evaluation_only_never_live_features",
+  "hash_scheme": "sha256_utf8_lf_normalized_contract_file",
+  "grid_ms": 5000,
+  "input_windows_seconds": [
+    30,
+    180
+  ],
+  "outcome_horizons_seconds": [
+    300,
+    900
+  ],
+  "endpoint_slack_ms": 0,
+  "comparison_tolerance": 1e-12,
+  "max_quote_age_ms": 10000,
+  "sigma_floor_1m": 0.0015,
+  "minimum_baseline_returns": 60,
+  "onset": {
+    "velocity_window_seconds": 30,
+    "velocity_crossing_sigma": 1.0,
+    "pace_multiple_strictly_greater_than": 2.0,
+    "minimum_prior_pace_windows": 120,
+    "minimum_matches_30s": 5,
+    "breakout_sigma": 1.5,
+    "breakout_deadline_seconds": 180,
+    "no_retrace_tolerance_log": 1e-12,
+    "definition": "activity_confirmed_velocity_crossing_followed_by_breakout_and_no_retrace_through_horizon"
+  },
+  "impulse": {
+    "terminal_sigma_multiple": 3.0,
+    "minimum_terminal_log_return": 0.015,
+    "entry_spread_multiple": 3.0,
+    "minimum_peak_retention": 0.6,
+    "minimum_forward_matches": 3,
+    "peak_tie": "first_timestamp",
+    "direction": "signed_favorable_residual_never_absolute_return"
+  },
+  "events": {
+    "selection": "earliest_verified_onset_per_product_direction_horizon_secondary_only",
+    "nonoverlap": "next_onset_at_or_after_previous_onset_plus_horizon",
+    "prediction_lead_limit_seconds": 180,
+    "early_detection_consumed_fraction_strictly_below": 0.5,
+    "alert_cooldown_seconds": 900,
+    "alert_cooldown_scope": "per_product_shared_across_boards_separate_from_event_nonoverlap",
+    "primary_catalog_selection": "earliest_verified_forward_window_per_product_direction_horizon"
+  },
+  "costs": {
+    "fee_bps_per_side_scenarios": [
+      0.0,
+      10.0,
+      25.0
+    ],
+    "spread_cost": "half_entry_spread_plus_half_exit_spread",
+    "basis": "directional_coin_midpoint_simple_return_bps_before_costs",
+    "interpretation": "illustrative_friction_scenarios_not_fills_or_account_fees"
+  },
+  "missingness": "pending_until_maturity_then_unavailable_on_missing_or_invalid_data_never_false",
+  "universe": "all_causally_eligible_products_and_grid_times_including_no_move_rows",
+  "fitting_allowed": false,
+  "remaining_study_gates": [
+    "independent_review_of_v2_targets_and_event_association_protocol",
+    "feed_side_and_coverage_audit",
+    "recorder_and_universe_contract",
+    "exact_F1_F5_formulas_and_live_stage_thresholds",
+    "readiness_minima_and_model_freeze",
+    "at_least_14_valid_shadow_days_and_fresh_validation"
+  ],
+  "baseline": {
+    "sigma_end_rule": "floor((anchor_ms-velocity_window_ms-grid_ms)/60000)*60000",
+    "exclude_onset_velocity_window": true,
+    "purpose": "keep trigger-window movement outside the baseline scale; this is a measurement policy, not a future-data leakage claim"
+  },
+  "targets": {
+    "primary_pointwise": "verified_forward",
+    "strict_onset_role": "secondary_diagnostic_only_not_primary_fitting_or_total_recall_denominator",
+    "gate_conditioned_analysis": "compare continuation within onset_candidate using gate inputs in the null baseline",
+    "physical_onset_defined": false,
+    "model_probability_metrics_require": "a separately declared probabilistic model; ordinal scores alone do not establish calibrated probabilities"
+  },
+  "reference_metrics": {
+    "post_trigger_reference": "anchor",
+    "pre_window_reference": "anchor_minus_velocity_window",
+    "pre_window_peak_search": "pre_window_reference_through_anchor_plus_horizon",
+    "pre_window_is_physical_origin": false,
+    "unqualified_consumed_fraction_allowed": false,
+    "trigger_timing_early_fraction_reference": "pre_window",
+    "forward_catalog_kind": "forward_window_not_physical_impulse",
+    "operational_false_alert_and_missed_move_rates_enabled": false
+  }
+}

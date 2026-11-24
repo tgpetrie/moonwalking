@@ -1,0 +1,194 @@
+{
+  "stop": "transport_error",
+  "segment_status": "finished",
+  "plan_sha256": "096c96443d0fb0528eda1b92ee1b78f33be49efa5e74d3ef886476e701ab6262",
+  "journal_sha256": "592cf1b482e42403174574cdf18f112e80a9b4d2c5fbdbfd22047524a51e0ed6",
+  "sqlite_quick_check": "ok",
+  "packet_records_verified": 167407,
+  "batch_ingress_clocks_verified": 167405,
+  "pending_ingress_frames": 0,
+  "publication_prefixes_verified": 0,
+  "journal_only_publications": 0,
+  "unacknowledged_publications": 0,
+  "local_observations_verified": 0,
+  "schedule_results": {
+    "1500": {
+      "planned_cohorts": 10,
+      "consumer_age_bound_ms": 2500,
+      "products": {
+        "BTC-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "SOL-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "ALCX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AURORA-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "LINK-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AVAX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        }
+      },
+      "cutoff_to_consumer_ms": {
+        "n": 0
+      },
+      "cutoffs_with_two_ready_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      },
+      "cutoffs_with_two_on_time_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      }
+    },
+    "5000": {
+      "planned_cohorts": 10,
+      "consumer_age_bound_ms": 6000,
+      "products": {
+        "BTC-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "SOL-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "ALCX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AURORA-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "LINK-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        },
+        "AVAX-USD": {
+          "planned": 20,
+          "journaled": 0,
+          "complete_inputs": 0,
+          "observed": 0,
+          "within_bound": 0,
+          "complete_and_within_bound": 0
+        }
+      },
+      "cutoff_to_consumer_ms": {
+        "n": 0
+      },
+      "cutoffs_with_two_ready_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      },
+      "cutoffs_with_two_on_time_candidates_by_direction": {
+        "up": 0,
+        "down": 0
+      }
+    }
+  },
+  "pc_execution": {
+    "attempt": "asia-20261110-162344",
+    "checkout_commit": "d24dadcc2c577904e48e94b5a20e136e6ece2d05",
+    "window_utc": "asia",
+    "profile": "eligibility-timing-256",
+    "products": [
+      "BTC-USD",
+      "SOL-USD",
+      "ALCX-USD",
+      "AURORA-USD",
+      "LINK-USD",
+      "AVAX-USD"
+    ],
+    "launch_utc": "2026-11-11T00:24:31.8970642+00:00",
+    "first_ack_ts_ms": 1794356673393,
+    "last_reader_receipt_ts_ms": 1794359028291,
+    "last_reader_receipt_after_full_ack_ms": 2354898,
+    "journal_bytes": 174534656,
+    "transport_error": "Connection to remote host was lost.",
+    "cohorts": {
+      "planned": 20,
+      "complete": 0
+    },
+    "reader": {
+      "received": 167405,
+      "delivered": 167405,
+      "received_not_delivered": 0,
+      "sampled_high_water": 231,
+      "overflow": null
+    },
+    "clock_before_offsets_seconds": [
+      -0.108618,
+      0.1526714,
+      -0.0971807,
+      -0.1056725,
+      -0.0943422
+    ],
+    "clock_after_immediate_error": "The following error occurred: No such host is known. (0x80072AF9)",
+    "clock_after_retry_offsets_seconds": [
+      -0.0552805,
+      -0.0632704,
+      -0.0625993,
+      -0.0622275,
+      -0.0644262
+    ],
+    "stderr_bytes": 0,
+    "windows_targeted_tests_passed": 50
+  }
+}
