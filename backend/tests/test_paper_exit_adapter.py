@@ -345,3 +345,79 @@ def test_collector_cli_writes_a_replayable_window(monkeypatch, tmp_path):
         path.endswith(("/product_book", "/transaction_summary")) for path in calls
     )
     assert client.request_deadline_monotonic is None
+
+
+def _run_cli_window(monkeypatch, tmp_path, *, after_window):
+    """Run the collector CLI with a fake account whose state after the window
+    is set by ``after_window``: "unchanged", "changed" or "unreadable"."""
+    client, _ = coinbase_client(monkeypatch)
+    start = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(seconds=10)
+    now = int(start.timestamp()) * 1000 - 1000
+    original_get = client.get
+    original_collect = adapter.collect_quotes
+    window_over = False
+
+    def sleep(seconds):
+        nonlocal now
+        now += round(seconds * 1000)
+
+    def get(path, *, params=None):
+        if path.endswith("/accounts") and window_over:
+            # The recheck runs under its own request deadline, like preflight.
+            assert client.request_deadline_monotonic is not None
+            if after_window == "unreadable":
+                raise CoinbaseRequestError("Coinbase did not respond in time.")
+            response = original_get(path, params=params)
+            if after_window == "changed":
+                response["accounts"][0]["available_balance"]["value"] = "0.004"
+            return response
+        response = original_get(path, params=params)
+        if path.endswith("/product_book"):
+            response["pricebook"]["time"] = datetime.fromtimestamp(
+                now / 1000, timezone.utc
+            ).isoformat()
+        return response
+
+    def collect(client, spec):
+        nonlocal window_over
+        quotes = original_collect(client, spec, now_ms=lambda: now, sleep=sleep)
+        window_over = True
+        return quotes
+
+    monkeypatch.setattr(client, "get", get)
+    monkeypatch.setattr(CoinbaseAdvancedTradeClient, "from_environment", lambda: client)
+    monkeypatch.setattr(adapter, "_now_ms", lambda: now)
+    monkeypatch.setattr(adapter, "collect_quotes", collect)
+    output = tmp_path / f"window-{after_window}.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "paper_exit_adapter", "--product", "BTC-USD", "--quantity", "0.005",
+            "--start-utc", start.isoformat(), "--duration-seconds", "3",
+            "--slippage-bps", "10", "--out", str(output),
+        ],
+    )
+    adapter.main()
+    assert client.request_deadline_monotonic is None
+    return json.loads(output.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("after_window", "recorded", "reported"),
+    [
+        ("unchanged", True, "unchanged"),
+        ("changed", False, "changed"),
+        ("unreadable", None, "unverified"),
+    ],
+)
+def test_the_holding_is_rechecked_after_the_window(
+    monkeypatch, tmp_path, after_window, recorded, reported
+):
+    spec = _run_cli_window(monkeypatch, tmp_path, after_window=after_window)
+    # The tape is always written, so a changed holding is visible, not lost.
+    assert spec["post_window_holding_unchanged"] is recorded
+    assert len(spec["quotes"]) == 3
+    result = simulate_exit(spec)
+    assert result["pilot_settings"]["post_window_holding"] == reported
+    assert result["official_pilot_result"] is False

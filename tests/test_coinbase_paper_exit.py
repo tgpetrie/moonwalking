@@ -370,6 +370,7 @@ def test_official_pilot_settings_are_declared_and_reported():
         "matches_official": True,
         "window_matches_official": True,
         "synthetic_tape": False,
+        "post_window_holding": "not_recorded",
     }
     assert result["official_pilot_result"] is True
 
@@ -455,3 +456,42 @@ def test_synthetic_tape_is_never_official_even_over_four_hours(flag, value, synt
     assert result["pilot_settings"]["window_matches_official"] is True
     assert result["pilot_settings"]["synthetic_tape"] is synthetic
     assert result["official_pilot_result"] is (not synthetic)
+
+
+@pytest.mark.parametrize(
+    ("value", "reported", "official"),
+    [
+        ("absent", "not_recorded", True),
+        (True, "unchanged", True),
+        (False, "changed", False),
+        (None, "unverified", False),
+        ("true", "unverified", False),
+        (1, "unverified", False),
+    ],
+)
+def test_a_holding_that_changed_during_the_window_is_never_official(value, reported, official):
+    spec = pilot_window(
+        [(time, 40000, "1") for time in range(0, PILOT_WINDOW_MS + 1, 1000)],
+        latency=500,
+    )
+    if value != "absent":
+        spec["post_window_holding_unchanged"] = value
+    result = simulate_exit(spec)
+    assert result["data_quality"]["window_valid"]
+    assert result["pilot_settings"]["post_window_holding"] == reported
+    assert result["official_pilot_result"] is official
+
+
+def test_existing_tapes_replay_to_the_same_numbers_through_the_shared_sale():
+    # TC-02's compounded fee and slippage boundary, now priced by the shared
+    # Decimal sell estimate rather than the pilot's own arithmetic.
+    spec = pilot_window(
+        [(i * 1000, price, "1") for i, price in enumerate([40000, 45000, 55000, 55096, 55107])],
+        slip="100",
+    )
+    result = simulate_exit(spec)
+    exit_row = result["first_hypothetical_exits"]["net_profit_pct"]
+    assert exit_row["estimated_sell_price_usd"] == Decimal("54555.93")
+    assert exit_row["estimated_net_proceeds_usd"] == Decimal("540.103707")
+    rebound = result["first_hypothetical_exits"]["rebound_usd"]
+    assert rebound["estimated_net_proceeds_usd"] == Decimal("441.045")

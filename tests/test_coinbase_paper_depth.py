@@ -1,21 +1,21 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 import inspect
+import json
 import urllib.error
 
 import pytest
 
 from scripts import coinbase_paper_depth_collect as collector
+from backend.paper_fills import FILLED
 from scripts.coinbase_paper_depth import (
     DEPTH_SCHEMA,
     NOT_OFFICIAL,
-    estimate_sell_proceeds,
     simulate_depth_exit,
 )
 from scripts.coinbase_paper_exit import (
-    BPS,
     PILOT_SETTINGS,
     PILOT_WINDOW_MS,
-    _mark,
 )
 
 DEEP = [(40000, "1")]
@@ -54,10 +54,6 @@ def depth_window(rows, *, latency=500, quantity="0.03", cost="1500", fee="100",
     }
 
 
-def levels(ladder):
-    return [(Decimal(str(p)), Decimal(s)) for p, s in ladder]
-
-
 def test_exit_spans_multiple_bid_levels_with_fees():
     result = simulate_depth_exit(
         depth_window(
@@ -75,7 +71,7 @@ def test_exit_spans_multiple_bid_levels_with_fees():
     assert exit_row["trigger_quote"]["observed_at_ms"] == 1000
     assert exit_row["observed_at_ms"] == 1500
     depth = exit_row["depth"]
-    assert depth["status"] == "FILLED"
+    assert depth["status"] == FILLED
     assert depth["levels_consumed"] == 3
     # 0.01 @ 45000 + 0.01 @ 44900 + 0.01 @ 44800
     assert depth["gross_proceeds_usd"] == Decimal("1347.00")
@@ -90,32 +86,6 @@ def test_exit_spans_multiple_bid_levels_with_fees():
     assert comparison["delta_vs_hold_usd"] == Decimal("115.83")
     assert result["hold_comparison_status"]["net_profit_pct"] == "AVAILABLE"
     assert result["hold_comparison"]["net_profit_pct"]["delta_vs_hold_usd"] == 0
-
-
-def test_top_level_fill_matches_the_pilot_mark():
-    fill = estimate_sell_proceeds(
-        levels([(45000, "1")]), Decimal("0.03"), Decimal(60) / BPS, Decimal(25) / BPS
-    )
-    pilot = _mark(
-        0, Decimal(45000), Decimal(45000), 0,
-        Decimal("0.03"), Decimal(1), Decimal(60) / BPS, Decimal(25) / BPS,
-    )
-    assert fill["levels_consumed"] == 1
-    assert fill["estimated_net_proceeds_usd"] == pilot["estimated_net_proceeds_usd"]
-    assert fill["depth_cost_vs_top_bid_usd"] == 0
-
-
-def test_insufficient_depth_is_explicit_and_withholds_proceeds():
-    fill = estimate_sell_proceeds(
-        levels([(45000, "0.01"), (44900, "0.005")]), Decimal("0.03"),
-        Decimal("0.01"), Decimal(0),
-    )
-    assert fill["status"] == "INSUFFICIENT_DEPTH"
-    assert fill["levels_consumed"] == 2
-    assert fill["fillable_quantity"] == Decimal("0.015")
-    assert fill["depth_shortfall_quantity"] == Decimal("0.015")
-    assert fill["fillable_gross_proceeds_usd"] == Decimal("674.500")
-    assert fill["estimated_net_proceeds_usd"] is None
 
 
 def test_execution_quote_with_insufficient_depth_leaves_outcome_unknown():
@@ -155,8 +125,10 @@ def test_trigger_without_depth_does_not_execute():
             ]
         )
     )
+    # A top bid with too little size behind it has no executable price, so
+    # it neither triggers a rebound nor counts as a missed one.
     diagnostics = result["rule_diagnostics"]["rebound_usd"]
-    assert diagnostics["insufficient_depth_trigger"] == 1
+    assert "insufficient_depth_trigger" not in diagnostics
     assert diagnostics["first_execution"] == {"status": "none"}
     assert result["first_hypothetical_exits"]["rebound_usd"] is None
 
@@ -306,3 +278,132 @@ def test_collector_is_credential_free():
     ):
         assert marker not in source
     assert collector.PUBLIC_BOOK.endswith("/brokerage/market/product_book")
+
+
+# ─── Stage 2: rebounds measured on the executable price ─────────────────────
+
+
+def test_a_dust_top_bid_jump_is_not_an_executable_rebound():
+    # 0.0001 BTC bid at $45,000 above a flat book near $40,100. Against the
+    # $40,000 low the top bid alone reads 12.5% and $150 for 0.03 BTC; what a
+    # 0.03 BTC sale would actually get is about $40,116.
+    spike = [(45000, "0.0001"), (40100, "1")]
+    result = simulate_depth_exit(
+        depth_window([(0, DEEP), (1000, DEEP), (2000, spike), (2500, spike), (3000, spike)])
+    )
+    assert result["data_quality"]["window_valid"]
+    exits = result["first_hypothetical_exits"]
+    assert exits["rebound_usd"] is None and exits["rebound_pct"] is None
+    hold = result["hold_last_quote"]
+    executable = (
+        Decimal(45000) * Decimal("0.0001") + Decimal(40100) * Decimal("0.0299")
+    ) / Decimal("0.03")
+    assert hold["top_bid_usd"] == 45000
+    assert hold["executable_price_usd"] == executable
+    assert hold["observed_low_bid_usd"] == 40000
+    assert hold["rebound_pct"] == 100 * (executable - 40000) / 40000
+    assert hold["rebound_usd"] == (executable - 40000) * Decimal("0.03")
+    assert hold["rebound_pct"] < 1
+
+
+def test_a_real_rebound_in_the_executable_price_still_triggers():
+    deep_rally = [(43400, "0.02"), (43300, "1")]
+    result = simulate_depth_exit(
+        depth_window([(0, DEEP), (1000, deep_rally), (1500, deep_rally), (2000, deep_rally)])
+    )
+    exit_row = result["first_hypothetical_exits"]["rebound_pct"]
+    # (0.02 @ 43400 + 0.01 @ 43300) / 0.03 = 43366.67, 8.4% over $40,000.
+    executable = (
+        Decimal(43400) * Decimal("0.02") + Decimal(43300) * Decimal("0.01")
+    ) / Decimal("0.03")
+    assert exit_row["trigger_quote"]["executable_price_usd"] == executable
+    assert exit_row["rebound_pct"] == 100 * (executable - 40000) / 40000
+    assert exit_row["threshold_held_at_exec"] is True
+
+
+def test_a_thin_first_quote_does_not_set_the_running_low():
+    # A thin $35,000 first quote would make $42,000 look like a 20% rebound.
+    thin = [(35000, "0.001")]
+    result = simulate_depth_exit(
+        depth_window([(0, thin), (1000, DEEP), (2000, [(42000, "1")]), (3000, [(42000, "1")])])
+    )
+    assert result["first_hypothetical_exits"]["rebound_pct"] is None
+    assert result["first_hypothetical_exits"]["rebound_usd"] is None
+    hold = result["hold_last_quote"]
+    assert hold["observed_low_bid_usd"] == 40000
+    assert hold["low_observed_at_ms"] == 1000
+    assert result["data_quality"]["insufficient_depth_quotes_count"] == 1
+
+
+def test_a_window_that_opens_thin_has_no_low_until_a_fillable_quote():
+    thin = [(35000, "0.001")]
+    result = simulate_depth_exit(
+        depth_window([(0, thin), (1000, thin), (2000, DEEP), (3000, DEEP)])
+    )
+    assert result["hold_last_quote"]["observed_low_bid_usd"] == 40000
+    assert result["hold_last_quote"]["low_observed_at_ms"] == 2000
+    assert all(exit_row is None for exit_row in result["first_hypothetical_exits"].values())
+
+
+# ─── collector: fee source and an end-to-end replay ─────────────────────────
+
+
+def _spec(**changes):
+    values = {
+        "product_id": "BTC-USD", "quantity": "0.01", "entry_cost_usd": "700",
+        "exit_fee_bps": None, "slippage_bps": "10", "duration_seconds": 5,
+        "levels": 50, "start_ms": 1_794_441_600_000,
+    }
+    values.update(changes)
+    return collector.build_spec(**values)
+
+
+def test_the_collector_defaults_the_fee_to_the_configured_cost_model(monkeypatch):
+    monkeypatch.delenv("MW_CYCLE_FEE_BPS", raising=False)
+    spec = _spec()
+    assert (spec["exit_fee_bps"], spec["fee_source"]) == ("60.0", "configured_default")
+    monkeypatch.setenv("MW_CYCLE_FEE_BPS", "75")
+    assert _spec()["exit_fee_bps"] == "75.0"
+    declared = _spec(exit_fee_bps="40")
+    assert (declared["exit_fee_bps"], declared["fee_source"]) == ("40", "declared")
+    assert declared["synthetic_position"] is True
+    assert declared["window_end_ms"] - declared["window_start_ms"] == 5_000
+
+
+def test_a_public_depth_tape_replays_end_to_end_and_is_never_official():
+    start = 1_794_441_600_000
+    clock = {"now": start - 400}
+
+    def now_ms():
+        return clock["now"]
+
+    def sleep(seconds):
+        clock["now"] += round(seconds * 1000)
+
+    def fetch(product_id, depth):
+        clock["now"] += 120
+        stamp = datetime.fromtimestamp((clock["now"] - 300) / 1000, timezone.utc)
+        return {
+            "pricebook": {
+                "product_id": product_id,
+                "time": stamp.isoformat(),
+                "bids": [
+                    {"price": "45000", "size": "0.004"},
+                    {"price": "44990", "size": "0.004"},
+                    {"price": "44980", "size": "0.5"},
+                ],
+            }
+        }
+
+    spec = _spec(exit_fee_bps="60", start_ms=start)
+    spec["quotes"] = collector.collect(
+        "BTC-USD", start, spec["window_end_ms"], 50, now_ms=now_ms, sleep=sleep, fetch=fetch
+    )
+    result = simulate_depth_exit(json.loads(json.dumps(spec)))
+    assert result["data_quality"]["window_valid"]
+    assert result["data_quality"]["valid_poll_slots"] == 5
+    assert result["official_pilot_result"] is False
+    assert result["official_pilot_result_blocked_reason"] == NOT_OFFICIAL
+    depth = result["hold_last_quote"]["depth"]
+    assert depth["status"] == FILLED and depth["levels_consumed"] == 3
+    assert set(result["hold_comparison_status"].values()) == {"AVAILABLE"}
