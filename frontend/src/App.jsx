@@ -45,14 +45,10 @@ function LegacyDashboardApp() {
     <DataProvider>
       <WatchlistProvider>
         <IntelligenceBridge>
-          <div className="bh-legacy-stage">
+          {/* The stencil URL lives on the stage so each board row can paint its own slice of it. */}
+          <div className="bh-legacy-stage" style={{ "--bh-rabbit-stencil": `url(${bhabitRabbitStencil})` }}>
             <div className="bh-page-backdrop" aria-hidden="true" />
-            <div
-              className="bh-rabbit-stencil"
-              aria-hidden="true"
-              data-testid="bh-rabbit-stencil"
-              style={{ "--bh-rabbit-stencil": `url(${bhabitRabbitStencil})` }}
-            />
+            <div className="bh-rabbit-stencil" aria-hidden="true" data-testid="bh-rabbit-stencil" />
             <div className="bh-shell">
               <DashboardShell />
             </div>

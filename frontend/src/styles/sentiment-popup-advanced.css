@@ -9,7 +9,7 @@
     padding: 16px;
     margin-bottom: 16px;
     border: 1px solid var(--sentiment-border);
-    border-radius: 12px;
+    border-radius: var(--r-3);
     background: var(--sentiment-card-bg);
 }
 .cp-dossier-score p,
@@ -108,9 +108,9 @@
     --section-gap: 1.5rem;
 
     /* Border Radius */
-    --radius-lg: 1.25rem;
-    --radius-md: 0.75rem;
-    --radius-sm: 0.5rem;
+    --radius-lg: var(--r-3);
+    --radius-md: var(--r-3);
+    --radius-sm: var(--r-2);
 
     /* Transitions */
     --transition-fast: 150ms ease;
@@ -887,7 +887,7 @@
 
 @media (max-width: 520px) {
     .mini-toggle {
-        border-radius: 0.75rem;
+        border-radius: var(--r-3);
     }
 
     .mini-toggle-label {

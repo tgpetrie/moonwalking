@@ -38,7 +38,7 @@ function Chip({ label, color, children }) {
       alignItems: 'center',
       gap: '0.3rem',
       padding: '0.2rem 0.55rem',
-      borderRadius: '0.4rem',
+      borderRadius: 'var(--r-2)',
       background: 'rgba(255,255,255,0.05)',
       border: '1px solid rgba(255,255,255,0.08)',
       fontSize: '0.72rem',
@@ -396,7 +396,7 @@ const styles = {
     padding: '0.85rem 1rem',
     background: 'rgba(255,255,255,0.025)',
     border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '0.6rem',
+    borderRadius: 'var(--r-3)',
   },
   header: {
     display: 'flex',
@@ -526,7 +526,7 @@ const styles = {
     height: 'auto',
     margin: '0.2rem 0 0.35rem',
     background: 'rgba(12,17,25,0.6)',
-    borderRadius: '0.4rem',
+    borderRadius: 'var(--r-2)',
   },
   legend: {
     display: 'flex',

@@ -23,7 +23,7 @@
 .sentiment-popup-card {
   background: var(--sentiment-bg);
   border: 1px solid var(--sentiment-border);
-  border-radius: 1.25rem;
+  border-radius: var(--r-3);
   width: 90%;
   max-width: 900px;
   max-height: 85vh;
@@ -69,7 +69,7 @@
   font-size: 0.65rem;
   font-weight: 600;
   padding: 0.2rem 0.5rem;
-  border-radius: 0.25rem;
+  border-radius: var(--r-2);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-left: 0.5rem;
@@ -203,7 +203,7 @@
   padding: 1.1rem 1.1rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--sentiment-border);
-  border-radius: 1rem;
+  border-radius: var(--r-3);
   transition: all 0.25s ease;
 }
 
@@ -249,7 +249,7 @@
   padding: 0.9rem;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--sentiment-border);
-  border-radius: 0.75rem;
+  border-radius: var(--r-3);
   text-align: center;
   transition: all 0.25s ease;
 }
@@ -301,7 +301,7 @@
   margin-top: 1rem;
   padding: 0.85rem 1rem;
   background: rgba(255, 255, 255, 0.02);
-  border-radius: 0.8rem;
+  border-radius: var(--r-3);
   border: 1px solid var(--sentiment-border);
 }
 
@@ -360,7 +360,7 @@
   padding: 0.9rem 1rem;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--sentiment-border);
-  border-radius: 0.75rem;
+  border-radius: var(--r-3);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -418,7 +418,7 @@
 
 .sentiment-alert-box {
   padding: 0.8rem 1rem;
-  border-radius: 0.75rem;
+  border-radius: var(--r-3);
   border: 1px solid;
   font-size: 0.85rem;
   margin-top: 0.7rem;

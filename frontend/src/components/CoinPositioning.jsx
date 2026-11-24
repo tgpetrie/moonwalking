@@ -42,7 +42,7 @@ function timeAgo(iso) {
 const pillBase = {
   fontSize: 11.5,
   padding: "2px 8px",
-  borderRadius: 6,
+  borderRadius: 'var(--r-2)',
   whiteSpace: "nowrap",
 };
 

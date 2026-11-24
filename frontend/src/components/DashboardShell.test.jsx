@@ -75,18 +75,21 @@ describe("DashboardShell market status", () => {
 });
 
 describe("DashboardShell brand alignment", () => {
-  it("renders the 2026 vector BHABIT lockup and moon-rabbit brand mark", () => {
+  it("brands the page once, in the header, with the moon-rabbit mark and wordmark", () => {
     const { container } = render(<DashboardShell />);
 
-    const hero = screen.getByRole("img", { name: "BHABIT" });
-    expect(hero.getAttribute("src")).toMatch(/bhabit-header-logo.*\.svg/);
-    expect(hero).toHaveClass("bh-brand-hero__logo");
-    expect(hero.closest(".bh-brand-hero--compact")).not.toBeNull();
+    // The header carries the brand, so there is no second, centred hero lockup.
+    expect(container.querySelector(".bh-brand-hero")).toBeNull();
+    expect(screen.queryByRole("img", { name: "BHABIT" })).not.toBeInTheDocument();
 
     const brand = screen.getByRole("link", { name: "BHABIT home" });
     const [mark, wordmark] = brand.querySelectorAll("img");
     expect(mark.getAttribute("src")).toMatch(/moon-rabbit-mark.*\.svg/);
     expect(wordmark.getAttribute("src")).toMatch(/bhabit-wordmark.*\.svg/);
+    // The Aug 9 tagline stacks under the wordmark, inside the same link.
+    const tagline = brand.querySelector(".bh-brand__lockup > .bh-brand__tagline");
+    expect(tagline).toHaveTextContent("Profit Buying Impulse");
+    expect(tagline.previousElementSibling).toBe(wordmark);
     expect(container.querySelector('img[src*="bhabit-logo"], img[src$=".png"]')).toBeNull();
   });
 

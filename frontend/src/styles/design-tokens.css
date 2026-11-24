@@ -87,11 +87,14 @@
      --r-4 extends the existing --r-1..--r-3 scale — it was referenced by
      .mw-watchlist-asset before this file existed but never defined.
      ========================================================================== */
+  /* Squared, terminal-style corners (Aug 9 2026 design direction): controls
+     about 3px, nothing in the app rounder than 4px. Pills (999px) and circles
+     (50%) are reserved for status indicators, avatars and dots. */
   --radius-base: 2px;
-  --r-1: var(--radius-base);            /* chips, swatches, bars */
-  --r-2: calc(var(--radius-base) * 2);  /* buttons, inputs, table rows */
-  --r-3: calc(var(--radius-base) * 3);  /* panels, large surfaces */
-  --r-4: calc(var(--radius-base) * 4);  /* cards that sit above a panel (e.g. watchlist cards) */
+  --r-1: var(--radius-base);  /* chips, swatches, bars: 2px */
+  --r-2: 3px;                 /* buttons, CTAs, inputs, table rows */
+  --r-3: 4px;                 /* panels, large surfaces */
+  --r-4: 4px;                 /* cards that sit above a panel (e.g. watchlist cards) */
 
   /* ==========================================================================
      TYPE — family
