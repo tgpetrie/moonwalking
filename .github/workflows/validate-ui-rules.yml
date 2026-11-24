@@ -5,6 +5,9 @@ on:
     paths:
       - 'frontend/**'
       - '.continue/**'
+      # Changing the rules themselves must run them too.
+      - 'scripts/validate_ui_rules.sh'
+      - '.github/workflows/validate-ui-rules.yml'
 
 jobs:
   ui-rules:

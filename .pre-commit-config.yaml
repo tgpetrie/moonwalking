@@ -12,8 +12,13 @@ repos:
   rev: v9.11.1
   hooks:
   - id: eslint
-    additional_dependencies: ["eslint", "@eslint/js"]
-    files: ^frontend/
+    # Pinned so runs are repeatable. The flat config lives in eslint.config.mjs;
+    # without it ESLint 9+ failed on every run.
+    additional_dependencies: ["eslint@10.15.0"]
+    # identify tags .jsx as "jsx", not "javascript", so match by extension.
+    types: [file]
+    files: ^frontend/.*\.(js|jsx|mjs|cjs)$
+    args: ["--no-warn-ignored"]
 - repo: https://github.com/Yelp/detect-secrets
   # pin to a released tag or a commit SHA to avoid tag drift
   rev: v1.5.0
