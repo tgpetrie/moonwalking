@@ -322,10 +322,14 @@ def test_a_real_rebound_in_the_executable_price_still_triggers():
 
 
 def test_a_thin_first_quote_does_not_set_the_running_low():
-    # A thin $35,000 first quote would make $42,000 look like a 20% rebound.
+    # A thin $35,000 first quote would make $42,000 look like a 20% / $140
+    # rebound on 0.02 BTC. Against the real $40,000 low it is 5% / $40.
     thin = [(35000, "0.001")]
     result = simulate_depth_exit(
-        depth_window([(0, thin), (1000, DEEP), (2000, [(42000, "1")]), (3000, [(42000, "1")])])
+        depth_window(
+            [(0, thin), (1000, DEEP), (2000, [(42000, "1")]), (3000, [(42000, "1")])],
+            quantity="0.02",
+        )
     )
     assert result["first_hypothetical_exits"]["rebound_pct"] is None
     assert result["first_hypothetical_exits"]["rebound_usd"] is None

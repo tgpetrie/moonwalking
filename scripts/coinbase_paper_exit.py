@@ -7,6 +7,14 @@ from decimal import Decimal, DecimalException
 import json
 from pathlib import Path
 import re
+import sys
+
+if __package__ in (None, ""):
+    # Run as ``python scripts/coinbase_paper_exit.py``: make the repository
+    # importable so the shared sell estimate below resolves.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from backend.paper_fills import sell_at_price  # noqa: E402
 
 
 BPS = Decimal(10_000)
@@ -24,6 +32,22 @@ PILOT_SETTINGS = {
 }
 # Any of these marks a tape as synthetic, which can never be a pilot result.
 SYNTHETIC_FLAGS = ("synthetic_position", "market_data_check")
+# The collector rechecks the holding after the window. A tape that recorded a
+# change, or could not confirm the holding, cannot be a pilot result. Tapes
+# written before the recheck existed carry no field and are reported as such.
+POST_WINDOW_FIELD = "post_window_holding_unchanged"
+HOLDING_STATES_ALLOWED_OFFICIAL = ("unchanged", "not_recorded")
+
+
+def _post_window_holding(spec):
+    if POST_WINDOW_FIELD not in spec:
+        return "not_recorded"
+    value = spec[POST_WINDOW_FIELD]
+    if value is True:
+        return "unchanged"
+    if value is False:
+        return "changed"
+    return "unverified"
 
 
 def _number(record, field, *, allow_zero=False):
@@ -43,8 +67,11 @@ def _number(record, field, *, allow_zero=False):
 
 
 def _mark(observed_at_ms, bid, low, low_observed_at_ms, quantity, cost, fee, slip):
-    estimated_price = bid * (1 - slip)
-    net = estimated_price * quantity * (1 - fee)
+    # The shared estimate, with one level covering the whole slice: the bid is
+    # slipped, then the fee is charged on the slipped proceeds.
+    sale = sell_at_price(bid, quantity, fee_rate=fee, slippage_rate=slip)
+    estimated_price = sale["estimated_sell_price_usd"]
+    net = sale["estimated_net_proceeds_usd"]
     rebound = (bid - low) * quantity
     return {
         "observed_at_ms": observed_at_ms,
@@ -311,6 +338,7 @@ def _simulate_window(spec, inputs):
     synthetic = any(
         flag in spec and spec[flag] is not False for flag in SYNTHETIC_FLAGS
     )
+    post_window = _post_window_holding(spec)
     mark_inputs = _mark_inputs(inputs)
     records = []
     low = low_at = None
@@ -361,12 +389,14 @@ def _simulate_window(spec, inputs):
             "matches_official": official_settings,
             "window_matches_official": official_window,
             "synthetic_tape": synthetic,
+            "post_window_holding": post_window,
         },
         "official_pilot_result": (
             official_settings
             and official_window
             and quality["window_valid"]
             and not synthetic
+            and post_window in HOLDING_STATES_ALLOWED_OFFICIAL
         ),
         "data_quality": quality,
         "first_hypothetical_exits": exits,

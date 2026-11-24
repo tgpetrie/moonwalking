@@ -1219,8 +1219,57 @@ def evaluate_rotation(row, price, quantity, leader) -> TradeProposal:
 # ─── guarded dry-run exits ───────────────────────────────────────────────────
 
 
+def _dry_run_block(*reasons, **detail):
+    """A blocked dry-run outcome. Every executor outcome says it submitted
+    nothing, so a reader never has to infer that from a missing key."""
+    return {
+        "status": "blocked_by_guard",
+        "block_reasons": list(reasons),
+        "dry_run": True,
+        "order_submitted": False,
+        **detail,
+    }
+
+
+def _paper_fills():
+    try:
+        import paper_fills
+    except ImportError:  # imported as backend.agents from the repository root
+        from backend import paper_fills
+    return paper_fills
+
+
+def _quote_ladder(quote):
+    """``(levels, reason)`` for a quote's optional ``bids`` ladder.
+
+    ``levels`` is None when the quote carries no ladder (top of book only).
+    A ladder must descend, carry positive sizes and start at the quote's own
+    top bid, or it explains nothing about the book the guard just checked.
+    """
+    if not isinstance(quote, dict) or "bids" not in quote:
+        return None, None
+    fills = _paper_fills()
+    try:
+        levels = fills.book_levels(quote["bids"])
+    except ValueError:
+        return None, "invalid_bid_ladder"
+    try:
+        bid = fills.to_decimal(quote.get("bid_usd"), "bid")
+    except ValueError:
+        return None, None  # the missing bid is reported by the guard itself
+    if levels[0][0] != bid:
+        return None, "quote_ladder_mismatch"
+    return levels, None
+
+
 class GuardedDryRunExitExecutor:
-    """Model a sell using a recent, uncrossed two-sided book. Never submits orders."""
+    """Model a sell using a recent, uncrossed two-sided book. Never submits orders.
+
+    With a ``bids`` ladder on the quote, the sale is priced across the levels
+    it would consume by the shared ``paper_fills`` estimate; without one, the
+    top bid must cover the whole exit as before. Neither path can reach an
+    order route: every outcome is a dry run with ``order_submitted: False``.
+    """
 
     def __init__(
         self,
@@ -1294,13 +1343,50 @@ class GuardedDryRunExitExecutor:
             reasons.append("invalid_exit_quantity")
         if size is None:
             reasons.append("quote_missing_bid_size")
-        elif quantity is not None and size < quantity:
+        levels, ladder_problem = _quote_ladder(quote)
+        if ladder_problem:
+            reasons.append(ladder_problem)
+        elif levels is not None:
+            # A ladder replaces the top-of-book size rule with the depth walk.
+            offered = sum(level_size for _, level_size in levels)
+            if quantity is not None and quantity > 0 and offered < _paper_fills().to_decimal(quantity, "quantity"):
+                reasons.append("insufficient_book_depth")
+        elif size is not None and quantity is not None and size < quantity:
             reasons.append("insufficient_top_of_book_size")
         return reasons
 
+    def _ladder_sale(self, levels, quantity, model):
+        """The shared Decimal walk across ``levels``, in the float shape the
+        store records, or None when the ladder cannot cover ``quantity``."""
+        from decimal import ROUND_DOWN, Decimal
+
+        fills = _paper_fills()
+        estimate = fills.estimate_sell_proceeds(
+            levels,
+            fills.to_decimal(quantity, "quantity"),
+            fee_rate=fills.rate_from_bps(model["fee_bps"]),
+            slippage_rate=fills.rate_from_bps(model["slippage_bps"]),
+        )
+        if estimate["status"] != fills.FILLED:
+            return None
+        net = estimate["estimated_net_proceeds_usd"]
+        cents = net.quantize(Decimal("0.01"), rounding=ROUND_DOWN) if net > 0 else Decimal(0)
+        sell = estimate["estimated_sell_price_usd"]
+        return {
+            "fill_price": float(sell),
+            "gross_proceeds_usd": float(sell * estimate["requested_quantity"]),
+            "fee_usd": float(estimate["fee_usd"]),
+            "slippage_usd": float(estimate["slippage_cost_usd"]),
+            "proceeds_usd": float(cents),
+            "estimated_vwap_usd": float(estimate["estimated_vwap_usd"]),
+            "gross_book_proceeds_usd": float(estimate["gross_proceeds_usd"]),
+            "levels_consumed": estimate["levels_consumed"],
+            "book_levels_offered": estimate["levels_offered"],
+            "depth_cost_vs_top_bid_usd": float(estimate["depth_cost_vs_top_bid_usd"]),
+        }
+
     def execute(self, proposal: TradeProposal, position, quote, now_ms) -> dict:
-        def blocked(*reasons):
-            return {"status": "blocked_by_guard", "block_reasons": list(reasons)}
+        blocked = _dry_run_block
 
         if proposal.action not in EXIT_ACTIONS or proposal.side != "sell":
             return blocked("exit_only")
@@ -1328,7 +1414,16 @@ class GuardedDryRunExitExecutor:
         if isinstance(quote, dict) and quote.get("product_id") not in (None, proposal.product_id):
             return blocked("quote_product_mismatch")
         blocks = self.quote_guard(quote, proposal.reference_price, quantity, now_ms)
+        levels, _ = _quote_ladder(quote)
         if blocks:
+            if "insufficient_book_depth" in blocks and levels is not None:
+                offered = sum(size for _, size in levels)
+                shortfall = _paper_fills().to_decimal(quantity, "quantity") - offered
+                return blocked(
+                    *blocks,
+                    depth_shortfall_quantity=float(shortfall),
+                    book_quantity_offered=float(offered),
+                )
             return blocked(*blocks)
         bid = float(quote["bid_usd"])
         if proposal.action == PROTECTIVE_STOP:
@@ -1364,7 +1459,15 @@ class GuardedDryRunExitExecutor:
                 return blocked(STALE_FLOOR_BREAK)
         from .trading_costs import paper_sale
 
-        sale = paper_sale(bid, quantity, proposal.cost_model or self.cost_model)
+        model = proposal.cost_model or self.cost_model
+        if levels is not None:
+            sale = self._ladder_sale(levels, quantity, model)
+            if sale is None:  # the guard already checked depth; never guess
+                return blocked("insufficient_book_depth")
+            order_type = "simulated_sell_across_bids"
+        else:
+            sale = paper_sale(bid, quantity, model)
+            order_type = "simulated_sell_at_bid"
         fill, proceeds = sale["fill_price"], _num(sale["proceeds_usd"])
         if proceeds is None or fill <= 0 or proceeds <= 0:
             return blocked("invalid_fill")
@@ -1372,7 +1475,7 @@ class GuardedDryRunExitExecutor:
             "status": "auto_executed_dry_run",
             "dry_run": True,
             "order_submitted": False,
-            "order_type": "simulated_sell_at_bid",
+            "order_type": order_type,
             "base_size": quantity,
             "bid_usd": bid,
             "fill_price": fill,
@@ -1764,11 +1867,11 @@ class CycleStrategistAgent:
         if settings["emergency_pause"]:
             return "pending_approval", {"held_reason": "emergency_pause"}
         if settings["execution_mode"] != "dry_run":
-            return "blocked_by_guard", {"block_reasons": ["live_order_route_unavailable"]}
+            return "blocked_by_guard", _dry_run_block("live_order_route_unavailable")
         if scan is not None and not usable_cycle_scan(scan, now=now_ms / 1000):
-            return "blocked_by_guard", {"block_reasons": ["market_snapshot_stale"]}
+            return "blocked_by_guard", _dry_run_block("market_snapshot_stale")
         if orders_today >= settings["daily_order_cap"]:
-            return "blocked_by_guard", {"block_reasons": ["daily_order_cap_reached"]}
+            return "blocked_by_guard", _dry_run_block("daily_order_cap_reached")
         result = self.executor.execute(
             proposal, held[proposal.symbol], quotes.get(proposal.product_id), now_ms
         )

@@ -21,6 +21,7 @@ from scripts.coinbase_paper_exit import (
     PILOT_SCHEMA,
     PILOT_SETTINGS,
     PILOT_WINDOW_MS,
+    POST_WINDOW_FIELD,
     _number,
     _scenario_inputs,
 )
@@ -32,6 +33,7 @@ DEFAULT_FILL_PAGES = 25
 MAX_FILL_PAGES = 50
 PREFLIGHT_SECONDS = 45
 PREFLIGHT_LEAD_SECONDS = PREFLIGHT_SECONDS + 15
+POST_WINDOW_SECONDS = 15
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
@@ -167,6 +169,23 @@ def verify_slice_cost_basis(
         "source_fill_ids": [fill["entry_id"] for fill in ordered],
         "cost_basis_asof_utc": cutoff.isoformat(),
     }
+
+
+def recheck_holding(client, asset, before):
+    """Whether the holding still matches its preflight state after the window.
+
+    ``True`` unchanged, ``False`` changed, ``None`` when it could not be read.
+    Only the comparison is kept, never the balances. The replay refuses an
+    official result for anything but ``True``. The read gets its own short
+    deadline, like preflight.
+    """
+    client.request_deadline_monotonic = time.monotonic() + POST_WINDOW_SECONDS
+    try:
+        return _holding(client, asset) == before
+    except (PortfolioModeError, ValueError):
+        return None
+    finally:
+        client.request_deadline_monotonic = None
 
 
 def fetch_fee_tier_bps(client):
@@ -311,12 +330,15 @@ def main():
                 )
             )
             spec["exit_fee_bps"] = fetch_fee_tier_bps(client)
+            asset = args.product.removesuffix("-USD")
+            holding_before = _holding(client, asset)
         finally:
             client.request_deadline_monotonic = None
         spec["fee_tier_source"] = "coinbase_transaction_summary_taker"
         if _now_ms() >= start_ms:
             raise ValueError("position and fee verification missed the declared start")
         spec["quotes"] = collect_quotes(client, spec)
+        spec[POST_WINDOW_FIELD] = recheck_holding(client, asset, holding_before)
         # Restrict new captures to the operator on POSIX; on Windows the
         # file inherits the target directory's ACL.
         fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

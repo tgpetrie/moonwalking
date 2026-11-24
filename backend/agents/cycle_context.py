@@ -20,6 +20,8 @@ MAX_SCAN_AGE_SECONDS = 1800
 EXCHANGE_BOOK_URL = "https://api.exchange.coinbase.com/products/{product_id}/book"
 QUOTE_TIMEOUT_SECONDS = 4.0
 MAX_QUOTE_PRODUCTS = 30
+# Bid levels the executor may walk when a caller asks for depth.
+MAX_QUOTE_DEPTH_LEVELS = 50
 QUOTE_BATCH_SECONDS = 12.0
 RISK_KEYS = ("portfolio_equity_usd", "base_risk_pct", "max_open_risk_pct")
 _SYMBOL = re.compile(r"[A-Z0-9]{1,15}")
@@ -155,17 +157,24 @@ def fetch_top_of_book(
     http_get: Callable[..., Any] | None = None,
     timeout: float = QUOTE_TIMEOUT_SECONDS,
     now_ms: Callable[[], int] | None = None,
+    depth_levels: int = 1,
 ) -> dict[str, Any]:
-    """One public, read-only level-1 book from Coinbase Exchange.
+    """One public, read-only book from Coinbase Exchange.
 
     Returns the quote shape ``GuardedDryRunExitExecutor`` checks: both sides,
     the bid size, the local receipt time and Coinbase's own book time. Any
     failure returns ``quote_status: "UNAVAILABLE"`` with a reason and never
     raises, so one bad product cannot stop an agent pass.
+
+    ``depth_levels`` above 1 (up to ``MAX_QUOTE_DEPTH_LEVELS``) reads the
+    aggregated level-2 book and adds a ``bids`` ladder of that many levels,
+    which the executor walks to price the exit. The default stays level 1.
     """
     symbol = _symbol(product_id)
     if not symbol or product_id != f"{symbol}-USD":
         return _unavailable(str(product_id), "invalid_product")
+    if type(depth_levels) is not int or not 1 <= depth_levels <= MAX_QUOTE_DEPTH_LEVELS:
+        return _unavailable(product_id, "invalid_depth_levels")
     timeout = _positive(timeout)
     if timeout is None:
         return _unavailable(product_id, "invalid_timeout")
@@ -176,7 +185,7 @@ def fetch_top_of_book(
     try:
         response = http_get(
             EXCHANGE_BOOK_URL.format(product_id=product_id),
-            params={"level": 1},
+            params={"level": 1 if depth_levels == 1 else 2},
             timeout=min(timeout, QUOTE_TIMEOUT_SECONDS),
             allow_redirects=False,
             headers={"User-Agent": "moonwalking-local-agents", "Accept": "application/json"},
@@ -216,7 +225,7 @@ def fetch_top_of_book(
         return _unavailable(product_id, "invalid_book_time")
     if bid is None or bid_size is None or ask is None or ask_size is None or ask < bid:
         return _unavailable(product_id, "invalid_book_levels")
-    return {
+    quote = {
         "product_id": product_id,
         "quote_status": "AVAILABLE",
         "source": "coinbase_exchange_book_level_1",
@@ -227,6 +236,21 @@ def fetch_top_of_book(
         "ask_usd": ask,
         "ask_size": ask_size,
     }
+    if depth_levels > 1:
+        ladder = []
+        for level in book.get("bids")[:depth_levels]:
+            if not isinstance(level, (list, tuple)) or len(level) < 2:
+                return _unavailable(product_id, "invalid_book_levels")
+            price, size = _positive(level[0]), _positive(level[1])
+            if price is None or size is None:
+                return _unavailable(product_id, "invalid_book_levels")
+            ladder.append([price, size])
+        quote.update(
+            source="coinbase_exchange_book_level_2",
+            bids=ladder,
+            book_levels_requested=depth_levels,
+        )
+    return quote
 
 
 def fetch_live_quotes(
@@ -235,8 +259,12 @@ def fetch_live_quotes(
     http_get: Callable[..., Any] | None = None,
     timeout: float = QUOTE_TIMEOUT_SECONDS,
     now_ms: Callable[[], int] | None = None,
+    depth_levels: int = 1,
 ) -> dict[str, dict[str, Any]]:
-    """Level-1 quotes keyed by ``BASE-USD`` for up to ``MAX_QUOTE_PRODUCTS`` coins."""
+    """Quotes keyed by ``BASE-USD`` for up to ``MAX_QUOTE_PRODUCTS`` coins.
+
+    Level 1 by default; ``depth_levels`` is passed to ``fetch_top_of_book``.
+    """
     quotes: dict[str, dict[str, Any]] = {}
     per_book = _positive(timeout)
     if per_book is None or isinstance(products, (str, bytes)):
@@ -254,7 +282,8 @@ def fetch_live_quotes(
         if remaining <= 0:
             break
         quotes[product_id] = fetch_top_of_book(
-            product_id, http_get=http_get, timeout=min(per_book, remaining), now_ms=now_ms
+            product_id, http_get=http_get, timeout=min(per_book, remaining), now_ms=now_ms,
+            depth_levels=depth_levels,
         )
     return quotes
 

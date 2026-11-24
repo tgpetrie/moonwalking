@@ -13,13 +13,17 @@ from datetime import datetime, timedelta, timezone
 from decimal import DecimalException
 import json
 from pathlib import Path
+import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from scripts.coinbase_paper_depth import DEPTH_SCHEMA
-from scripts.coinbase_paper_exit import PILOT_SETTINGS, _number
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.coinbase_paper_depth import DEPTH_SCHEMA  # noqa: E402
+from scripts.coinbase_paper_exit import PILOT_SETTINGS, _number  # noqa: E402
 
 PUBLIC_BOOK = "https://api.coinbase.com/api/v3/brokerage/market/product_book"
 MAX_LEVELS = 50
@@ -93,48 +97,79 @@ def collect(product_id, start_ms, end_ms, levels, *, now_ms=_now_ms,
     return quotes
 
 
+def build_spec(
+    *, product_id, quantity, entry_cost_usd, exit_fee_bps, slippage_bps,
+    duration_seconds, levels, start_ms,
+):
+    """The synthetic depth tape header, before any quotes are recorded.
+
+    With no declared fee, the exit fee is the strategist's configured paper
+    fee (``MW_CYCLE_FEE_BPS``, 60 bps by default), and the tape says so.
+    """
+    if not 1 <= levels <= MAX_LEVELS:
+        raise ValueError(f"levels must be between 1 and {MAX_LEVELS}")
+    if not 1 <= duration_seconds <= 4 * 60 * 60:
+        raise ValueError("duration must be between 1 and 14400 seconds")
+    for name, value in (("quantity", quantity), ("entry_cost_usd", entry_cost_usd)):
+        _number({name: value}, name)
+    if exit_fee_bps is None:
+        from backend.agents.trading_costs import configured_cost_model
+
+        exit_fee_bps, fee_source = str(configured_cost_model()["fee_bps"]), "configured_default"
+    else:
+        fee_source = "declared"
+    return {
+        "schema_version": DEPTH_SCHEMA,
+        "window_id": f"depth_{product_id}_{start_ms}_{duration_seconds}s",
+        "window_start_ms": start_ms,
+        "window_end_ms": start_ms + duration_seconds * 1_000,
+        **PILOT_SETTINGS,
+        "product_id": product_id,
+        "quantity": quantity,
+        "entry_cost_usd": entry_cost_usd,
+        "exit_fee_bps": exit_fee_bps,
+        "fee_source": fee_source,
+        "slippage_bps": slippage_bps,
+        "thresholds": {"rebound_usd": 50, "rebound_pct": 8, "net_profit_pct": 8},
+        "synthetic_position": True,
+        "market_data_source": "coinbase_public_market_product_book",
+        "book_levels_requested": levels,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--product", required=True, help="USD spot pair")
     parser.add_argument("--quantity", required=True, help="Synthetic quantity")
     parser.add_argument("--entry-cost-usd", required=True, help="Synthetic cost")
-    parser.add_argument("--exit-fee-bps", required=True, help="Declared fee")
+    parser.add_argument(
+        "--exit-fee-bps",
+        help="Declared fee (default: the configured paper fee, MW_CYCLE_FEE_BPS)",
+    )
     parser.add_argument("--slippage-bps", required=True)
     parser.add_argument("--duration-seconds", type=int, default=30)
     parser.add_argument("--levels", type=int, default=MAX_LEVELS)
     parser.add_argument("--out", required=True, type=Path, help="New JSON file")
     args = parser.parse_args()
     try:
-        if not 1 <= args.levels <= MAX_LEVELS:
-            raise ValueError(f"levels must be between 1 and {MAX_LEVELS}")
-        if not 1 <= args.duration_seconds <= 4 * 60 * 60:
-            raise ValueError("duration must be between 1 and 14400 seconds")
         output = args.out.resolve()
         if output.is_relative_to(Path(__file__).resolve().parents[1]):
             raise ValueError("choose an output file outside the Git checkout")
         if output.exists() or not output.parent.is_dir():
             raise ValueError("output must be a new file in an existing folder")
-        for name in ("quantity", "entry_cost_usd"):
-            _number({name: getattr(args, name)}, name)
-        start_ms = (_now_ms() // 1_000 + 3) * 1_000
-        end_ms = start_ms + args.duration_seconds * 1_000
-        spec = {
-            "schema_version": DEPTH_SCHEMA,
-            "window_id": f"depth_{args.product}_{start_ms}_{args.duration_seconds}s",
-            "window_start_ms": start_ms,
-            "window_end_ms": end_ms,
-            **PILOT_SETTINGS,
-            "product_id": args.product,
-            "quantity": args.quantity,
-            "entry_cost_usd": args.entry_cost_usd,
-            "exit_fee_bps": args.exit_fee_bps,
-            "slippage_bps": args.slippage_bps,
-            "thresholds": {"rebound_usd": 50, "rebound_pct": 8, "net_profit_pct": 8},
-            "synthetic_position": True,
-            "market_data_source": "coinbase_public_market_product_book",
-            "book_levels_requested": args.levels,
-        }
-        spec["quotes"] = collect(args.product, start_ms, end_ms, args.levels)
+        spec = build_spec(
+            product_id=args.product,
+            quantity=args.quantity,
+            entry_cost_usd=args.entry_cost_usd,
+            exit_fee_bps=args.exit_fee_bps,
+            slippage_bps=args.slippage_bps,
+            duration_seconds=args.duration_seconds,
+            levels=args.levels,
+            start_ms=(_now_ms() // 1_000 + 3) * 1_000,
+        )
+        spec["quotes"] = collect(
+            args.product, spec["window_start_ms"], spec["window_end_ms"], args.levels
+        )
         with output.open("x", encoding="utf-8") as tape:
             json.dump(spec, tape, default=str, indent=2)
             tape.write("\n")

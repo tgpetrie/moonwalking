@@ -26,8 +26,18 @@ from decimal import Decimal, DecimalException
 import json
 from pathlib import Path
 import re
+import sys
 
-from scripts.coinbase_paper_exit import (
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from backend.paper_fills import (  # noqa: E402
+    FILLED,
+    INSUFFICIENT_BOOK_DEPTH,
+    book_levels,
+    estimate_sell_proceeds,
+)
+from scripts.coinbase_paper_exit import (  # noqa: E402
     BPS,
     PERCENT,
     RULES,
@@ -43,7 +53,7 @@ NOT_OFFICIAL = "DEPTH_PROTOTYPE_IS_NOT_THE_OFFICIAL_PILOT"
 # Quote outcomes. "priced" and "insufficient_depth" both carry a mark; the
 # other two do not, because there is no book to price the position against.
 PRICED = "priced"
-INSUFFICIENT_DEPTH = "insufficient_depth"
+INSUFFICIENT_DEPTH = INSUFFICIENT_BOOK_DEPTH
 # How a depth outcome maps onto the pilot's window quality categories, so the
 # coverage, gap and endpoint rules stay literally the pilot's own.
 QUALITY_STATUS = {
@@ -54,76 +64,9 @@ QUALITY_STATUS = {
 }
 
 
-def estimate_sell_proceeds(levels, quantity, fee, slip):
-    """Walk descending bid levels and price a market sell of ``quantity``.
-
-    ``fee`` and ``slip`` are fractions, as in the pilot's mark. Returns a
-    ``FILLED`` estimate, or an explicit ``INSUFFICIENT_DEPTH`` result that
-    reports the shortfall and withholds net proceeds: a partial fill is not
-    what the position would realise, and reporting it as such is exactly the
-    overstatement this prototype exists to avoid.
-    """
-    remaining = quantity
-    gross = Decimal(0)
-    consumed = 0
-    for price, size in levels:
-        if remaining <= 0:
-            break
-        taken = size if size < remaining else remaining
-        gross += price * taken
-        remaining -= taken
-        consumed += 1
-    offered = sum(size for _, size in levels)
-    shared = {
-        "requested_quantity": quantity,
-        "levels_offered": len(levels),
-        "levels_consumed": consumed,
-        "book_quantity_offered": offered,
-        "top_bid_usd": levels[0][0],
-    }
-    if remaining > 0:
-        return {
-            **shared,
-            "status": "INSUFFICIENT_DEPTH",
-            "fillable_quantity": quantity - remaining,
-            "depth_shortfall_quantity": remaining,
-            "fillable_gross_proceeds_usd": gross,
-            "estimated_net_proceeds_usd": None,
-        }
-    sell_price = (gross / quantity) * (1 - slip)
-    net = sell_price * quantity * (1 - fee)
-    return {
-        **shared,
-        "status": "FILLED",
-        "fillable_quantity": quantity,
-        "depth_shortfall_quantity": Decimal(0),
-        "gross_proceeds_usd": gross,
-        "estimated_vwap_usd": gross / quantity,
-        "estimated_sell_price_usd": sell_price,
-        "slippage_cost_usd": gross * slip,
-        "fee_usd": sell_price * quantity * fee,
-        "estimated_net_proceeds_usd": net,
-        # How much worse the depth walk is than the pilot's top-bid estimate.
-        "top_bid_only_gross_usd": levels[0][0] * quantity,
-        "depth_cost_vs_top_bid_usd": levels[0][0] * quantity - gross,
-    }
-
-
 def _book_levels(quote):
-    """Validate one quote's bid ladder: descending prices, positive sizes."""
-    bids = quote.get("bids")
-    if not isinstance(bids, list) or not bids:
-        raise ValueError("a priced quote needs at least one bid level")
-    levels = []
-    previous = None
-    for level in bids:
-        price = _number(level, "price")
-        size = _number(level, "size")
-        if previous is not None and price >= previous:
-            raise ValueError("bid levels must descend in price")
-        previous = price
-        levels.append((price, size))
-    return levels
+    """Validate one quote's bid ladder with the shared rules."""
+    return book_levels(quote.get("bids"))
 
 
 def _depth_inputs(spec):
@@ -172,18 +115,28 @@ def _ordered(quotes):
 
 
 def _depth_mark(observed, exchange, fill, low, low_at, cost, quantity):
-    """Price signal from the top bid; proceeds from the depth walk."""
+    """Price signals and proceeds from what the position could actually get.
+
+    The running low, both rebound rules and net profit all use the executable
+    depth-weighted price for the full position size, not the top bid: a
+    tiny order at the top of the book is not a price a real exit receives.
+    A quote whose book cannot cover the position has no executable price, so
+    every rule reads None and it can neither trigger nor set the low.
+    """
     top = fill["top_bid_usd"]
+    executable = fill["estimated_vwap_usd"]
     net = fill["estimated_net_proceeds_usd"]
+    priced = executable is not None and low is not None
     return {
         "observed_at_ms": observed,
         "exchange_time_ms": exchange,
         "top_bid_usd": top,
         "bid_usd": top,
+        "executable_price_usd": executable,
         "observed_low_bid_usd": low,
         "low_observed_at_ms": low_at,
-        "rebound_usd": (top - low) * quantity,
-        "rebound_pct": PERCENT * (top - low) / low,
+        "rebound_usd": (executable - low) * quantity if priced else None,
+        "rebound_pct": PERCENT * (executable - low) / low if priced else None,
         "estimated_net_proceeds_usd": net,
         "estimated_pnl_usd": None if net is None else net - cost,
         "net_profit_pct": None if net is None else PERCENT * (net - cost) / cost,
@@ -203,19 +156,19 @@ def _depth_quote(quote, observed, inputs, max_stale, fee, slip, low, low_at):
     # The pilot's freshness rule, unchanged.
     if not 0 <= observed - exchange <= max_stale:
         return "stale", None
-    levels = _book_levels(quote)
-    fill = estimate_sell_proceeds(levels, inputs["quantity"], fee, slip)
-    top = levels[0][0]
-    # As in the pilot, only a usable quote may set the running low.
-    if fill["status"] == "FILLED" and (low is None or top < low):
-        low, low_at = top, observed
-    if low is None:
-        low, low_at = top, observed
+    fill = estimate_sell_proceeds(
+        _book_levels(quote), inputs["quantity"], fee_rate=fee, slippage_rate=slip
+    )
+    if fill["status"] == FILLED:
+        executable = fill["estimated_vwap_usd"]
+        # Only a quote that could fill the whole position may set the low.
+        if low is None or executable < low:
+            low, low_at = executable, observed
     mark = _depth_mark(
         observed, exchange, fill, low, low_at,
         inputs["entry_cost_usd"], inputs["quantity"],
     )
-    status = PRICED if fill["status"] == "FILLED" else INSUFFICIENT_DEPTH
+    status = PRICED if fill["status"] == FILLED else INSUFFICIENT_DEPTH
     return status, mark
 
 
@@ -239,7 +192,6 @@ def _depth_rule_exit(records, times, rule, threshold, latency, max_gap,
         if value is None or value < threshold:
             continue
         if status != PRICED:
-            misses["insufficient_depth_trigger"] += 1
             continue
         misses["candidates"] += 1
         following = bisect_left(times, observed + latency, lo=index)
