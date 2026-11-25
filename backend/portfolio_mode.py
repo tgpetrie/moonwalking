@@ -160,7 +160,9 @@ class CoinbaseAdvancedTradeClient:
             if deadline is not None:
                 timeout = min(timeout, deadline - time.monotonic())
                 if timeout <= 0:
-                    raise CoinbaseRequestError("Coinbase preflight time budget expired.")
+                    raise CoinbaseRequestError(
+                        "Coinbase preflight time budget expired."
+                    )
             response = self.http.get(
                 f"{COINBASE_BASE_URL}{path}",
                 params=params or None,
@@ -227,8 +229,10 @@ class CoinbaseAdvancedTradeClient:
             if payload.get("proof_token_required") is True:
                 return PageResult(items=items, complete=False)
             cursor_value = payload.get("cursor")
-            if require_complete and cursor_value is not None and not isinstance(
-                cursor_value, str
+            if (
+                require_complete
+                and cursor_value is not None
+                and not isinstance(cursor_value, str)
             ):
                 return PageResult(items, complete=False)
             next_cursor = str(cursor_value or "")
