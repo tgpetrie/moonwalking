@@ -1,3 +1,5 @@
+> **Superseded by [docs/UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).** This file is kept for history; where the two disagree, UI_DESIGN_SYSTEM.md wins.
+
 # Design System — BHABIT + Moonwalking
 
 This is the cross-system reference: what the tokens mean, where they live,

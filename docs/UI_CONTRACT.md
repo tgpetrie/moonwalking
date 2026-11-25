@@ -1,3 +1,5 @@
+> **Superseded by [docs/UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).** This file is kept for history; where the two disagree, UI_DESIGN_SYSTEM.md wins.
+
 # UI Contract: Rails, Rows, Motion, and Hierarchy
 
 This document defines the non-negotiable UI layout and interaction contract for the dashboard. All components that render token-like rows MUST comply, including:
@@ -165,4 +167,3 @@ A change is accepted only if all are true:
 5. Hover bubble/glow uses `--emit-x/--emit-y` and `data-row-hover="1"`.
 6. Always-on breathe exists and is cheap (overlay-based).
 7. No `justify-content: space-between` used to fake rails.
-
