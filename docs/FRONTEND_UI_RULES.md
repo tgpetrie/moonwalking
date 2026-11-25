@@ -1,3 +1,5 @@
+> **Superseded by [docs/UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).** This file is kept for history; where the two disagree, UI_DESIGN_SYSTEM.md wins.
+
 # CBMoovers / BHABIT – Frontend UI Rules (Home Board)
 
 This file is the source of truth for the **home board** UI.
