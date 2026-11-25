@@ -225,7 +225,6 @@
 
 /* ---------- 2. CTAs & badges ---------- */
 
-.bh-ask-btn,
 .bh-alerts-notify-btn,
 .bh-alerts-btn,
 .mini-toggle:not(.bh-utabs) .mini-toggle-btn,
@@ -240,7 +239,6 @@
   box-shadow: none !important;
 }
 
-.bh-ask-btn:hover,
 .bh-alerts-notify-btn:hover:not(:disabled),
 .bh-alerts-btn:hover,
 .mini-toggle:not(.bh-utabs) .mini-toggle-btn:hover,
@@ -249,6 +247,8 @@
 .coinbase-trade-cta:hover {
   border-color: rgba(255, 255, 255, 0.32) !important;
 }
+
+/* .bh-ask-btn (ASK BHABIT) is styled in ask-codex.css: Raleway, 34px, 3px. */
 
 .bh-alerts-notify-btn[data-enabled="true"],
 .mini-toggle:not(.bh-utabs) .mini-toggle-btn.active,

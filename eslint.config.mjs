@@ -13,9 +13,6 @@ export default [
       "frontend/src/legacy/**",
       "frontend/src/legacy913/**",
       "frontend/src/playground/**",
-      // Unused and unparseable; nothing imports them. Delete rather than fix.
-      "frontend/src/components/OneMinGainers.jsx",
-      "frontend/src/components/TopBar.jsx",
     ],
   },
   {
