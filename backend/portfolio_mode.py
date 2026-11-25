@@ -99,6 +99,19 @@ class PageResult:
     complete: bool = True
 
 
+def _coinbase_session() -> requests.Session:
+    """A session that ignores ~/.netrc and proxy environment variables.
+
+    With the default ``trust_env=True`` requests re-reads ``~/.netrc`` and the
+    proxy env on every call (156 netrc parses in one portfolio refresh). These
+    calls carry their own Authorization header and go direct to Coinbase, and
+    TLS still verifies against certifi's bundle, so neither is needed.
+    """
+    session = requests.Session()
+    session.trust_env = False
+    return session
+
+
 class CoinbaseAdvancedTradeClient:
     """Small read-only Advanced Trade client using Coinbase App JWT auth or OAuth Bearer token."""
 
@@ -114,7 +127,7 @@ class CoinbaseAdvancedTradeClient:
         self.api_key_name = str(api_key_name or "").strip()
         self.api_key_secret = _normalize_secret(api_key_secret)
         self.oauth_access_token = str(oauth_access_token or "").strip()
-        self.http = http_session or requests.Session()
+        self.http = http_session or _coinbase_session()
         self.timeout = timeout
         self.request_deadline_monotonic: float | None = None
         self.auth_method = "oauth" if self.oauth_access_token else "jwt"

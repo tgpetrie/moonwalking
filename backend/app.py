@@ -9,6 +9,7 @@ except Exception:  # python-dotenv is optional; env vars can still come from the
     pass
 
 from flask import Flask, jsonify
+import atexit
 import os
 import secrets
 import argparse
@@ -4861,6 +4862,9 @@ def _coinbase_http():
     with _COINBASE_HTTP_LOCK:
         if _COINBASE_HTTP is None:
             session = requests.Session()
+            # Public market data only: skip the per-call ~/.netrc and proxy
+            # env lookups. TLS still verifies against certifi's bundle.
+            session.trust_env = False
             adapter = requests.adapters.HTTPAdapter(
                 pool_connections=_COINBASE_HTTP_POOL_SIZE,
                 pool_maxsize=_COINBASE_HTTP_POOL_SIZE,
@@ -16353,9 +16357,11 @@ def _compute_snapshots_from_cache():
             alert_delivery_dispatcher.dispatch_async(
                 notification_candidates(
                     delivery_events,
-                    # Background thread: allowed to refresh the portfolio
-                    # holdings cache over the network.
-                    priority_symbols=_notification_priority_symbols(fetch=True),
+                    # Cache-only read. A synchronous owner-portfolio refresh
+                    # here took ~25s and set the whole price loop's cadence;
+                    # _owner_portfolio_refresh_loop keeps the cache warm on
+                    # its own thread instead.
+                    priority_symbols=_notification_priority_symbols(fetch=False),
                 )
             )
 
@@ -16709,16 +16715,17 @@ def background_crypto_updates():
     _fetch_prices_and_update_history()
     _compute_snapshots_from_cache()
 
-    last_fetch_time = time.time()
+    last_fetch_time = time.monotonic()
 
     while True:
+        loop_started = time.monotonic()
         try:
-            now = time.time()
-
             # Check if it's time to fetch fresh prices
-            if now - last_fetch_time >= CONFIG["PRICE_FETCH_INTERVAL"]:
+            if _price_fetch_due(
+                loop_started, last_fetch_time, CONFIG["PRICE_FETCH_INTERVAL"]
+            ):
+                last_fetch_time = loop_started
                 _fetch_prices_and_update_history()
-                last_fetch_time = now
 
             # Always recompute snapshots from cache
             _compute_snapshots_from_cache()
@@ -16726,8 +16733,35 @@ def background_crypto_updates():
         except Exception as e:
             logging.error(f"Error in background worker: {e}")
 
-        # Sleep for snapshot compute interval (fast cadence)
-        time.sleep(CONFIG["SNAPSHOT_COMPUTE_INTERVAL"])
+        # Pace to the compute interval in wall-clock time: the work already
+        # done this iteration counts toward it, so a cycle is ~interval rather
+        # than work + interval.
+        time.sleep(
+            _loop_sleep_seconds(
+                CONFIG["SNAPSHOT_COMPUTE_INTERVAL"],
+                time.monotonic() - loop_started,
+            )
+        )
+
+
+# Sleeping "interval - elapsed" can wake a few ms before the fetch interval
+# has strictly elapsed; without this slack the fetch would slip a whole cycle.
+_PRICE_FETCH_DUE_SLACK_S = 0.25
+_LOOP_MIN_SLEEP_S = 0.5
+
+
+def _price_fetch_due(now_s, last_fetch_s, interval_s):
+    """True when a price fetch is due, tolerating sub-second scheduling jitter."""
+    return (now_s - last_fetch_s) >= (float(interval_s) - _PRICE_FETCH_DUE_SLACK_S)
+
+
+def _loop_sleep_seconds(target_interval_s, elapsed_s):
+    """Sleep that paces an iteration to ``target_interval_s`` of wall time.
+
+    Never below ``_LOOP_MIN_SLEEP_S`` so an overrunning iteration still yields
+    instead of spinning.
+    """
+    return max(_LOOP_MIN_SLEEP_S, float(target_interval_s) - float(elapsed_s))
 
 
 # =============================================================================
@@ -16820,6 +16854,100 @@ def _maybe_start_alert_rules_scanner():
 
 
 # =============================================================================
+# OWNER PORTFOLIO REFRESHER
+# =============================================================================
+#
+# Notification prioritization reads the owner's held symbols from the
+# PortfolioService cache (fetch=False, never blocks). This thread is the only
+# thing that refreshes that cache over the network, so a slow or failing
+# Coinbase portfolio call can no longer stall the price/snapshot loop.
+#
+# held_symbols(fetch=False) reads the last good snapshot whatever its age, and a
+# failed refresh never clears it, so between refreshes (or during a Coinbase
+# outage) prioritization keeps the last known holdings rather than going empty.
+
+_MW_PORTFOLIO_THREAD = None
+_MW_PORTFOLIO_LOCK = threading.Lock()
+_MW_PORTFOLIO_STOP = threading.Event()
+_MW_PORTFOLIO_REFRESH_DEFAULT_S = 120.0
+_MW_PORTFOLIO_REFRESH_MIN_S = 30.0
+
+
+def _owner_portfolio_refresh_interval_s():
+    try:
+        value = float(
+            os.environ.get(
+                "MW_PORTFOLIO_REFRESH_SECONDS", _MW_PORTFOLIO_REFRESH_DEFAULT_S
+            )
+        )
+    except (TypeError, ValueError):
+        return _MW_PORTFOLIO_REFRESH_DEFAULT_S
+    return max(_MW_PORTFOLIO_REFRESH_MIN_S, value)
+
+
+def _owner_portfolio_refresh_once():
+    """Refresh the owner's holdings cache over the network. Never raises."""
+    try:
+        from portfolio_mode import owner_held_symbols
+
+        return owner_held_symbols(fetch=True)
+    except Exception as exc:
+        logging.warning("Owner portfolio refresh failed: %s", exc)
+        return set()
+
+
+def _owner_portfolio_refresh_loop(stop_event=None, interval_s=None):
+    """Warm the cache at once, then refresh every ``interval_s`` until stopped."""
+    stop_event = stop_event if stop_event is not None else _MW_PORTFOLIO_STOP
+    interval = (
+        float(interval_s)
+        if interval_s is not None
+        else _owner_portfolio_refresh_interval_s()
+    )
+    logging.info("Owner portfolio refresher started (every %.0fs)", interval)
+    while not stop_event.is_set():
+        started = time.monotonic()
+        try:
+            held = _owner_portfolio_refresh_once()
+            logging.info(
+                "Owner portfolio refreshed: %d held symbols in %.1fs",
+                len(held or ()),
+                time.monotonic() - started,
+            )
+        except Exception:
+            # _owner_portfolio_refresh_once never raises; this only guards the
+            # logging so nothing at all can end the thread.
+            logging.exception("Owner portfolio refresh cycle failed")
+        stop_event.wait(interval)
+
+
+def _maybe_start_owner_portfolio_refresher():
+    global _MW_PORTFOLIO_THREAD
+    if os.environ.get("MW_PORTFOLIO_REFRESH_ENABLED", "1") != "1":
+        logging.info(
+            "Owner portfolio refresher disabled via MW_PORTFOLIO_REFRESH_ENABLED"
+        )
+        return
+    with _MW_PORTFOLIO_LOCK:
+        if _MW_PORTFOLIO_THREAD is not None and _MW_PORTFOLIO_THREAD.is_alive():
+            return
+        try:
+            _MW_PORTFOLIO_STOP.clear()
+            t = threading.Thread(
+                target=_owner_portfolio_refresh_loop,
+                name="mw-owner-portfolio-refresh",
+            )
+            t.daemon = True
+            t.start()
+            _MW_PORTFOLIO_THREAD = t
+        except Exception as e:
+            logging.warning(f"Failed to start owner portfolio refresher: {e}")
+
+
+atexit.register(_MW_PORTFOLIO_STOP.set)
+
+
+# =============================================================================
 # BACKGROUND STARTUP (for `flask run`)
 # =============================================================================
 
@@ -16860,6 +16988,7 @@ def _mw_ensure_background_started():
 
     _maybe_start_1h_backfill()
     _maybe_start_alert_rules_scanner()
+    _maybe_start_owner_portfolio_refresher()
 
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
