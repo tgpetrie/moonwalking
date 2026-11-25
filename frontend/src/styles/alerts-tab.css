@@ -664,6 +664,27 @@
   background: rgba(12, 10, 16, 0.42);
 }
 
+/* Before the first alerts payload: quieter than an empty state, one line. */
+.bh-signal-empty--loading,
+.bh-priority-empty--loading {
+  padding: 8px 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 42%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bh-signal-empty--loading,
+  .bh-priority-empty--loading {
+    animation: bh-loading-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bh-loading-pulse {
+  50% { opacity: 0.55; }
+}
+
 .bh-signal-row {
   width: 100%;
   display: flex;

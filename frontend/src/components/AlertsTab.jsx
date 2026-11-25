@@ -557,7 +557,7 @@ const sortAlertRows = (rows, { sort = "IMPORTANCE", feed = "ACTIVE" }) => {
   });
 };
 
-function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null, open = true, onToggle }) {
+function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null, open = true, onToggle, loading = false }) {
   const summary = deriveTapeState(items, marketPressure);
 
   return (
@@ -589,7 +589,11 @@ function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPr
             <span>Weakening {summary.weakening}</span>
           </div>
 
-          {!items.length ? (
+          {!items.length && loading ? (
+            <div className="bh-priority-empty bh-priority-empty--loading" role="status">
+              <div>Loading live tape…</div>
+            </div>
+          ) : !items.length ? (
             <div className="bh-priority-empty">
               <div>No dominant live setup right now.</div>
             </div>
@@ -878,6 +882,11 @@ function SignalRow({
       tabIndex={0}
       onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}
       onKeyDown={(e) => {
+        // Only keys pressed on the row itself open the link. Enter/Space on a
+        // <summary> inside (Why this read?, Event analysis, Signal details) or
+        // on the row's buttons bubble up here; cancelling them would stop the
+        // expander toggling and send keyboard users to Coinbase instead.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           url && window.open(url, "_blank", "noopener,noreferrer");
@@ -1234,6 +1243,15 @@ export default function AlertsTab({
     return `No live coin signal for ${forcedCoin} yet. Board position alone does not always produce an alert.`;
   }, [emptyCopy, forcedCoin, feed, boardContext, latestRecentTsMs, nowMs]);
 
+  // DataContext sets fallback_from_data on every alerts payload, so until it is
+  // a boolean nothing has arrived yet: show loading, not "no signals".
+  const alertsReady = typeof effectiveMeta?.fallback_from_data === "boolean";
+  const emptyStateEl = alertsReady ? (
+    <div className="bh-signal-empty">{resolvedEmptyCopy}</div>
+  ) : (
+    <div className="bh-signal-empty bh-signal-empty--loading" role="status">Loading signals…</div>
+  );
+
   const marketPressure = useMemo(
     () => getMarketPressure({ market_pressure: market_pressure ?? effectiveMeta?.market_pressure }),
     [market_pressure, effectiveMeta]
@@ -1273,6 +1291,8 @@ export default function AlertsTab({
 
   const watchlistMetaLabel = watchlistItems.length === 0
     ? "No coins watched"
+    : !alertsReady
+    ? "Loading"
     : watchlistAttentionRows.length === 0
     ? "Quiet right now"
     : `${watchlistAttentionRows.length} live`;
@@ -1299,7 +1319,9 @@ export default function AlertsTab({
             <div className="bh-signal-empty bh-signal-empty--compact">
               {watchlistItems.length === 0
                 ? "No coins watched"
-                : "No active watchlist alerts right now"}
+                : alertsReady
+                ? "No active watchlist alerts right now"
+                : "Loading signals…"}
             </div>
           ) : (
             <div className="bh-signal-list bh-signal-list--watchlist" role="list">
@@ -1345,7 +1367,7 @@ export default function AlertsTab({
         {evolvingOpen ? (
           <div id="bh-evolving-body" className="bh-signal-list bh-signal-list--primary" role="list">
             {displayedRows.length === 0 ? (
-              <div className="bh-signal-empty">{resolvedEmptyCopy}</div>
+              emptyStateEl
             ) : (
               displayedRows.map((a) => (
                 <SignalRow
@@ -1501,6 +1523,7 @@ export default function AlertsTab({
               marketPressure={marketPressure}
               open={priorityOpen}
               onToggle={() => setPriorityOpen(v => !v)}
+              loading={!alertsReady}
             />
           ) : null}
 
@@ -1513,7 +1536,7 @@ export default function AlertsTab({
           ) : (
             <div className="bh-signal-list bh-signal-list--primary" role="list">
               {displayedRows.length === 0 ? (
-                <div className="bh-signal-empty">{resolvedEmptyCopy}</div>
+                emptyStateEl
               ) : (
                 displayedRows.map((a) => (
                   <SignalRow

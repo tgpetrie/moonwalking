@@ -1888,7 +1888,7 @@
 .mw-coin-avatar img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 3px; }
 .mw-watchlist-marketbar { flex-wrap: wrap; }
 .mw-watchlist-windows, .mw-watchlist-display, .mw-watchlist-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-.mw-watchlist-windows button { cursor: pointer; border: 1px solid #ffffff24; border-radius: 8px; background: transparent; color: var(--mw-text); padding: 7px 12px; font: inherit; }
+.mw-watchlist-windows button { cursor: pointer; border: 1px solid #ffffff24; border-radius: var(--r-2, 3px); background: transparent; color: var(--mw-text); padding: 7px 12px; font: inherit; }
 .mw-watchlist-windows button[aria-pressed="true"] { background: #bb86fc30; border-color: #c084fc; }
 .mw-watchlist-windows button:focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
 .mw-watchlist-display label, .mw-watchlist-help { color: var(--mw-muted); font-size: .8rem; }

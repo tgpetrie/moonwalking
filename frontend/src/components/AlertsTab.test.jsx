@@ -274,6 +274,52 @@ describe("SignalRow – the_read demotion", () => {
 // 6. Graceful degradation — missing / partial interpretation
 // ---------------------------------------------------------------------------
 
+describe("SignalRow – keyboard", () => {
+  const theRead = {
+    label: "Breakout Active",
+    condition: "Resistance cleared",
+    summary: "Price pushed above recent resistance on volume",
+    tone: "favorable",
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("lets Enter and Space toggle every expander without opening Coinbase", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const a = { ...base, interpretation: productionInterp, the_read: theRead };
+    render(<SignalRow a={a} nowMs={NOW_MS} />);
+
+    for (const label of ["Why this read?", "Event analysis", "Signal details"]) {
+      const summary = screen.getByText(label);
+      expect(summary.tagName).toBe("SUMMARY");
+      for (const key of ["Enter", " "]) {
+        // fireEvent returns false when a handler called preventDefault(),
+        // which is what blocked the native <details> toggle.
+        expect(fireEvent.keyDown(summary, { key })).toBe(true);
+      }
+    }
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("still opens the trade link on Enter and Space on the row itself", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const { container } = render(<SignalRow a={base} nowMs={NOW_MS} />);
+    const row = container.querySelector(".bh-signal-row");
+
+    expect(fireEvent.keyDown(row, { key: "Enter" })).toBe(false);
+    fireEvent.keyDown(row, { key: " " });
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledWith(
+      "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+});
+
 describe("SignalRow – graceful degradation", () => {
   it("renders without crash when interpretation key is missing entirely", () => {
     render(<SignalRow a={base} nowMs={NOW_MS} />);
