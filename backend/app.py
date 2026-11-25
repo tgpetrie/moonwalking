@@ -9,6 +9,7 @@ except Exception:  # python-dotenv is optional; env vars can still come from the
     pass
 
 from flask import Flask, jsonify
+import atexit
 import os
 import secrets
 import argparse
@@ -1499,7 +1500,8 @@ def _local_desk_access():
     if (
         _is_test_runtime()
         or _IS_PRODUCTION
-        or (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").strip().lower() == "production"
+        or (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").strip().lower()
+        == "production"
         or os.getenv("MOONWALKING_REQUIRE_OWNER_AUTH", "").strip() == "1"
         or request.remote_addr not in _LOOPBACK_HOSTS
     ):
@@ -1508,7 +1510,8 @@ def _local_desk_access():
     # Check both ends of the proxy hop, and reject cross-site browser requests.
     forwarded_clients = request.headers.get("X-Forwarded-For")
     if forwarded_clients and any(
-        address.strip() not in _LOOPBACK_HOSTS for address in forwarded_clients.split(",")
+        address.strip() not in _LOOPBACK_HOSTS
+        for address in forwarded_clients.split(",")
     ):
         return False
     hosts = [request.host]
@@ -1516,12 +1519,18 @@ def _local_desk_access():
     if forwarded_host:
         hosts.extend(forwarded_host.split(","))
     try:
-        if any(urlparse(f"//{host.strip()}").hostname not in _LOOPBACK_HOSTS for host in hosts):
+        if any(
+            urlparse(f"//{host.strip()}").hostname not in _LOOPBACK_HOSTS
+            for host in hosts
+        ):
             return False
         for header in ("Origin", "Referer"):
             if header in request.headers:
                 origin = urlparse(request.headers[header])
-                if origin.scheme not in {"http", "https"} or origin.hostname not in _LOOPBACK_HOSTS:
+                if (
+                    origin.scheme not in {"http", "https"}
+                    or origin.hostname not in _LOOPBACK_HOSTS
+                ):
                     return False
     except ValueError:
         return False
@@ -4853,6 +4862,9 @@ def _coinbase_http():
     with _COINBASE_HTTP_LOCK:
         if _COINBASE_HTTP is None:
             session = requests.Session()
+            # Public market data only: skip the per-call ~/.netrc and proxy
+            # env lookups. TLS still verifies against certifi's bundle.
+            session.trust_env = False
             adapter = requests.adapters.HTTPAdapter(
                 pool_connections=_COINBASE_HTTP_POOL_SIZE,
                 pool_maxsize=_COINBASE_HTTP_POOL_SIZE,
@@ -11965,9 +11977,7 @@ def get_agents_status():
             # never run here so they are listed rather than silently missing.
             "agent_summaries": [
                 {**summary, **describe(summary["agent"])}
-                for summary in store.agent_summaries(
-                    known, now=now, **visibility
-                )
+                for summary in store.agent_summaries(known, now=now, **visibility)
             ],
             "local_llm": {
                 "enabled": llm_config.enabled,
@@ -12001,7 +12011,9 @@ def get_agent_observations():
             return jsonify({"status": "error", "error": "Invalid symbol."}), 400
         user, _ = _require_portfolio_owner(allow_local_desk=True)
         rows = AgentStore().latest(
-            limit=limit, agent=agent, symbol=symbol,
+            limit=limit,
+            agent=agent,
+            symbol=symbol,
             include_cycle_strategist=user is not None,
             include_portfolio_watch=user is not None,
         )
@@ -12016,8 +12028,12 @@ def get_agent_observations():
 
 _PROPOSAL_ID_RE = re.compile(r"[0-9a-f]{16}")
 _PROPOSAL_STATUSES = {
-    "pending_approval", "approved", "rejected", "blocked_by_guard",
-    "auto_executed_dry_run", "auto_armed_dry_run",
+    "pending_approval",
+    "approved",
+    "rejected",
+    "blocked_by_guard",
+    "auto_executed_dry_run",
+    "auto_armed_dry_run",
 }
 _MAX_SQLITE_ID = 2**63 - 1
 
@@ -12025,20 +12041,17 @@ _MAX_SQLITE_ID = 2**63 - 1
 @app.after_request
 def _prevent_cycle_control_caching(response):
     path = request.path
-    if (
-        path in {
-            "/api/agents/status",
-            "/api/agents/observations",
-            "/api/agents/proposals",
-            "/api/agents/autonomy",
-            "/api/agents/settings",
-            "/api/agents/run-cycle-pass",
-            "/api/smart-alerts",
-            "/api/execution-agent/mode",
-            "/api/execution-agent/tickets",
-        }
-        or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/"))
-    ):
+    if path in {
+        "/api/agents/status",
+        "/api/agents/observations",
+        "/api/agents/proposals",
+        "/api/agents/autonomy",
+        "/api/agents/settings",
+        "/api/agents/run-cycle-pass",
+        "/api/smart-alerts",
+        "/api/execution-agent/mode",
+        "/api/execution-agent/tickets",
+    } or path.startswith(("/api/agents/proposals/", "/api/smart-alerts/")):
         response.headers["Cache-Control"] = "private, no-store"
     return response
 
@@ -12113,19 +12126,24 @@ def get_agent_proposals():
     with _MACRO_SCAN_LOCK:
         scan = _MACRO_SCAN_STATE["payload"]
     autonomy = store.get_autonomy_settings()
-    return _private_json({
-        "status": "live",
-        "dry_run_only": True,
-        "proposals": store.list_proposals(status=status, symbol=symbol, limit=limit),
-        # Reload ladders from approved or dry-run executed trims that still hold USDC.
-        "reload_plans": store.active_reload_plans(symbol),
-        "compounding_summary": store.get_compounding_summary(
-            _cycle_scan_prices(scan), market_snapshot=(scan or {}).get("market_snapshot"),
-        ),
-        "cycle_scan": _cycle_scan_summary(scan),
-        "autonomy": autonomy,
-        **_stance_readout(autonomy["stance"], scan),
-    })
+    return _private_json(
+        {
+            "status": "live",
+            "dry_run_only": True,
+            "proposals": store.list_proposals(
+                status=status, symbol=symbol, limit=limit
+            ),
+            # Reload ladders from approved or dry-run executed trims that still hold USDC.
+            "reload_plans": store.active_reload_plans(symbol),
+            "compounding_summary": store.get_compounding_summary(
+                _cycle_scan_prices(scan),
+                market_snapshot=(scan or {}).get("market_snapshot"),
+            ),
+            "cycle_scan": _cycle_scan_summary(scan),
+            "autonomy": autonomy,
+            **_stance_readout(autonomy["stance"], scan),
+        }
+    )
 
 
 @app.post("/api/agents/proposals/<proposal_id>/<decision>")
@@ -12152,12 +12170,14 @@ def decide_agent_proposal(proposal_id, decision):
         return jsonify({"error": "Proposal not found."}), 404
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
-    return _private_json({
-        "status": "live",
-        "dry_run_only": True,
-        "proposal": proposal,
-        "autonomy": store.get_autonomy_settings(),
-    })
+    return _private_json(
+        {
+            "status": "live",
+            "dry_run_only": True,
+            "proposal": proposal,
+            "autonomy": store.get_autonomy_settings(),
+        }
+    )
 
 
 @app.route("/api/agents/autonomy", methods=["GET", "POST"])
@@ -12187,12 +12207,14 @@ def agent_autonomy_settings():
     autonomy = store.get_autonomy_settings()
     with _MACRO_SCAN_LOCK:
         scan = _MACRO_SCAN_STATE["payload"]
-    return _private_json({
-        "status": "live",
-        "dry_run_only": True,
-        "autonomy": autonomy,
-        **_stance_readout(autonomy["stance"], scan),
-    })
+    return _private_json(
+        {
+            "status": "live",
+            "dry_run_only": True,
+            "autonomy": autonomy,
+            **_stance_readout(autonomy["stance"], scan),
+        }
+    )
 
 
 # ─── Smart wake-up alert rules (owner-only) ──────────────────────────────────
@@ -12226,7 +12248,8 @@ def _maybe_start_desk_heartbeat(user, store, now):
 
         last_runs = store.last_successful_runs(DESK_AGENT_NAMES)
         due = {
-            name for name in DESK_AGENT_NAMES
+            name
+            for name in DESK_AGENT_NAMES
             if name not in last_runs or last_runs[name] < now - _DESK_FRESHNESS_SECONDS
         }
         if not due:
@@ -12262,13 +12285,16 @@ def _cycle_pass_portfolio_holdings():
         snapshot = response.get_json(silent=True) or {}
         if response.status_code == 200 and snapshot.get("status") == "live":
             try:
-                stamp = datetime.fromisoformat(str(snapshot.get("updated_at")).replace("Z", "+00:00"))
+                stamp = datetime.fromisoformat(
+                    str(snapshot.get("updated_at")).replace("Z", "+00:00")
+                )
                 observed_at = stamp.timestamp() if stamp.tzinfo else None
             except (ValueError, OverflowError, OSError):
                 observed_at = None
             return [
                 {**row, "observed_at_ts": observed_at}
-                for row in snapshot.get("holdings") or [] if isinstance(row, dict)
+                for row in snapshot.get("holdings") or []
+                if isinstance(row, dict)
             ]
     except Exception:
         logging.exception("[CyclePass] portfolio snapshot unavailable")
@@ -12280,20 +12306,38 @@ def _cycle_pass_positions(user):
     import paper_execution_store
     from portfolio_mode import USD_EQUIVALENTS
 
-    holdings = None if user["id"] == _LOCAL_DESK_OWNER_ID else _cycle_pass_portfolio_holdings()
+    holdings = (
+        None if user["id"] == _LOCAL_DESK_OWNER_ID else _cycle_pass_portfolio_holdings()
+    )
     if holdings is not None:
         holdings = [row for row in holdings if isinstance(row, dict)]
-        cash_rows = [row for row in holdings if row.get("is_cash") or row.get("symbol") in USD_EQUIVALENTS]
-        marks = [_num_or_none(row.get("market_value_usd")) for row in cash_rows]
-        cash = sum(marks) if all(mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks) else None
-        return [
-            {
-                "symbol": row.get("symbol"), "quantity": row.get("quantity"), "source": "portfolio",
-                "observed_at_ts": row.get("observed_at_ts"),
-            }
+        cash_rows = [
+            row
             for row in holdings
-            if not row.get("is_cash") and row.get("symbol") not in USD_EQUIVALENTS
-        ], "portfolio", cash
+            if row.get("is_cash") or row.get("symbol") in USD_EQUIVALENTS
+        ]
+        marks = [_num_or_none(row.get("market_value_usd")) for row in cash_rows]
+        cash = (
+            sum(marks)
+            if all(
+                mark is not None and math.isfinite(mark) and mark >= 0 for mark in marks
+            )
+            else None
+        )
+        return (
+            [
+                {
+                    "symbol": row.get("symbol"),
+                    "quantity": row.get("quantity"),
+                    "source": "portfolio",
+                    "observed_at_ts": row.get("observed_at_ts"),
+                }
+                for row in holdings
+                if not row.get("is_cash") and row.get("symbol") not in USD_EQUIVALENTS
+            ],
+            "portfolio",
+            cash,
+        )
     observed_at = time.time()
     positions = paper_execution_store.list_open_positions(user["id"])
     return [{**row, "observed_at_ts": observed_at} for row in positions], "paper", None
@@ -12335,7 +12379,10 @@ def _cycle_scan_prices(scan):
     if not usable_cycle_scan(scan, now=now):
         return {}
     computed_at = scan.get("computed_at", now)
-    if not isinstance(computed_at, (int, float)) or not 0 <= now - computed_at < MACRO_SCAN_TTL_SECONDS:
+    if (
+        not isinstance(computed_at, (int, float))
+        or not 0 <= now - computed_at < MACRO_SCAN_TTL_SECONDS
+    ):
         return {}
     if _macro_scan_day(computed_at) != _macro_scan_day(now):
         return {}
@@ -12352,7 +12399,14 @@ def _cycle_scan_summary(scan):
         "status": scan.get("status", "warming"),
         **{
             key: scan.get(key)
-            for key in ("computed_at", "market_snapshot", "target_universe_size", "ready_count", "coverage_pct", "atlas_refreshing")
+            for key in (
+                "computed_at",
+                "market_snapshot",
+                "target_universe_size",
+                "ready_count",
+                "coverage_pct",
+                "atlas_refreshing",
+            )
         },
     }
 
@@ -12371,13 +12425,16 @@ def _cycle_pass_histories(symbols, *, now, scan=None):
         return {}
     try:
         products = [f"{symbol}-USD" for symbol in symbols]
-        histories = atlas.histories([product for product in products if atlas.state(product, now) == "fresh"])
+        histories = atlas.histories(
+            [product for product in products if atlas.state(product, now) == "fresh"]
+        )
         if scan and scan.get("market_snapshot"):
             from macro_industry_scanner import daily_history_id
 
             rows = {row["product_id"]: row for row in scan["coins"]}
             histories = {
-                product: candles for product, candles in histories.items()
+                product: candles
+                for product, candles in histories.items()
                 if daily_history_id(candles) == rows.get(product, {}).get("history_id")
             }
         return histories
@@ -12408,15 +12465,25 @@ def _desk_risk_board(context, positions_source):
 
     positions = context["positions"]
     source = "portfolio" if positions_source == "portfolio" else "watchlist"
-    rows = positions if source == "portfolio" else [
-        {"symbol": symbol}
-        for symbol in dict.fromkeys([*(row["symbol"] for row in positions), *context["watchlist"]])
-    ]
+    rows = (
+        positions
+        if source == "portfolio"
+        else [
+            {"symbol": symbol}
+            for symbol in dict.fromkeys(
+                [*(row["symbol"] for row in positions), *context["watchlist"]]
+            )
+        ]
+    )
     quotes = last_current_prices
     prices = quotes.get("data") or {}
-    holdings = [{**row, "price_usd": prices.get(f"{row['symbol']}-USD")} for row in rows]
+    holdings = [
+        {**row, "price_usd": prices.get(f"{row['symbol']}-USD")} for row in rows
+    ]
     return _portfolio_risk_payload(
-        holdings, source=source, quote_as_of=timestamp(quotes.get("timestamp")),
+        holdings,
+        source=source,
+        quote_as_of=timestamp(quotes.get("timestamp")),
         include_chart=False,
     )
 
@@ -12426,13 +12493,15 @@ def _desk_sentiment_summaries():
 
     service = get_service()
     symbols = [
-        symbol for symbol in dict.fromkeys(["BTC", *_macro_atlas_movers()])
+        symbol
+        for symbol in dict.fromkeys(["BTC", *_macro_atlas_movers()])
         if re.fullmatch(r"[A-Z0-9]{1,15}", symbol)
     ][:6]
     summaries = [service.symbol(symbol) for symbol in symbols]
     if any(
         source.get("status") == "ok"
-        for name, source in service.source_health().items() if name != "fear_greed"
+        for name, source in service.source_health().items()
+        if name != "fear_greed"
     ):
         return summaries
     return []
@@ -12447,7 +12516,10 @@ def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
     positions, positions_source, cash = _cycle_pass_positions(user)
     watch = _cycle_pass_watchlist(user)
     context = build_cycle_context(
-        None, positions=positions, watchlist=watch, quote_fetcher=_cycle_pass_quote_fetcher,
+        None,
+        positions=positions,
+        watchlist=watch,
+        quote_fetcher=_cycle_pass_quote_fetcher,
     )
     held = [row["symbol"] for row in context["positions"]]
     reload = [plan["symbol"] for plan in store.active_reload_plans()]
@@ -12456,8 +12528,10 @@ def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
 
     known = _macro_scan_known_products()
     wanted = [
-        product for symbol in dict.fromkeys((*held, *context["watchlist"], *reload))
-        if is_atlas_eligible(product := f"{symbol}-USD") and (not known or product in known)
+        product
+        for symbol in dict.fromkeys((*held, *context["watchlist"], *reload))
+        if is_atlas_eligible(product := f"{symbol}-USD")
+        and (not known or product in known)
     ][:MACRO_SCAN_MAX_PRODUCTS]
     if names.intersection({"data_quality", "tape_scout"}):
         context["board_snapshot"] = _desk_board_snapshot()
@@ -12475,7 +12549,11 @@ def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
     context["now_ts"] = now
     context["cycle_scan"] = build_cycle_context(scan, now=now)["cycle_scan"]
     prices = _cycle_scan_prices(scan)
-    if positions_source == "portfolio" and cash is not None and all(sym in prices for sym in held):
+    if (
+        positions_source == "portfolio"
+        and cash is not None
+        and all(sym in prices for sym in held)
+    ):
         context["portfolio_equity_usd"] = cash + sum(
             row["quantity"] * prices[row["symbol"]] for row in context["positions"]
         )
@@ -12484,28 +12562,37 @@ def _run_desk_pass(user, store, names, *, evaluate_alerts=False):
     run_cycle = context["cycle_scan"] is not None and CycleStrategistAgent.name in names
     strategist = None
     if run_cycle:
-        context["cycle_histories"] = _cycle_pass_histories(held, now=now, scan=context["cycle_scan"])
+        context["cycle_histories"] = _cycle_pass_histories(
+            held, now=now, scan=context["cycle_scan"]
+        )
         strategist = CycleStrategistAgent(costs=configured_cost_model())
         agents.append(strategist)
 
     alert_engine = _smart_alert_engine() if run_cycle and evaluate_alerts else None
-    result = run_once(context, store=store, agents=agents, smart_alert_engine=alert_engine)
+    result = run_once(
+        context, store=store, agents=agents, smart_alert_engine=alert_engine
+    )
     autonomy = store.get_autonomy_settings()
     body = {
         **result,
         "dry_run_only": True,
-        "cycle_scan": {**_cycle_scan_summary(scan), "usable": context["cycle_scan"] is not None},
+        "cycle_scan": {
+            **_cycle_scan_summary(scan),
+            "usable": context["cycle_scan"] is not None,
+        },
         "positions_source": positions_source,
         "positions": len(context["positions"]),
         "watchlist": len(context["watchlist"]),
         "proposals": list(getattr(strategist, "last_proposals", None) or []),
         "cluster_guard": getattr(strategist, "last_cluster_guard", None),
         "compounding_summary": store.get_compounding_summary(
-            prices, market_snapshot=(scan or {}).get("market_snapshot"),
+            prices,
+            market_snapshot=(scan or {}).get("market_snapshot"),
         ),
         "autonomy": autonomy,
         **_stance_readout(
-            autonomy["stance"], context["cycle_scan"],
+            autonomy["stance"],
+            context["cycle_scan"],
             resolved=getattr(strategist, "last_stance", None),
         ),
     }
@@ -12531,10 +12618,14 @@ def run_agent_cycle_pass():
         from agents.runner import DESK_AGENT_NAMES
         from agents.store import AgentStore
 
-        return _private_json(_run_desk_pass(
-            user, AgentStore(), set(DESK_AGENT_NAMES),
-            evaluate_alerts=user["id"] != _LOCAL_DESK_OWNER_ID,
-        ))
+        return _private_json(
+            _run_desk_pass(
+                user,
+                AgentStore(),
+                set(DESK_AGENT_NAMES),
+                evaluate_alerts=user["id"] != _LOCAL_DESK_OWNER_ID,
+            )
+        )
     finally:
         _CYCLE_PASS_LOCK.release()
 
@@ -12548,14 +12639,16 @@ def smart_alert_rules():
     if request.method in {"GET", "HEAD"}:
         from smart_alerts import PREDICATES, SCOPES, URGENCIES
 
-        return _private_json({
-            "status": "live",
-            "rules": engine.list_rules(),
-            "predicates": sorted(PREDICATES),
-            "urgencies": list(URGENCIES),
-            "scopes": list(SCOPES),
-            "ntfy_configured": bool(engine.ntfy_url),
-        })
+        return _private_json(
+            {
+                "status": "live",
+                "rules": engine.list_rules(),
+                "predicates": sorted(PREDICATES),
+                "urgencies": list(URGENCIES),
+                "scopes": list(SCOPES),
+                "ntfy_configured": bool(engine.ntfy_url),
+            }
+        )
     payload, error = _owner_json_body()
     if error:
         return error
@@ -12615,10 +12708,12 @@ def smart_alert_history():
     limit = _request_limit(500)
     if limit is None:
         return jsonify({"error": "Limit must be an integer from 1 to 500."}), 400
-    return _private_json({
-        "status": "live",
-        "history": _smart_alert_engine().history(limit=limit, symbol=symbol),
-    })
+    return _private_json(
+        {
+            "status": "live",
+            "history": _smart_alert_engine().history(limit=limit, symbol=symbol),
+        }
+    )
 
 
 @app.post("/api/smart-alerts/test")
@@ -12630,10 +12725,15 @@ def smart_alert_test():
     payload, error = _owner_json_body()
     if error:
         return error
-    if set(payload) - {"urgency", "rule_id"} or {"urgency", "rule_id"} <= payload.keys():
+    if (
+        set(payload) - {"urgency", "rule_id"}
+        or {"urgency", "rule_id"} <= payload.keys()
+    ):
         return jsonify({"error": "Provide either urgency or rule_id."}), 400
     rule_id = payload.get("rule_id")
-    if "rule_id" in payload and (type(rule_id) is not int or not 1 <= rule_id <= _MAX_SQLITE_ID):
+    if "rule_id" in payload and (
+        type(rule_id) is not int or not 1 <= rule_id <= _MAX_SQLITE_ID
+    ):
         return jsonify({"error": "rule_id must be a positive SQLite integer."}), 400
     try:
         fired = _smart_alert_engine().send_test(
@@ -12664,11 +12764,13 @@ def execution_agent_mode():
             paper_execution_store.set_mode(user["id"], payload.get("mode"))
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
-    response = jsonify({
-        "status": "live",
-        "mode": paper_execution_store.get_mode(user["id"]),
-        "paper": True,
-    })
+    response = jsonify(
+        {
+            "status": "live",
+            "mode": paper_execution_store.get_mode(user["id"]),
+            "paper": True,
+        }
+    )
     response.headers["Cache-Control"] = "private, no-store"
     return response
 
@@ -12686,11 +12788,15 @@ def execution_agent_tickets():
         product_id = str(request.args.get("product_id") or "").upper()
         if product_id and not re.fullmatch(r"[A-Z0-9]{1,15}-USD", product_id):
             return jsonify({"error": "Invalid product_id."}), 400
-        response = jsonify({
-            "status": "live",
-            "paper": True,
-            "tickets": paper_execution_store.list_tickets(user["id"], product_id or None),
-        })
+        response = jsonify(
+            {
+                "status": "live",
+                "paper": True,
+                "tickets": paper_execution_store.list_tickets(
+                    user["id"], product_id or None
+                ),
+            }
+        )
         response.headers["Cache-Control"] = "private, no-store"
         return response
     if not request.is_json:
@@ -12701,22 +12807,35 @@ def execution_agent_tickets():
     action = payload.get("action")
     try:
         if action in {"approve", "fill", "close", "cancel"}:
-            if not isinstance(payload.get("ticket_id"), str) or not payload["ticket_id"]:
+            if (
+                not isinstance(payload.get("ticket_id"), str)
+                or not payload["ticket_id"]
+            ):
                 raise ValueError("A paper ticket ID is required.")
             if action == "approve":
-                ticket = paper_execution_store.approve_ticket(user["id"], payload["ticket_id"])
+                ticket = paper_execution_store.approve_ticket(
+                    user["id"], payload["ticket_id"]
+                )
             elif action == "fill":
-                ticket = paper_execution_store.fill_ticket(user["id"], payload["ticket_id"], payload.get("fill_price"))
+                ticket = paper_execution_store.fill_ticket(
+                    user["id"], payload["ticket_id"], payload.get("fill_price")
+                )
             elif action == "close":
-                ticket = paper_execution_store.close_position(user["id"], payload["ticket_id"], payload.get("exit_price"))
+                ticket = paper_execution_store.close_position(
+                    user["id"], payload["ticket_id"], payload.get("exit_price")
+                )
             else:
-                ticket = paper_execution_store.cancel_ticket(user["id"], payload["ticket_id"])
+                ticket = paper_execution_store.cancel_ticket(
+                    user["id"], payload["ticket_id"]
+                )
         elif action in {"preview", "stage"}:
             intent = payload.get("ticket")
             if not isinstance(intent, dict):
                 raise ValueError("A paper ticket is required.")
             intent = dict(intent)
-            if not re.fullmatch(r"[A-Z0-9]{1,15}-USD", str(intent.get("product_id") or "")):
+            if not re.fullmatch(
+                r"[A-Z0-9]{1,15}-USD", str(intent.get("product_id") or "")
+            ):
                 raise ValueError("Invalid product_id.")
             # A caller cannot lower the circuit-breaker notional independently
             # of the actual order size and price.
@@ -12725,45 +12844,81 @@ def execution_agent_tickets():
             intent.pop("held_position", None)
             intent["position_held"] = False
             mode = paper_execution_store.get_mode(user["id"])
-            if mode == "guardian" and intent.get("side") == "sell" and user["id"] != _LOCAL_DESK_OWNER_ID:
+            if (
+                mode == "guardian"
+                and intent.get("side") == "sell"
+                and user["id"] != _LOCAL_DESK_OWNER_ID
+            ):
                 from portfolio_mode import get_portfolio_service, PortfolioModeError
 
                 try:
                     snapshot = get_portfolio_service().snapshot()
                 except PortfolioModeError as exc:
-                    logging.warning("[PaperExecution] held position unavailable: %s", exc)
+                    logging.warning(
+                        "[PaperExecution] held position unavailable: %s", exc
+                    )
                 else:
                     size = intent.get("base_size") or intent.get("size")
-                    if isinstance(size, (int, float)) and not isinstance(size, bool) and math.isfinite(size) and size > 0 and snapshot.get("status") == "live":
+                    if (
+                        isinstance(size, (int, float))
+                        and not isinstance(size, bool)
+                        and math.isfinite(size)
+                        and size > 0
+                        and snapshot.get("status") == "live"
+                    ):
                         intent["position_held"] = any(
                             holding.get("product_id") == intent["product_id"]
                             and not holding.get("is_cash")
-                            and isinstance(holding.get("available_quantity"), (int, float))
+                            and isinstance(
+                                holding.get("available_quantity"), (int, float)
+                            )
                             and holding["available_quantity"] >= size
                             for holding in snapshot.get("holdings") or []
                         )
-            entry = intent.get("entry_price") if intent.get("side") == "buy" else intent.get("current_price")
+            entry = (
+                intent.get("entry_price")
+                if intent.get("side") == "buy"
+                else intent.get("current_price")
+            )
             stop = intent.get("stop_limit_price")
             target = intent.get("target_price")
-            if all(
-                isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-                for value in (entry, stop, target)
-            ) and 0 < stop < entry < target:
+            if (
+                all(
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and math.isfinite(value)
+                    for value in (entry, stop, target)
+                )
+                and 0 < stop < entry < target
+            ):
                 intent["rr_planned"] = round((target - entry) / (entry - stop), 2)
             else:
                 intent.pop("rr_planned", None)
-            posture = _trusted_execution_sentiment(intent["product_id"].split("-")[0]) if mode == "autonomous" else None
+            posture = (
+                _trusted_execution_sentiment(intent["product_id"].split("-")[0])
+                if mode == "autonomous"
+                else None
+            )
 
             def evaluate(risk):
-                context = {"mode": mode, "trade_intents": [intent], **risk, "sentiment_posture": posture}
+                context = {
+                    "mode": mode,
+                    "trade_intents": [intent],
+                    **risk,
+                    "sentiment_posture": posture,
+                }
                 return dict(CoinbaseExecutionAgent().run(context)[0].evidence["ticket"])
 
             if action == "stage":
-                ticket = paper_execution_store.stage_evaluated_ticket(user["id"], evaluate)
+                ticket = paper_execution_store.stage_evaluated_ticket(
+                    user["id"], evaluate
+                )
             else:
                 ticket = evaluate(paper_execution_store.risk_metrics(user["id"]))
         else:
-            raise ValueError("Action must be preview, stage, approve, fill, close, or cancel.")
+            raise ValueError(
+                "Action must be preview, stage, approve, fill, close, or cancel."
+            )
     except LookupError as exc:
         return jsonify({"error": str(exc)}), 404
     except (ValueError, TypeError) as exc:
@@ -12782,15 +12937,25 @@ def _trusted_execution_sentiment(symbol):
     if summary.get("severe_negative") or summary.get("negative_catalyst_risk"):
         return "negative_catalyst_risk"
     sources = service.source_health()
-    required = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
-    if not required or not all(source.get("status") == "ok" for source in required.values()):
+    required = {
+        name: state
+        for name, state in sources.items()
+        if name != "fear_greed" and not name.startswith("optional_news:")
+    }
+    if not required or not all(
+        source.get("status") == "ok" for source in required.values()
+    ):
         return None
     try:
         structure = _structure_posture_for(symbol)
     except (requests.RequestException, ValueError, OSError):
-        logging.warning("[PaperExecution] structure unavailable for %s", symbol, exc_info=True)
+        logging.warning(
+            "[PaperExecution] structure unavailable for %s", symbol, exc_info=True
+        )
         return None
-    if not structure or not all((structure.get("reads") or {}).get(tf) for tf in ("15m", "1h", "4h")):
+    if not structure or not all(
+        (structure.get("reads") or {}).get(tf) for tf in ("15m", "1h", "4h")
+    ):
         return None
     return structure_sentiment_posture(summary, structure=structure).get("key")
 
@@ -12944,10 +13109,14 @@ def _portfolio_risk_payload(holdings, *, source, quote_as_of, include_chart=True
     levels = {}
     if 0 < quote_as_of <= now + 30 and now - quote_as_of <= 120:
         try:
-            levels = _gather_levels_for_symbols(set(price_map), price_map, include_chart=include_chart)
+            levels = _gather_levels_for_symbols(
+                set(price_map), price_map, include_chart=include_chart
+            )
         except Exception:
             logging.exception("Portfolio risk candle batch unavailable")
-    contexts = {row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings}
+    contexts = {
+        row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings
+    }
     return build_risk_board(
         holdings, levels, contexts, source=source, quote_as_of=quote_as_of, now=now
     )
@@ -14144,7 +14313,9 @@ _CYCLE_BACKTEST_LOCK = threading.Lock()
 
 def _cycle_backtest_cached(product_id, daily_candles):
     """Keep one replay per product, invalidated by UTC rollover or changed OHLC."""
-    bars = [tuple(bar[:5]) for bar in daily_candles or [] if isinstance(bar, (list, tuple))]
+    bars = [
+        tuple(bar[:5]) for bar in daily_candles or [] if isinstance(bar, (list, tuple))
+    ]
     fingerprint = hashlib.sha256(repr(bars).encode()).digest()
     with _CYCLE_BACKTEST_LOCK:
         key = (_macro_scan_day(time.time()), fingerprint)
@@ -14239,7 +14410,9 @@ def get_chart_read(symbol):
                 product_id, years=chart_reader.CYCLE_HISTORY_YEARS
             )
         except (requests.RequestException, ValueError, OSError, sqlite3.Error):
-            logging.warning("[ChartRead] multi-year history unavailable for %s", sym, exc_info=True)
+            logging.warning(
+                "[ChartRead] multi-year history unavailable for %s", sym, exc_info=True
+            )
             return None
 
     if horizon == "cycle":
@@ -14256,31 +14429,55 @@ def get_chart_read(symbol):
         with ThreadPoolExecutor(max_workers=3) as pool:
             daily_job = pool.submit(fetch_daily)
             if horizon == "short":
-                history_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=900, count=300)
-                hourly_job = pool.submit(_fetch_coinbase_candles, product_id, granularity=3600, count=300)
+                history_job = pool.submit(
+                    _fetch_coinbase_candles, product_id, granularity=900, count=300
+                )
+                hourly_job = pool.submit(
+                    _fetch_coinbase_candles, product_id, granularity=3600, count=300
+                )
                 history = history_job.result()
                 try:
-                    higher = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                    higher = resample_candles(
+                        _closed_candles(hourly_job.result(), 3600, now), 14400
+                    )
                 except Exception:
-                    logging.debug("[ChartRead] 4h trend bars unavailable for %s", sym, exc_info=True)
+                    logging.debug(
+                        "[ChartRead] 4h trend bars unavailable for %s",
+                        sym,
+                        exc_info=True,
+                    )
             elif horizon == "macro":
-                hourly_job = pool.submit(_fetch_coinbase_candle_history, product_id, 3600, pages=3)
+                hourly_job = pool.submit(
+                    _fetch_coinbase_candle_history, product_id, 3600, pages=3
+                )
                 history = None
                 try:
-                    bars = resample_candles(_closed_candles(hourly_job.result(), 3600, now), 14400)
+                    bars = resample_candles(
+                        _closed_candles(hourly_job.result(), 3600, now), 14400
+                    )
                     history = list(reversed(bars))  # newest first, like Coinbase
                 except Exception:
-                    logging.warning("[ChartRead] 4h bars unavailable for %s", sym, exc_info=True)
+                    logging.warning(
+                        "[ChartRead] 4h bars unavailable for %s", sym, exc_info=True
+                    )
             else:
-                history = _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+                history = _fetch_coinbase_candles(
+                    product_id, granularity=3600, count=300
+                )
             daily = daily_job.result()
         if horizon == "macro" and history:
-            higher = (daily or _fetch_coinbase_candles(product_id, granularity=86400, count=300) or [])[:300]
+            higher = (
+                daily
+                or _fetch_coinbase_candles(product_id, granularity=86400, count=300)
+                or []
+            )[:300]
     if not history:
         return jsonify({"error": f"No candle data for {sym}"}), 404
     candles = history[:50]
 
-    result = chart_reader.analyze_candles(candles, sym, timeframe, event_context=event_context)
+    result = chart_reader.analyze_candles(
+        candles, sym, timeframe, event_context=event_context
+    )
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
 
@@ -14295,19 +14492,26 @@ def get_chart_read(symbol):
         )
     result["horizon"] = horizon
     result["horizons"] = chart_structure.horizon_list()
-    result["candles"] = chart_reader.chart_candle_series(history, timeframe, as_of_ts=now)
+    result["candles"] = chart_reader.chart_candle_series(
+        history, timeframe, as_of_ts=now
+    )
     cycle = chart_structure.multi_year_context(daily)
     result["multi_year_context"] = cycle
     result["multiyear_cycle_anatomy"] = cycle["multiyear_cycle_anatomy"]
     if horizon == "cycle":
-        cycle["weekly_wave_analysis"] = chart_reader.build_wave_analysis(higher, "1w", [], as_of_ts=now)
+        cycle["weekly_wave_analysis"] = chart_reader.build_wave_analysis(
+            higher, "1w", [], as_of_ts=now
+        )
         cycle["backtest"] = _cycle_backtest_cached(product_id, history)
     if horizon in {"swing", "cycle"}:
         from elliott_wave_engine import resample_candles
 
         try:
             if horizon == "cycle":
-                hourly = _fetch_coinbase_candles(product_id, granularity=3600, count=300) or []
+                hourly = (
+                    _fetch_coinbase_candles(product_id, granularity=3600, count=300)
+                    or []
+                )
                 wave_1h = chart_reader.build_wave_analysis(hourly, "1h", as_of_ts=now)
             else:
                 hourly = history
@@ -14316,12 +14520,18 @@ def get_chart_read(symbol):
             four_hour = resample_candles(closed, 14400)
             wave_4h = chart_reader.build_wave_analysis(four_hour, "4h", as_of_ts=now)
             result["top_down_confluence"] = chart_structure.top_down_confluence(
-                cycle, {"1h": wave_1h, "4h": wave_4h},
+                cycle,
+                {"1h": wave_1h, "4h": wave_4h},
                 closed[-1][4] if closed else None,
             )
         except (requests.RequestException, ValueError, OSError, sqlite3.Error):
-            logging.warning("[ChartRead] top-down history unavailable for %s", sym, exc_info=True)
-            result["top_down_confluence"] = {"available": False, "reason": "history_unavailable"}
+            logging.warning(
+                "[ChartRead] top-down history unavailable for %s", sym, exc_info=True
+            )
+            result["top_down_confluence"] = {
+                "available": False,
+                "reason": "history_unavailable",
+            }
         # The industry gate picks which target tier is the active expectation.
         try:
             regime = _macro_regime_for_chart_read()
@@ -14340,11 +14550,21 @@ def get_chart_read(symbol):
         service = get_service()
         summary = service.symbol(sym)
         sources = service.source_health()
-        relevant = {name: state for name, state in sources.items() if name != "fear_greed" and not name.startswith("optional_news:")}
+        relevant = {
+            name: state
+            for name, state in sources.items()
+            if name != "fear_greed" and not name.startswith("optional_news:")
+        }
         fresh = any(source.get("status") == "ok" for source in relevant.values())
-        complete = bool(relevant) and all(source.get("status") == "ok" for source in relevant.values())
-        structure = {"reads": {"1h": result["wave_analysis"]}} if horizon == "swing" else {}
-        posture = structure_sentiment_posture(summary, structure=structure) if fresh else None
+        complete = bool(relevant) and all(
+            source.get("status") == "ok" for source in relevant.values()
+        )
+        structure = (
+            {"reads": {"1h": result["wave_analysis"]}} if horizon == "swing" else {}
+        )
+        posture = (
+            structure_sentiment_posture(summary, structure=structure) if fresh else None
+        )
         if posture and posture["key"] == "quiet" and not complete:
             posture = None
         result["catalyst_sentiment"] = {
@@ -14367,14 +14587,20 @@ def get_chart_read(symbol):
             from coinbase_execution_agent import CoinbaseExecutionAgent
 
             mode = paper_execution_store.get_mode(user["id"])
-            observations = CoinbaseExecutionAgent().run({
-                "product_id": product_id,
-                "symbol": sym,
-                "wave_analysis": result["wave_analysis"],
-                "mode": mode,
-                **paper_execution_store.risk_metrics(user["id"]),
-                "sentiment_posture": _trusted_execution_sentiment(sym) if mode == "autonomous" else result["catalyst_sentiment"].get("posture"),
-            })
+            observations = CoinbaseExecutionAgent().run(
+                {
+                    "product_id": product_id,
+                    "symbol": sym,
+                    "wave_analysis": result["wave_analysis"],
+                    "mode": mode,
+                    **paper_execution_store.risk_metrics(user["id"]),
+                    "sentiment_posture": (
+                        _trusted_execution_sentiment(sym)
+                        if mode == "autonomous"
+                        else result["catalyst_sentiment"].get("posture")
+                    ),
+                }
+            )
             if observations:
                 result["paper_order_ticket"] = observations[0].evidence["ticket"]
     response = jsonify(result)
@@ -14492,7 +14718,12 @@ MACRO_ATLAS_SLICE_INTERVAL_SECONDS = 20
 MACRO_SCAN_EXTRA_INTERVAL_SECONDS = 20
 _MACRO_ATLAS = None
 _MACRO_ATLAS_PRIORITY = {
-    "held": (), "watchlist": (), "reload": (), "paper": (), "saved_watchlist": (), "requested": (),
+    "held": (),
+    "watchlist": (),
+    "reload": (),
+    "paper": (),
+    "saved_watchlist": (),
+    "requested": (),
 }
 _MACRO_SCAN_LOCK = threading.Lock()
 _MACRO_SCAN_STATE = {
@@ -14530,9 +14761,14 @@ def _macro_scan_universe():
     # Symbols asked for on the public route count only once the board has
     # verified them, so a caller cannot push arbitrary tickers into the scan.
     known = _macro_scan_known_products()
-    requested = [product for product in priority.get("requested", ()) if product in known]
+    requested = [
+        product for product in priority.get("requested", ()) if product in known
+    ]
     return macro_industry_scanner.select_atlas_universe(
-        core=(*macro_industry_scanner.MAJORS, *macro_industry_scanner.ALT_INDEX_MEMBERS),
+        core=(
+            *macro_industry_scanner.MAJORS,
+            *macro_industry_scanner.ALT_INDEX_MEMBERS,
+        ),
         held=(*priority["held"], *priority.get("paper", ())),
         watchlist=(*priority["watchlist"], *priority.get("saved_watchlist", ())),
         reload=(*priority["reload"], *requested),
@@ -14564,7 +14800,9 @@ def _macro_atlas_seed_priority():
     from watchlist import _db_connect, _user_by_email
 
     paper, watch, reload = [], [], []
-    owner_email = str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    owner_email = (
+        str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    )
     owner = None
     try:
         if owner_email:
@@ -14576,10 +14814,15 @@ def _macro_atlas_seed_priority():
         import paper_execution_store
 
         if owner is not None:
-            paper = [row["product_id"] for row in paper_execution_store.list_open_positions(owner["id"])]
+            paper = [
+                row["product_id"]
+                for row in paper_execution_store.list_open_positions(owner["id"])
+            ]
             watch = _cycle_pass_watchlist(owner)
     except Exception:
-        logging.debug("[MacroScan] owner positions/watchlist unavailable", exc_info=True)
+        logging.debug(
+            "[MacroScan] owner positions/watchlist unavailable", exc_info=True
+        )
     try:
         from agents.store import AgentStore
 
@@ -14588,7 +14831,11 @@ def _macro_atlas_seed_priority():
     except Exception:
         logging.debug("[MacroScan] reload plans unavailable", exc_info=True)
     with _MACRO_SCAN_LOCK:
-        for key, found in (("paper", paper), ("saved_watchlist", watch), ("reload", reload)):
+        for key, found in (
+            ("paper", paper),
+            ("saved_watchlist", watch),
+            ("reload", reload),
+        ):
             _MACRO_ATLAS_PRIORITY[key] = tuple(dict.fromkeys(found))[:60]
 
 
@@ -14597,7 +14844,14 @@ def _macro_atlas_priority_products():
     with _MACRO_SCAN_LOCK:
         symbols = [
             str(symbol).upper().removesuffix("-USD")
-            for key in ("held", "paper", "watchlist", "saved_watchlist", "reload", "requested")
+            for key in (
+                "held",
+                "paper",
+                "watchlist",
+                "saved_watchlist",
+                "reload",
+                "requested",
+            )
             for symbol in _MACRO_ATLAS_PRIORITY.get(key, ())
         ]
     return [f"{symbol}-USD" for symbol in dict.fromkeys(symbols) if symbol]
@@ -14607,7 +14861,9 @@ def _macro_atlas_set_priority(*, held=(), watchlist=(), reload=()):
     """Record the owner's symbols so the next universe build puts them first."""
     with _MACRO_SCAN_LOCK:
         _MACRO_ATLAS_PRIORITY.update(
-            held=tuple(held)[:60], watchlist=tuple(watchlist)[:60], reload=tuple(reload)[:60]
+            held=tuple(held)[:60],
+            watchlist=tuple(watchlist)[:60],
+            reload=tuple(reload)[:60],
         )
 
 
@@ -14653,15 +14909,24 @@ def _macro_cycle_scan_compute(products):
     now = time.time()
     required = (*core, *_macro_atlas_priority_products())
     slice_size = MACRO_ATLAS_SLICE_SIZE + sum(
-        atlas.state(product, now) in {"cold", "expired"} for product in core if product in products
+        atlas.state(product, now) in {"cold", "expired"}
+        for product in core
+        if product in products
     )
     scanner.refresh_cycle_atlas_slice(
-        atlas, products, _macro_atlas_fetch, now=now,
-        slice_size=slice_size, required=required, clock=time.time,
+        atlas,
+        products,
+        _macro_atlas_fetch,
+        now=now,
+        slice_size=slice_size,
+        required=required,
+        clock=time.time,
     )
     # Prior-day candles can still contribute to cache coverage, but never to
     # a new regime, price mark or actionable cycle row.
-    fresh_products = [product for product in products if atlas.state(product, now) == "fresh"]
+    fresh_products = [
+        product for product in products if atlas.state(product, now) == "fresh"
+    ]
     payload = scanner.scan_universe_cycles(
         atlas.histories(fresh_products),
         members=scanner.ALT_INDEX_MEMBERS,
@@ -14709,34 +14974,45 @@ def _macro_scan_refresh(wanted, refresh_base, day):
             with _MACRO_SCAN_LOCK:
                 recent = (*wanted, *_MACRO_ATLAS_PRIORITY.get("requested", ()))
                 _MACRO_ATLAS_PRIORITY["requested"] = tuple(
-                    product for product in dict.fromkeys(recent)
+                    product
+                    for product in dict.fromkeys(recent)
                     if product in known and scanner.is_atlas_eligible(product)
                 )[:MACRO_SCAN_MAX_REQUESTED]
             products = _macro_scan_universe()
             payload = _macro_cycle_scan_compute(products)
             with _MACRO_SCAN_LOCK:
                 _MACRO_SCAN_STATE.update(
-                    payload=payload, computed_at=payload["computed_at"],
-                    day=day, products=tuple(products),
+                    payload=payload,
+                    computed_at=payload["computed_at"],
+                    day=day,
+                    products=tuple(products),
                 )
         with _MACRO_SCAN_LOCK:
             extras = _macro_scan_missing(wanted, _MACRO_SCAN_STATE, day)
         atlas = _MACRO_ATLAS
         now = time.time()
         if (
-            extras and atlas is not None and now >= atlas.backoff_until
-            and now - _MACRO_SCAN_STATE["supplement_at"] >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS
+            extras
+            and atlas is not None
+            and now >= atlas.backoff_until
+            and now - _MACRO_SCAN_STATE["supplement_at"]
+            >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS
         ):
             # Share the atlas's 429 backoff across public supplements and base slices.
             rows = {}
             for product in extras[:MACRO_SCAN_EXTRA_BATCH]:
                 try:
                     candles = _macro_atlas_fetch(product)
-                    row = scanner.cycle_row(product, candles, as_of_ts=day * 86400) if candles else None
+                    row = (
+                        scanner.cycle_row(product, candles, as_of_ts=day * 86400)
+                        if candles
+                        else None
+                    )
                     if row and row.get("available"):
                         btc = (
                             atlas.histories(["BTC-USD"]).get("BTC-USD")
-                            if atlas.state("BTC-USD", now) == "fresh" else None
+                            if atlas.state("BTC-USD", now) == "fresh"
+                            else None
                         )
                         scanner.annotate_cluster_and_beta(row, candles, btc)
                     rows[product] = row
@@ -14744,7 +15020,11 @@ def _macro_scan_refresh(wanted, refresh_base, day):
                     if scanner.is_atlas_rate_limit(exc):
                         atlas.record_rate_limit(time.time())
                         break
-                    logging.debug("[MacroScan] supplemental cycle read failed for %s", product, exc_info=True)
+                    logging.debug(
+                        "[MacroScan] supplemental cycle read failed for %s",
+                        product,
+                        exc_info=True,
+                    )
                     rows[product] = None
             with _MACRO_SCAN_LOCK:
                 if _MACRO_SCAN_STATE["supplement_day"] != day:
@@ -14753,7 +15033,10 @@ def _macro_scan_refresh(wanted, refresh_base, day):
                 _MACRO_SCAN_STATE["supplement_at"] = time.time()
                 if atlas.backoff_until > time.time():
                     payload = _MACRO_SCAN_STATE["payload"]
-                    _MACRO_SCAN_STATE["payload"] = {**payload, "atlas_retry_at": atlas.backoff_until}
+                    _MACRO_SCAN_STATE["payload"] = {
+                        **payload,
+                        "atlas_retry_at": atlas.backoff_until,
+                    }
     except Exception:
         logging.exception("[MacroScan] scan failed")
         with _MACRO_SCAN_LOCK:
@@ -14769,8 +15052,11 @@ def _macro_scan_missing(wanted, state, day):
     known = _macro_scan_known_products()
     supplements = state["supplements"] if state["supplement_day"] == day else {}
     return [
-        product for product in wanted
-        if product in known and product not in state["products"] and product not in supplements
+        product
+        for product in wanted
+        if product in known
+        and product not in state["products"]
+        and product not in supplements
         and is_atlas_eligible(product)
     ]
 
@@ -14783,10 +15069,13 @@ def _macro_scan_snapshot(wanted=(), *, allow_inline=True):
     with _MACRO_SCAN_LOCK:
         state = _MACRO_SCAN_STATE
         prior = state["payload"]
-        refresh_base = not _macro_scan_is_fresh(state, now) or _macro_atlas_wants_slice(state, now)
-        refresh_extra = (
-            now - state["supplement_at"] >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS
-            and bool(_macro_scan_missing(wanted, state, day))
+        refresh_base = not _macro_scan_is_fresh(state, now) or _macro_atlas_wants_slice(
+            state, now
+        )
+        refresh_extra = now - state[
+            "supplement_at"
+        ] >= MACRO_SCAN_EXTRA_INTERVAL_SECONDS and bool(
+            _macro_scan_missing(wanted, state, day)
         )
         if (
             (inline and not allow_inline)
@@ -14832,7 +15121,9 @@ def _macro_scan_response(payload, wanted, *, required=None):
     day = _macro_scan_day(now)
     with _MACRO_SCAN_LOCK:
         state = _MACRO_SCAN_STATE
-        extra_products = [product for product in wanted if product not in state["products"]]
+        extra_products = [
+            product for product in wanted if product not in state["products"]
+        ]
         extra_rows = {
             product: state["supplements"][product]
             for product in extra_products
@@ -14857,7 +15148,9 @@ def _macro_scan_response(payload, wanted, *, required=None):
                 row["active_target_tier"] = stage_tier
         additions.append(row)
     if additions:
-        coins = sorted([*payload["coins"], *additions], key=lambda row: row["product_id"])
+        coins = sorted(
+            [*payload["coins"], *additions], key=lambda row: row["product_id"]
+        )
         breadth = scanner.universe_breadth(coins)
         buckets = {
             name: sorted(
@@ -14867,7 +15160,10 @@ def _macro_scan_response(payload, wanted, *, required=None):
             for name in scanner.BUCKETS
         }
         payload = {
-            **payload, "coins": coins, "breadth": breadth, "buckets": buckets,
+            **payload,
+            "coins": coins,
+            "breadth": breadth,
+            "buckets": buckets,
             "scanned": breadth["coins"],
             "skipped": [row["symbol"] for row in coins if not row.get("available")],
         }
@@ -14877,7 +15173,11 @@ def _macro_scan_response(payload, wanted, *, required=None):
         "requested": payload["requested"] + len(extra_products),
         "unavailable": [
             *payload["unavailable"],
-            *(product for product in extra_products if product not in pending and extra_rows.get(product) is None),
+            *(
+                product
+                for product in extra_products
+                if product not in pending and extra_rows.get(product) is None
+            ),
         ],
         "pending": pending,
     }
@@ -14887,7 +15187,9 @@ def _macro_scan_response(payload, wanted, *, required=None):
         if not fresh or not core_and_priority_ready(scan, required):
             scan["status"] = "refreshing"
     if "market_snapshot" in payload:
-        scan["market_snapshot"] = scanner.market_snapshot(scan, payload["market_snapshot"]["as_of_ts"])
+        scan["market_snapshot"] = scanner.market_snapshot(
+            scan, payload["market_snapshot"]["as_of_ts"]
+        )
     return scan
 
 
@@ -16055,9 +16357,11 @@ def _compute_snapshots_from_cache():
             alert_delivery_dispatcher.dispatch_async(
                 notification_candidates(
                     delivery_events,
-                    # Background thread: allowed to refresh the portfolio
-                    # holdings cache over the network.
-                    priority_symbols=_notification_priority_symbols(fetch=True),
+                    # Cache-only read. A synchronous owner-portfolio refresh
+                    # here took ~25s and set the whole price loop's cadence;
+                    # _owner_portfolio_refresh_loop keeps the cache warm on
+                    # its own thread instead.
+                    priority_symbols=_notification_priority_symbols(fetch=False),
                 )
             )
 
@@ -16218,7 +16522,9 @@ def _compute_snapshots_from_cache():
             product_id = f"{symbol}-USD"
             row = {**quote, "symbol": symbol, "product_id": product_id}
             if row.get("pct_1h") is None and row.get("price"):
-                baseline = _db_baseline_for_window(product_id, int(quote.get("sample_ts") or now_s), "1h")
+                baseline = _db_baseline_for_window(
+                    product_id, int(quote.get("sample_ts") or now_s), "1h"
+                )
                 if baseline and baseline[1] > 0:
                     row["pct_1h"] = pct_change(row["price"], baseline[1])
             watchlist_quotes[symbol] = row
@@ -16409,16 +16715,17 @@ def background_crypto_updates():
     _fetch_prices_and_update_history()
     _compute_snapshots_from_cache()
 
-    last_fetch_time = time.time()
+    last_fetch_time = time.monotonic()
 
     while True:
+        loop_started = time.monotonic()
         try:
-            now = time.time()
-
             # Check if it's time to fetch fresh prices
-            if now - last_fetch_time >= CONFIG["PRICE_FETCH_INTERVAL"]:
+            if _price_fetch_due(
+                loop_started, last_fetch_time, CONFIG["PRICE_FETCH_INTERVAL"]
+            ):
+                last_fetch_time = loop_started
                 _fetch_prices_and_update_history()
-                last_fetch_time = now
 
             # Always recompute snapshots from cache
             _compute_snapshots_from_cache()
@@ -16426,8 +16733,35 @@ def background_crypto_updates():
         except Exception as e:
             logging.error(f"Error in background worker: {e}")
 
-        # Sleep for snapshot compute interval (fast cadence)
-        time.sleep(CONFIG["SNAPSHOT_COMPUTE_INTERVAL"])
+        # Pace to the compute interval in wall-clock time: the work already
+        # done this iteration counts toward it, so a cycle is ~interval rather
+        # than work + interval.
+        time.sleep(
+            _loop_sleep_seconds(
+                CONFIG["SNAPSHOT_COMPUTE_INTERVAL"],
+                time.monotonic() - loop_started,
+            )
+        )
+
+
+# Sleeping "interval - elapsed" can wake a few ms before the fetch interval
+# has strictly elapsed; without this slack the fetch would slip a whole cycle.
+_PRICE_FETCH_DUE_SLACK_S = 0.25
+_LOOP_MIN_SLEEP_S = 0.5
+
+
+def _price_fetch_due(now_s, last_fetch_s, interval_s):
+    """True when a price fetch is due, tolerating sub-second scheduling jitter."""
+    return (now_s - last_fetch_s) >= (float(interval_s) - _PRICE_FETCH_DUE_SLACK_S)
+
+
+def _loop_sleep_seconds(target_interval_s, elapsed_s):
+    """Sleep that paces an iteration to ``target_interval_s`` of wall time.
+
+    Never below ``_LOOP_MIN_SLEEP_S`` so an overrunning iteration still yields
+    instead of spinning.
+    """
+    return max(_LOOP_MIN_SLEEP_S, float(target_interval_s) - float(elapsed_s))
 
 
 # =============================================================================
@@ -16520,6 +16854,100 @@ def _maybe_start_alert_rules_scanner():
 
 
 # =============================================================================
+# OWNER PORTFOLIO REFRESHER
+# =============================================================================
+#
+# Notification prioritization reads the owner's held symbols from the
+# PortfolioService cache (fetch=False, never blocks). This thread is the only
+# thing that refreshes that cache over the network, so a slow or failing
+# Coinbase portfolio call can no longer stall the price/snapshot loop.
+#
+# held_symbols(fetch=False) reads the last good snapshot whatever its age, and a
+# failed refresh never clears it, so between refreshes (or during a Coinbase
+# outage) prioritization keeps the last known holdings rather than going empty.
+
+_MW_PORTFOLIO_THREAD = None
+_MW_PORTFOLIO_LOCK = threading.Lock()
+_MW_PORTFOLIO_STOP = threading.Event()
+_MW_PORTFOLIO_REFRESH_DEFAULT_S = 120.0
+_MW_PORTFOLIO_REFRESH_MIN_S = 30.0
+
+
+def _owner_portfolio_refresh_interval_s():
+    try:
+        value = float(
+            os.environ.get(
+                "MW_PORTFOLIO_REFRESH_SECONDS", _MW_PORTFOLIO_REFRESH_DEFAULT_S
+            )
+        )
+    except (TypeError, ValueError):
+        return _MW_PORTFOLIO_REFRESH_DEFAULT_S
+    return max(_MW_PORTFOLIO_REFRESH_MIN_S, value)
+
+
+def _owner_portfolio_refresh_once():
+    """Refresh the owner's holdings cache over the network. Never raises."""
+    try:
+        from portfolio_mode import owner_held_symbols
+
+        return owner_held_symbols(fetch=True)
+    except Exception as exc:
+        logging.warning("Owner portfolio refresh failed: %s", exc)
+        return set()
+
+
+def _owner_portfolio_refresh_loop(stop_event=None, interval_s=None):
+    """Warm the cache at once, then refresh every ``interval_s`` until stopped."""
+    stop_event = stop_event if stop_event is not None else _MW_PORTFOLIO_STOP
+    interval = (
+        float(interval_s)
+        if interval_s is not None
+        else _owner_portfolio_refresh_interval_s()
+    )
+    logging.info("Owner portfolio refresher started (every %.0fs)", interval)
+    while not stop_event.is_set():
+        started = time.monotonic()
+        try:
+            held = _owner_portfolio_refresh_once()
+            logging.info(
+                "Owner portfolio refreshed: %d held symbols in %.1fs",
+                len(held or ()),
+                time.monotonic() - started,
+            )
+        except Exception:
+            # _owner_portfolio_refresh_once never raises; this only guards the
+            # logging so nothing at all can end the thread.
+            logging.exception("Owner portfolio refresh cycle failed")
+        stop_event.wait(interval)
+
+
+def _maybe_start_owner_portfolio_refresher():
+    global _MW_PORTFOLIO_THREAD
+    if os.environ.get("MW_PORTFOLIO_REFRESH_ENABLED", "1") != "1":
+        logging.info(
+            "Owner portfolio refresher disabled via MW_PORTFOLIO_REFRESH_ENABLED"
+        )
+        return
+    with _MW_PORTFOLIO_LOCK:
+        if _MW_PORTFOLIO_THREAD is not None and _MW_PORTFOLIO_THREAD.is_alive():
+            return
+        try:
+            _MW_PORTFOLIO_STOP.clear()
+            t = threading.Thread(
+                target=_owner_portfolio_refresh_loop,
+                name="mw-owner-portfolio-refresh",
+            )
+            t.daemon = True
+            t.start()
+            _MW_PORTFOLIO_THREAD = t
+        except Exception as e:
+            logging.warning(f"Failed to start owner portfolio refresher: {e}")
+
+
+atexit.register(_MW_PORTFOLIO_STOP.set)
+
+
+# =============================================================================
 # BACKGROUND STARTUP (for `flask run`)
 # =============================================================================
 
@@ -16560,6 +16988,7 @@ def _mw_ensure_background_started():
 
     _maybe_start_1h_backfill()
     _maybe_start_alert_rules_scanner()
+    _maybe_start_owner_portfolio_refresher()
 
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
@@ -17187,16 +17616,24 @@ def _dev_component(name: str):
 @app.get("/api/watchlist-market/24h")
 def watchlist_market_24h():
     from watchlist_market import get_market_24h
+
     return jsonify(get_market_24h())
 
 
 @app.get("/api/watchlist-market/quotes")
 def watchlist_market_quotes():
-    from watchlist_market import get_equity_quotes, get_market_24h, get_spot_quotes, normalize_symbols
+    from watchlist_market import (
+        get_equity_quotes,
+        get_market_24h,
+        get_spot_quotes,
+        normalize_symbols,
+    )
 
     symbols = normalize_symbols(request.args.get("symbols", "").split(","))
     spot = get_spot_quotes(symbols)
-    equity = get_equity_quotes([symbol for symbol in symbols if symbol not in spot.get("quotes", {})])
+    equity = get_equity_quotes(
+        [symbol for symbol in symbols if symbol not in spot.get("quotes", {})]
+    )
     day = get_market_24h()
     quotes = {}
     now = int(time.time())
@@ -17210,19 +17647,45 @@ def watchlist_market_quotes():
             price_history_1hour[symbol].append((now, float(price)))
         except (KeyError, TypeError, ValueError):
             pass
-        row = {"symbol": symbol, "product_id": product_id, "price": price, "sample_ts": now}
+        row = {
+            "symbol": symbol,
+            "product_id": product_id,
+            "price": price,
+            "sample_ts": now,
+        }
         for key in ("1m", "3m", "1h"):
             baseline = _db_baseline_for_window(product_id, now, key)
-            row[f"pct_{key}"] = pct_change(price, baseline[1]) if baseline and baseline[1] > 0 else None
-            row[f"previous_price_{key}"] = baseline[1] if baseline and baseline[1] > 0 else None
+            row[f"pct_{key}"] = (
+                pct_change(price, baseline[1]) if baseline and baseline[1] > 0 else None
+            )
+            row[f"previous_price_{key}"] = (
+                baseline[1] if baseline and baseline[1] > 0 else None
+            )
         day_row = day.get("products", {}).get(product_id) or {}
         row["previous_price_24h"] = day_row.get("previous_price")
         row["pct_24h"] = day_row.get("pct_24h")
         quotes[symbol] = row
     for symbol, quote in equity.items():
-        quotes[symbol] = {"symbol": symbol, "product_id": symbol, "price": quote["price"], "sample_ts": now,
-                          "pct_1m": None, "pct_3m": None, "pct_1h": None, "previous_price_24h": quote.get("previous_price"), "pct_24h": quote.get("pct_24h")}
-    return jsonify({"quotes": quotes, "requested": len(symbols), "matched": len(quotes), "updated_at": spot.get("updated_at"), "stale": bool(spot.get("stale"))})
+        quotes[symbol] = {
+            "symbol": symbol,
+            "product_id": symbol,
+            "price": quote["price"],
+            "sample_ts": now,
+            "pct_1m": None,
+            "pct_3m": None,
+            "pct_1h": None,
+            "previous_price_24h": quote.get("previous_price"),
+            "pct_24h": quote.get("pct_24h"),
+        }
+    return jsonify(
+        {
+            "quotes": quotes,
+            "requested": len(symbols),
+            "matched": len(quotes),
+            "updated_at": spot.get("updated_at"),
+            "stale": bool(spot.get("stale")),
+        }
+    )
 
 
 if __name__ == "__main__":
