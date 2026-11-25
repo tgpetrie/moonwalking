@@ -7071,6 +7071,64 @@ def api_config():
 # =============================================================================
 
 
+COINBASE_MARKET_PRODUCTS_URL = (
+    "https://api.coinbase.com/api/v3/brokerage/market/products"
+)
+
+
+def _fetch_market_products_batch(timeout):
+    """Every online SPOT product with its last price, in one public request.
+
+    Returns ``{product_id: {"id", "quote_currency", "status", "price"}}`` with
+    exchange-``/products``-shaped keys so the universe selection below works on
+    it unchanged, or ``None`` when the batch is disabled or unusable (the
+    caller then falls back to ``/products`` + per-coin ``/ticker``).
+
+    The response is served through Cloudflare's edge cache, so a quiet pair can
+    trail ``/ticker`` by up to ~5s; the WebSocket overlay is applied first so
+    actively traded pairs keep tick-fresh prices. Only prices are taken from
+    here: its ``volume_24h`` is defined differently from ``/ticker``'s, and
+    volume stays on the candle path.
+    """
+    if os.environ.get("COINBASE_BATCH_PRICES", "1") != "1":
+        return None
+    try:
+        response = _coinbase_http().get(
+            COINBASE_MARKET_PRODUCTS_URL,
+            params={"product_type": "SPOT", "limit": 1000},
+            timeout=timeout,
+        )
+        if response.status_code != 200:
+            logging.warning("market/products batch HTTP %s", response.status_code)
+            return None
+        rows = (response.json() or {}).get("products") or []
+    except Exception as exc:
+        logging.warning("market/products batch unavailable: %s", exc)
+        return None
+
+    out = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        pid = row.get("product_id")
+        if not pid or row.get("is_disabled") or row.get("trading_disabled"):
+            continue
+        if str(row.get("status") or "").lower() != "online":
+            continue
+        try:
+            price = float(row.get("price") or 0)
+        except (TypeError, ValueError):
+            price = 0.0
+        out[pid] = {
+            "id": pid,
+            "quote_currency": row.get("quote_currency_id")
+            or str(pid).rsplit("-", 1)[-1],
+            "status": "online",
+            "price": price if price > 0 and math.isfinite(price) else None,
+        }
+    return out or None
+
+
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
     try:
@@ -7089,11 +7147,19 @@ def get_coinbase_prices():
             1.0, min(ticker_timeout, float(CONFIG.get("API_TIMEOUT", 10)))
         )
 
-        products_response = requests.get(
-            COINBASE_PRODUCTS_URL, timeout=products_timeout
-        )
-        if products_response.status_code == 200:
-            products = products_response.json()
+        # One batch request supplies both the product list and prices. If it
+        # is unavailable, fall back to /products + per-coin /ticker below.
+        batch_by_id = _fetch_market_products_batch(products_timeout)
+        if batch_by_id is not None:
+            products = list(batch_by_id.values())
+            products_ok = True
+        else:
+            products_response = requests.get(
+                COINBASE_PRODUCTS_URL, timeout=products_timeout
+            )
+            products_ok = products_response.status_code == 200
+            products = products_response.json() if products_ok else []
+        if products_ok:
             current_prices = {}
 
             # Filter to USD pairs only and prioritize major coins
@@ -7201,6 +7267,7 @@ def get_coinbase_prices():
             # only REST-fetch products the feed hasn't seen recently. With
             # the feed disabled or cold, this is a no-op and the REST path
             # below behaves exactly as before.
+            target_count = len(final_products)
             ws_hits = 0
             _ws_feed = None
             if coinbase_ws_get_feed is not None:
@@ -7227,6 +7294,26 @@ def get_coinbase_prices():
                     final_products = _rest_products
                 except Exception as exc:
                     logging.warning(f"coinbase-ws integration skipped: {exc}")
+
+            # Batch prices for everything the WebSocket did not cover. Only
+            # products the batch could not price fall through to /ticker
+            # (all of them when the batch was unavailable).
+            batch_hits = 0
+            if batch_by_id is not None:
+                _now_seen = time.time()
+                _rest_products = []
+                for product in final_products:
+                    _pid = str(product.get("id") or "")
+                    _row = batch_by_id.get(_pid) or {}
+                    _price = _row.get("price")
+                    if _price:
+                        _sym = _pid.split("-", 1)[0]
+                        current_prices[_sym] = _price
+                        _PRICE_LAST_SEEN_TS[_sym] = _now_seen
+                        batch_hits += 1
+                    else:
+                        _rest_products.append(product)
+                final_products = _rest_products
 
             # Use ThreadPoolExecutor for concurrent API calls
             def fetch_ticker(product):
@@ -7355,9 +7442,15 @@ def get_coinbase_prices():
                         except Exception:
                             pass
 
+            covered = ws_hits + batch_hits + ok
+            price_source = "batch" if batch_by_id is not None else "ticker"
             logging.info(
-                "price_fetch_stats: ws_hits=%d submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
+                "price_fetch_stats: source=%s covered=%d/%d ws_hits=%d batch_hits=%d submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
+                price_source,
+                covered,
+                target_count,
                 ws_hits,
+                batch_hits,
                 submitted,
                 ok,
                 http429,
@@ -7368,19 +7461,29 @@ def get_coinbase_prices():
                 deadline_seconds,
             )
             try:
-                ok_ratio = (float(ok) / float(submitted)) if submitted else 0.0
+                # Coverage across every source (WebSocket + batch + /ticker),
+                # so the ratio means "share of the target universe priced".
+                ok_ratio = (
+                    (float(covered) / float(target_count)) if target_count else 0.0
+                )
                 min_ratio = float(CONFIG.get("PRICE_MIN_SUCCESS_RATIO", 0.7) or 0.7)
-                partial = bool(deadline_hit or (submitted > 0 and ok_ratio < min_ratio))
+                partial = bool(
+                    deadline_hit or (target_count > 0 and ok_ratio < min_ratio)
+                )
                 partial_reason = None
                 if deadline_hit:
                     partial_reason = "deadline"
-                elif submitted > 0 and ok_ratio < min_ratio:
+                elif target_count > 0 and ok_ratio < min_ratio:
                     partial_reason = "low_coverage"
                 last_current_prices["partial"] = partial
                 last_current_prices["partial_reason"] = partial_reason
-                last_current_prices["ok"] = int(ok)
-                last_current_prices["submitted"] = int(submitted)
+                last_current_prices["ok"] = int(covered)
+                last_current_prices["submitted"] = int(target_count)
                 last_current_prices["ok_ratio"] = float(ok_ratio)
+                last_current_prices["price_source"] = price_source
+                last_current_prices["batch_hits"] = int(batch_hits)
+                last_current_prices["rest_ok"] = int(ok)
+                last_current_prices["rest_submitted"] = int(submitted)
                 last_current_prices["http429"] = int(http429)
                 last_current_prices["http5xx"] = int(http5xx)
                 last_current_prices["other"] = int(other)
